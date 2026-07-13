@@ -1,9 +1,11 @@
+use std::collections::HashSet;
+
 use proc_macro2::TokenStream;
 use quote::quote;
-use syn::{
-    Data, DeriveInput, Fields, GenericArgument, LitStr, PathArguments, Type, parse2,
-    spanned::Spanned,
-};
+    use syn::{
+        Data, DeriveInput, Fields, GenericArgument, LitStr, PathArguments, Token, Type, parse2,
+        parse::Parse, parse::ParseStream, spanned::Spanned,
+    };
 
 pub(crate) fn expand(input: TokenStream) -> syn::Result<TokenStream> {
     let input = parse2::<DeriveInput>(input)?;
@@ -16,6 +18,8 @@ pub(crate) fn expand(input: TokenStream) -> syn::Result<TokenStream> {
 
     let mut scope = quote!(::ironic::Scope::Singleton);
     let mut eager = false;
+    let mut optional_types: HashSet<String> = HashSet::new();
+
     for attribute in input
         .attrs
         .iter()
@@ -41,8 +45,14 @@ pub(crate) fn expand(input: TokenStream) -> syn::Result<TokenStream> {
                 };
                 return Ok(());
             }
+            if meta.path.is_ident("optional") {
+                let content = meta.value()?;
+                let list = content.parse::<OptionalTypes>()?;
+                optional_types = list.into_iter().collect();
+                return Ok(());
+            }
             Err(meta.error(
-                "supported options are `scope = \"singleton|transient|request\"` and `eager`",
+                "supported options are `scope = \"...\"`, `eager`, and `optional = [Type, ...]`",
             ))
         })?;
     }
@@ -55,10 +65,23 @@ pub(crate) fn expand(input: TokenStream) -> syn::Result<TokenStream> {
                 let mut initializers = Vec::new();
                 for field in &fields.named {
                     let field_name = field.ident.as_ref().expect("named field");
-                    let dependency = arc_inner(&field.ty)?;
-                    dependencies.push(quote!(::ironic::Dependency::required::<#dependency>()));
-                    initializers
-                        .push(quote!(#field_name: resolver.resolve::<#dependency>().await?));
+                    let inner_type = arc_inner(&field.ty)?;
+                    let inner_type_str = quote!(#inner_type).to_string();
+
+                    if optional_types.contains(&inner_type_str) {
+                        dependencies
+                            .push(quote!(::ironic::Dependency::optional::<#inner_type>()));
+                        initializers.push(quote!(
+                            #field_name: ::std::option::Option::Some(
+                                resolver.resolve_optional::<#inner_type>().await?
+                            )
+                        ));
+                    } else {
+                        dependencies
+                            .push(quote!(::ironic::Dependency::required::<#inner_type>()));
+                        initializers
+                            .push(quote!(#field_name: resolver.resolve::<#inner_type>().await?));
+                    }
                 }
                 (dependencies, quote!(Self { #(#initializers),* }))
             }
@@ -125,5 +148,33 @@ fn arc_inner(ty: &Type) -> syn::Result<&Type> {
             ty,
             "injectable fields must have type `Arc<T>`",
         )),
+    }
+}
+
+/// Parses `[Type, ...]` for the `optional` attribute.
+struct OptionalTypes(Vec<Type>);
+
+impl IntoIterator for OptionalTypes {
+    type Item = String;
+    type IntoIter = std::vec::IntoIter<String>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.0
+            .into_iter()
+            .map(|ty| quote!(#ty).to_string())
+            .collect::<Vec<_>>()
+            .into_iter()
+    }
+}
+
+impl Parse for OptionalTypes {
+    fn parse(input: ParseStream<'_>) -> syn::Result<Self> {
+        let content;
+        syn::bracketed!(content in input);
+        let items = content
+            .parse_terminated(Type::parse, Token![,])?
+            .into_iter()
+            .collect();
+        Ok(Self(items))
     }
 }

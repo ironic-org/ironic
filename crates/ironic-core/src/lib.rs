@@ -13,6 +13,8 @@ use std::{
     sync::Arc,
 };
 
+use std::sync::OnceLock;
+
 use ironic_di::{ContainerBuilder, ProviderDefinition, ProviderKey, RegistrationError};
 use ironic_http::{
     CompiledHttpApplication, ControllerDefinition, RequestTracing, RouteError,
@@ -116,6 +118,8 @@ pub struct ModuleDefinition {
     controllers: Vec<ControllerDefinition>,
     exports: Vec<ProviderKey>,
     lifecycle: Vec<LifecycleDefinition>,
+    /// When true, this module's exports are visible to every other module.
+    global: bool,
 }
 
 impl ModuleDefinition {
@@ -129,6 +133,7 @@ impl ModuleDefinition {
             controllers: Vec::new(),
             exports: Vec::new(),
             lifecycle: Vec::new(),
+            global: false,
         }
     }
 
@@ -147,6 +152,7 @@ pub struct ModuleDefinitionBuilder {
     controllers: Vec<ControllerDefinition>,
     exports: Vec<ProviderKey>,
     lifecycle: Vec<LifecycleDefinition>,
+    global: bool,
 }
 
 impl ModuleDefinitionBuilder {
@@ -225,6 +231,13 @@ impl ModuleDefinitionBuilder {
         self
     }
 
+    /// Marks this module's exports as globally visible without explicit imports.
+    #[must_use]
+    pub fn global(mut self) -> Self {
+        self.global = true;
+        self
+    }
+
     /// Completes the definition.
     #[must_use]
     pub fn build(self) -> ModuleDefinition {
@@ -235,6 +248,7 @@ impl ModuleDefinitionBuilder {
             controllers: self.controllers,
             exports: self.exports,
             lifecycle: self.lifecycle,
+            global: self.global,
         }
     }
 }
@@ -432,6 +446,75 @@ pub enum ModuleError {
         /// The invalid lifecycle provider.
         provider: ProviderKey,
     },
+}
+
+/// Runtime access to the dependency injection container for lazy resolution
+/// and dynamic provider access.
+///
+/// Register a provider for `ModuleRef` in any module and the framework will
+/// populate the container reference during application initialization.
+#[derive(Clone)]
+pub struct ModuleRef {
+    container: std::sync::Arc<OnceLock<ironic_di::Container>>,
+}
+
+impl ModuleRef {
+    /// Creates a new empty module reference.
+    #[must_use]
+    pub fn new() -> Self {
+        Self {
+            container: std::sync::Arc::new(OnceLock::new()),
+        }
+    }
+
+    /// Populates the container reference. Called once during application build.
+    pub(crate) fn set_container(&self, container: ironic_di::Container) {
+        let _ = self.container.set(container);
+    }
+
+    /// Resolves a provider by concrete type.
+    ///
+    /// # Errors
+    ///
+    /// Returns a resolve error when the container is not initialized or the
+    /// provider cannot be constructed.
+    pub async fn resolve<T: Send + Sync + 'static>(
+        &self,
+    ) -> Result<std::sync::Arc<T>, ironic_di::ResolveError> {
+        self.container
+            .get()
+            .ok_or_else(|| {
+                let key = ironic_di::ProviderKey::of::<T>();
+                ironic_di::ResolveError::MissingProvider {
+                    key,
+                    path: Vec::new(),
+                }
+            })?
+            .resolve::<T>()
+            .await
+    }
+
+    /// Resolves an optional provider, returning `None` when it is not registered.
+    ///
+    /// # Errors
+    ///
+    /// Returns a resolve error when the container is not initialized or a
+    /// registered provider fails to construct.
+    pub async fn resolve_optional<T: Send + Sync + 'static>(
+        &self,
+    ) -> Result<Option<std::sync::Arc<T>>, ironic_di::ResolveError> {
+        match self.resolve::<T>().await {
+            Ok(provider) => Ok(Some(provider)),
+            Err(ironic_di::ResolveError::MissingProvider { .. }) => Ok(None),
+            Err(error) => Err(error),
+        }
+    }
+}
+
+impl Default for ModuleRef {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 /// A failure while turning a validated module graph into HTTP runtime state.
@@ -663,6 +746,20 @@ fn compile_module(
         for key in &imported.exports {
             if !local.contains(key) {
                 imported_owners.entry(*key).or_default().push(import.id);
+            }
+        }
+    }
+
+    // Global module exports are visible to every other module.
+    for (other_id, other_def) in definitions {
+        if *other_id == id {
+            continue;
+        }
+        if other_def.global {
+            for key in &other_def.exports {
+                if !local.contains(key) {
+                    imported_owners.entry(*key).or_default().push(*other_id);
+                }
             }
         }
     }

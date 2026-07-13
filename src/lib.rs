@@ -31,6 +31,12 @@ mod di;
 ))]
 #[path = "../crates/ironic-distributed/src/lib.rs"]
 pub mod distributed;
+#[cfg(all(
+    feature = "cache",
+    any(feature = "redis", feature = "application-services")
+))]
+mod cache_interceptor;
+
 #[cfg(any(feature = "plugins", feature = "devtools"))]
 #[path = "../crates/ironic-devtools/src/lib.rs"]
 pub mod ecosystem;
@@ -66,14 +72,17 @@ pub use http_impl::{CacheMetadata, ExceptionFilter, FilterContext, VersionMetada
 pub use di::*;
 pub use http_impl::*;
 pub use ironic_macros::{
-    Injectable, Module, OpenApiSchema, Serializable, body, controller, custom, delete, get, head,
-    header, main, options, param, patch, pipe, post, put, query, routes, subscribe_message,
-    use_guard, use_interceptor, web_socket_gateway,
+    Injectable, Module, OpenApiSchema, Serializable, body, controller, cron, custom, delete, get,
+    head, header, interval, main, options, param, patch, pipe, post, put, query, routes,
+    subscribe_message, timeout, use_guard, use_interceptor, web_socket_gateway,
 };
 pub use openapi::*;
 pub use platform::*;
 pub use platform_axum::*;
 pub use testing::*;
+
+#[cfg(all(feature = "cache", any(feature = "redis", feature = "application-services")))]
+pub use cache_interceptor::CacheInterceptor;
 
 /// Implementation details used by generated code.
 #[doc(hidden)]
@@ -134,14 +143,16 @@ pub mod prelude {
         HttpPlatformAdapter, HttpPlatformApplication, Injectable, Interceptor, InterceptorNext,
         Json, JsonBody, LifecycleDefinition, Middleware, Module, ModuleDefinition,
         OnApplicationBootstrap, OnApplicationShutdown, OnModuleDestroy, OnModuleInit,
-        OpenApiSchema, ParameterPipe, PathParameter, PipelineFuture, ProviderDefinition,
+        ModuleRef, OpenApiSchema, ParameterPipe, PathParameter, PipelineFuture, ProviderDefinition,
         QueryParameters, RequestContext, RequestId, RequestScope, RequestTracing, RouteDefinition,
         RouteMetadata, Scope, Secret, SecretString, Serializable, ShutdownSignal,
         ValidateConfiguration, VersionMetadata, VersioningStrategy, WsGatewayDefinition, body,
-        controller, create_param_decorator, custom, delete, get, handler_fn, head, header, options,
-        param, patch, pipe, pipe_fn, post, put, query, routes, subscribe_message, use_guard,
-        use_interceptor, web_socket_gateway,
+        controller, create_param_decorator, cron, custom, delete, get, handler_fn, head, header,
+        interval, options, param, patch, pipe, pipe_fn, post, put, query, routes, subscribe_message,
+        timeout, use_guard, use_interceptor, web_socket_gateway,
     };
+    #[cfg(all(feature = "cache", any(feature = "redis", feature = "application-services")))]
+    pub use crate::cache_interceptor::CacheInterceptor;
     #[cfg(feature = "serialization")]
     pub use crate::{FieldRule, FieldRules, SerializeInterceptor, set_current_roles};
     #[cfg(feature = "validation")]

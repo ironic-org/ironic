@@ -18,7 +18,7 @@ pub fn derive_injectable(input: TokenStream) -> TokenStream {
         .into()
 }
 
-#[proc_macro_derive(Module, attributes(module))]
+#[proc_macro_derive(Module, attributes(module, global))]
 /// Derives a static application module definition.
 pub fn derive_module(input: TokenStream) -> TokenStream {
     module::expand(input.into())
@@ -94,6 +94,9 @@ marker_attribute!(
     subscribe_message,
     use_guard,
     use_interceptor,
+    cron,
+    interval,
+    timeout,
 );
 
 /// Configures an async entry point with Ironic's Tokio runtime.

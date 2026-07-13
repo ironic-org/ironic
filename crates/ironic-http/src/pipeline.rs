@@ -224,6 +224,7 @@ pub(crate) async fn execute(
     route: &CompiledRoute,
     context: &mut RequestContext,
 ) -> Result<FrameworkResponse, HttpError> {
+    context.set_route_metadata(route.metadata().clone());
     let state = ExecutionState { application, route };
     match run_middleware(&state, 0, context).await {
         Ok(response) => Ok(response),

@@ -76,7 +76,7 @@ compression = ["dep:tower-http"]
 versioning = []
 serialization = []
 validation = ["dep:garde"]
-cron = ["dep:cron"]
+cron = ["dep:cron", "dep:chrono"]
 custom-decorators = []
 transport-redis = ["dep:redis"]
 transport-rabbitmq = ["dep:lapin"]
@@ -156,6 +156,7 @@ async-graphql-value = { version = "=7.0.16", optional = true }
 tower-http = { workspace = true, optional = true }
 garde = { workspace = true, optional = true }
 cron = { workspace = true, optional = true }
+chrono = { workspace = true, optional = true }
 uuid = { workspace = true, optional = true }
 lapin = { workspace = true, optional = true }
 kafka = { workspace = true, optional = true }
@@ -208,6 +209,7 @@ tower-http = { version = "0.6.2", default-features = false, features = ["cors", 
 tracing = "0.1.43"
 garde = { version = "0.22.0", features = ["derive"] }
 cron = "0.15.0"
+chrono = { version = "0.4.42", features = ["serde"] }
 uuid = { version = "1.16.0", features = ["v4", "serde"] }
 lapin = { version = "2.5.1", default-features = false, features = ["rustls"] }
 kafka = { version = "0.10.0", default-features = false, features = ["snappy"] }

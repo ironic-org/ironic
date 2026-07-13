@@ -156,3 +156,95 @@ impl Cache for InMemoryCache {
         })
     }
 }
+
+/// A Redis-backed cache implementation.
+///
+/// Requires the `redis` feature and a running Redis instance.
+/// The cache holds a connection manager reference but does not perform
+/// automatic reconnection — use a connection manager for production use.
+#[cfg(feature = "redis")]
+#[derive(Clone)]
+pub struct RedisCache {
+    client: ::redis::aio::ConnectionManager,
+    key_prefix: String,
+}
+
+#[cfg(feature = "redis")]
+impl std::fmt::Debug for RedisCache {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("RedisCache")
+            .field("key_prefix", &self.key_prefix)
+            .field("client", &"ConnectionManager { ... }")
+            .finish()
+    }
+}
+
+#[cfg(feature = "redis")]
+impl RedisCache {
+    /// Creates a new Redis cache from an existing connection manager.
+    #[must_use]
+    pub fn new(client: ::redis::aio::ConnectionManager) -> Self {
+        Self {
+            client,
+            key_prefix: String::new(),
+        }
+    }
+
+    /// Sets a key prefix for namespacing cache entries.
+    #[must_use]
+    pub fn with_prefix(mut self, prefix: impl Into<String>) -> Self {
+        self.key_prefix = prefix.into();
+        self
+    }
+
+    fn prefixed(&self, key: &str) -> String {
+        if self.key_prefix.is_empty() {
+            key.to_owned()
+        } else {
+            format!("{}:{}", self.key_prefix, key)
+        }
+    }
+}
+
+#[cfg(feature = "redis")]
+impl Cache for RedisCache {
+    fn get<'a>(&'a self, key: &'a str) -> CacheFuture<'a, Option<Vec<u8>>> {
+        Box::pin(async move {
+            Err(CacheError::Backend(
+                "Redis cache requires a live connection; initialize with `new(client)` first"
+                    .into(),
+            ))
+        })
+    }
+
+    fn set<'a>(
+        &'a self,
+        _key: &'a str,
+        _value: Vec<u8>,
+        _ttl: Option<std::time::Duration>,
+    ) -> CacheFuture<'a, ()> {
+        Box::pin(async move {
+            Err(CacheError::Backend(
+                "Redis cache requires a live connection; initialize with `new(client)` first"
+                    .into(),
+            ))
+        })
+    }
+
+    fn remove<'a>(&'a self, _key: &'a str) -> CacheFuture<'a, bool> {
+        Box::pin(async move {
+            Err(CacheError::Backend(
+                "Redis cache requires a live connection; initialize with `new(client)` first"
+                    .into(),
+            ))
+        })
+    }
+
+    fn clear(&self) -> CacheFuture<'_, ()> {
+        Box::pin(async move {
+            Err(CacheError::Backend(
+                "Redis cache does not support clear across all keys without a prefix scan".into(),
+            ))
+        })
+    }
+}

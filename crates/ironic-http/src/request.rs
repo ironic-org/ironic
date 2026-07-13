@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use http::Extensions;
 
-use crate::{HeaderMap, HttpMethod, Uri};
+use crate::{HeaderMap, HttpMethod, RouteMetadata, Uri};
 
 /// An owned, transport-neutral HTTP request.
 #[derive(Debug)]
@@ -72,10 +72,19 @@ impl FrameworkRequest {
 }
 
 /// Mutable request state passed through extraction and handler dispatch.
-#[derive(Debug)]
 pub struct RequestContext {
     request: FrameworkRequest,
     extensions: Extensions,
+    route_metadata: Option<RouteMetadata>,
+}
+
+impl std::fmt::Debug for RequestContext {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("RequestContext")
+            .field("request", &self.request)
+            .field("route_metadata", &self.route_metadata.is_some())
+            .finish_non_exhaustive()
+    }
 }
 
 impl RequestContext {
@@ -85,7 +94,19 @@ impl RequestContext {
         Self {
             request,
             extensions: Extensions::new(),
+            route_metadata: None,
         }
+    }
+
+    /// Attaches route metadata for interceptor and handler access.
+    pub fn set_route_metadata(&mut self, metadata: RouteMetadata) {
+        self.route_metadata = Some(metadata);
+    }
+
+    /// Returns the route metadata attached to the current request, if any.
+    #[must_use]
+    pub fn route_metadata(&self) -> Option<&RouteMetadata> {
+        self.route_metadata.as_ref()
     }
 
     /// Returns the transport-neutral request.

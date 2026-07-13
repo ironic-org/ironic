@@ -53,6 +53,12 @@ pub(crate) fn expand(input: TokenStream) -> syn::Result<TokenStream> {
             "`Module` does not support generic module types",
         ));
     }
+
+    let has_global = input
+        .attrs
+        .iter()
+        .any(|attr| attr.path().is_ident("global"));
+
     let module_attributes: Vec<&Attribute> = input
         .attrs
         .iter()
@@ -76,6 +82,7 @@ pub(crate) fn expand(input: TokenStream) -> syn::Result<TokenStream> {
         .iter()
         .map(|ty| quote!(.controller(<#ty>::controller_definition())));
     let exports = args.exports.iter().map(|ty| quote!(.export::<#ty>()));
+    let global_call = has_global.then(|| quote!(.global()));
 
     Ok(quote! {
         impl ::ironic::Module for #name {
@@ -85,6 +92,7 @@ pub(crate) fn expand(input: TokenStream) -> syn::Result<TokenStream> {
                     #(#providers)*
                     #(#controllers)*
                     #(#exports)*
+                    #global_call
                     .build()
             }
         }

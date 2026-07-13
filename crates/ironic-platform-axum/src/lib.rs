@@ -12,7 +12,7 @@ use axum::{
 use futures_util::FutureExt;
 use ironic_http::{
     CompiledHttpApplication, CompiledRoute, FrameworkBody, FrameworkRequest, FrameworkResponse,
-    HttpError, HttpMethod, HttpStatus, IntoFrameworkResponse, RequestContext,
+    HttpError, HttpMethod, HttpStatus, IntoFrameworkResponse, RequestContext, VersioningStrategy,
 };
 use ironic_platform::{
     HttpPlatformAdapter, HttpPlatformApplication, PlatformFuture, Shutdown, ShutdownSignal,
@@ -207,12 +207,38 @@ fn register_route(
     request_timeout: Duration,
 ) -> Result<Router, AxumPlatformError> {
     let method = method_filter(route.method())?;
-    let native_path = native_path(route.path());
+    let native_path = native_path(&route.versioned_path());
+    let version = route.version();
     let route = Arc::new(route);
     let handler = move |Path(parameters): Path<HashMap<String, String>>, request: Request| {
         let application = Arc::clone(&application);
         let route = Arc::clone(&route);
+        let version = version.clone();
         async move {
+            // Header / media-type version check
+            if let Some(ref v) = version {
+                match v.strategy {
+                    VersioningStrategy::Uri => {} // already handled by path prefix
+                    VersioningStrategy::Header => {
+                        if !matches_header_version(&request, v) {
+                            return error_response(HttpError::new(
+                                HttpStatus::NOT_FOUND,
+                                "RF_HTTP_VERSION_MISMATCH",
+                                "No route matches the requested API version",
+                            ));
+                        }
+                    }
+                    VersioningStrategy::MediaType => {
+                        if !matches_media_type_version(&request, v) {
+                            return error_response(HttpError::new(
+                                HttpStatus::NOT_FOUND,
+                                "RF_HTTP_VERSION_MISMATCH",
+                                "No route matches the requested API version",
+                            ));
+                        }
+                    }
+                }
+            }
             match tokio::time::timeout(
                 request_timeout,
                 execute_route(application, route, parameters, request, body_limit),
@@ -229,6 +255,23 @@ fn register_route(
         }
     };
     Ok(router.route(&native_path, on(method, handler)))
+}
+
+fn matches_header_version(request: &Request, version: &ironic_http::VersionMetadata) -> bool {
+    request
+        .headers()
+        .get("accept-version")
+        .and_then(|v| v.to_str().ok())
+        .is_some_and(|v| v == version.version)
+}
+
+fn matches_media_type_version(request: &Request, version: &ironic_http::VersionMetadata) -> bool {
+    let pattern = format!("vnd.api.v{}+json", version.version);
+    request
+        .headers()
+        .get("accept")
+        .and_then(|v| v.to_str().ok())
+        .is_some_and(|v| v.contains(&pattern))
 }
 
 async fn execute_route(
@@ -605,5 +648,280 @@ mod tests {
             AxumAdapter::new().build(Arc::new(app)),
             Err(AxumPlatformError::UnsupportedMethod { .. })
         ));
+    }
+
+    // ------------------------------------------------------------------
+    // API versioning tests
+    // ------------------------------------------------------------------
+
+    #[tokio::test]
+    async fn uri_versioning_prefixes_routes() {
+        let provider = ProviderDefinition::constructor(Scope::Singleton, Vec::new(), |_resolver| {
+            Ok(UsersController {
+                users: Arc::new(UsersService {
+                    user: User { id: 1, name: "Ada" },
+                }),
+            })
+        });
+        let route = RouteDefinition::new(
+            HttpMethod::GET,
+            "/profile",
+            "profile",
+            handler_fn(|_controller: Arc<UsersController>, _arguments| async {
+                Ok::<_, HttpError>("uri-versioned")
+            }),
+        )
+        .unwrap();
+        let controller = ControllerDefinition::new::<UsersController>("/users", provider)
+            .unwrap()
+            .version(ironic_http::VersionMetadata::new(
+                "1",
+                VersioningStrategy::Uri,
+            ))
+            .route(route);
+        let mut container = ContainerBuilder::new();
+        container.register(controller.provider().clone()).unwrap();
+        let application = Arc::new(CompiledHttpApplication::new(
+            container.build(),
+            compile_controller_routes([controller]).unwrap(),
+        ));
+        let router = AxumAdapter::new().build(application).unwrap().into_router();
+
+        // Versioned path should work
+        let response = router
+            .clone()
+            .oneshot(Request::get("/v1/users/profile").body(Body::empty()).unwrap())
+            .await
+            .unwrap();
+        assert_eq!(response.status(), HttpStatus::OK);
+        let body = to_bytes(response.into_body(), usize::MAX).await.unwrap();
+        assert_eq!(&body[..], b"uri-versioned");
+
+        // Non-versioned path should 404
+        let response = router
+            .oneshot(Request::get("/users/profile").body(Body::empty()).unwrap())
+            .await
+            .unwrap();
+        assert_eq!(response.status(), HttpStatus::NOT_FOUND);
+    }
+
+    #[tokio::test]
+    async fn header_versioning_matches_accept_header() {
+        let provider = ProviderDefinition::constructor(Scope::Singleton, Vec::new(), |_resolver| {
+            Ok(UsersController {
+                users: Arc::new(UsersService {
+                    user: User { id: 1, name: "Ada" },
+                }),
+            })
+        });
+        let route = RouteDefinition::new(
+            HttpMethod::GET,
+            "/resource",
+            "resource",
+            handler_fn(|_controller: Arc<UsersController>, _arguments| async {
+                Ok::<_, HttpError>("header-versioned")
+            }),
+        )
+        .unwrap();
+        let controller = ControllerDefinition::new::<UsersController>("/api", provider)
+            .unwrap()
+            .version(ironic_http::VersionMetadata::new(
+                "2",
+                VersioningStrategy::Header,
+            ))
+            .route(route);
+        let mut container = ContainerBuilder::new();
+        container.register(controller.provider().clone()).unwrap();
+        let application = Arc::new(CompiledHttpApplication::new(
+            container.build(),
+            compile_controller_routes([controller]).unwrap(),
+        ));
+        let router = AxumAdapter::new().build(application).unwrap().into_router();
+
+        // Matching header should succeed
+        let response = router
+            .clone()
+            .oneshot(
+                Request::get("/api/resource")
+                    .header("accept-version", "2")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(response.status(), HttpStatus::OK);
+
+        // Mismatched header should 404
+        let response = router
+            .clone()
+            .oneshot(
+                Request::get("/api/resource")
+                    .header("accept-version", "3")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(response.status(), HttpStatus::NOT_FOUND);
+
+        // Missing header should 404
+        let response = router
+            .oneshot(Request::get("/api/resource").body(Body::empty()).unwrap())
+            .await
+            .unwrap();
+        assert_eq!(response.status(), HttpStatus::NOT_FOUND);
+    }
+
+    #[tokio::test]
+    async fn media_type_versioning_matches_accept_header() {
+        let provider = ProviderDefinition::constructor(Scope::Singleton, Vec::new(), |_resolver| {
+            Ok(UsersController {
+                users: Arc::new(UsersService {
+                    user: User { id: 1, name: "Ada" },
+                }),
+            })
+        });
+        let route = RouteDefinition::new(
+            HttpMethod::GET,
+            "/data",
+            "data",
+            handler_fn(|_controller: Arc<UsersController>, _arguments| async {
+                Ok::<_, HttpError>("media-type-versioned")
+            }),
+        )
+        .unwrap();
+        let controller = ControllerDefinition::new::<UsersController>("/svc", provider)
+            .unwrap()
+            .version(ironic_http::VersionMetadata::new(
+                "1",
+                VersioningStrategy::MediaType,
+            ))
+            .route(route);
+        let mut container = ContainerBuilder::new();
+        container.register(controller.provider().clone()).unwrap();
+        let application = Arc::new(CompiledHttpApplication::new(
+            container.build(),
+            compile_controller_routes([controller]).unwrap(),
+        ));
+        let router = AxumAdapter::new().build(application).unwrap().into_router();
+
+        // Matching media type should succeed
+        let response = router
+            .clone()
+            .oneshot(
+                Request::get("/svc/data")
+                    .header("accept", "application/vnd.api.v1+json")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(response.status(), HttpStatus::OK);
+
+        // Mismatched media type should 404
+        let response = router
+            .clone()
+            .oneshot(
+                Request::get("/svc/data")
+                    .header("accept", "application/vnd.api.v2+json")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(response.status(), HttpStatus::NOT_FOUND);
+
+        // Missing header should 404
+        let response = router
+            .oneshot(Request::get("/svc/data").body(Body::empty()).unwrap())
+            .await
+            .unwrap();
+        assert_eq!(response.status(), HttpStatus::NOT_FOUND);
+    }
+
+    #[tokio::test]
+    async fn multiple_uri_versions_coexist() {
+        struct V1Controller {
+            _users: Arc<UsersService>,
+        }
+        struct V2Controller {
+            _users: Arc<UsersService>,
+        }
+
+        let v1_provider =
+            ProviderDefinition::constructor(Scope::Singleton, Vec::new(), |_resolver| {
+                Ok(V1Controller {
+                    _users: Arc::new(UsersService {
+                        user: User { id: 1, name: "Ada" },
+                    }),
+                })
+            });
+        let v2_provider =
+            ProviderDefinition::constructor(Scope::Singleton, Vec::new(), |_resolver| {
+                Ok(V2Controller {
+                    _users: Arc::new(UsersService {
+                        user: User { id: 1, name: "Ada" },
+                    }),
+                })
+            });
+
+        let v1_route = RouteDefinition::new(
+            HttpMethod::GET,
+            "/items",
+            "items_v1",
+            handler_fn(|_controller: Arc<V1Controller>, _arguments| async {
+                Ok::<_, HttpError>("v1-response")
+            }),
+        )
+        .unwrap();
+        let v2_route = RouteDefinition::new(
+            HttpMethod::GET,
+            "/items",
+            "items_v2",
+            handler_fn(|_controller: Arc<V2Controller>, _arguments| async {
+                Ok::<_, HttpError>("v2-response")
+            }),
+        )
+        .unwrap();
+
+        let v1_controller =
+            ControllerDefinition::new::<V1Controller>("/api", v1_provider)
+                .unwrap()
+                .version(ironic_http::VersionMetadata::new("1", VersioningStrategy::Uri))
+                .route(v1_route);
+        let v2_controller =
+            ControllerDefinition::new::<V2Controller>("/api", v2_provider)
+                .unwrap()
+                .version(ironic_http::VersionMetadata::new("2", VersioningStrategy::Uri))
+                .route(v2_route);
+
+        let mut container = ContainerBuilder::new();
+        container.register(v1_controller.provider().clone()).unwrap();
+        container.register(v2_controller.provider().clone()).unwrap();
+        let application = Arc::new(CompiledHttpApplication::new(
+            container.build(),
+            compile_controller_routes([v1_controller, v2_controller]).unwrap(),
+        ));
+        let router = AxumAdapter::new().build(application).unwrap().into_router();
+
+        // v1 response
+        let response = router
+            .clone()
+            .oneshot(Request::get("/v1/api/items").body(Body::empty()).unwrap())
+            .await
+            .unwrap();
+        assert_eq!(response.status(), HttpStatus::OK);
+        let body = to_bytes(response.into_body(), usize::MAX).await.unwrap();
+        assert_eq!(&body[..], b"v1-response");
+
+        // v2 response
+        let response = router
+            .clone()
+            .oneshot(Request::get("/v2/api/items").body(Body::empty()).unwrap())
+            .await
+            .unwrap();
+        assert_eq!(response.status(), HttpStatus::OK);
+        let body = to_bytes(response.into_body(), usize::MAX).await.unwrap();
+        assert_eq!(&body[..], b"v2-response");
     }
 }

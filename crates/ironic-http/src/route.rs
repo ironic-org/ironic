@@ -10,6 +10,7 @@ use ironic_di::{Container, Dependency, ProviderDefinition, ProviderKey, Provider
 use crate::{
     ErasedHandler, FrameworkResponse, Guard, HandlerArguments, HttpError, HttpMethod, Interceptor,
     Middleware, ParameterExtractor, ParameterPipe, PipelineComponents, RequestContext,
+    VersionMetadata,
 };
 
 #[derive(Clone)]
@@ -197,6 +198,13 @@ impl RouteDefinition {
         self
     }
 
+    /// Registers a route-level exception filter.
+    #[must_use]
+    pub fn exception_filter(mut self, filter: Arc<dyn crate::ExceptionFilter>) -> Self {
+        self.pipeline = self.pipeline.exception_filter(filter);
+        self
+    }
+
     /// Registers a global-level pipe for all parameters of this route.
     #[must_use]
     #[allow(clippy::needless_pass_by_value)]
@@ -338,6 +346,13 @@ impl ControllerDefinition {
         self
     }
 
+    /// Registers a controller-level exception filter.
+    #[must_use]
+    pub fn exception_filter(mut self, filter: Arc<dyn crate::ExceptionFilter>) -> Self {
+        self.pipeline = self.pipeline.exception_filter(filter);
+        self
+    }
+
     /// Registers a controller-level pipe applied to all route parameters.
     #[must_use]
     pub fn pipe(mut self, pipe: Arc<dyn ParameterPipe>) -> Self {
@@ -459,6 +474,20 @@ impl CompiledRoute {
         &self.metadata
     }
 
+    /// Returns the version metadata if the route is versioned.
+    #[must_use]
+    pub fn version(&self) -> Option<crate::VersionMetadata> {
+        self.metadata.get::<crate::VersionMetadata>().cloned()
+    }
+
+    /// Returns the route path, with the version prefix prepended when URI versioning is active.
+    #[must_use]
+    pub fn versioned_path(&self) -> String {
+        self.version()
+            .filter(|v| v.strategy == crate::VersioningStrategy::Uri)
+            .map_or_else(|| self.path.clone(), |v| format!("{}{}", v.uri_prefix(), self.path))
+    }
+
     /// Extracts parameters and invokes the erased handler.
     ///
     /// # Errors
@@ -551,13 +580,21 @@ impl CompiledHttpApplication {
         self
     }
 
+    /// Registers a global exception filter that runs if route filters do not handle the error.
+    #[must_use]
+    pub fn exception_filter(mut self, filter: Arc<dyn crate::ExceptionFilter>) -> Self {
+        self.pipeline = self.pipeline.exception_filter(filter);
+        self
+    }
+
     /// Registers a global pipe applied to every parameter of every route.
+    /// Global pipes execute before controller and route-level pipes.
     #[must_use]
     pub fn pipe(mut self, pipe: &Arc<dyn ParameterPipe>) -> Self {
         let mut routes = self.routes.to_vec();
         for route in &mut routes {
             for param in &mut route.parameters {
-                param.pipes.push(Arc::clone(pipe));
+                param.pipes.insert(0, Arc::clone(pipe));
             }
         }
         self.routes = routes.into();
@@ -607,7 +644,13 @@ pub fn compile_controller_routes(
     let mut seen = HashSet::new();
     for controller in controllers {
         for route in controller.compile_routes()? {
-            if !seen.insert((route.method.clone(), route.path.clone())) {
+            // Include version metadata in the dedup key so routes at
+            // different API versions are allowed to share the same path.
+            let version = route
+                .metadata
+                .get::<VersionMetadata>()
+                .map(|v| (v.version.clone(), v.strategy.clone()));
+            if !seen.insert((route.method.clone(), route.path.clone(), version)) {
                 return Err(RouteError::DuplicateRoute {
                     method: route.method,
                     path: route.path,

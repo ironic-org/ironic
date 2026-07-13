@@ -1,8 +1,8 @@
 use std::{any::type_name, fmt, future::Future, marker::PhantomData, pin::Pin, sync::Arc};
 
 use crate::{
-    CompiledHttpApplication, CompiledRoute, ExtractedValue, FrameworkResponse, HttpError,
-    RequestContext,
+    CompiledHttpApplication, CompiledRoute, ExceptionFilterSet, ExtractedValue, FrameworkResponse,
+    HttpError, RequestContext,
 };
 
 /// The asynchronous result of middleware or interceptor execution.
@@ -119,6 +119,7 @@ pub struct PipelineComponents {
     pub(crate) middleware: Vec<Arc<dyn Middleware>>,
     pub(crate) guards: Vec<Arc<dyn Guard>>,
     pub(crate) interceptors: Vec<Arc<dyn Interceptor>>,
+    pub(crate) exception_filters: ExceptionFilterSet,
 }
 
 impl fmt::Debug for PipelineComponents {
@@ -128,6 +129,7 @@ impl fmt::Debug for PipelineComponents {
             .field("middleware_count", &self.middleware.len())
             .field("guard_count", &self.guards.len())
             .field("interceptor_count", &self.interceptors.len())
+            .field("exception_filter_count", &self.exception_filters.len())
             .finish()
     }
 }
@@ -140,6 +142,7 @@ impl PipelineComponents {
             middleware: Vec::new(),
             guards: Vec::new(),
             interceptors: Vec::new(),
+            exception_filters: ExceptionFilterSet::new(),
         }
     }
 
@@ -164,10 +167,18 @@ impl PipelineComponents {
         self
     }
 
+    /// Registers an exception filter at this scope.
+    #[must_use]
+    pub fn exception_filter(mut self, filter: Arc<dyn crate::ExceptionFilter>) -> Self {
+        self.exception_filters.push(filter);
+        self
+    }
+
     pub(crate) fn append(&mut self, other: &Self) {
         self.middleware.extend(other.middleware.iter().cloned());
         self.guards.extend(other.guards.iter().cloned());
         self.interceptors.extend(other.interceptors.iter().cloned());
+        self.exception_filters.append(&mut other.exception_filters.clone());
     }
 }
 
@@ -214,7 +225,23 @@ pub(crate) async fn execute(
     context: &mut RequestContext,
 ) -> Result<FrameworkResponse, HttpError> {
     let state = ExecutionState { application, route };
-    run_middleware(&state, 0, context).await
+    match run_middleware(&state, 0, context).await {
+        Ok(response) => Ok(response),
+        Err(error) => {
+            let filter_ctx = crate::FilterContext::new(route.metadata().clone());
+            // Route-level filters (includes controller filters, most specific first)
+            if let Some(result) = route.pipeline().exception_filters.catch(&error, &filter_ctx) {
+                return result;
+            }
+            // Global-level filters
+            if let Some(result) =
+                application.pipeline().exception_filters.catch(&error, &filter_ctx)
+            {
+                return result;
+            }
+            Err(error)
+        }
+    }
 }
 
 fn run_middleware<'a>(
@@ -755,5 +782,499 @@ mod tests {
             .into_framework_response()
             .unwrap();
         assert_eq!(response.status(), HttpStatus::FORBIDDEN);
+    }
+
+    // ------------------------------------------------------------------
+    // Pipe registration tests (global, controller, and route-level)
+    // ------------------------------------------------------------------
+
+    struct LabeledRecordingPipe {
+        events: Events,
+        label: &'static str,
+        fail: bool,
+    }
+
+    impl ParameterPipe for LabeledRecordingPipe {
+        fn transform<'a>(
+            &'a self,
+            value: ExtractedValue,
+            _context: &'a mut RequestContext,
+        ) -> PipeFuture<'a> {
+            Box::pin(async move {
+                push(&self.events, self.label);
+                if self.fail {
+                    Err(HttpError::unprocessable_entity(
+                        "TEST_VALIDATION_FAILED",
+                        "validation failed",
+                    ))
+                } else {
+                    Ok(value)
+                }
+            })
+        }
+
+        fn description(&self) -> &'static str {
+            self.label
+        }
+    }
+
+    fn labeled_pipe(events: &Events, label: &'static str) -> Arc<dyn ParameterPipe> {
+        Arc::new(LabeledRecordingPipe {
+            events: events.clone(),
+            label,
+            fail: false,
+        })
+    }
+
+    fn pipe_fixture() -> (CompiledHttpApplication, Events) {
+        let events = Arc::new(Mutex::new(Vec::new()));
+        let handler_events = Arc::clone(&events);
+        let route = RouteDefinition::new(
+            HttpMethod::GET,
+            "/pipe-test",
+            "pipe_test",
+            handler_fn(move |_controller: Arc<Controller>, mut arguments| {
+                let events = Arc::clone(&handler_events);
+                async move {
+                    push(&events, "handler");
+                    let _value = arguments.take::<u64>(0)?;
+                    Ok(FrameworkResponse::empty(HttpStatus::NO_CONTENT))
+                }
+            }),
+        )
+        .unwrap()
+        .parameter_with_pipe(
+            RecordingExtractor {
+                events: Arc::clone(&events),
+                fail: false,
+            },
+            labeled_pipe(&events, "route-pipe"),
+        );
+
+        let provider = ProviderDefinition::constructor(Scope::Singleton, Vec::new(), |_resolver| {
+            Ok(Controller)
+        });
+        let controller = ControllerDefinition::new::<Controller>("/", provider)
+            .unwrap()
+            .pipe(labeled_pipe(&events, "controller-pipe"))
+            .route(route);
+
+        let mut container = ContainerBuilder::new();
+        container.register(controller.provider().clone()).unwrap();
+        let routes = compile_controller_routes([controller]).unwrap();
+        let application = CompiledHttpApplication::new(container.build(), routes)
+            .pipe(&labeled_pipe(&events, "global-pipe"));
+
+        (application, events)
+    }
+
+    #[tokio::test]
+    async fn global_pipe_applies_to_all_parameters() {
+        let (application, events) = pipe_fixture();
+        let mut context = request_context();
+        let result = application
+            .execute(&application.routes()[0], &mut context)
+            .await;
+        assert!(result.is_ok());
+        let events = events.lock().unwrap().clone();
+        assert!(
+            events.contains(&"global-pipe"),
+            "global-pipe should execute"
+        );
+    }
+
+    #[tokio::test]
+    async fn controller_pipe_applies_to_all_route_parameters() {
+        let (application, events) = pipe_fixture();
+        let mut context = request_context();
+        let result = application
+            .execute(&application.routes()[0], &mut context)
+            .await;
+        assert!(result.is_ok());
+        let events = events.lock().unwrap().clone();
+        assert!(
+            events.contains(&"controller-pipe"),
+            "controller-pipe should execute"
+        );
+    }
+
+    #[tokio::test]
+    async fn all_pipe_levels_execute_in_order() {
+        let (application, events) = pipe_fixture();
+        let mut context = request_context();
+        let result = application
+            .execute(&application.routes()[0], &mut context)
+            .await;
+        assert!(result.is_ok());
+        let events = events.lock().unwrap().clone();
+
+        let pipe_events: Vec<&str> = events
+            .iter()
+            .filter(|e| e.ends_with("-pipe"))
+            .copied()
+            .collect();
+        assert_eq!(
+            pipe_events,
+            vec!["global-pipe", "controller-pipe", "route-pipe"],
+            "pipes should execute in order: global -> controller -> route"
+        );
+    }
+
+    #[tokio::test]
+    async fn global_pipe_failure_stops_pipeline() {
+        let events = Arc::new(Mutex::new(Vec::new()));
+        let handler_events = Arc::clone(&events);
+        let failing_pipe: Arc<dyn ParameterPipe> = Arc::new(LabeledRecordingPipe {
+            events: events.clone(),
+            label: "failing-global-pipe",
+            fail: true,
+        });
+
+        let route = RouteDefinition::new(
+            HttpMethod::GET,
+            "/pipe-fail",
+            "pipe_fail",
+            handler_fn(move |_controller: Arc<Controller>, mut arguments| {
+                let events = Arc::clone(&handler_events);
+                async move {
+                    push(&events, "handler");
+                    let _value = arguments.take::<u64>(0)?;
+                    Ok(FrameworkResponse::empty(HttpStatus::NO_CONTENT))
+                }
+            }),
+        )
+        .unwrap()
+        .parameter_with_pipe(
+            RecordingExtractor {
+                events: Arc::clone(&events),
+                fail: false,
+            },
+            labeled_pipe(&events, "route-pipe"),
+        );
+
+        let provider = ProviderDefinition::constructor(Scope::Singleton, Vec::new(), |_resolver| {
+            Ok(Controller)
+        });
+        let controller = ControllerDefinition::new::<Controller>("/", provider)
+            .unwrap()
+            .route(route);
+
+        let mut container = ContainerBuilder::new();
+        container.register(controller.provider().clone()).unwrap();
+        let routes = compile_controller_routes([controller]).unwrap();
+        let application =
+            CompiledHttpApplication::new(container.build(), routes).pipe(&failing_pipe);
+
+        let mut context = request_context();
+        let result = application
+            .execute(&application.routes()[0], &mut context)
+            .await;
+        assert_eq!(result.unwrap_err().code(), "TEST_VALIDATION_FAILED");
+    }
+
+    // ------------------------------------------------------------------
+    // Exception filter tests
+    // ------------------------------------------------------------------
+
+    struct RecordingExceptionFilter {
+        events: Events,
+        code: &'static str,
+        handled: bool,
+    }
+
+    impl crate::ExceptionFilter for RecordingExceptionFilter {
+        fn catch(
+            &self,
+            error: &HttpError,
+            _context: &crate::FilterContext,
+        ) -> Result<FrameworkResponse, HttpError> {
+            push(&self.events, self.code);
+            if self.handled && error.code() == self.code {
+                Ok(FrameworkResponse::empty(HttpStatus::IM_A_TEAPOT))
+            } else {
+                Err(HttpError::bad_request("UNHANDLED", "not handled"))
+            }
+        }
+    }
+
+    fn exception_filter_fixture() -> (CompiledHttpApplication, Events) {
+        let events = Arc::new(Mutex::new(Vec::new()));
+        let handler_events = Arc::clone(&events);
+
+        // Route that always fails with a specific error code
+        let route = RouteDefinition::new(
+            HttpMethod::GET,
+            "/filter",
+            "filter_test",
+            handler_fn(move |_controller: Arc<Controller>, _arguments| {
+                let events = Arc::clone(&handler_events);
+                async move {
+                    push(&events, "handler");
+                    Err::<FrameworkResponse, HttpError>(HttpError::internal(
+                        "SPECIFIC_ERROR",
+                        "specific error",
+                    ))
+                }
+            }),
+        )
+        .unwrap()
+        .parameter(RecordingExtractor {
+            events: Arc::clone(&events),
+            fail: false,
+        });
+
+        let provider = ProviderDefinition::constructor(Scope::Singleton, Vec::new(), |_resolver| {
+            Ok(Controller)
+        });
+        let controller = ControllerDefinition::new::<Controller>("/", provider)
+            .unwrap()
+            .route(route);
+
+        let mut container = ContainerBuilder::new();
+        container.register(controller.provider().clone()).unwrap();
+        let routes = compile_controller_routes([controller]).unwrap();
+        let application = CompiledHttpApplication::new(container.build(), routes);
+        (application, events)
+    }
+
+    #[tokio::test]
+    async fn route_exception_filter_catches_error() {
+        let events = Arc::new(Mutex::new(Vec::new()));
+        let handler_events = Arc::clone(&events);
+
+        let filter = Arc::new(RecordingExceptionFilter {
+            events: events.clone(),
+            code: "SPECIFIC_ERROR",
+            handled: true,
+        });
+
+        let route = RouteDefinition::new(
+            HttpMethod::GET,
+            "/filter-route",
+            "filter_route",
+            handler_fn(move |_controller: Arc<Controller>, _arguments| {
+                let events = Arc::clone(&handler_events);
+                async move {
+                    push(&events, "handler");
+                    let err: Result<FrameworkResponse, HttpError> =
+                        Err(HttpError::internal("SPECIFIC_ERROR", "specific error"));
+                    err
+                }
+            }),
+        )
+        .unwrap()
+        .parameter(RecordingExtractor {
+            events: Arc::clone(&events),
+            fail: false,
+        })
+        .exception_filter(filter);
+
+        let provider = ProviderDefinition::constructor(Scope::Singleton, Vec::new(), |_resolver| {
+            Ok(Controller)
+        });
+        let controller = ControllerDefinition::new::<Controller>("/", provider)
+            .unwrap()
+            .route(route);
+
+        let mut container = ContainerBuilder::new();
+        container.register(controller.provider().clone()).unwrap();
+        let routes = compile_controller_routes([controller]).unwrap();
+        let application = CompiledHttpApplication::new(container.build(), routes);
+
+        let mut context = request_context();
+        let result = application
+            .execute(&application.routes()[0], &mut context)
+            .await;
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap().status(), HttpStatus::IM_A_TEAPOT);
+        let events = events.lock().unwrap().clone();
+        assert!(events.contains(&"SPECIFIC_ERROR"));
+    }
+
+    #[tokio::test]
+    async fn global_exception_filter_catches_error() {
+        let events = Arc::new(Mutex::new(Vec::new()));
+        let handler_events = Arc::clone(&events);
+
+        let filter = Arc::new(RecordingExceptionFilter {
+            events: events.clone(),
+            code: "SPECIFIC_ERROR",
+            handled: true,
+        });
+
+        let route = RouteDefinition::new(
+            HttpMethod::GET,
+            "/filter-global",
+            "filter_global",
+            handler_fn(move |_controller: Arc<Controller>, _arguments| {
+                let events = Arc::clone(&handler_events);
+                async move {
+                    push(&events, "handler");
+                    let err: Result<FrameworkResponse, HttpError> =
+                        Err(HttpError::internal("SPECIFIC_ERROR", "specific error"));
+                    err
+                }
+            }),
+        )
+        .unwrap()
+        .parameter(RecordingExtractor {
+            events: Arc::clone(&events),
+            fail: false,
+        });
+
+        let provider = ProviderDefinition::constructor(Scope::Singleton, Vec::new(), |_resolver| {
+            Ok(Controller)
+        });
+        let controller = ControllerDefinition::new::<Controller>("/", provider)
+            .unwrap()
+            .route(route);
+
+        let mut container = ContainerBuilder::new();
+        container.register(controller.provider().clone()).unwrap();
+        let routes = compile_controller_routes([controller]).unwrap();
+        let application = CompiledHttpApplication::new(container.build(), routes)
+            .exception_filter(filter);
+
+        let mut context = request_context();
+        let result = application
+            .execute(&application.routes()[0], &mut context)
+            .await;
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap().status(), HttpStatus::IM_A_TEAPOT);
+    }
+
+    #[tokio::test]
+    async fn route_filter_takes_precedence_over_global() {
+        let events = Arc::new(Mutex::new(Vec::new()));
+        let handler_events = Arc::clone(&events);
+
+        let global_filter = Arc::new(RecordingExceptionFilter {
+            events: events.clone(),
+            code: "SPECIFIC_ERROR",
+            handled: true,
+        });
+        let route_filter = Arc::new(RecordingExceptionFilter {
+            events: events.clone(),
+            code: "ROUTE_FILTER",
+            handled: true,
+        });
+
+        let route = RouteDefinition::new(
+            HttpMethod::GET,
+            "/filter-precedence",
+            "filter_precedence",
+            handler_fn(move |_controller: Arc<Controller>, _arguments| {
+                let events = Arc::clone(&handler_events);
+                async move {
+                    push(&events, "handler");
+                    let err: Result<FrameworkResponse, HttpError> =
+                        Err(HttpError::internal("ROUTE_FILTER", "route filter error"));
+                    err
+                }
+            }),
+        )
+        .unwrap()
+        .parameter(RecordingExtractor {
+            events: Arc::clone(&events),
+            fail: false,
+        })
+        .exception_filter(route_filter);
+
+        let provider = ProviderDefinition::constructor(Scope::Singleton, Vec::new(), |_resolver| {
+            Ok(Controller)
+        });
+        let controller = ControllerDefinition::new::<Controller>("/", provider)
+            .unwrap()
+            .route(route);
+
+        let mut container = ContainerBuilder::new();
+        container.register(controller.provider().clone()).unwrap();
+        let routes = compile_controller_routes([controller]).unwrap();
+        let application = CompiledHttpApplication::new(container.build(), routes)
+            .exception_filter(global_filter);
+
+        let mut context = request_context();
+        let result = application
+            .execute(&application.routes()[0], &mut context)
+            .await;
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap().status(), HttpStatus::IM_A_TEAPOT);
+    }
+
+    #[tokio::test]
+    async fn unhandled_error_propagates_to_caller() {
+        let (application, _events) = exception_filter_fixture();
+        let mut context = request_context();
+        let result = application
+            .execute(&application.routes()[0], &mut context)
+            .await;
+        assert!(result.is_err());
+        assert_eq!(result.unwrap_err().code(), "SPECIFIC_ERROR");
+    }
+
+    #[tokio::test]
+    async fn filter_has_access_to_route_metadata() {
+        let events = Arc::new(Mutex::new(Vec::new()));
+        let handler_events = Arc::clone(&events);
+
+        struct MetadataInspector {
+            events: Events,
+        }
+
+        impl crate::ExceptionFilter for MetadataInspector {
+            fn catch(
+                &self,
+                _error: &HttpError,
+                context: &crate::FilterContext,
+            ) -> Result<FrameworkResponse, HttpError> {
+                push(&self.events, "filter_executed");
+                // Verify FilterContext provides route metadata
+                let _metadata = context.route_metadata();
+                Ok(FrameworkResponse::empty(HttpStatus::IM_A_TEAPOT))
+            }
+        }
+
+        let route = RouteDefinition::new(
+            HttpMethod::GET,
+            "/filter-metadata",
+            "filter_metadata",
+            handler_fn(move |_controller: Arc<Controller>, _arguments| {
+                let events = Arc::clone(&handler_events);
+                async move {
+                    push(&events, "handler");
+                    let err: Result<FrameworkResponse, HttpError> =
+                        Err(HttpError::internal("METADATA_ERROR", "metadata error"));
+                    err
+                }
+            }),
+        )
+        .unwrap()
+        .parameter(RecordingExtractor {
+            events: Arc::clone(&events),
+            fail: false,
+        })
+        .exception_filter(Arc::new(MetadataInspector {
+            events: events.clone(),
+        }));
+
+        let provider = ProviderDefinition::constructor(Scope::Singleton, Vec::new(), |_resolver| {
+            Ok(Controller)
+        });
+        let controller = ControllerDefinition::new::<Controller>("/", provider)
+            .unwrap()
+            .route(route);
+
+        let mut container = ContainerBuilder::new();
+        container.register(controller.provider().clone()).unwrap();
+        let routes = compile_controller_routes([controller]).unwrap();
+        let application = CompiledHttpApplication::new(container.build(), routes);
+
+        let mut context = request_context();
+        let result = application
+            .execute(&application.routes()[0], &mut context)
+            .await;
+        assert!(result.is_ok());
+        let events = events.lock().unwrap().clone();
+        assert!(events.contains(&"filter_executed"));
     }
 }

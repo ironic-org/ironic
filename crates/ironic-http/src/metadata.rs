@@ -2,7 +2,7 @@
 //! controller-level capabilities.
 
 /// Strategy for API versioning.
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, Hash, PartialEq)]
 pub enum VersioningStrategy {
     /// Version prefix in the URI path (e.g., `/v1/users`).
     Uri,
@@ -13,7 +13,7 @@ pub enum VersioningStrategy {
 }
 
 /// Version metadata attached to a controller definition.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Hash, Eq, PartialEq)]
 pub struct VersionMetadata {
     /// The version identifier (e.g., "1", "2024-01-01").
     pub version: String,
@@ -29,6 +29,12 @@ impl VersionMetadata {
             version: version.into(),
             strategy,
         }
+    }
+
+    /// Returns the URI prefix for URI-based versioning (e.g., `/v1`).
+    #[must_use]
+    pub fn uri_prefix(&self) -> String {
+        format!("/v{}", self.version)
     }
 }
 

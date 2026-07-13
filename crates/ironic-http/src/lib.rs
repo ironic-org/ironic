@@ -14,6 +14,7 @@ mod route;
 
 pub use error::HttpError;
 pub use exception_filter::{ExceptionFilter, FilterContext};
+pub(crate) use exception_filter::ExceptionFilterSet;
 pub use metadata::{CacheMetadata, VersionMetadata, VersioningStrategy};
 pub use extract::{
     ExtractFuture, ExtractedValue, HeaderParameter, JsonBody, ParameterExtractor, PathParameter,

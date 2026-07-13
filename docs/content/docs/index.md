@@ -12,6 +12,7 @@ mutable state.
 ## Start here
 
 - [Getting started](/docs/getting-started) — build and run the first application.
+- [CLI reference](/docs/cli) — create, run, test, and generate application source.
 - [Fundamentals](/docs/fundamentals) — modules, providers, controllers, and lifecycle.
 - [Configuration](/docs/configuration) — typed sources, validation, and redacted secrets.
 - [Security](/docs/security) — safe defaults and production integration guidance.

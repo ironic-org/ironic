@@ -3,8 +3,19 @@
 The `ironic` binary scaffolds applications, delegates workflows to Cargo, and generates modules,
 controllers, services, and resources.
 
+Install the published CLI and create a project:
+
 ```text
+cargo install ironic
 ironic new my-api
+cd my-api
+ironic start
+```
+
+See the [complete CLI reference](../../docs/content/docs/cli.md) for generated project structure,
+Cargo argument forwarding, generator aliases, safe regeneration, and troubleshooting.
+
+```text
 ironic start -- --release
 ironic build -- --all-features
 ironic test -- --all-features

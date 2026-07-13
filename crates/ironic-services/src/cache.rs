@@ -208,7 +208,7 @@ impl RedisCache {
 
 #[cfg(feature = "redis")]
 impl Cache for RedisCache {
-    fn get<'a>(&'a self, key: &'a str) -> CacheFuture<'a, Option<Vec<u8>>> {
+    fn get<'a>(&'a self, _key: &'a str) -> CacheFuture<'a, Option<Vec<u8>>> {
         Box::pin(async move {
             Err(CacheError::Backend(
                 "Redis cache requires a live connection; initialize with `new(client)` first"

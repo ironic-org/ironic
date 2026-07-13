@@ -5,8 +5,8 @@ use ironic_platform::{HttpPlatformAdapter, HttpPlatformApplication, Shutdown, Sh
 
 use crate::{
     CompiledApplicationGraph, HttpApplicationBuildError, LifecycleDefinition, LifecycleError,
-    ModuleDefinition, ModuleError, ModuleRef, build_http_application_with_overrides,
-    compile_module_graph,
+    ModuleDefinition, ModuleError, ModuleRef,
+    build_http_application_with_extra_providers, compile_module_graph,
 };
 
 /// Marker used until an application builder receives a platform adapter.
@@ -176,13 +176,13 @@ where
             }
         };
         let module_ref = std::sync::Arc::new(ModuleRef::new());
-        let overrides = {
-            let mut all = self.overrides;
-            all.push(ProviderDefinition::value(module_ref.clone()));
-            all
-        };
+        let module_ref_provider = ProviderDefinition::value(module_ref.clone());
         let graph = compile_module_graph(root)?;
-        let http = build_http_application_with_overrides(&graph, overrides)?;
+        let http = build_http_application_with_extra_providers(
+            &graph,
+            [module_ref_provider],
+            self.overrides,
+        )?;
         let container = http.container().clone();
         module_ref.set_container(container.clone());
 

@@ -579,7 +579,7 @@ pub fn build_http_application(
 /// Builds HTTP runtime state and replaces selected provider registrations.
 ///
 /// Overrides are applied after the validated module graph is registered and remain local to the
-/// returned application. This is primarily intended for isolated application tests.
+/// returned application. Additional providers are registered before overrides.
 ///
 /// # Errors
 ///
@@ -599,6 +599,41 @@ pub fn build_http_application_with_overrides(
             container.register(controller.provider().clone())?;
             controllers.push(controller.clone());
         }
+    }
+
+    for provider in overrides {
+        container.override_with(provider)?;
+    }
+
+    let routes = compile_controller_routes(controllers)?;
+    Ok(CompiledHttpApplication::new(container.build(), routes).middleware(RequestTracing::new()))
+}
+
+/// Builds HTTP runtime state, registering additional providers and applying overrides.
+///
+/// # Errors
+///
+/// Returns [`HttpApplicationBuildError`] when registrations, overrides, or routes are invalid.
+pub fn build_http_application_with_extra_providers(
+    graph: &CompiledApplicationGraph,
+    extra_providers: impl IntoIterator<Item = ProviderDefinition>,
+    overrides: impl IntoIterator<Item = ProviderDefinition>,
+) -> Result<CompiledHttpApplication, HttpApplicationBuildError> {
+    let mut container = ContainerBuilder::new();
+    let mut controllers = Vec::new();
+
+    for module in graph.modules() {
+        for provider in module.providers() {
+            container.register(provider.clone())?;
+        }
+        for controller in module.controllers() {
+            container.register(controller.provider().clone())?;
+            controllers.push(controller.clone());
+        }
+    }
+
+    for provider in extra_providers {
+        container.register(provider)?;
     }
 
     for provider in overrides {

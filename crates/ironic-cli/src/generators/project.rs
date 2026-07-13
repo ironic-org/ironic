@@ -88,12 +88,22 @@ pub fn create(
 }
 
 fn manifest(name: &str, workspace: Option<&Path>) -> String {
-    let dependencies = workspace.map_or_else(
+    let ironic_dep = workspace.map_or_else(
         || format!("ironic = \"{}\"", env!("CARGO_PKG_VERSION")),
-        |workspace| format!("ironic = {{ path = \"{}\" }}", toml_path(workspace)),
+        |workspace| {
+            format!(
+                "ironic = {{ path = \"{}\", default-features = false }}",
+                toml_path(workspace)
+            )
+        },
     );
     format!(
-        "[package]\nname = \"{name}\"\nversion = \"0.1.0\"\nedition = \"2024\"\nrust-version = \"1.85\"\npublish = false\n\n[dependencies]\n{dependencies}\n\n[workspace]\n"
+        "[package]\nname = \"{name}\"\nversion = \"0.1.0\"\nedition = \"2024\"\nrust-version = \"1.97\"\npublish = false\n\n[dependencies]\n{ironic_dep}\n\n# Available features (uncomment to enable):\n# irony = {{ features = [\"validation\"], {dep_spec} }}\n#\n# validation      — ParseIntPipe, ParseFloatPipe, ValidationPipe\n# security        — CORS, rate limiting, security headers, CSRF\n# compression     — gzip, brotli, zstd response compression\n# versioning      — URI, header, and media-type API versioning\n# serialization   — role-based field exposure\n# cache           — CacheInterceptor with InMemoryCache\n# scheduling      — Fixed-interval and cron background tasks\n# cron            — Cron expression scheduling\n# realtime        — WebSocket gateways with rooms/broadcasting\n# custom-decorators — create_param_decorator! macro\n# database        — SQLx, SeaORM, Diesel, MongoDB, Redis\n# authentication  — JWT, OAuth2, sessions, argon2 hashing\n# distributed     — Queues, microservices, CQRS, sagas, gRPC, GraphQL\n# uuid            — UUID generation utilities\n# transport-redis    — Redis pub/sub transport\n# transport-rabbitmq — AMQP transport\n# transport-kafka    — Kafka topic transport\n# application-services — cache + scheduling + events + realtime\n\n[workspace]\n",
+        dep_spec = if workspace.is_some() {
+            "path = \"...\""
+        } else {
+            "version = \"...\""
+        }
     )
 }
 

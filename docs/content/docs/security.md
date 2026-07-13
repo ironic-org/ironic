@@ -10,7 +10,7 @@ Override these only after measuring the endpoint:
 
 ```rust
 use std::time::Duration;
-use rustframe_platform_axum::AxumAdapter;
+use ironic::AxumAdapter;
 
 let adapter = AxumAdapter::new()
     .request_body_limit(2 * 1024 * 1024)

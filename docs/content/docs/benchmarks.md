@@ -8,7 +8,7 @@ description: Reproducible startup, registration, DI, and request overhead measur
 Run the dependency-free comparative harness with:
 
 ```bash
-cargo bench -p rustframe --bench overhead
+cargo bench -p ironic --bench overhead
 ```
 
 Measurements from 2026-07-13 on Darwin 25.5.0 arm64, Rust 1.85.0:

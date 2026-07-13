@@ -1,11 +1,11 @@
 ---
-title: RustFrame
+title: Ironic
 description: A modular, type-safe Rust application framework built on Axum.
 ---
 
-# RustFrame documentation
+# Ironic documentation
 
-RustFrame provides explicit modules, dependency injection, controllers, request pipelines,
+Ironic provides explicit modules, dependency injection, controllers, request pipelines,
 lifecycle hooks, testing utilities, and an Axum adapter without runtime reflection or global
 mutable state.
 

@@ -15,7 +15,7 @@ const HeroSection = () => {
                         V0.1 PREVIEW
                     </span>
                     <span className='text-xs font-medium text-fd-muted-foreground flex items-center gap-1 group-hover:text-fd-foreground transition-colors'>
-                        RustFrame
+                        Ironic
                         <ChevronRight className='w-3 h-3 text-fd-muted-foreground/60' />
                     </span>
                 </a>

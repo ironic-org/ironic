@@ -9,7 +9,7 @@ description: Load typed settings, validate startup state, and redact secrets.
 deserializing one application-owned type.
 
 ```rust
-use rustframe::prelude::*;
+use ironic::prelude::*;
 use serde::Deserialize;
 
 #[derive(Deserialize)]

@@ -1,17 +1,17 @@
 ---
 title: Getting started
-description: Create, run, and test a RustFrame application.
+description: Create, run, and test an Ironic application.
 ---
 
 # Getting started
 
-RustFrame requires Rust 1.85 or newer.
+Ironic requires Rust 1.85 or newer.
 
 ```bash
-cargo install rustframe-cli
-rustframe new my-api
+cargo install ironic
+ironic new my-api
 cd my-api
-cargo run
+ironic start
 ```
 
 The repository toolchain also pins the matching `rust-analyzer` component so procedural macros are
@@ -31,7 +31,7 @@ cargo run
 ## Add a resource
 
 ```bash
-rustframe generate resource products
+ironic generate resource products
 cargo test
 ```
 

@@ -19,14 +19,14 @@ This checklist turns the architecture in [`rust_framework_full_docs.md`](./rust_
 
 - [x] Create the root Cargo workspace.
 - [x] Add initial crates:
-  - [x] `rustframe-common`
-  - [x] `rustframe-di`
-  - [x] `rustframe-http`
-  - [x] `rustframe-platform`
-  - [x] `rustframe-core`
-  - [x] `rustframe-platform-axum`
-  - [x] `rustframe-testing`
-  - [x] `rustframe-macros`
+  - [x] `ironic-common`
+  - [x] `ironic-di`
+  - [x] `ironic-http`
+  - [x] `ironic-platform`
+  - [x] `ironic-core`
+  - [x] `ironic-platform-axum`
+  - [x] `ironic-testing`
+  - [x] `ironic-macros`
   - [x] `rustframe` facade
 - [x] Define and document allowed crate dependency directions.
 - [x] Centralize workspace dependencies, lint settings, and package metadata.
@@ -142,7 +142,7 @@ This checklist turns the architecture in [`rust_framework_full_docs.md`](./rust_
 
 ## Phase 9 — Minimum viable CLI
 
-- [x] Create the `rustframe-cli` crate and command structure.
+- [x] Create the `ironic` CLI command structure.
 - [x] Implement `rustframe new`.
 - [x] Implement `start`, `build`, and `test` as transparent Cargo orchestration.
 - [x] Implement module generation.

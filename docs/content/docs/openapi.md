@@ -5,20 +5,18 @@ description: Generate OpenAPI 3.1 JSON from compiled routes and serve Swagger UI
 
 # OpenAPI and Swagger UI
 
-Add the optional integration package alongside the Axum adapter:
+OpenAPI and the Axum adapter are included in the main crate:
 
 ```toml
 [dependencies]
-rustframe-openapi = "0.0.1"
-rustframe-platform-axum = "0.0.1"
+ironic = "0.1"
 ```
 
 Derive JSON Schemas for request and response DTOs, register reusable components, and wrap the
 adapter:
 
 ```rust
-use rustframe_openapi::{OpenApiAxumExt, OpenApiConfig, OpenApiSchema};
-use rustframe_platform_axum::AxumAdapter;
+use ironic::{AxumAdapter, OpenApiAxumExt, OpenApiConfig, OpenApiSchema};
 
 #[derive(OpenApiSchema)]
 struct CreateItem {
@@ -35,7 +33,7 @@ let adapter = AxumAdapter::new()
 ```
 
 The wrapper discovers every compiled framework route and serves OpenAPI 3.1 JSON at
-`/openapi.json`. RustFrame route parameters such as `/:id` become OpenAPI parameters such as
+`/openapi.json`. Ironic route parameters such as `/:id` become OpenAPI parameters such as
 `/{id}`. The UI path and JSON path are validated before startup and cannot replace an existing GET
 route.
 
@@ -45,7 +43,7 @@ Explicit routes can attach summaries, tags, stable operation IDs, parameters, re
 responses, examples, and security requirements:
 
 ```rust
-use rustframe_openapi::{
+use ironic::{
     OpenApiOperation, OpenApiRequestBody, OpenApiResponse, OpenApiRouteExt,
 };
 

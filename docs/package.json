@@ -1,7 +1,7 @@
 {
   "name": "docs",
   "version": "1.0.0",
-  "description": "RustFrame framework documentation",
+  "description": "Ironic framework documentation",
   "private": true,
   "type": "module",
   "keywords": [

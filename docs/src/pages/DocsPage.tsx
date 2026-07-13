@@ -19,11 +19,11 @@ export default function DocsPage() {
 
   useEffect(() => {
     if (!page || !pageData) {
-      document.title = 'Page Not Found | RustFrame';
+      document.title = 'Page Not Found | Ironic';
       return;
     }
 
-    document.title = `${pageData.title ?? 'Untitled'} | RustFrame`;
+    document.title = `${pageData.title ?? 'Untitled'} | Ironic`;
 
     const description = pageData.description ?? '';
     const image = getPageImage(page).url;

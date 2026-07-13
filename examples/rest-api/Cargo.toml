@@ -1,6 +1,6 @@
 [package]
 name = "rest-api"
-description = "RustFrame REST, validation, error-handling, and testing example"
+description = "Ironic REST, validation, error-handling, and testing example"
 publish = false
 version.workspace = true
 edition.workspace = true
@@ -8,14 +8,11 @@ rust-version.workspace = true
 license.workspace = true
 
 [dependencies]
-rustframe.workspace = true
-rustframe-openapi.workspace = true
-rustframe-platform-axum.workspace = true
+ironic.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 
 [dev-dependencies]
-rustframe-testing.workspace = true
 tokio.workspace = true
 
 [lints]

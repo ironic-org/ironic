@@ -1,6 +1,6 @@
 [package]
 name = "hello-world"
-description = "Minimal RustFrame workspace example"
+description = "Minimal Ironic workspace example"
 publish = false
 version.workspace = true
 edition.workspace = true
@@ -8,8 +8,7 @@ rust-version.workspace = true
 license.workspace = true
 
 [dependencies]
-rustframe.workspace = true
-rustframe-platform-axum.workspace = true
+ironic.workspace = true
 serde.workspace = true
 
 [dev-dependencies]

@@ -1,32 +1,103 @@
+[package]
+name = "ironic"
+description = "A batteries-included, type-safe application framework for Rust"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+documentation.workspace = true
+readme = "README.md"
+keywords = ["framework", "web", "dependency-injection", "axum", "openapi"]
+categories = ["web-programming::http-server", "development-tools"]
+include = [
+    "/src/**/*.rs",
+    "/crates/ironic-*/src/**/*.rs",
+    "/crates/ironic-cli/README.md",
+    "/crates/ironic-testing/README.md",
+    "/crates/ironic/tests/ui/**/*.rs",
+    "/crates/ironic/tests/ui/**/*.stderr",
+    "/crates/ironic/tests/ui.rs",
+    "/crates/ironic/benches/**/*.rs",
+    "/crates/ironic-cli/tests/**/*.rs",
+    "/crates/ironic-openapi/tests/**/*.rs",
+    "/crates/ironic-testing/tests/**/*.rs",
+    "/tests/**/*.rs",
+    "/README.md",
+    "/LICENSE-*",
+]
+
+[[bin]]
+name = "ironic"
+path = "crates/ironic-cli/src/main.rs"
+doc = false
+
+[[bench]]
+name = "overhead"
+path = "crates/ironic/benches/overhead.rs"
+harness = false
+
+[[test]]
+name = "cli"
+path = "crates/ironic-cli/tests/cli.rs"
+
+[[test]]
+name = "openapi"
+path = "crates/ironic-openapi/tests/openapi.rs"
+
+[[test]]
+name = "testing"
+path = "crates/ironic-testing/tests/testing.rs"
+
+[[test]]
+name = "ui"
+path = "crates/ironic/tests/ui.rs"
+
+[dependencies]
+axum.workspace = true
+clap.workspace = true
+config.workspace = true
+convert_case.workspace = true
+futures-util.workspace = true
+http.workspace = true
+ironic-macros.workspace = true
+prettyplease.workspace = true
+quote.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+serde_urlencoded.workspace = true
+syn.workspace = true
+thiserror.workspace = true
+tokio.workspace = true
+tower.workspace = true
+tracing.workspace = true
+
+[dev-dependencies]
+tempfile.workspace = true
+trybuild = "1.0"
+
+[lints]
+workspace = true
+
 [workspace]
 resolver = "3"
 members = [
-    "crates/rustframe",
-    "crates/rustframe-common",
-    "crates/rustframe-cli",
-    "crates/rustframe-config",
-    "crates/rustframe-core",
-    "crates/rustframe-di",
-    "crates/rustframe-http",
-    "crates/rustframe-macros",
-    "crates/rustframe-openapi",
-    "crates/rustframe-openapi-macros",
-    "crates/rustframe-platform",
-    "crates/rustframe-platform-axum",
-    "crates/rustframe-testing",
+    ".",
+    "crates/ironic-macros",
     "examples/hello-world",
     "examples/rest-api",
 ]
 
 [workspace.package]
-version = "0.0.1"
+version = "0.1.0"
 edition = "2024"
 rust-version = "1.85"
 license = "MIT OR Apache-2.0"
-repository = "https://github.com/rustframe/rustframe"
-homepage = "https://github.com/rustframe/rustframe"
-documentation = "https://docs.rs/rustframe"
-authors = ["RustFrame contributors"]
+repository = "https://github.com/ironic-org/ironic"
+homepage = "https://github.com/ironic-org/ironic"
+documentation = "https://docs.rs/ironic"
+authors = ["Ironic contributors"]
 
 [workspace.dependencies]
 axum = { version = "0.8.9", default-features = false, features = ["http1", "tokio"] }
@@ -48,18 +119,8 @@ tokio = { version = "1.52.0", features = ["macros", "net", "rt-multi-thread", "s
 tower = { version = "0.5.3", features = ["util"] }
 tracing = "0.1.43"
 
-rustframe = { path = "crates/rustframe", version = "0.0.1" }
-rustframe-common = { path = "crates/rustframe-common", version = "0.0.1" }
-rustframe-config = { path = "crates/rustframe-config", version = "0.0.1" }
-rustframe-core = { path = "crates/rustframe-core", version = "0.0.1" }
-rustframe-di = { path = "crates/rustframe-di", version = "0.0.1" }
-rustframe-http = { path = "crates/rustframe-http", version = "0.0.1" }
-rustframe-macros = { path = "crates/rustframe-macros", version = "0.0.1" }
-rustframe-openapi = { path = "crates/rustframe-openapi", version = "0.0.1" }
-rustframe-openapi-macros = { path = "crates/rustframe-openapi-macros", version = "0.0.1" }
-rustframe-platform = { path = "crates/rustframe-platform", version = "0.0.1" }
-rustframe-platform-axum = { path = "crates/rustframe-platform-axum", version = "0.0.1" }
-rustframe-testing = { path = "crates/rustframe-testing", version = "0.0.1" }
+ironic = { path = ".", version = "0.1.0" }
+ironic-macros = { path = "crates/ironic-macros", version = "0.1.0" }
 
 [workspace.lints.rust]
 unsafe_code = "forbid"

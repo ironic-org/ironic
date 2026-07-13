@@ -1,0 +1,5 @@
+error: `Module` requires exactly one `#[module(...)]` attribute
+ --> crates/ironic/tests/ui/fail/module_requires_metadata.rs:4:8
+  |
+4 | struct AppModule;
+  |        ^^^^^^^^^

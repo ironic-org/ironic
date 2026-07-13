@@ -1,0 +1,5 @@
+error: `#[ironic::main]` requires an async function
+ --> crates/ironic/tests/ui/fail/main_requires_async.rs:2:1
+  |
+2 | fn main() {}
+  | ^^

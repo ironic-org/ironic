@@ -1,5 +1,0 @@
-error: injectable fields must have type `Arc<T>`
- --> tests/ui/fail/injectable_non_arc.rs:5:17
-  |
-5 |     dependency: String,
-  |                 ^^^^^^

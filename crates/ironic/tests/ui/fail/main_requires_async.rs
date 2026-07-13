@@ -1,0 +1,2 @@
+#[ironic::main]
+fn main() {}

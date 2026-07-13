@@ -1,5 +1,0 @@
-error: `#[rustframe::main]` requires an async function
- --> tests/ui/fail/main_requires_async.rs:2:1
-  |
-2 | fn main() {}
-  | ^^

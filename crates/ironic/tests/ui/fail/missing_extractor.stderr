@@ -1,0 +1,5 @@
+error: route parameters require one of `#[body]`, `#[query]`, `#[param]`, or `#[header]`
+  --> crates/ironic/tests/ui/fail/missing_extractor.rs:11:29
+   |
+11 |     async fn invalid(&self, value: String) -> Result<(), HttpError> {
+   |                             ^^^^^

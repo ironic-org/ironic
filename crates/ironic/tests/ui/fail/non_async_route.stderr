@@ -1,0 +1,5 @@
+error: route handlers must be async
+  --> crates/ironic/tests/ui/fail/non_async_route.rs:11:5
+   |
+11 |     fn invalid(&self) -> Result<(), HttpError> {
+   |     ^^

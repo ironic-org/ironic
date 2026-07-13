@@ -1,2 +1,0 @@
-#[rustframe::main]
-fn main() {}

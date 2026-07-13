@@ -1,4 +1,4 @@
-# RustFrame documentation site
+# Ironic documentation site
 
 The documentation site uses Vite, React Router, Fumadocs, and Tailwind CSS.
 

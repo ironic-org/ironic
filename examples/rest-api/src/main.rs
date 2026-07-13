@@ -2,9 +2,7 @@
 
 use std::sync::Arc;
 
-use rustframe::prelude::*;
-use rustframe_openapi::{OpenApiAxumExt, OpenApiConfig, OpenApiSchema};
-use rustframe_platform_axum::AxumAdapter;
+use ironic::{AxumAdapter, OpenApiAxumExt, OpenApiConfig, OpenApiSchema, prelude::*};
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Debug, Deserialize, Eq, OpenApiSchema, PartialEq, Serialize)]
@@ -82,14 +80,14 @@ struct CatalogModule;
 #[module(imports = [CatalogModule, HealthModule])]
 struct AppModule;
 
-#[rustframe::main]
+#[ironic::main]
 async fn main() {
     FrameworkApplication::builder()
         .module(AppModule::definition())
         .platform(
             AxumAdapter::new()
                 .with_openapi(
-                    OpenApiConfig::new("RustFrame REST API", "1.0.0")
+                    OpenApiConfig::new("Ironic REST API", "1.0.0")
                         .description("Items API example")
                         .schema::<CreateItem>("CreateItem")
                         .schema::<ItemView>("ItemView"),
@@ -106,7 +104,7 @@ async fn main() {
 
 #[cfg(test)]
 mod tests {
-    use rustframe_testing::TestApplication;
+    use ironic::TestApplication;
 
     use super::*;
 

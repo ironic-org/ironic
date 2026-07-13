@@ -297,11 +297,10 @@ checksum = "2304e00983f87ffb38b55b444b5e3b60a884b5d30c0fca7d82fe33449bbe55ea"
 
 [[package]]
 name = "hello-world"
-version = "0.0.1"
+version = "0.1.0"
 dependencies = [
  "axum",
- "rustframe",
- "rustframe-platform-axum",
+ "ironic",
  "serde",
  "serde_json",
  "tower",
@@ -395,6 +394,40 @@ checksum = "d466e9454f08e4a911e14806c24e16fba1b4c121d1ea474396f396069cf949d9"
 dependencies = [
  "equivalent",
  "hashbrown",
+]
+
+[[package]]
+name = "ironic"
+version = "0.1.0"
+dependencies = [
+ "axum",
+ "clap",
+ "config",
+ "convert_case",
+ "futures-util",
+ "http",
+ "ironic-macros",
+ "prettyplease",
+ "quote",
+ "serde",
+ "serde_json",
+ "serde_urlencoded",
+ "syn",
+ "tempfile",
+ "thiserror",
+ "tokio",
+ "tower",
+ "tracing",
+ "trybuild",
+]
+
+[[package]]
+name = "ironic-macros"
+version = "0.1.0"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn",
 ]
 
 [[package]]
@@ -516,177 +549,11 @@ checksum = "f8dcc9c7d52a811697d2151c701e0d08956f92b0e24136cf4cf27b57a6a0d9bf"
 
 [[package]]
 name = "rest-api"
-version = "0.0.1"
+version = "0.1.0"
 dependencies = [
- "rustframe",
- "rustframe-openapi",
- "rustframe-platform-axum",
- "rustframe-testing",
+ "ironic",
  "serde",
  "serde_json",
- "tokio",
-]
-
-[[package]]
-name = "rustframe"
-version = "0.0.1"
-dependencies = [
- "axum",
- "rustframe-common",
- "rustframe-config",
- "rustframe-core",
- "rustframe-di",
- "rustframe-http",
- "rustframe-macros",
- "rustframe-platform",
- "rustframe-platform-axum",
- "rustframe-testing",
- "serde",
- "tokio",
- "tower",
- "trybuild",
-]
-
-[[package]]
-name = "rustframe-cli"
-version = "0.0.1"
-dependencies = [
- "clap",
- "convert_case",
- "prettyplease",
- "quote",
- "syn",
- "tempfile",
- "thiserror",
-]
-
-[[package]]
-name = "rustframe-common"
-version = "0.0.1"
-dependencies = [
- "thiserror",
-]
-
-[[package]]
-name = "rustframe-config"
-version = "0.0.1"
-dependencies = [
- "config",
- "serde",
- "serde_json",
- "thiserror",
-]
-
-[[package]]
-name = "rustframe-core"
-version = "0.0.1"
-dependencies = [
- "rustframe-common",
- "rustframe-di",
- "rustframe-http",
- "rustframe-platform",
- "serde",
- "thiserror",
- "tokio",
-]
-
-[[package]]
-name = "rustframe-di"
-version = "0.0.1"
-dependencies = [
- "rustframe-common",
- "thiserror",
- "tokio",
-]
-
-[[package]]
-name = "rustframe-http"
-version = "0.0.1"
-dependencies = [
- "http",
- "rustframe-common",
- "rustframe-di",
- "serde",
- "serde_json",
- "serde_urlencoded",
- "thiserror",
- "tokio",
- "tracing",
-]
-
-[[package]]
-name = "rustframe-macros"
-version = "0.0.1"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn",
-]
-
-[[package]]
-name = "rustframe-openapi"
-version = "0.0.1"
-dependencies = [
- "axum",
- "rustframe-di",
- "rustframe-http",
- "rustframe-openapi-macros",
- "rustframe-platform",
- "rustframe-platform-axum",
- "serde",
- "serde_json",
- "thiserror",
- "tokio",
- "tower",
-]
-
-[[package]]
-name = "rustframe-openapi-macros"
-version = "0.0.1"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn",
-]
-
-[[package]]
-name = "rustframe-platform"
-version = "0.0.1"
-dependencies = [
- "rustframe-common",
- "rustframe-http",
-]
-
-[[package]]
-name = "rustframe-platform-axum"
-version = "0.0.1"
-dependencies = [
- "axum",
- "futures-util",
- "rustframe-common",
- "rustframe-di",
- "rustframe-http",
- "rustframe-platform",
- "serde",
- "serde_json",
- "thiserror",
- "tokio",
- "tower",
-]
-
-[[package]]
-name = "rustframe-testing"
-version = "0.0.1"
-dependencies = [
- "rustframe-common",
- "rustframe-core",
- "rustframe-di",
- "rustframe-http",
- "rustframe-platform",
- "serde",
- "serde_json",
- "serde_urlencoded",
- "thiserror",
  "tokio",
 ]
 

@@ -10,7 +10,7 @@ const Navigation = () => {
             <Layers className="h-5 w-5" />
           </span>
           <span className="text-lg font-bold tracking-tight text-fd-foreground">
-            RustFrame
+            Ironic
           </span>
         </div>
 

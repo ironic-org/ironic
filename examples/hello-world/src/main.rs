@@ -1,9 +1,8 @@
-//! Macro-based `RustFrame` application with a `GET /users/:id` route.
+//! Macro-based Ironic application with a `GET /users/:id` route.
 
 use std::sync::Arc;
 
-use rustframe::prelude::*;
-use rustframe_platform_axum::{AxumAdapter, AxumApplication};
+use ironic::{AxumAdapter, AxumApplication, prelude::*};
 use serde::Serialize;
 
 #[derive(Clone, Debug, Serialize)]
@@ -52,11 +51,11 @@ struct UsersModule;
 #[module(imports = [UsersModule])]
 struct AppModule;
 
-#[rustframe::main]
+#[ironic::main]
 async fn main() {
     let _application = application().await;
 
-    println!("RustFrame route ready: GET /users/:id");
+    println!("Ironic route ready: GET /users/:id");
 }
 
 async fn application() -> FrameworkApplication<AxumApplication> {
@@ -77,11 +76,11 @@ mod tests {
     use tower::ServiceExt;
 
     use super::*;
-    use rustframe::HttpStatus;
+    use ironic::HttpStatus;
 
     #[test]
     fn macro_application_matches_the_explicit_route_behavior() {
-        rustframe::__private::block_on(async {
+        ironic::__private::block_on(async {
             let application = application().await;
 
             let response = application

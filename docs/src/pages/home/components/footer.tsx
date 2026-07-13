@@ -9,7 +9,7 @@ const Footer = () => {
           <span className="flex items-center justify-center rounded-md bg-brand/10 p-1 text-brand">
             <Layers className="h-4 w-4" />
           </span>
-          <span className="text-sm font-bold text-fd-foreground">RustFrame</span>
+          <span className="text-sm font-bold text-fd-foreground">Ironic</span>
         </div>
         <div className="flex gap-8 text-[11px] font-bold uppercase tracking-widest text-fd-muted-foreground">
           <Link to="/docs" className="transition-colors hover:text-fd-foreground">
@@ -23,7 +23,7 @@ const Footer = () => {
           </a>
         </div>
         <p className="text-[10px] font-bold uppercase tracking-widest text-fd-muted-foreground/60">
-          RustFrame {new Date().getFullYear()}.
+          Ironic {new Date().getFullYear()}.
         </p>
       </div>
     </footer>

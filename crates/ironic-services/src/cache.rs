@@ -128,7 +128,8 @@ impl Cache for InMemoryCache {
             let now = Instant::now();
             let mut entries = self.entries.write().await;
             entries.retain(|_, entry| entry.expires_at.is_none_or(|expiry| expiry > now));
-            if entries.len() >= self.capacity && !entries.contains_key(key)
+            if entries.len() >= self.capacity
+                && !entries.contains_key(key)
                 && let Some(evicted) = entries.keys().next().cloned()
             {
                 entries.remove(&evicted);

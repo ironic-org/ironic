@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Discussions
+    url: https://github.com/ironic-org/ironic/discussions
+    about: Ask questions and discuss ideas
+  - name: Discord
+    url: https://discord.gg/ironic
+    about: Chat with the community

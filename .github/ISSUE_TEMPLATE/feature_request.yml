@@ -1,0 +1,57 @@
+name: Feature Request
+description: Suggest an idea for Ironic
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for your suggestion! Please describe what you'd like to see added.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What problem does this feature solve? What use case does it address?
+    validations:
+      required: true
+
+  - type: textarea
+    id: solution
+    attributes:
+      label: Proposed Solution
+      description: How should this feature work? Include example API usage if applicable.
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives
+      description: What alternatives have you considered?
+
+  - type: checkboxes
+    id: rfc
+    attributes:
+      label: RFC Required?
+      options:
+        - label: This feature requires an architectural RFC
+          description: Check if this changes core APIs, module system, or DI behavior
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Affected Area
+      multiple: true
+      options:
+        - Core Framework
+        - DI Container
+        - Module System
+        - HTTP / Routing
+        - Axum Adapter
+        - Request Pipeline
+        - Middleware / Guards / Interceptors
+        - Procedural Macros
+        - CLI
+        - Testing Utilities
+        - Documentation
+        - Other

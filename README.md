@@ -1,14 +1,15 @@
 # Ironic
 
-Ironic is an experimental, batteries-included application framework for structured Rust APIs on
-top of Axum. Applications add one dependency and use one CLI; runtime, DI, HTTP, Axum, OpenAPI,
-testing utilities, configuration, and project generation are all exposed by the `ironic` crate.
+[![CI](https://github.com/ironic-org/ironic/actions/workflows/ci.yml/badge.svg)](https://github.com/ironic-org/ironic/actions/workflows/ci.yml)
+[![Crates.io](https://img.shields.io/crates/v/ironic.svg)](https://crates.io/crates/ironic)
+[![Docs.rs](https://img.shields.io/docsrs/ironic)](https://docs.rs/ironic)
+[![License](https://img.shields.io/badge/license-MIT%2FApache--2.0-blue)](LICENSE-MIT)
+[![Rust](https://img.shields.io/badge/rust-1.85+-orange)](rust-toolchain.toml)
+[![Discord](https://img.shields.io/discord/ironic?label=discord&logo=discord)](https://discord.gg/ironic)
 
-Version 0.1 is a preview and is not yet recommended for production use.
+A batteries-included, type-safe application framework for building structured Rust APIs on top of Axum. Inspired by NestJS's modular architecture, grounded in Rust's type system.
 
-## Install the CLI
-
-The CLI ships as the `ironic` binary in the main crate:
+## Quick Start
 
 ```bash
 cargo install ironic
@@ -17,27 +18,40 @@ cd my-api
 ironic start
 ```
 
-Generate a complete resource with:
+## Features
 
-```bash
-ironic generate resource products
-```
+- **Modular architecture** — modules, imports, exports, provider visibility
+- **Dependency injection** — singletons, transients, factories, cycle detection
+- **HTTP routing** — Axum adapter, controllers, parameter extraction, validation
+- **Request pipeline** — middleware, guards, interceptors, error handling
+- **Procedural macros** — `#[derive(Injectable)]`, `#[Module]`, `#[controller]`, `#[get]`, `#[post]`
+- **Testing utilities** — in-process test app, provider overrides, fluent assertions
+- **CLI** — project scaffolding, code generators, doctor command
+- **OpenAPI** — automatic schema generation, Swagger UI
+- **Integrations** — SQLx, SeaORM, Diesel, MongoDB, Redis, JWT, OAuth, gRPC, GraphQL
 
-Generated applications contain one framework dependency:
+## Example
 
-```toml
-[dependencies]
-ironic = "0.1"
-```
+```rust
+use ironic::prelude::*;
 
-## Minimal application
+#[derive(Injectable)]
+#[controller("/users")]
+struct UsersController {
+    service: Arc<UsersService>,
+}
 
-```rust,no_run
-use ironic::{AxumAdapter, prelude::*};
+#[routes]
+impl UsersController {
+    #[get("/:id")]
+    async fn find_one(&self, #[param] id: Uuid) -> Json<UserResponse> {
+        Json(self.service.find_one(id).await)
+    }
+}
 
 #[derive(Module)]
-#[module()]
-struct AppModule;
+#[module(controllers = [UsersController], providers = [UsersService])]
+struct UsersModule;
 
 #[ironic::main]
 async fn main() {
@@ -46,42 +60,28 @@ async fn main() {
         .platform(AxumAdapter::new())
         .build()
         .await
-        .expect("application must initialize")
+        .unwrap()
         .listen("127.0.0.1:3000")
         .await
-        .expect("application server failed");
+        .unwrap();
 }
 ```
 
-See the [getting-started guide](./docs/content/docs/getting-started.md), the
-[REST example](./examples/rest-api), and the [release notes](./RELEASE_NOTES.md).
+## Documentation
 
-## Publishing
+- [Getting Started](./docs/content/docs/getting-started.md)
+- [Full Documentation](https://docs.ironic.rs)
+- [Examples](./examples/)
+- [Release Notes](./RELEASE_NOTES.md)
 
-Rust requires procedural macros to live in a proc-macro crate. Therefore `ironic-macros` is a
-small implementation companion, while `ironic` remains the only crate users install or declare.
-Publish the companion first, then the public crate:
+## Contributing
 
-```bash
-cargo login
-cargo publish -p ironic-macros
-cargo publish -p ironic
-```
+See [CONTRIBUTING.md](CONTRIBUTING.md) for setup instructions, coding conventions, and PR workflow.
 
-Before publishing, verify exactly what crates.io will receive:
+- [Good First Issues](https://github.com/ironic-org/ironic/labels/good%20first%20issue)
+- [Help Wanted](https://github.com/ironic-org/ironic/labels/help%20wanted)
+- [Code of Conduct](CODE_OF_CONDUCT.md)
 
-```bash
-cargo package -p ironic-macros
-cargo package -p ironic
-```
+## License
 
-## Development
-
-Ironic uses Rust 1.85 or newer and Edition 2024.
-
-```bash
-cargo fmt --all -- --check
-cargo clippy --workspace --all-targets --all-features -- -D warnings
-cargo test --workspace --all-targets
-RUSTDOCFLAGS="-D warnings" cargo doc --workspace --all-features --no-deps
-```
+Licensed under either of [MIT](LICENSE-MIT) or [Apache 2.0](LICENSE-APACHE) at your option.

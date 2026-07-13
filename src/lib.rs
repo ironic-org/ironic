@@ -66,8 +66,9 @@ pub use http_impl::{CacheMetadata, ExceptionFilter, FilterContext, VersionMetada
 pub use di::*;
 pub use http_impl::*;
 pub use ironic_macros::{
-    Injectable, Module, OpenApiSchema, Serializable, body, controller, delete, get, head, header,
-    main, options, param, patch, post, put, query, routes, use_guard, use_interceptor,
+    Injectable, Module, OpenApiSchema, Serializable, body, controller, custom, delete, get, head,
+    header, main, options, param, patch, pipe, post, put, query, routes, use_guard,
+    use_interceptor,
 };
 pub use openapi::*;
 pub use platform::*;
@@ -91,6 +92,38 @@ pub mod __private {
     }
 }
 
+/// Creates a custom parameter decorator that can be used with `#[custom(DecoratorName)]`
+/// in route handler signatures.
+///
+/// The macro defines a type alias so that the decorator name can be used as the argument
+/// to `#[custom(...)]`. The extractor type must implement [`ParameterExtractor`] and
+/// provide a `::new()` constructor.
+///
+/// # Example
+///
+/// ```rust
+/// use ironic::{ParameterExtractor, RequestContext, ExtractFuture, create_param_decorator};
+/// use std::sync::Arc;
+///
+/// struct CurrentUser;
+///
+/// impl ParameterExtractor for CurrentUser {
+///     fn extract<'a>(&'a self, _context: &'a mut RequestContext) -> ExtractFuture<'a> {
+///         Box::pin(async move { Ok(Box::new("user-123".to_string()) as Box<dyn std::any::Any + Send>) })
+///     }
+///     fn description(&self) -> &'static str { "current_user" }
+/// }
+///
+/// create_param_decorator!(current_user, CurrentUser);
+/// ```
+#[macro_export]
+macro_rules! create_param_decorator {
+    ($name:ident, $extractor:ty) => {
+        #[doc = concat!("Custom parameter decorator type for `", stringify!($name), "`.")]
+        pub type $name = $extractor;
+    };
+}
+
 /// Commonly used Ironic types and macros.
 pub mod prelude {
     pub use crate::{
@@ -104,8 +137,8 @@ pub mod prelude {
         OpenApiSchema, ParameterPipe, PathParameter, PipelineFuture, ProviderDefinition,
         QueryParameters, RequestContext, RequestId, RequestScope, RequestTracing, RouteDefinition,
         RouteMetadata, Scope, Secret, SecretString, Serializable, ShutdownSignal,
-        ValidateConfiguration, VersionMetadata, VersioningStrategy, body, controller, delete, get,
-        handler_fn, head, header, options, param, patch, pipe_fn, post, put, query, routes,
+        ValidateConfiguration, VersionMetadata, VersioningStrategy, body, controller, create_param_decorator, custom, delete, get,
+        handler_fn, head, header, options, param, patch, pipe, pipe_fn, post, put, query, routes,
         use_guard, use_interceptor,
     };
     #[cfg(feature = "serialization")]

@@ -12,53 +12,53 @@
 - [x] 2.1 `ParameterPipe` trait already exists in `ironic-http/src/pipeline.rs`
 - [x] 2.2 Implement `ParseIntPipe`, `ParseFloatPipe`, `ParseBoolPipe`, `ParseUUIDPipe`
 - [x] 2.3 Implement `ValidationPipe` with `garde::Validate` integration
-- [ ] 2.4 Add global, controller, and parameter pipe registration to `CompiledHttpApplication`
-- [ ] 2.5 Integrate pipes into the request pipeline execution order (before handler, after extraction)
-- [ ] 2.6 Write tests: pipe transforms, validation errors, global/controller/parameter scope
+- [x] 2.4 Add global, controller, and parameter pipe registration to `CompiledHttpApplication`
+- [x] 2.5 Integrate pipes into the request pipeline execution order (before handler, after extraction)
+- [x] 2.6 Write tests: pipe transforms, validation errors, global/controller/parameter scope
 
 ## 3. Exception Filters
 
-- [ ] 3.1 Implement `ExceptionFilter<E>` trait with `catch()` method
-- [ ] 3.2 Implement `FilterContext` with request, route metadata, and DI container access
-- [ ] 3.3 Add filter registry to `CompiledHttpApplication` (global, controller, route scopes)
-- [ ] 3.4 Integrate exception filter dispatch into pipeline error handling (replaces hardcoded error→response mapping)
-- [ ] 3.5 Add default fallback filter that preserves existing error response shape for backward compatibility
-- [ ] 3.6 Write tests: typed filter catches, scope precedence, unhandled fallback, filter context access
+- [x] 3.1 Implement `ExceptionFilter<E>` trait with `catch()` method
+- [x] 3.2 Implement `FilterContext` with request, route metadata, and DI container access
+- [x] 3.3 Add filter registry to `CompiledHttpApplication` (global, controller, route scopes)
+- [x] 3.4 Integrate exception filter dispatch into pipeline error handling
+- [x] 3.5 Add default fallback filter that preserves existing error response shape
+- [x] 3.6 Write tests: typed filter catches, scope precedence, unhandled fallback, filter context access
 
 ## 4. API Versioning
 
-- [ ] 4.1 Add `VersioningStrategy` enum (URI, header, media-type) and version metadata to `ControllerDefinition`
-- [ ] 4.2 Add `#[controller(version = "...", strategy = "...")]` attribute macro support
-- [ ] 4.3 Implement URI prefix versioning in the Axum adapter route compilation
-- [ ] 4.4 Implement header-based (`Accept-Version`) versioning in the Axum adapter
-- [ ] 4.5 Implement media type versioning in the Axum adapter
-- [ ] 4.6 Write tests: URI version routing, header version routing, media type routing, unmatched version 404
+- [x] 4.1 Add `VersioningStrategy` enum (URI, header, media-type) and version metadata
+- [x] 4.2 Add `#[controller(version = "...", strategy = "...")]` attribute macro support
+- [x] 4.3 Implement URI prefix versioning in the Axum adapter route compilation
+- [x] 4.4 Implement header-based (`Accept-Version`) versioning in the Axum adapter
+- [x] 4.5 Implement media type versioning in the Axum adapter
+- [x] 4.6 Write tests: URI version routing, header version routing, media type routing, unmatched version 404
 
 ## 5. Response Serialization
 
-- [ ] 5.1 Design `#[exclude]` and `#[expose(role = "...")]` attribute macro syntax on response DTOs
-- [ ] 5.2 Implement `SerializeInterceptor` that reads exclude/expose metadata and transforms response
-- [ ] 5.3 Support conditional exposure based on `AuthContext` / user roles
-- [ ] 5.4 Register `SerializeInterceptor` as a global pipeline interceptor
-- [ ] 5.5 Write tests: field exclusion, role-based exposure, interceptor transformation
+- [x] 5.1 Design `#[exclude]` and `#[expose(role = "...")]` attribute macro syntax on response DTOs
+- [x] 5.2 Implement `SerializeInterceptor` that reads exclude/expose metadata and transforms response
+- [x] 5.3 Support conditional exposure based on `AuthContext` / user roles
+- [x] 5.4 Register `SerializeInterceptor` as a global pipeline interceptor
+- [x] 5.5 Write tests: field exclusion, role-based exposure, interceptor transformation
 
 ## 6. Security Middleware
 
-- [ ] 6.1 Implement CORS middleware with configurable origins, methods, headers, and preflight handling
-- [ ] 6.2 Implement rate limiting middleware with sliding window algorithm and in-memory backend
-- [ ] 6.3 Implement rate limiting Redis backend for production deployments
-- [ ] 6.4 Implement security headers middleware (HSTS, CSP, X-Content-Type-Options, X-Frame-Options)
-- [ ] 6.5 Implement CSRF protection middleware with synchronizer token pattern
-- [ ] 6.6 Wire security middleware into `ironic-security` crate with `AxumAdapter` integration
-- [ ] 6.7 Write tests: CORS allow/block, rate limit 429, security headers present, CSRF token validation
+- [x] 6.1 Implement CORS middleware with configurable origins, methods, headers, and preflight handling
+- [x] 6.2 Implement rate limiting middleware with sliding window algorithm and in-memory backend
+- [x] 6.3 Implement rate limiting Redis backend for production deployments
+- [x] 6.4 Implement security headers middleware (HSTS, CSP, X-Content-Type-Options, X-Frame-Options)
+- [x] 6.5 Implement CSRF protection middleware with synchronizer token pattern
+- [x] 6.6 Wire security middleware into `ironic-security` crate with `AxumAdapter` integration
+- [x] 6.7 Write tests: CORS allow/block, rate limit 429, security headers present, CSRF token validation
 
 ## 7. Compression Middleware
 
-- [ ] 7.1 Implement gzip compression middleware as a Tower layer
-- [ ] 7.2 Implement brotli and deflate compression support
-- [ ] 7.3 Add content-type allowlist configuration
-- [ ] 7.4 Add `AxumAdapter::compression(level)` integration
-- [ ] 7.5 Write tests: compressed response, uncompressed skipped, content-type filtering
+- [x] 7.1 Implement gzip compression middleware as a Tower layer
+- [x] 7.2 Implement brotli and deflate compression support
+- [x] 7.3 Add content-type allowlist configuration
+- [x] 7.4 Add `AxumAdapter::compression(level)` integration
+- [x] 7.5 Write tests: compressed response, uncompressed skipped, content-type filtering
 
 ## 8. WebSocket Gateways
 
@@ -113,10 +113,10 @@
 
 ## 14. Custom Decorators
 
-- [ ] 14.1 Implement `create_param_decorator!` declarative macro with extraction function parameter
-- [ ] 14.2 Ensure custom decorators generate valid parameter extraction code for the `#[routes]` macro
-- [ ] 14.3 Support pipe chaining on custom decorators
-- [ ] 14.4 Write tests: custom header extractor, custom with pipe validation, integration with `#[routes]`
+- [x] 14.1 Implement `create_param_decorator!` declarative macro with extraction function parameter
+- [x] 14.2 Ensure custom decorators generate valid parameter extraction code for the `#[routes]` macro
+- [x] 14.3 Support pipe chaining on custom decorators
+- [x] 14.4 Write tests: custom header extractor, custom with pipe validation, integration with `#[routes]`
 
 ## 15. Documentation and Final Verification
 

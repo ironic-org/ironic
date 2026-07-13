@@ -373,7 +373,7 @@ mod tests {
     use crate::{
         ControllerDefinition, ExtractFuture, FrameworkRequest, HeaderMap, HttpMethod, HttpStatus,
         IntoFrameworkResponse, ParameterExtractor, RouteDefinition, Uri, compile_controller_routes,
-        handler_fn,
+        handler_fn, parse_int,
     };
 
     type Events = Arc<Mutex<Vec<&'static str>>>;
@@ -1276,5 +1276,159 @@ mod tests {
         assert!(result.is_ok());
         let events = events.lock().unwrap().clone();
         assert!(events.contains(&"filter_executed"));
+    }
+
+    // ------------------------------------------------------------------
+    // Custom decorator tests
+    // ------------------------------------------------------------------
+
+    /// A custom extractor that provides a static string value.
+    struct CustomStringExtractor {
+        value: String,
+    }
+
+    impl CustomStringExtractor {
+        fn new() -> Self {
+            Self {
+                value: "custom-decorator-value".to_string(),
+            }
+        }
+    }
+
+    impl ParameterExtractor for CustomStringExtractor {
+        fn extract<'a>(&'a self, _context: &'a mut RequestContext) -> ExtractFuture<'a> {
+            let v = self.value.clone();
+            Box::pin(async move { Ok(Box::new(v) as ExtractedValue) })
+        }
+
+        fn description(&self) -> &'static str {
+            "custom_string"
+        }
+    }
+
+    #[tokio::test]
+    async fn custom_decorator_extracts_parameter() {
+        let events = Arc::new(Mutex::new(Vec::new()));
+        let handler_events = Arc::clone(&events);
+
+        let route = RouteDefinition::new(
+            HttpMethod::GET,
+            "/custom",
+            "custom_test",
+            handler_fn(move |_controller: Arc<Controller>, mut arguments| {
+                let events = Arc::clone(&handler_events);
+                async move {
+                    push(&events, "handler");
+                    let value = arguments.take::<String>(0).unwrap();
+                    assert_eq!(value, "custom-decorator-value");
+                    Ok(FrameworkResponse::empty(HttpStatus::NO_CONTENT))
+                }
+            }),
+        )
+        .unwrap()
+        .parameter(CustomStringExtractor::new());
+
+        let provider = ProviderDefinition::constructor(Scope::Singleton, Vec::new(), |_resolver| {
+            Ok(Controller)
+        });
+        let controller = ControllerDefinition::new::<Controller>("/", provider)
+            .unwrap()
+            .route(route);
+
+        let mut container = ContainerBuilder::new();
+        container.register(controller.provider().clone()).unwrap();
+        let routes = compile_controller_routes([controller]).unwrap();
+        let application = CompiledHttpApplication::new(container.build(), routes);
+
+        let mut context = request_context();
+        let result = application
+            .execute(&application.routes()[0], &mut context)
+            .await;
+        assert!(result.is_ok());
+        let events = events.lock().unwrap().clone();
+        assert!(events.contains(&"handler"));
+    }
+
+    #[tokio::test]
+    async fn custom_decorator_with_pipe_chaining() {
+        let events = Arc::new(Mutex::new(Vec::new()));
+
+        let route = RouteDefinition::new(
+            HttpMethod::GET,
+            "/custom-pipe",
+            "custom_pipe",
+            handler_fn(move |_controller: Arc<Controller>, mut arguments| {
+                let events = Arc::clone(&events);
+                async move {
+                    push(&events, "handler");
+                    let value = arguments.take::<i64>(0).unwrap();
+                    assert_eq!(value, 42);
+                    Ok(FrameworkResponse::empty(HttpStatus::NO_CONTENT))
+                }
+            }),
+        )
+        .unwrap()
+        .parameter_with_pipe(
+            CustomStringExtractor {
+                value: "42".to_string(),
+            },
+            parse_int(),
+        );
+
+        let provider = ProviderDefinition::constructor(Scope::Singleton, Vec::new(), |_resolver| {
+            Ok(Controller)
+        });
+        let controller = ControllerDefinition::new::<Controller>("/", provider)
+            .unwrap()
+            .route(route);
+
+        let mut container = ContainerBuilder::new();
+        container.register(controller.provider().clone()).unwrap();
+        let routes = compile_controller_routes([controller]).unwrap();
+        let application = CompiledHttpApplication::new(container.build(), routes);
+
+        let mut context = request_context();
+        let result = application
+            .execute(&application.routes()[0], &mut context)
+            .await;
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn custom_decorator_with_pipe_failure() {
+        let route = RouteDefinition::new(
+            HttpMethod::GET,
+            "/custom-pipe-fail",
+            "custom_pipe_fail",
+            handler_fn(|_controller: Arc<Controller>, _arguments| async move {
+                Ok::<_, HttpError>(FrameworkResponse::empty(HttpStatus::NO_CONTENT))
+            }),
+        )
+        .unwrap()
+        .parameter_with_pipe(
+            CustomStringExtractor {
+                value: "not-a-number".to_string(),
+            },
+            parse_int(),
+        );
+
+        let provider = ProviderDefinition::constructor(Scope::Singleton, Vec::new(), |_resolver| {
+            Ok(Controller)
+        });
+        let controller = ControllerDefinition::new::<Controller>("/", provider)
+            .unwrap()
+            .route(route);
+
+        let mut container = ContainerBuilder::new();
+        container.register(controller.provider().clone()).unwrap();
+        let routes = compile_controller_routes([controller]).unwrap();
+        let application = CompiledHttpApplication::new(container.build(), routes);
+
+        let mut context = request_context();
+        let result = application
+            .execute(&application.routes()[0], &mut context)
+            .await;
+        assert!(result.is_err());
+        assert_eq!(result.unwrap_err().code(), "RF_PARSE_INT_FAILED");
     }
 }

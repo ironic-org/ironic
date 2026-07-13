@@ -1,8 +1,8 @@
 use proc_macro2::TokenStream;
 use quote::quote;
 use syn::{
-    Attribute, FnArg, ImplItem, ImplItemFn, ItemImpl, LitStr, Meta, Pat, ReturnType, Type, parse2,
-    spanned::Spanned,
+    Attribute, Expr, FnArg, ImplItem, ImplItemFn, ItemImpl, LitStr, Meta, Pat, ReturnType, Type,
+    parse2, spanned::Spanned,
 };
 
 use crate::controller::take_components;
@@ -133,6 +133,7 @@ fn expand_method(
     let mut extractors = Vec::new();
     let mut bindings = Vec::new();
     let mut arguments = Vec::new();
+    let mut parameter_pipes: Vec<Vec<TokenStream>> = Vec::new();
 
     for (index, argument) in method.sig.inputs.iter_mut().skip(1).enumerate() {
         let FnArg::Typed(argument) = argument else {
@@ -146,13 +147,27 @@ fn expand_method(
         };
         let argument_name = &pattern.ident;
         let argument_type = &argument.ty;
-        let extractor = take_extractor(&mut argument.attrs, argument_name, argument_type)?;
+        let (extractor, pipes) =
+            take_extractor(&mut argument.attrs, argument_name, argument_type)?;
         extractors.push(extractor);
+        parameter_pipes.push(pipes);
         bindings.push(quote!(let #argument_name = arguments.take::<#argument_type>(#index)?;));
         arguments.push(argument_name);
     }
 
     let method_name = &method.sig.ident;
+    let parameter_calls: Vec<TokenStream> = extractors
+        .into_iter()
+        .zip(parameter_pipes.into_iter())
+        .map(|(extractor, pipes)| {
+            if pipes.is_empty() {
+                quote! { .parameter(#extractor) }
+            } else {
+                quote! { .parameter_with_pipes(#extractor, [#(#pipes),*]) }
+            }
+        })
+        .collect();
+
     Ok(quote! {
         ::ironic::RouteDefinition::new(
             ::ironic::HttpMethod::#http_method,
@@ -166,7 +181,7 @@ fn expand_method(
             ),
         )
         .expect("the macro-validated route path is valid")
-        #(.parameter(#extractors))*
+        #(#parameter_calls)*
         #(.guard(#guards))*
         #(.interceptor(#interceptors))*
     })
@@ -176,44 +191,82 @@ fn take_extractor(
     attrs: &mut Vec<Attribute>,
     argument_name: &syn::Ident,
     argument_type: &Type,
-) -> syn::Result<TokenStream> {
+) -> syn::Result<(TokenStream, Vec<TokenStream>)> {
     let mut extractor = None;
+    let mut pipes = Vec::new();
     let mut retained = Vec::new();
     for attr in attrs.drain(..) {
         let Some(name) = attr.path().get_ident().map(ToString::to_string) else {
             retained.push(attr);
             continue;
         };
-        let value = match name.as_str() {
-            "body" => quote!(::ironic::JsonBody::<#argument_type>::new()),
-            "query" => quote!(::ironic::QueryParameters::<#argument_type>::new()),
+        match name.as_str() {
+            "body" => {
+                let value = quote!(::ironic::JsonBody::<#argument_type>::new());
+                if extractor.replace(value).is_some() {
+                    return Err(syn::Error::new_spanned(
+                        argument_name,
+                        "a route parameter must have exactly one extractor attribute",
+                    ));
+                }
+            }
+            "query" => {
+                let value = quote!(::ironic::QueryParameters::<#argument_type>::new());
+                if extractor.replace(value).is_some() {
+                    return Err(syn::Error::new_spanned(
+                        argument_name,
+                        "a route parameter must have exactly one extractor attribute",
+                    ));
+                }
+            }
             "param" => {
                 let name = optional_name(&attr, argument_name)?;
-                quote!(::ironic::PathParameter::<#argument_type>::new(#name))
+                let value = quote!(::ironic::PathParameter::<#argument_type>::new(#name));
+                if extractor.replace(value).is_some() {
+                    return Err(syn::Error::new_spanned(
+                        argument_name,
+                        "a route parameter must have exactly one extractor attribute",
+                    ));
+                }
             }
             "header" => {
                 let name = optional_name(&attr, argument_name)?;
-                quote!(::ironic::HeaderParameter::<#argument_type>::new(#name))
+                let value = quote!(::ironic::HeaderParameter::<#argument_type>::new(#name));
+                if extractor.replace(value).is_some() {
+                    return Err(syn::Error::new_spanned(
+                        argument_name,
+                        "a route parameter must have exactly one extractor attribute",
+                    ));
+                }
+            }
+            "custom" => {
+                let extractor_type: Type = attr.parse_args()?;
+                let value = quote!(#extractor_type::new());
+                if extractor.replace(value).is_some() {
+                    return Err(syn::Error::new_spanned(
+                        argument_name,
+                        "a route parameter must have exactly one extractor attribute",
+                    ));
+                }
+            }
+            "pipe" => {
+                let pipe_fn: Expr = attr.parse_args()?;
+                pipes.push(quote!(#pipe_fn()));
             }
             _ => {
                 retained.push(attr);
                 continue;
             }
-        };
-        if extractor.replace(value).is_some() {
-            return Err(syn::Error::new_spanned(
-                argument_name,
-                "a route parameter must have exactly one extractor attribute",
-            ));
         }
     }
     *attrs = retained;
-    extractor.ok_or_else(|| {
+    let extractor = extractor.ok_or_else(|| {
         syn::Error::new_spanned(
             argument_name,
-            "route parameters require one of `#[body]`, `#[query]`, `#[param]`, or `#[header]`",
+            "route parameters require one of `#[body]`, `#[query]`, `#[param]`, `#[header]`, or `#[custom(ExtractorType)]`",
         )
-    })
+    })?;
+    Ok((extractor, pipes))
 }
 
 fn optional_name(attr: &Attribute, argument_name: &syn::Ident) -> syn::Result<LitStr> {

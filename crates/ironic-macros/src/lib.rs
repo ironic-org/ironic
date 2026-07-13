@@ -80,6 +80,8 @@ marker_attribute!(
     query,
     param,
     header,
+    custom,
+    pipe,
     use_guard,
     use_interceptor,
 );

@@ -1,39 +1,101 @@
 //! Security headers middleware for Ironic.
 //!
-//! Adds HSTS, CSP, X-Content-Type-Options, and X-Frame-Options headers
-//! to every response.
-//!
 //! Feature flag: `security-headers`.
 
 use std::sync::Arc;
 
-use ironic_http::{HeaderName, HeaderValue, Middleware, MiddlewareNext, PipelineFuture, RequestContext};
+use ironic_http::{
+    Middleware, MiddlewareNext, PipelineFuture, RequestContext,
+};
 
-/// Security header values applied to all responses.
-#[derive(Clone, Debug)]
+/// Security headers configuration.
+#[derive(Clone)]
 pub struct SecurityHeadersConfig {
-    /// `Strict-Transport-Security` header value (e.g., "max-age=31536000; includeSubDomains").
-    pub hsts: Option<String>,
-    /// `Content-Security-Policy` header value.
-    pub csp: Option<String>,
-    /// `X-Content-Type-Options` header value (typically "nosniff").
-    pub x_content_type_options: Option<String>,
-    /// `X-Frame-Options` header value (e.g., "DENY" or "SAMEORIGIN").
-    pub x_frame_options: Option<String>,
+    hsts: Option<String>,
+    csp: Option<String>,
+    x_content_type_options: Option<String>,
+    x_frame_options: Option<String>,
+    referrer_policy: Option<String>,
+    permissions_policy: Option<String>,
 }
 
 impl Default for SecurityHeadersConfig {
     fn default() -> Self {
         Self {
-            hsts: Some("max-age=31536000; includeSubDomains".into()),
-            csp: None,
-            x_content_type_options: Some("nosniff".into()),
-            x_frame_options: Some("DENY".into()),
+            hsts: Some("max-age=31536000; includeSubDomains".to_owned()),
+            csp: Some("default-src 'self'".to_owned()),
+            x_content_type_options: Some("nosniff".to_owned()),
+            x_frame_options: Some("DENY".to_owned()),
+            referrer_policy: Some("strict-origin-when-cross-origin".to_owned()),
+            permissions_policy: Some("geolocation=()".to_owned()),
         }
     }
 }
 
-/// Middleware that applies security headers to all responses.
+impl SecurityHeadersConfig {
+    /// Creates a new security headers configuration with secure defaults.
+    #[must_use]
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    /// Sets the `Strict-Transport-Security` header value.
+    #[must_use]
+    pub fn hsts(mut self, value: impl Into<String>) -> Self {
+        self.hsts = Some(value.into());
+        self
+    }
+
+    /// Sets the `Content-Security-Policy` header value.
+    #[must_use]
+    pub fn csp(mut self, value: impl Into<String>) -> Self {
+        self.csp = Some(value.into());
+        self
+    }
+
+    /// Sets the `X-Content-Type-Options` header value.
+    #[must_use]
+    pub fn x_content_type_options(mut self, value: impl Into<String>) -> Self {
+        self.x_content_type_options = Some(value.into());
+        self
+    }
+
+    /// Sets the `X-Frame-Options` header value.
+    #[must_use]
+    pub fn x_frame_options(mut self, value: impl Into<String>) -> Self {
+        self.x_frame_options = Some(value.into());
+        self
+    }
+
+    /// Sets the `Referrer-Policy` header value.
+    #[must_use]
+    pub fn referrer_policy(mut self, value: impl Into<String>) -> Self {
+        self.referrer_policy = Some(value.into());
+        self
+    }
+
+    /// Disables a header by setting it to `None`.
+    #[must_use]
+    pub fn disable_hsts(mut self) -> Self {
+        self.hsts = None;
+        self
+    }
+
+    /// Disables CSP header.
+    #[must_use]
+    pub fn disable_csp(mut self) -> Self {
+        self.csp = None;
+        self
+    }
+}
+
+fn insert_header(headers: &mut http::HeaderMap, name: http::HeaderName, value: &str) {
+    if let Ok(v) = http::HeaderValue::from_str(value) {
+        headers.insert(name, v);
+    }
+}
+
+/// Middleware that sets security-related HTTP response headers.
 #[derive(Clone)]
 pub struct SecurityHeadersMiddleware {
     config: Arc<SecurityHeadersConfig>,
@@ -59,28 +121,26 @@ impl Middleware for SecurityHeadersMiddleware {
             let mut response = next.run(context).await?;
             let headers = response.headers_mut();
 
-            if let Some(hsts) = &self.config.hsts {
-                headers.insert(
-                    HeaderName::from_static("strict-transport-security"),
-                    HeaderValue::from_str(hsts).unwrap(),
-                );
+            if let Some(ref val) = self.config.hsts {
+                insert_header(headers, http::header::STRICT_TRANSPORT_SECURITY, val);
             }
-            if let Some(csp) = &self.config.csp {
-                headers.insert(
-                    HeaderName::from_static("content-security-policy"),
-                    HeaderValue::from_str(csp).unwrap(),
-                );
+            if let Some(ref val) = self.config.csp {
+                insert_header(headers, http::header::CONTENT_SECURITY_POLICY, val);
             }
-            if let Some(xcto) = &self.config.x_content_type_options {
-                headers.insert(
-                    HeaderName::from_static("x-content-type-options"),
-                    HeaderValue::from_str(xcto).unwrap(),
-                );
+            if let Some(ref val) = self.config.x_content_type_options {
+                insert_header(headers, http::header::X_CONTENT_TYPE_OPTIONS, val);
             }
-            if let Some(xfo) = &self.config.x_frame_options {
-                headers.insert(
-                    HeaderName::from_static("x-frame-options"),
-                    HeaderValue::from_str(xfo).unwrap(),
+            if let Some(ref val) = self.config.x_frame_options {
+                insert_header(headers, http::header::X_FRAME_OPTIONS, val);
+            }
+            if let Some(ref val) = self.config.referrer_policy {
+                insert_header(headers, http::header::REFERRER_POLICY, val);
+            }
+            if let Some(ref val) = self.config.permissions_policy {
+                insert_header(
+                    headers,
+                    http::header::HeaderName::from_static("permissions-policy"),
+                    val,
                 );
             }
 

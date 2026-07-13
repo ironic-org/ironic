@@ -49,6 +49,7 @@ pub enum AxumPlatformError {
 pub struct AxumAdapter {
     request_body_limit: usize,
     request_timeout: Duration,
+    enable_compression: bool,
     configure_router: Vec<RouterConfigurator>,
 }
 
@@ -66,6 +67,7 @@ impl AxumAdapter {
         Self {
             request_body_limit: DEFAULT_REQUEST_BODY_LIMIT,
             request_timeout: DEFAULT_REQUEST_TIMEOUT,
+            enable_compression: false,
             configure_router: Vec::new(),
         }
     }
@@ -96,6 +98,14 @@ impl AxumAdapter {
         self.configure_router.push(Box::new(configure));
         self
     }
+
+    /// Enables response compression (gzip, brotli, zstd) via `tower-http`.
+    #[cfg(feature = "compression")]
+    #[must_use]
+    pub fn compression(mut self) -> Self {
+        self.enable_compression = true;
+        self
+    }
 }
 
 impl Default for AxumAdapter {
@@ -121,6 +131,10 @@ impl HttpPlatformAdapter for AxumAdapter {
                 self.request_body_limit,
                 self.request_timeout,
             )?;
+        }
+        #[cfg(feature = "compression")]
+        if self.enable_compression {
+            router = router.layer(tower_http::compression::CompressionLayer::new());
         }
         for configure in self.configure_router {
             router = configure(router);
@@ -923,5 +937,169 @@ mod tests {
         assert_eq!(response.status(), HttpStatus::OK);
         let body = to_bytes(response.into_body(), usize::MAX).await.unwrap();
         assert_eq!(&body[..], b"v2-response");
+    }
+
+    #[tokio::test]
+    #[cfg(feature = "compression")]
+    async fn compression_with_gzip() {
+        use std::sync::Arc;
+
+        struct DataController;
+
+        let large_body = "hello world this is a much longer response body that exceeds one kilobyte in length so that the tower-http compression layer will actually trigger compression for it. we need to make sure this string is longer than 1024 bytes to pass the default size threshold. so let's keep writing more and more text until we cross that magical 1024 byte boundary. the text is repeated here for good measure. hello world this is a much longer response body that exceeds one kilobyte in length so that the tower-http compression layer will actually trigger compression for it. hello world this is a much longer response body that exceeds one kilobyte in length so that the tower-http compression layer will actually trigger compression for it. we need to make sure this string is longer than 1024 bytes to pass the default size threshold. so let's keep writing more and more text until we cross that magical 1024 byte boundary. the text is repeated here for good measure. hello world this is a much longer response body that exceeds one kilobyte in length so that the tower-http compression layer will actually trigger compression for it.";
+
+        let route = RouteDefinition::new(
+            HttpMethod::GET,
+            "/",
+            "get_data",
+            handler_fn(move |_controller: Arc<DataController>, _arguments| {
+                let body = large_body;
+                async move { Ok::<_, HttpError>(body) }
+            }),
+        )
+        .unwrap();
+        let provider = ProviderDefinition::value(DataController);
+        let controller = ControllerDefinition::new::<DataController>("/api/data", provider)
+            .unwrap()
+            .route(route);
+
+        let mut container = ContainerBuilder::new();
+        container.register(controller.provider().clone()).unwrap();
+        let application = Arc::new(CompiledHttpApplication::new(
+            container.build(),
+            compile_controller_routes([controller]).unwrap(),
+        ));
+        let router = AxumAdapter::new()
+            .compression()
+            .build(application)
+            .unwrap()
+            .into_router();
+
+        // Request with Accept-Encoding: gzip
+        let response = router
+            .oneshot(
+                Request::get("/api/data")
+                    .header("Accept-Encoding", "gzip")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(response.status(), HttpStatus::OK);
+        assert_eq!(
+            response
+                .headers()
+                .get("content-encoding")
+                .and_then(|v| v.to_str().ok()),
+            Some("gzip")
+        );
+
+        // Body should be gzip-compressed
+        let body = to_bytes(response.into_body(), usize::MAX).await.unwrap();
+        assert!(!body.is_empty());
+        assert_ne!(&body[..], b"hello world");
+    }
+
+    #[tokio::test]
+    #[cfg(feature = "compression")]
+    async fn compression_no_accept_encoding() {
+        use std::sync::Arc;
+
+        struct DataController;
+
+        let route = RouteDefinition::new(
+            HttpMethod::GET,
+            "/",
+            "get_data",
+            handler_fn(|_controller: Arc<DataController>, _arguments| async move {
+                Ok::<_, HttpError>("hello world")
+            }),
+        )
+        .unwrap();
+        let provider = ProviderDefinition::value(DataController);
+        let controller = ControllerDefinition::new::<DataController>("/api/data", provider)
+            .unwrap()
+            .route(route);
+
+        let mut container = ContainerBuilder::new();
+        container.register(controller.provider().clone()).unwrap();
+        let application = Arc::new(CompiledHttpApplication::new(
+            container.build(),
+            compile_controller_routes([controller]).unwrap(),
+        ));
+        let router = AxumAdapter::new()
+            .compression()
+            .build(application)
+            .unwrap()
+            .into_router();
+
+        // Request without Accept-Encoding
+        let response = router
+            .oneshot(Request::get("/api/data").body(Body::empty()).unwrap())
+            .await
+            .unwrap();
+
+        assert_eq!(response.status(), HttpStatus::OK);
+        assert!(response
+            .headers()
+            .get("content-encoding")
+            .is_none());
+
+        // Body should be uncompressed
+        let body = to_bytes(response.into_body(), usize::MAX).await.unwrap();
+        assert_eq!(&body[..], b"hello world");
+    }
+
+    #[tokio::test]
+    #[cfg(feature = "compression")]
+    async fn compression_disabled() {
+        use std::sync::Arc;
+
+        struct DataController;
+
+        let route = RouteDefinition::new(
+            HttpMethod::GET,
+            "/",
+            "get_data",
+            handler_fn(|_controller: Arc<DataController>, _arguments| async move {
+                Ok::<_, HttpError>("hello world")
+            }),
+        )
+        .unwrap();
+        let provider = ProviderDefinition::value(DataController);
+        let controller = ControllerDefinition::new::<DataController>("/api/data", provider)
+            .unwrap()
+            .route(route);
+
+        let mut container = ContainerBuilder::new();
+        container.register(controller.provider().clone()).unwrap();
+        let application = Arc::new(CompiledHttpApplication::new(
+            container.build(),
+            compile_controller_routes([controller]).unwrap(),
+        ));
+        // No .compression() — should not compress
+        let router = AxumAdapter::new()
+            .build(application)
+            .unwrap()
+            .into_router();
+
+        let response = router
+            .oneshot(
+                Request::get("/api/data")
+                    .header("Accept-Encoding", "gzip")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(response.status(), HttpStatus::OK);
+        assert!(response
+            .headers()
+            .get("content-encoding")
+            .is_none());
+        let body = to_bytes(response.into_body(), usize::MAX).await.unwrap();
+        assert_eq!(&body[..], b"hello world");
     }
 }

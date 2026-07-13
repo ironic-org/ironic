@@ -1,111 +1,135 @@
 //! Rate limiting middleware for Ironic.
 //!
-//! Provides sliding-window rate limiting with configurable limits and
-//! an in-memory backend for development. Production deployments should
-//! use the Redis backend.
-//!
 //! Feature flag: `security-rate-limit`.
 
 use std::{
     collections::HashMap,
-    net::SocketAddr,
-    sync::Mutex,
+    sync::{Arc, Mutex},
     time::{Duration, Instant},
 };
 
-use ironic_http::{HttpError, HttpStatus, Middleware, MiddlewareNext, PipelineFuture, RequestContext};
+use ironic_http::{
+    FrameworkResponse, HttpError, HttpStatus, Middleware, MiddlewareNext, PipelineFuture,
+    RequestContext,
+};
 
-/// A rate-limit configuration entry.
-#[derive(Clone, Debug)]
-pub struct RateLimitConfig {
-    /// Maximum number of requests allowed in the window.
-    pub max_requests: u64,
-    /// Duration of the sliding window.
-    pub window: Duration,
-}
-
-impl Default for RateLimitConfig {
-    fn default() -> Self {
-        Self {
-            max_requests: 100,
-            window: Duration::from_mins(1),
-        }
-    }
-}
-
+/// A sliding window rate limit entry.
+#[derive(Clone)]
 struct WindowEntry {
-    count: u64,
-    window_start: Instant,
+    timestamp: Instant,
 }
 
-/// Sliding-window rate limiter backed by an in-memory store.
-///
-/// For production, implement the [`RateLimitBackend`] trait with Redis.
+/// In-memory sliding window rate limiter.
+#[derive(Clone)]
 pub struct InMemoryRateLimiter {
-    config: RateLimitConfig,
-    clients: Mutex<HashMap<SocketAddr, WindowEntry>>,
+    windows: Arc<Mutex<HashMap<String, Vec<WindowEntry>>>>,
+    max_requests: u64,
+    window_secs: u64,
 }
 
 impl InMemoryRateLimiter {
-    /// Creates a new rate limiter with the given configuration.
+    /// Creates a new rate limiter with the given limits.
     #[must_use]
-    pub fn new(config: RateLimitConfig) -> Self {
+    pub fn new(max_requests: u64, window_secs: u64) -> Self {
         Self {
-            config,
-            clients: Mutex::new(HashMap::new()),
+            windows: Arc::new(Mutex::new(HashMap::new())),
+            max_requests,
+            window_secs,
         }
     }
 
-    fn check(&self, addr: SocketAddr) -> Result<(), HttpError> {
+    /// Returns `true` if the request is allowed, `false` if rate-limited.
+    pub fn check(&self, key: &str) -> bool {
+        let mut windows = self.windows.lock().unwrap();
         let now = Instant::now();
-        let mut clients = self.clients.lock().expect("rate limit lock poisoned");
+        let entries = windows.entry(key.to_owned()).or_default();
 
-        let entry = clients.entry(addr).or_insert(WindowEntry {
-            count: 0,
-            window_start: now,
-        });
+        // Remove expired entries
+        entries.retain(|e| now.duration_since(e.timestamp).as_secs() < self.window_secs);
 
-        if now.duration_since(entry.window_start) > self.config.window {
-            entry.count = 0;
-            entry.window_start = now;
+        if entries.len() as u64 >= self.max_requests {
+            false
+        } else {
+            entries.push(WindowEntry { timestamp: now });
+            true
         }
+    }
 
-        entry.count += 1;
-
-        if entry.count > self.config.max_requests {
-            return Err(HttpError::new(
-                HttpStatus::TOO_MANY_REQUESTS,
-                "RF_RATE_LIMITED",
-                "Too many requests. Please try again later.",
-            ));
-        }
-
-        Ok(())
+    /// Returns the number of remaining requests in the current window.
+    pub fn remaining(&self, key: &str) -> u64 {
+        let windows = self.windows.lock().unwrap();
+        let now = Instant::now();
+        windows
+            .get(key)
+            .map(|entries| {
+                let active = entries
+                    .iter()
+                    .filter(|e| now.duration_since(e.timestamp).as_secs() < self.window_secs)
+                    .count() as u64;
+                self.max_requests.saturating_sub(active)
+            })
+            .unwrap_or(self.max_requests)
     }
 }
 
-/// Abstract rate-limit backend for production deployments.
-#[cfg(feature = "redis")]
-pub trait RateLimitBackend: Send + Sync + 'static {
-    /// Checks and increments the rate-limit counter for the given key.
-    fn check_and_increment(&self, key: &str, max_requests: u64, window_secs: u64) -> bool;
+/// Rate limiting middleware with configurable backend.
+#[derive(Clone)]
+pub struct RateLimitMiddleware {
+    limiter: Arc<InMemoryRateLimiter>,
 }
 
-impl Middleware for InMemoryRateLimiter {
+impl RateLimitMiddleware {
+    /// Creates a new rate limit middleware.
+    #[must_use]
+    pub fn new(max_requests: u64, window_secs: u64) -> Self {
+        Self {
+            limiter: Arc::new(InMemoryRateLimiter::new(max_requests, window_secs)),
+        }
+    }
+}
+
+impl Middleware for RateLimitMiddleware {
     fn handle<'a>(
         &'a self,
         context: &'a mut RequestContext,
         next: MiddlewareNext<'a>,
     ) -> PipelineFuture<'a> {
-        let addr = context
-            .extension::<SocketAddr>()
-            .copied()
-            .unwrap_or_else(|| ([0, 0, 0, 0], 0).into());
+        Box::pin(async move {
+            // Use client IP or similar identifier as rate limit key
+            let key = context
+                .request()
+                .headers()
+                .get("x-forwarded-for")
+                .and_then(|v| v.to_str().ok())
+                .unwrap_or("unknown")
+                .to_owned();
 
-        if let Err(error) = self.check(addr) {
-            return Box::pin(async move { Err(error) });
-        }
+            if !self.limiter.check(&key) {
+                let mut response = FrameworkResponse::error(
+                    HttpStatus::TOO_MANY_REQUESTS,
+                    "RF_HTTP_RATE_LIMIT_EXCEEDED",
+                    "Too many requests, please try again later",
+                );
+                response.headers_mut().insert(
+                    http::header::RETRY_AFTER,
+                    http::HeaderValue::from_static("60"),
+                );
+                response.headers_mut().insert(
+                    http::header::HeaderName::from_static("x-ratelimit-remaining"),
+                    http::HeaderValue::from_static("0"),
+                );
+                return Ok(response);
+            }
 
-        Box::pin(async move { next.run(context).await })
+            let remaining = self.limiter.remaining(&key);
+            let mut response = next.run(context).await?;
+            response.headers_mut().insert(
+                http::header::HeaderName::from_static("x-ratelimit-remaining"),
+                http::HeaderValue::from_str(&remaining.to_string()).unwrap_or_else(|_| {
+                    http::HeaderValue::from_static("0")
+                }),
+            );
+            Ok(response)
+        })
     }
 }

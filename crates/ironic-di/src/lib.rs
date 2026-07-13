@@ -1072,7 +1072,7 @@ mod tests {
                 Scope::Singleton,
                 vec![Dependency::optional::<Repository>()],
                 |resolver| async move {
-                    let repo = resolver.resolve_optional::<Repository>().await?;
+                    let _repo = resolver.resolve_optional::<Repository>().await?;
                     Ok(OptionalService)
                 },
             ))

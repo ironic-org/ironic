@@ -70,7 +70,7 @@ async fn main() {
 ## Documentation
 
 - [Getting Started](./docs/content/docs/getting-started.md)
-- [Full Documentation](https://docs.ironic.rs)
+- [Full Documentation](https://docs.rs/ironic)
 - [Examples](./examples/)
 - [Release Notes](./RELEASE_NOTES.md)
 

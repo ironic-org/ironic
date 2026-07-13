@@ -22,7 +22,7 @@ All contributors must follow our [Code of Conduct](CODE_OF_CONDUCT.md). Be respe
 
 ## Getting Started
 
-1. **Read the docs** at [docs.ironic.rs](https://docs.ironic.rs) to understand the framework architecture.
+1. **Read the docs** at [docs.rs/ironic](https://docs.rs/ironic) or the [local docs site](./docs/) to understand the framework architecture.
 2. **Check existing issues** — look for [`good first issue`](https://github.com/ironic-org/ironic/labels/good%20first%20issue) and [`help wanted`](https://github.com/ironic-org/ironic/labels/help%20wanted) labels.
 3. **Discuss first** — for significant changes, open an issue or start a discussion before writing code.
 
@@ -155,4 +155,4 @@ Report security vulnerabilities to **security@ironic.rs** or follow the process 
 
 - Open a [discussion](https://github.com/ironic-org/ironic/discussions)
 - Join our [Discord](https://discord.gg/ironic)
-- Check [docs.ironic.rs](https://docs.ironic.rs)
+- Check [docs.rs/ironic](https://docs.rs/ironic)

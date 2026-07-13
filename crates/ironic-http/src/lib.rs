@@ -1,15 +1,20 @@
 #![doc = "Transport-neutral HTTP contracts for Ironic."]
 
 mod error;
+mod exception_filter;
 mod extract;
 mod handler;
+mod metadata;
 mod observability;
 mod pipeline;
+mod pipes;
 mod request;
 mod response;
 mod route;
 
 pub use error::HttpError;
+pub use exception_filter::{ExceptionFilter, FilterContext};
+pub use metadata::{CacheMetadata, VersionMetadata, VersioningStrategy};
 pub use extract::{
     ExtractFuture, ExtractedValue, HeaderParameter, JsonBody, ParameterExtractor, PathParameter,
     QueryParameters,
@@ -20,6 +25,13 @@ pub use pipeline::{
     Guard, GuardDecision, GuardFuture, Interceptor, InterceptorNext, Middleware, MiddlewareNext,
     ParameterPipe, PipeFuture, PipelineComponents, PipelineFuture, pipe_fn,
 };
+pub use pipes::{
+    ParseBoolPipe, ParseFloatPipe, ParseIntPipe, parse_bool, parse_float, parse_int,
+};
+#[cfg(feature = "uuid")]
+pub use pipes::{ParseUUIDPipe, parse_uuid};
+#[cfg(feature = "validation")]
+pub use pipes::{ValidationPipe, validate};
 pub use request::{FrameworkRequest, RequestContext};
 pub use response::{FrameworkBody, FrameworkResponse, IntoFrameworkResponse, Json};
 pub use route::{

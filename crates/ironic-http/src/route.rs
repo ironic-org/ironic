@@ -190,6 +190,23 @@ impl RouteDefinition {
         self
     }
 
+    /// Attaches cache metadata to this route.
+    #[must_use]
+    pub fn cache(mut self, metadata: crate::CacheMetadata) -> Self {
+        self.metadata.insert(metadata);
+        self
+    }
+
+    /// Registers a global-level pipe for all parameters of this route.
+    #[must_use]
+    #[allow(clippy::needless_pass_by_value)]
+    pub fn pipe(mut self, pipe: Arc<dyn ParameterPipe>) -> Self {
+        for parameter in &mut self.parameters {
+            parameter.pipes.push(Arc::clone(&pipe));
+        }
+        self
+    }
+
     /// Returns all typed metadata attached to this route.
     #[must_use]
     pub const fn route_metadata(&self) -> &RouteMetadata {
@@ -235,6 +252,7 @@ pub struct ControllerDefinition {
     provider: ProviderDefinition,
     routes: Vec<RouteDefinition>,
     pipeline: PipelineComponents,
+    version: Option<crate::VersionMetadata>,
 }
 
 impl ControllerDefinition {
@@ -260,6 +278,7 @@ impl ControllerDefinition {
             provider,
             routes: Vec::new(),
             pipeline: PipelineComponents::new(),
+            version: None,
         })
     }
 
@@ -296,6 +315,19 @@ impl ControllerDefinition {
     pub fn interceptor(mut self, interceptor: impl Interceptor) -> Self {
         self.pipeline = self.pipeline.interceptor(interceptor);
         self
+    }
+
+    /// Attaches version metadata to this controller for API versioning.
+    #[must_use]
+    pub fn version(mut self, metadata: crate::VersionMetadata) -> Self {
+        self.version = Some(metadata);
+        self
+    }
+
+    /// Returns the version metadata, if any.
+    #[must_use]
+    pub const fn version_metadata(&self) -> Option<&crate::VersionMetadata> {
+        self.version.as_ref()
     }
 
     /// Returns the controller's concrete type key.
@@ -335,6 +367,10 @@ impl ControllerDefinition {
             }
             let mut pipeline = self.pipeline.clone();
             pipeline.append(&route.pipeline);
+            let mut metadata = route.metadata.clone();
+            if let Some(version) = &self.version {
+                metadata.insert(version.clone());
+            }
             compiled.push(CompiledRoute {
                 controller: self.key,
                 method: route.method.clone(),
@@ -343,7 +379,7 @@ impl ControllerDefinition {
                 parameters: route.parameters.clone(),
                 handler: Arc::clone(&route.handler),
                 pipeline,
-                metadata: route.metadata.clone(),
+                metadata,
             });
         }
         Ok(compiled)

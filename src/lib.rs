@@ -34,6 +34,9 @@ pub mod distributed;
 #[cfg(any(feature = "plugins", feature = "devtools"))]
 #[path = "../crates/ironic-devtools/src/lib.rs"]
 pub mod ecosystem;
+#[cfg(feature = "security")]
+#[path = "../crates/ironic-security/src/lib.rs"]
+pub mod security;
 #[path = "../crates/ironic-http/src/lib.rs"]
 mod http_impl;
 #[path = "../crates/ironic-integrations/src/lib.rs"]
@@ -59,6 +62,7 @@ pub use cli_impl::{CliError, cli, generators, run, run_with};
 pub use common::*;
 pub use config_impl::*;
 pub use core::*;
+pub use http_impl::{CacheMetadata, ExceptionFilter, FilterContext, VersionMetadata, VersioningStrategy};
 pub use di::*;
 pub use http_impl::*;
 pub use ironic_macros::{
@@ -90,16 +94,17 @@ pub mod __private {
 /// Commonly used Ironic types and macros.
 pub mod prelude {
     pub use crate::{
-        ConfigurationError, ConfigurationLoader, ControllerDefinition, Dependency,
-        FrameworkApplication, FrameworkError, FrameworkResult, Guard, GuardDecision, GuardFuture,
-        HeaderParameter, HealthModule, HealthStatus, HttpError, HttpMethod, HttpPlatformAdapter,
-        HttpPlatformApplication, Injectable, Interceptor, InterceptorNext, Json, JsonBody,
-        LifecycleDefinition, Middleware, Module, ModuleDefinition, OnApplicationBootstrap,
-        OnApplicationShutdown, OnModuleDestroy, OnModuleInit, OpenApiSchema, ParameterPipe,
-        PathParameter, PipelineFuture, ProviderDefinition, QueryParameters, RequestContext,
-        RequestId, RequestScope, RequestTracing, RouteDefinition, RouteMetadata, Scope, Secret,
-        SecretString, ShutdownSignal, ValidateConfiguration, body, controller, delete, get,
-        handler_fn, head, header, options, param, patch, pipe_fn, post, put, query, routes,
-        use_guard, use_interceptor,
+        CacheMetadata, ConfigurationError, ConfigurationLoader, ControllerDefinition, Dependency,
+        ExceptionFilter, FilterContext, FrameworkApplication, FrameworkError, FrameworkResult,
+        Guard, GuardDecision, GuardFuture, HeaderParameter, HealthModule, HealthStatus, HttpError,
+        HttpMethod, HttpPlatformAdapter, HttpPlatformApplication, Injectable, Interceptor,
+        InterceptorNext, Json, JsonBody, LifecycleDefinition, Middleware, Module, ModuleDefinition,
+        OnApplicationBootstrap, OnApplicationShutdown, OnModuleDestroy, OnModuleInit,
+        OpenApiSchema, ParameterPipe, PathParameter, PipelineFuture, ProviderDefinition,
+        QueryParameters, RequestContext, RequestId, RequestScope, RequestTracing, RouteDefinition,
+        RouteMetadata, Scope, Secret, SecretString, ShutdownSignal, ValidateConfiguration,
+        VersionMetadata, VersioningStrategy, body, controller, delete, get, handler_fn, head,
+        header, options, param, patch, pipe_fn, post, put, query, routes, use_guard,
+        use_interceptor,
     };
 }

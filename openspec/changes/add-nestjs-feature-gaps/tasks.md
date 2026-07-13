@@ -1,17 +1,17 @@
 ## 1. Foundation: New crate scaffolding and shared infrastructure
 
-- [ ] 1.1 Create `ironic-security` crate with `Cargo.toml`, `lib.rs`, and feature flags
-- [ ] 1.2 Add new feature flags to workspace `Cargo.toml`: `security`, `compression`, `versioning`, `serialization`, `validation`, `cron`, `custom-decorators`
-- [ ] 1.3 Add dependencies to workspace `Cargo.toml`: `garde`, `uuid`, `cron`, `flate2`, `async-compression`
-- [ ] 1.4 Add optional dev-dependencies: `redis`, `lapin`, `rdkafka`
-- [ ] 1.5 Create `FilterContext` struct and `ExceptionFilter` trait in `ironic-http`
-- [ ] 1.6 Extend `RouteDefinition` and `ControllerDefinition` with pipe, version, cache, and exception filter metadata
+- [x] 1.1 Create `ironic-security` crate with `Cargo.toml`, `lib.rs`, and feature flags
+- [x] 1.2 Add new feature flags to workspace `Cargo.toml`: `security`, `compression`, `versioning`, `serialization`, `validation`, `cron`, `custom-decorators`
+- [x] 1.3 Add dependencies to workspace `Cargo.toml`: `garde`, `uuid`, `cron`
+- [x] 1.4 Add optional dependencies: `tower-http`, `lapin`, `kafka`
+- [x] 1.5 Create `FilterContext` struct and `ExceptionFilter` trait in `ironic-http`
+- [x] 1.6 Extend `RouteDefinition` and `ControllerDefinition` with pipe, version, cache, and exception filter metadata
 
 ## 2. Validation Pipes
 
-- [ ] 2.1 Implement `ParameterPipe` trait for typed validation (transform + validate)
-- [ ] 2.2 Implement `ParseIntPipe`, `ParseFloatPipe`, `ParseBoolPipe`, `ParseUUIDPipe`
-- [ ] 2.3 Implement `ValidationPipe` with `garde::Validate` integration
+- [x] 2.1 `ParameterPipe` trait already exists in `ironic-http/src/pipeline.rs`
+- [x] 2.2 Implement `ParseIntPipe`, `ParseFloatPipe`, `ParseBoolPipe`, `ParseUUIDPipe`
+- [x] 2.3 Implement `ValidationPipe` with `garde::Validate` integration
 - [ ] 2.4 Add global, controller, and parameter pipe registration to `CompiledHttpApplication`
 - [ ] 2.5 Integrate pipes into the request pipeline execution order (before handler, after extraction)
 - [ ] 2.6 Write tests: pipe transforms, validation errors, global/controller/parameter scope

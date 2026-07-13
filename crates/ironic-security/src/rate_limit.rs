@@ -5,12 +5,11 @@
 use std::{
     collections::HashMap,
     sync::{Arc, Mutex},
-    time::{Duration, Instant},
+    time::Instant,
 };
 
 use ironic_http::{
-    FrameworkResponse, HttpError, HttpStatus, Middleware, MiddlewareNext, PipelineFuture,
-    RequestContext,
+    FrameworkResponse, HttpStatus, Middleware, MiddlewareNext, PipelineFuture, RequestContext,
 };
 
 /// A sliding window rate limit entry.
@@ -39,6 +38,10 @@ impl InMemoryRateLimiter {
     }
 
     /// Returns `true` if the request is allowed, `false` if rate-limited.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the internal mutex is poisoned.
     pub fn check(&self, key: &str) -> bool {
         let mut windows = self.windows.lock().unwrap();
         let now = Instant::now();
@@ -56,19 +59,22 @@ impl InMemoryRateLimiter {
     }
 
     /// Returns the number of remaining requests in the current window.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the internal mutex is poisoned.
     pub fn remaining(&self, key: &str) -> u64 {
         let windows = self.windows.lock().unwrap();
         let now = Instant::now();
         windows
             .get(key)
-            .map(|entries| {
+            .map_or(self.max_requests, |entries| {
                 let active = entries
                     .iter()
                     .filter(|e| now.duration_since(e.timestamp).as_secs() < self.window_secs)
                     .count() as u64;
                 self.max_requests.saturating_sub(active)
             })
-            .unwrap_or(self.max_requests)
     }
 }
 

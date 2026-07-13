@@ -134,7 +134,7 @@ impl HttpPlatformAdapter for AxumAdapter {
         }
         #[cfg(feature = "realtime")]
         for gateway in application.ws_gateways() {
-            router = register_ws_gateway(router, Arc::clone(&application), gateway.clone());
+            router = register_ws_gateway(router, Arc::clone(&application), gateway);
         }
         #[cfg(feature = "compression")]
         if self.enable_compression {
@@ -350,7 +350,7 @@ fn error_response(error: HttpError) -> Response {
 fn register_ws_gateway(
     router: Router,
     application: Arc<CompiledHttpApplication>,
-    gateway: ironic_http::WsGatewayDefinition,
+    gateway: &ironic_http::WsGatewayDefinition,
 ) -> Router {
     use axum::extract::ws::{Message, WebSocket, WebSocketUpgrade};
     use futures_util::{SinkExt, StreamExt};

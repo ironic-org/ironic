@@ -5,8 +5,8 @@
 use std::sync::Arc;
 
 use ironic_http::{
-    FrameworkResponse, HttpError, HttpMethod, HttpStatus, Middleware, MiddlewareNext,
-    PipelineFuture, RequestContext,
+    FrameworkResponse, HttpMethod, HttpStatus, Middleware, MiddlewareNext, PipelineFuture,
+    RequestContext,
 };
 
 /// CORS configuration.
@@ -114,11 +114,10 @@ impl Middleware for CorsMiddleware {
                 .headers()
                 .get("origin")
                 .and_then(|v| v.to_str().ok())
-                .map(|s| s.to_owned());
+                .map(std::borrow::ToOwned::to_owned);
 
-            let origin = match origin {
-                Some(o) => o,
-                None => return next.run(context).await,
+            let Some(origin) = origin else {
+                return next.run(context).await;
             };
 
             if !self.config.is_origin_allowed(&origin) {

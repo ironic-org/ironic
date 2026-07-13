@@ -154,6 +154,7 @@ impl Interceptor for SerializeInterceptor {
 }
 
 /// Applies field rules to a JSON value tree in place.
+#[allow(clippy::similar_names)]
 fn apply_rules(value: &mut Value, rules: &FieldRules, roles: &[String]) {
     match value {
         Value::Object(map) => {
@@ -204,9 +205,9 @@ mod tests {
     use std::sync::Arc;
 
     use crate::{
-        CompiledHttpApplication, ControllerDefinition, FrameworkResponse, HeaderMap, HttpMethod,
-        HttpStatus, IntoFrameworkResponse, Json, ProviderDefinition, RequestContext,
-        RouteDefinition, compile_controller_routes, handler_fn,
+        CompiledHttpApplication, ControllerDefinition, HeaderMap, HttpMethod, Json,
+        ProviderDefinition, RequestContext, RouteDefinition, compile_controller_routes,
+        handler_fn,
     };
     use ironic_di::{ContainerBuilder, Scope};
     use serde::Serialize;

@@ -1091,7 +1091,7 @@ mod tests {
                 vec![Dependency::optional::<Repository>()],
                 |resolver| async move {
                     let repo = resolver.resolve_optional::<Repository>().await?;
-                    assert!(matches!(repo, None));
+                    assert!(repo.is_none());
                     Ok(OptionalService)
                 },
             ))

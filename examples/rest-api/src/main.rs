@@ -32,6 +32,7 @@ struct ItemView {
 // ---------------------------------------------------------------------------
 
 #[derive(Debug, Deserialize, Serialize, Validate)]
+#[allow(dead_code)]
 struct CreateItem {
     #[garde(length(min = 1, max = 256))]
     name: String,
@@ -122,9 +123,7 @@ mod tests {
 
     use axum::body::Body;
     use ironic::{
-        AxumAdapter, CompiledHttpApplication, ContainerBuilder, FieldRules, FrameworkResponse,
-        HttpStatus, SerializeInterceptor, TestApplication, VersionMetadata, VersioningStrategy,
-        prelude::*,
+        ContainerBuilder, FrameworkResponse, HttpStatus, TestApplication, prelude::*,
     };
     use tower::ServiceExt;
 

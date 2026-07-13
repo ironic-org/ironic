@@ -1222,9 +1222,6 @@ mod tests {
 
     #[tokio::test]
     async fn filter_has_access_to_route_metadata() {
-        let events = Arc::new(Mutex::new(Vec::new()));
-        let handler_events = Arc::clone(&events);
-
         struct MetadataInspector {
             events: Events,
         }
@@ -1236,11 +1233,13 @@ mod tests {
                 context: &crate::FilterContext,
             ) -> Result<FrameworkResponse, HttpError> {
                 push(&self.events, "filter_executed");
-                // Verify FilterContext provides route metadata
                 let _metadata = context.route_metadata();
                 Ok(FrameworkResponse::empty(HttpStatus::IM_A_TEAPOT))
             }
         }
+
+        let events = Arc::new(Mutex::new(Vec::new()));
+        let handler_events = Arc::clone(&events);
 
         let route = RouteDefinition::new(
             HttpMethod::GET,

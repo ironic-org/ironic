@@ -121,6 +121,10 @@ pub struct IncomingMessage {
 }
 
 /// Attempts to parse an incoming WebSocket text message as `{"event": "...", "data": {...}}`.
+///
+/// # Errors
+///
+/// Returns an error when the input is not valid JSON or is missing the `event` field.
 pub fn parse_incoming(text: &str) -> Result<IncomingMessage, String> {
     let value: crate::__private::serde_json::Value =
         crate::__private::serde_json::from_str(text).map_err(|e| format!("Invalid JSON: {e}"))?;
@@ -131,8 +135,7 @@ pub fn parse_incoming(text: &str) -> Result<IncomingMessage, String> {
         .to_string();
     let data = value
         .get("data")
-        .map(|v| v.to_string())
-        .unwrap_or_else(|| "null".to_string());
+        .map_or_else(|| "null".to_string(), std::string::ToString::to_string);
     Ok(IncomingMessage { event, data })
 }
 

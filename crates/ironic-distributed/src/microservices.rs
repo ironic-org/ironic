@@ -173,7 +173,7 @@ impl Transport for RedisTransport {
     }
 }
 
-/// Configuration for a RabbitMQ transport.
+/// Configuration for a `RabbitMQ` transport.
 #[cfg(feature = "transport-rabbitmq")]
 #[derive(Clone, Debug)]
 pub struct RabbitMqTransportConfig {
@@ -224,7 +224,7 @@ impl RabbitMqTransportBuilder {
         self
     }
 
-    /// Connects to RabbitMQ and returns a transport endpoint.
+    /// Connects to `RabbitMQ` and returns a transport endpoint.
     ///
     /// # Errors
     ///
@@ -241,9 +241,9 @@ impl RabbitMqTransportBuilder {
     }
 }
 
-/// A RabbitMQ transport.
+/// A `RabbitMQ` transport.
 ///
-/// Requires the `transport-rabbitmq` feature and a running RabbitMQ instance.
+/// Requires the `transport-rabbitmq` feature and a running `RabbitMQ` instance.
 #[cfg(feature = "transport-rabbitmq")]
 #[derive(Clone, Debug)]
 #[allow(dead_code)]

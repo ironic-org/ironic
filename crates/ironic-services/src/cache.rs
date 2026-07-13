@@ -198,6 +198,7 @@ impl RedisCache {
         self
     }
 
+    #[allow(dead_code)]
     fn prefixed(&self, key: &str) -> String {
         if self.key_prefix.is_empty() {
             key.to_owned()

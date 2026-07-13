@@ -80,7 +80,7 @@ where
                 .to_std()
                 .unwrap_or(Duration::ZERO);
             tokio::select! {
-                _ = tokio::time::sleep(delay) => task().await,
+                () = tokio::time::sleep(delay) => task().await,
                 result = stopped.changed() => {
                     if result.is_err() || *stopped.borrow() { break; }
                 }
@@ -115,7 +115,7 @@ where
                 .to_std()
                 .unwrap_or(Duration::ZERO);
             tokio::select! {
-                _ = tokio::time::sleep(delay) => task().await,
+                () = tokio::time::sleep(delay) => task().await,
                 result = stopped.changed() => {
                     if result.is_err() || *stopped.borrow() { break; }
                 }

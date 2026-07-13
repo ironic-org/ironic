@@ -5,8 +5,7 @@
 use std::sync::Arc;
 
 use ironic_http::{
-    FrameworkResponse, HttpError, HttpMethod, HttpStatus, Middleware, MiddlewareNext,
-    PipelineFuture, RequestContext,
+    HttpError, HttpMethod, HttpStatus, Middleware, MiddlewareNext, PipelineFuture, RequestContext,
 };
 
 /// CSRF protection configuration.
@@ -91,7 +90,7 @@ impl CsrfMiddleware {
             .headers()
             .get(&self.config.header_name)
             .and_then(|v| v.to_str().ok())
-            .map(|s| s.to_owned())
+            .map(std::borrow::ToOwned::to_owned)
     }
 }
 

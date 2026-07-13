@@ -35,8 +35,8 @@ jobs:
         run: |
           VERSION="${{ github.ref_name }}"
           echo "version=${VERSION#v}" >> $GITHUB_OUTPUT
-          # Extract current release section from CHANGELOG.md
-          awk '/^## \[/{if(p) exit; p=1; next} p' CHANGELOG.md > /tmp/release-notes.md
+          # Extract the section for this release version
+          awk "/^## \[${VERSION#v}\]/{p=1; next} /^## \[/{if(p) exit} p" CHANGELOG.md > /tmp/release-notes.md
           cat /tmp/release-notes.md
 
       - name: Create GitHub Release

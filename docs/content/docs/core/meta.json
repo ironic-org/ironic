@@ -1,0 +1,4 @@
+{
+  "title": "Core",
+  "pages": ["fundamentals", "configuration", "dependency-management"]
+}

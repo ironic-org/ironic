@@ -3,21 +3,21 @@ import { Link } from 'react-router-dom';
 
 const footerLinks = {
     Docs: [
-        { label: 'Getting started', href: '/docs/getting-started' },
-        { label: 'Fundamentals', href: '/docs/fundamentals' },
-        { label: 'CLI', href: '/docs/cli' },
+        { label: 'Getting started', href: '/docs/getting-started/getting-started' },
+        { label: 'Fundamentals', href: '/docs/core/fundamentals' },
+        { label: 'CLI', href: '/docs/getting-started/cli' },
         { label: 'API Reference', href: '/docs' },
     ],
     Features: [
-        { label: 'Security', href: '/docs/security' },
-        { label: 'Cache', href: '/docs/cache-decorators' },
-        { label: 'Scheduling', href: '/docs/scheduling' },
-        { label: 'WebSockets', href: '/docs/websocket-gateways' },
+        { label: 'Security', href: '/docs/http-api/security' },
+        { label: 'Cache', href: '/docs/performance/cache-decorators' },
+        { label: 'Scheduling', href: '/docs/performance/scheduling' },
+        { label: 'WebSockets', href: '/docs/advanced/websocket-gateways' },
     ],
     Resources: [
         { label: 'GitHub', href: 'https://github.com/ironic-org/ironic' },
-        { label: 'Benchmarks', href: '/docs/benchmarks' },
-        { label: 'Examples', href: '/docs/examples' },
+        { label: 'Benchmarks', href: '/docs/more/benchmarks' },
+        { label: 'Examples', href: '/docs/more/examples' },
         { label: 'CHANGELOG', href: 'https://github.com/ironic-org/ironic/blob/main/CHANGELOG.md' },
     ],
 };

@@ -1,31 +1,13 @@
 {
   "title": "Ironic",
   "pages": [
-    "index",
     "getting-started",
-    "cli",
-    "fundamentals",
-    "configuration",
-    "database-integrations",
-    "authentication",
-    "request-scoped-providers",
-    "dynamic-modules",
-    "application-services",
-    "cache-decorators",
-    "scheduling",
-    "validation-pipes",
-    "exception-filters",
-    "api-versioning",
-    "response-serialization",
-    "compression",
-    "security",
-    "websocket-gateways",
-    "custom-decorators",
-    "distributed",
-    "devtools-plugins",
-    "openapi",
-    "dependency-management",
-    "examples",
-    "benchmarks"
+    "core",
+    "modules",
+    "data-auth",
+    "http-api",
+    "performance",
+    "advanced",
+    "more"
   ]
 }

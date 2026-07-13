@@ -29,7 +29,7 @@ cache before invoking the handler and populates it on a cache miss.
 async fn list(&self) -> Result<impl IntoFrameworkResponse, HttpError> { ... }
 ```
 
-See [Cache decorators](/docs/cache-decorators) for full details.
+See [Cache decorators](/docs/performance/cache-decorators) for full details.
 
 ## Scheduling
 
@@ -53,7 +53,7 @@ let task = interval(Duration::from_secs(30), || async move {
 });
 ```
 
-Start tasks in `OnModuleInit` and stop them in `OnModuleDestroy`. See [Task scheduling](/docs/scheduling)
+Start tasks in `OnModuleInit` and stop them in `OnModuleDestroy`. See [Task scheduling](/docs/performance/scheduling)
 for lifecycle integration and cron examples.
 
 ## Events
@@ -76,7 +76,7 @@ assert_eq!(receiver.recv().await.unwrap().as_str(), "created");
 ## Realtime
 
 `realtime` exposes native Axum WebSocket upgrade types and a bounded SSE channel. See
-[WebSocket gateways](/docs/websocket-gateways) for gateway classes, message routing, rooms,
+[WebSocket gateways](/docs/advanced/websocket-gateways) for gateway classes, message routing, rooms,
 and broadcasting.
 
 Background tasks should be stopped from application lifecycle shutdown hooks. In-memory caches and

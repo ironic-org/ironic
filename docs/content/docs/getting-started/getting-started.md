@@ -42,4 +42,4 @@ Generation is idempotent and refuses to overwrite divergent files. When an exist
 cannot be parsed safely, the CLI prints a manual registration instruction instead of modifying it.
 
 For a source-first walkthrough, see [`examples/rest-api`](../../../examples/rest-api/src/main.rs).
-For every command and generator option, see the [CLI reference](/docs/cli).
+For every command and generator option, see the [CLI reference](/docs/getting-started/cli).

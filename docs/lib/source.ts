@@ -143,7 +143,7 @@ function folderNode(slugs: string[], fallback: string): Node {
     type: 'folder',
     name: meta?.title ?? pageTitle(slugs, fallback),
     description: meta?.description,
-    defaultOpen: slugs[0] === 'api' || slugs[0] === 'architecture',
+    defaultOpen: true,
     index: hasIndex ? pageNode(slugs, 'Overview') : undefined,
     children: treeChildren(slugs).filter((node) => {
       if (node.type !== 'page') return true;

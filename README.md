@@ -22,9 +22,16 @@ ironic start
 
 - **Modular architecture** — modules, imports, exports, provider visibility
 - **Dependency injection** — singletons, transients, factories, cycle detection
-- **HTTP routing** — Axum adapter, controllers, parameter extraction, validation
+- **HTTP routing** — Axum adapter, controllers, parameter extraction
+- **API versioning** — URI prefix, header-based, and media-type versioning strategies
 - **Request pipeline** — middleware, guards, interceptors, error handling
-- **Procedural macros** — `#[derive(Injectable)]`, `#[Module]`, `#[controller]`, `#[get]`, `#[post]`
+- **Parameter pipes** — type parsing, validation, and transformation pipelines
+- **Validation pipes** — `ValidationPipe` with `garde` integration (`#[garde(...)]` attributes)
+- **Exception filters** — structured error handling with route-level and global filter chains
+- **Response serialization** — `#[derive(Serializable)]` with `#[exclude]` and `#[expose(role)]` for field-level JSON control
+- **Security middleware** — CORS, rate limiting, security headers (HSTS, CSP, X-Content-Type-Options, X-Frame-Options), CSRF protection
+- **Response compression** — gzip, brotli, and zstd via `AxumAdapter::compression()`
+- **Procedural macros** — `#[derive(Injectable)]`, `#[Module]`, `#[controller]`, `#[get]`, `#[post]`, `#[derive(Serializable)]`
 - **Testing utilities** — in-process test app, provider overrides, fluent assertions
 - **CLI** — project scaffolding, code generators, doctor command
 - **OpenAPI** — automatic schema generation, Swagger UI

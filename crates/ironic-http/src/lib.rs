@@ -15,22 +15,20 @@ mod route;
 mod serialization;
 
 pub use error::HttpError;
-pub use exception_filter::{ExceptionFilter, FilterContext};
 pub(crate) use exception_filter::ExceptionFilterSet;
-pub use metadata::{CacheMetadata, VersionMetadata, VersioningStrategy};
+pub use exception_filter::{ExceptionFilter, FilterContext};
 pub use extract::{
     ExtractFuture, ExtractedValue, HeaderParameter, JsonBody, ParameterExtractor, PathParameter,
     QueryParameters,
 };
 pub use handler::{ErasedHandler, HandlerArguments, HandlerFuture, handler_fn};
+pub use metadata::{CacheMetadata, VersionMetadata, VersioningStrategy};
 pub use observability::{RequestId, RequestTracing};
 pub use pipeline::{
     Guard, GuardDecision, GuardFuture, Interceptor, InterceptorNext, Middleware, MiddlewareNext,
     ParameterPipe, PipeFuture, PipelineComponents, PipelineFuture, pipe_fn,
 };
-pub use pipes::{
-    ParseBoolPipe, ParseFloatPipe, ParseIntPipe, parse_bool, parse_float, parse_int,
-};
+pub use pipes::{ParseBoolPipe, ParseFloatPipe, ParseIntPipe, parse_bool, parse_float, parse_int};
 #[cfg(feature = "uuid")]
 pub use pipes::{ParseUUIDPipe, parse_uuid};
 #[cfg(feature = "validation")]

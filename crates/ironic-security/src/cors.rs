@@ -5,8 +5,8 @@
 use std::sync::Arc;
 
 use ironic_http::{
-    FrameworkResponse, HttpError, HttpMethod, HttpStatus, Middleware, MiddlewareNext, PipelineFuture,
-    RequestContext,
+    FrameworkResponse, HttpError, HttpMethod, HttpStatus, Middleware, MiddlewareNext,
+    PipelineFuture, RequestContext,
 };
 
 /// CORS configuration.
@@ -155,9 +155,8 @@ fn set_cors_headers(response: &mut FrameworkResponse, config: &CorsConfig, origi
     } else {
         headers.insert(
             http::header::ACCESS_CONTROL_ALLOW_ORIGIN,
-            http::HeaderValue::from_str(origin).unwrap_or_else(|_| {
-                http::HeaderValue::from_static("*")
-            }),
+            http::HeaderValue::from_str(origin)
+                .unwrap_or_else(|_| http::HeaderValue::from_static("*")),
         );
         if config.allow_credentials {
             headers.insert(

@@ -43,7 +43,8 @@ impl FieldRules {
     /// Marks `field` as only included when the current user has `role`.
     #[must_use]
     pub fn expose(mut self, field: impl Into<String>, role: impl Into<String>) -> Self {
-        self.rules.push((field.into(), FieldRule::Expose { role: role.into() }));
+        self.rules
+            .push((field.into(), FieldRule::Expose { role: role.into() }));
         self
     }
 
@@ -298,30 +299,23 @@ mod tests {
         let mut value = serde_json::json!({"a": 1, "b": 2});
         let rules = FieldRules::new();
         apply_rules(&mut value, &rules, &[]);
-        assert_eq!(
-            value,
-            serde_json::json!({"a": 1, "b": 2})
-        );
+        assert_eq!(value, serde_json::json!({"a": 1, "b": 2}));
     }
 
     struct Controller;
 
-    fn controller_route(
-        interceptors: Vec<SerializeInterceptor>,
-    ) -> CompiledHttpApplication {
+    fn controller_route(interceptors: Vec<SerializeInterceptor>) -> CompiledHttpApplication {
         let route = RouteDefinition::new(
             HttpMethod::GET,
             "/",
             "handler",
-            handler_fn(|_controller: Arc<Controller>, _arguments| {
-                async move {
-                    Ok::<_, HttpError>(Json(TestDto {
-                        id: 1,
-                        name: "test".into(),
-                        secret: "classified".into(),
-                        internal: "hidden".into(),
-                    }))
-                }
+            handler_fn(|_controller: Arc<Controller>, _arguments| async move {
+                Ok::<_, HttpError>(Json(TestDto {
+                    id: 1,
+                    name: "test".into(),
+                    secret: "classified".into(),
+                    internal: "hidden".into(),
+                }))
             }),
         )
         .unwrap();

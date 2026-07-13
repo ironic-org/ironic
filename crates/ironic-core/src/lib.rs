@@ -886,6 +886,36 @@ mod tests {
 
     use super::*;
 
+    #[tokio::test]
+    async fn module_ref_resolves_registered_provider() {
+        let mut builder = ContainerBuilder::new();
+        builder.register(ProviderDefinition::value(42_u32)).unwrap();
+        let container = builder.build();
+
+        let module_ref = ModuleRef::new();
+        module_ref.set_container(container);
+
+        let value = module_ref.resolve::<u32>().await.unwrap();
+        assert_eq!(*value, 42);
+    }
+
+    #[tokio::test]
+    async fn module_ref_optional_returns_none_for_missing() {
+        let container = ContainerBuilder::new().build();
+        let module_ref = ModuleRef::new();
+        module_ref.set_container(container);
+
+        let value: Option<Arc<u32>> = module_ref.resolve_optional::<u32>().await.unwrap();
+        assert!(value.is_none());
+    }
+
+    #[tokio::test]
+    async fn module_ref_errors_when_uninitialized() {
+        let module_ref = ModuleRef::new();
+        let result = module_ref.resolve::<u32>().await;
+        assert!(result.is_err());
+    }
+
     struct Database;
     struct Repository;
     struct Service;

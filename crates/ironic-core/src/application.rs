@@ -5,8 +5,8 @@ use ironic_platform::{HttpPlatformAdapter, HttpPlatformApplication, Shutdown, Sh
 
 use crate::{
     CompiledApplicationGraph, HttpApplicationBuildError, LifecycleDefinition, LifecycleError,
-    ModuleDefinition, ModuleError, ModuleRef,
-    build_http_application_with_extra_providers, compile_module_graph,
+    ModuleDefinition, ModuleError, ModuleRef, build_http_application_with_extra_providers,
+    compile_module_graph,
 };
 
 /// Marker used until an application builder receives a platform adapter.

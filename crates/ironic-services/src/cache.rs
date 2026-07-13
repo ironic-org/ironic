@@ -164,6 +164,7 @@ impl Cache for InMemoryCache {
 /// automatic reconnection — use a connection manager for production use.
 #[cfg(feature = "redis")]
 #[derive(Clone)]
+#[allow(dead_code)]
 pub struct RedisCache {
     client: ::redis::aio::ConnectionManager,
     key_prefix: String,

@@ -1,8 +1,8 @@
 use proc_macro2::TokenStream;
 use quote::quote;
 use syn::{
-    Attribute, Expr, FnArg, ImplItem, ImplItemFn, ItemImpl, LitStr, Meta, Pat, ReturnType, Type,
-    parse2, spanned::Spanned,
+    Attribute, Expr, FnArg, ImplItem, ImplItemFn, ItemImpl, LitInt, LitStr, Meta, Pat, ReturnType,
+    Type, parse::Parse, parse::ParseStream, parse2, spanned::Spanned,
 };
 
 use crate::controller::take_components;
@@ -130,6 +130,7 @@ fn expand_method(
 
     let guards = take_components(&mut method.attrs, "use_guard")?;
     let interceptors = take_components(&mut method.attrs, "use_interceptor")?;
+    let cache_ttl = take_cache_ttl(&mut method.attrs)?;
     let mut extractors = Vec::new();
     let mut bindings = Vec::new();
     let mut arguments = Vec::new();
@@ -147,8 +148,7 @@ fn expand_method(
         };
         let argument_name = &pattern.ident;
         let argument_type = &argument.ty;
-        let (extractor, pipes) =
-            take_extractor(&mut argument.attrs, argument_name, argument_type)?;
+        let (extractor, pipes) = take_extractor(&mut argument.attrs, argument_name, argument_type)?;
         extractors.push(extractor);
         parameter_pipes.push(pipes);
         bindings.push(quote!(let #argument_name = arguments.take::<#argument_type>(#index)?;));
@@ -156,9 +156,12 @@ fn expand_method(
     }
 
     let method_name = &method.sig.ident;
+    let cache_call = cache_ttl.map(|ttl| {
+        quote! { .cache(::ironic::CacheMetadata::new(#ttl)) }
+    });
     let parameter_calls: Vec<TokenStream> = extractors
         .into_iter()
-        .zip(parameter_pipes.into_iter())
+        .zip(parameter_pipes)
         .map(|(extractor, pipes)| {
             if pipes.is_empty() {
                 quote! { .parameter(#extractor) }
@@ -184,6 +187,7 @@ fn expand_method(
         #(#parameter_calls)*
         #(.guard(#guards))*
         #(.interceptor(#interceptors))*
+        #cache_call
     })
 }
 
@@ -255,7 +259,6 @@ fn take_extractor(
             }
             _ => {
                 retained.push(attr);
-                continue;
             }
         }
     }
@@ -277,4 +280,37 @@ fn optional_name(attr: &Attribute, argument_name: &syn::Ident) -> syn::Result<Li
         )),
         _ => attr.parse_args::<LitStr>(),
     }
+}
+
+struct CacheArgs {
+    ttl_secs: u64,
+}
+
+impl Parse for CacheArgs {
+    fn parse(input: ParseStream<'_>) -> syn::Result<Self> {
+        let key: syn::Ident = input.parse()?;
+        if key != "ttl_secs" {
+            return Err(syn::Error::new(key.span(), "expected `ttl_secs`"));
+        }
+        input.parse::<syn::Token![=]>()?;
+        let value: LitInt = input.parse()?;
+        Ok(CacheArgs {
+            ttl_secs: value.base10_parse()?,
+        })
+    }
+}
+
+fn take_cache_ttl(attrs: &mut Vec<Attribute>) -> syn::Result<Option<u64>> {
+    let mut ttl = None;
+    let mut retained = Vec::new();
+    for attr in attrs.drain(..) {
+        if attr.path().is_ident("cache") {
+            let args: CacheArgs = attr.parse_args()?;
+            ttl = Some(args.ttl_secs);
+        } else {
+            retained.push(attr);
+        }
+    }
+    *attrs = retained;
+    Ok(ttl)
 }

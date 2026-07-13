@@ -1,8 +1,8 @@
 use std::sync::Arc;
 
 use crate::http_impl::{
-    CacheMetadata, HttpError, HttpStatus, Interceptor, InterceptorNext, PipelineFuture,
-    RequestContext, FrameworkResponse,
+    CacheMetadata, FrameworkResponse, HttpError, HttpStatus, Interceptor, InterceptorNext,
+    PipelineFuture, RequestContext,
 };
 use crate::services::cache::Cache;
 
@@ -43,17 +43,12 @@ impl Interceptor for CacheInterceptor {
                 context.request().uri().path(),
             );
 
-            if let Some(cached) = self
-                .backend
-                .get(&key)
-                .await
-                .map_err(|error| {
-                    HttpError::internal(
-                        "IRONIC_CACHE_LOOKUP_FAILED",
-                        format!("cache lookup failed: {error}"),
-                    )
-                })?
-            {
+            if let Some(cached) = self.backend.get(&key).await.map_err(|error| {
+                HttpError::internal(
+                    "IRONIC_CACHE_LOOKUP_FAILED",
+                    format!("cache lookup failed: {error}"),
+                )
+            })? {
                 return Ok(FrameworkResponse::bytes(HttpStatus::OK, cached));
             }
 

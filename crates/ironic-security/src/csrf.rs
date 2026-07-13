@@ -5,8 +5,8 @@
 use std::sync::Arc;
 
 use ironic_http::{
-    FrameworkResponse, HttpError, HttpMethod, HttpStatus, Middleware, MiddlewareNext, PipelineFuture,
-    RequestContext,
+    FrameworkResponse, HttpError, HttpMethod, HttpStatus, Middleware, MiddlewareNext,
+    PipelineFuture, RequestContext,
 };
 
 /// CSRF protection configuration.
@@ -129,9 +129,7 @@ impl Middleware for CsrfMiddleware {
             let header_token = self.extract_header_token(context);
 
             match (cookie_token, header_token) {
-                (Some(ref cookie), Some(ref header)) if cookie == header => {
-                    next.run(context).await
-                }
+                (Some(ref cookie), Some(ref header)) if cookie == header => next.run(context).await,
                 _ => Err(HttpError::new(
                     HttpStatus::FORBIDDEN,
                     "RF_HTTP_CSRF_TOKEN_MISMATCH",

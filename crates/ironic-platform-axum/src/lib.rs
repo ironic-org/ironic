@@ -740,7 +740,11 @@ mod tests {
         // Versioned path should work
         let response = router
             .clone()
-            .oneshot(Request::get("/v1/users/profile").body(Body::empty()).unwrap())
+            .oneshot(
+                Request::get("/v1/users/profile")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
             .await
             .unwrap();
         assert_eq!(response.status(), HttpStatus::OK);
@@ -934,20 +938,28 @@ mod tests {
         )
         .unwrap();
 
-        let v1_controller =
-            ControllerDefinition::new::<V1Controller>("/api", v1_provider)
-                .unwrap()
-                .version(ironic_http::VersionMetadata::new("1", VersioningStrategy::Uri))
-                .route(v1_route);
-        let v2_controller =
-            ControllerDefinition::new::<V2Controller>("/api", v2_provider)
-                .unwrap()
-                .version(ironic_http::VersionMetadata::new("2", VersioningStrategy::Uri))
-                .route(v2_route);
+        let v1_controller = ControllerDefinition::new::<V1Controller>("/api", v1_provider)
+            .unwrap()
+            .version(ironic_http::VersionMetadata::new(
+                "1",
+                VersioningStrategy::Uri,
+            ))
+            .route(v1_route);
+        let v2_controller = ControllerDefinition::new::<V2Controller>("/api", v2_provider)
+            .unwrap()
+            .version(ironic_http::VersionMetadata::new(
+                "2",
+                VersioningStrategy::Uri,
+            ))
+            .route(v2_route);
 
         let mut container = ContainerBuilder::new();
-        container.register(v1_controller.provider().clone()).unwrap();
-        container.register(v2_controller.provider().clone()).unwrap();
+        container
+            .register(v1_controller.provider().clone())
+            .unwrap();
+        container
+            .register(v2_controller.provider().clone())
+            .unwrap();
         let application = Arc::new(CompiledHttpApplication::new(
             container.build(),
             compile_controller_routes([v1_controller, v2_controller]).unwrap(),
@@ -1077,10 +1089,7 @@ mod tests {
             .unwrap();
 
         assert_eq!(response.status(), HttpStatus::OK);
-        assert!(response
-            .headers()
-            .get("content-encoding")
-            .is_none());
+        assert!(response.headers().get("content-encoding").is_none());
 
         // Body should be uncompressed
         let body = to_bytes(response.into_body(), usize::MAX).await.unwrap();
@@ -1115,10 +1124,7 @@ mod tests {
             compile_controller_routes([controller]).unwrap(),
         ));
         // No .compression() — should not compress
-        let router = AxumAdapter::new()
-            .build(application)
-            .unwrap()
-            .into_router();
+        let router = AxumAdapter::new().build(application).unwrap().into_router();
 
         let response = router
             .oneshot(
@@ -1131,10 +1137,7 @@ mod tests {
             .unwrap();
 
         assert_eq!(response.status(), HttpStatus::OK);
-        assert!(response
-            .headers()
-            .get("content-encoding")
-            .is_none());
+        assert!(response.headers().get("content-encoding").is_none());
         let body = to_bytes(response.into_body(), usize::MAX).await.unwrap();
         assert_eq!(&body[..], b"hello world");
     }

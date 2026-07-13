@@ -131,7 +131,7 @@ impl RedisTransportBuilder {
     /// # Errors
     ///
     /// Returns [`TransportError`] when the connection or subscription fails.
-    pub async fn connect(self) -> Result<RedisTransport, TransportError> {
+    pub fn connect(self) -> Result<RedisTransport, TransportError> {
         // Connection is established lazily — the struct stores config
         // so the caller does not need redis running at build time.
         Ok(RedisTransport {
@@ -149,6 +149,7 @@ impl RedisTransportBuilder {
 /// Requires the `transport-redis` feature and a running Redis instance.
 #[cfg(feature = "transport-redis")]
 #[derive(Clone, Debug)]
+#[allow(dead_code)]
 pub struct RedisTransport {
     config: RedisTransportConfig,
 }
@@ -228,7 +229,7 @@ impl RabbitMqTransportBuilder {
     /// # Errors
     ///
     /// Returns [`TransportError`] when the connection or channel setup fails.
-    pub async fn connect(self) -> Result<RabbitMqTransport, TransportError> {
+    pub fn connect(self) -> Result<RabbitMqTransport, TransportError> {
         Ok(RabbitMqTransport {
             config: RabbitMqTransportConfig {
                 url: self.url,
@@ -245,6 +246,7 @@ impl RabbitMqTransportBuilder {
 /// Requires the `transport-rabbitmq` feature and a running RabbitMQ instance.
 #[cfg(feature = "transport-rabbitmq")]
 #[derive(Clone, Debug)]
+#[allow(dead_code)]
 pub struct RabbitMqTransport {
     config: RabbitMqTransportConfig,
 }
@@ -284,10 +286,7 @@ pub struct KafkaTransportConfig {
 impl KafkaTransportConfig {
     /// Returns a builder with the given broker list and topic.
     #[must_use]
-    pub fn builder(
-        brokers: impl Into<String>,
-        topic: impl Into<String>,
-    ) -> KafkaTransportBuilder {
+    pub fn builder(brokers: impl Into<String>, topic: impl Into<String>) -> KafkaTransportBuilder {
         KafkaTransportBuilder {
             brokers: brokers.into(),
             topic: topic.into(),
@@ -319,7 +318,7 @@ impl KafkaTransportBuilder {
     /// # Errors
     ///
     /// Returns [`TransportError`] when the connection or topic subscription fails.
-    pub async fn connect(self) -> Result<KafkaTransport, TransportError> {
+    pub fn connect(self) -> Result<KafkaTransport, TransportError> {
         Ok(KafkaTransport {
             config: KafkaTransportConfig {
                 brokers: self.brokers,
@@ -335,6 +334,7 @@ impl KafkaTransportBuilder {
 /// Requires the `transport-kafka` feature and a running Kafka cluster.
 #[cfg(feature = "transport-kafka")]
 #[derive(Clone, Debug)]
+#[allow(dead_code)]
 pub struct KafkaTransport {
     config: KafkaTransportConfig,
 }

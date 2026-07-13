@@ -125,9 +125,8 @@ impl Middleware for RateLimitMiddleware {
             let mut response = next.run(context).await?;
             response.headers_mut().insert(
                 http::header::HeaderName::from_static("x-ratelimit-remaining"),
-                http::HeaderValue::from_str(&remaining.to_string()).unwrap_or_else(|_| {
-                    http::HeaderValue::from_static("0")
-                }),
+                http::HeaderValue::from_str(&remaining.to_string())
+                    .unwrap_or_else(|_| http::HeaderValue::from_static("0")),
             );
             Ok(response)
         })

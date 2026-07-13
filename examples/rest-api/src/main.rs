@@ -122,9 +122,9 @@ mod tests {
 
     use axum::body::Body;
     use ironic::{
-        prelude::*,
         AxumAdapter, CompiledHttpApplication, ContainerBuilder, FieldRules, FrameworkResponse,
         HttpStatus, SerializeInterceptor, TestApplication, VersionMetadata, VersioningStrategy,
+        prelude::*,
     };
     use tower::ServiceExt;
 
@@ -153,15 +153,12 @@ mod tests {
     #[tokio::test]
     async fn v1_found() {
         let app = TestApplication::new::<AppModule>().await.unwrap();
-        app.get("/items/7")
-            .send()
-            .await
-            .assert_json(&ItemView {
-                id: 7,
-                name: "item-7".to_owned(),
-                internal_note: "internal-only".into(),
-                admin_only: "sensitive-data".into(),
-            });
+        app.get("/items/7").send().await.assert_json(&ItemView {
+            id: 7,
+            name: "item-7".to_owned(),
+            internal_note: "internal-only".into(),
+            admin_only: "sensitive-data".into(),
+        });
         app.shutdown().await.unwrap();
     }
 
@@ -199,15 +196,17 @@ mod tests {
             HttpMethod::POST,
             "/",
             "create",
-            handler_fn(|_controller: Arc<CatalogController>, mut arguments| async move {
-                let input = arguments.take::<CreateItem>(0)?;
-                Ok(Json(ItemView {
-                    id: 42,
-                    name: input.name,
-                    internal_note: "internal-only".into(),
-                    admin_only: "sensitive-data".into(),
-                }))
-            }),
+            handler_fn(
+                |_controller: Arc<CatalogController>, mut arguments| async move {
+                    let input = arguments.take::<CreateItem>(0)?;
+                    Ok(Json(ItemView {
+                        id: 42,
+                        name: input.name,
+                        internal_note: "internal-only".into(),
+                        admin_only: "sensitive-data".into(),
+                    }))
+                },
+            ),
         )
         .unwrap()
         .parameter_with_pipe(
@@ -226,12 +225,17 @@ mod tests {
         let controller = ControllerDefinition::new::<CatalogController>("/items", provider)
             .unwrap()
             .route(route)
-            .version(ironic::VersionMetadata::new("2", ironic::VersioningStrategy::Uri))
+            .version(ironic::VersionMetadata::new(
+                "2",
+                ironic::VersioningStrategy::Uri,
+            ))
             .interceptor(ironic::SerializeInterceptor::new(rules))
             .exception_filter(Arc::new(NotFoundFilter));
 
         let mut container = ContainerBuilder::new();
-        container.register(super::CatalogService::provider_definition()).unwrap();
+        container
+            .register(super::CatalogService::provider_definition())
+            .unwrap();
 
         let ct_provider = ProviderDefinition::value(CatalogController {
             service: Arc::new(CatalogService),

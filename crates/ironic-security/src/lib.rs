@@ -5,12 +5,12 @@
 
 #[cfg(feature = "security-cors")]
 pub mod cors;
+#[cfg(feature = "security-csrf")]
+pub mod csrf;
 #[cfg(feature = "security-rate-limit")]
 pub mod rate_limit;
 #[cfg(feature = "security-headers")]
 pub mod security_headers;
-#[cfg(feature = "security-csrf")]
-pub mod csrf;
 
 #[cfg(test)]
 #[cfg(feature = "security")]
@@ -56,8 +56,7 @@ mod tests {
     #[cfg(feature = "security-cors")]
     #[test]
     fn cors_config_allows_origin() {
-        let config = super::cors::CorsConfig::new()
-            .allowed_origins(["https://example.com"]);
+        let config = super::cors::CorsConfig::new().allowed_origins(["https://example.com"]);
         assert!(config.is_origin_allowed("https://example.com"));
         assert!(!config.is_origin_allowed("https://evil.com"));
     }

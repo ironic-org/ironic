@@ -506,7 +506,10 @@ impl CompiledRoute {
     pub fn versioned_path(&self) -> String {
         self.version()
             .filter(|v| v.strategy == crate::VersioningStrategy::Uri)
-            .map_or_else(|| self.path.clone(), |v| format!("{}{}", v.uri_prefix(), self.path))
+            .map_or_else(
+                || self.path.clone(),
+                |v| format!("{}{}", v.uri_prefix(), self.path),
+            )
     }
 
     /// Extracts parameters and invokes the erased handler.

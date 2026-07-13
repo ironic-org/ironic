@@ -94,6 +94,7 @@ marker_attribute!(
     subscribe_message,
     use_guard,
     use_interceptor,
+    cache,
     cron,
     interval,
     timeout,

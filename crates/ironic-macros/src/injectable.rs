@@ -2,11 +2,12 @@ use std::collections::HashSet;
 
 use proc_macro2::TokenStream;
 use quote::quote;
-    use syn::{
-        Data, DeriveInput, Fields, GenericArgument, LitStr, PathArguments, Token, Type, parse2,
-        parse::Parse, parse::ParseStream, spanned::Spanned,
-    };
+use syn::{
+    Data, DeriveInput, Fields, GenericArgument, LitStr, PathArguments, Token, Type, parse::Parse,
+    parse::ParseStream, parse2, spanned::Spanned,
+};
 
+#[allow(clippy::too_many_lines)]
 pub(crate) fn expand(input: TokenStream) -> syn::Result<TokenStream> {
     let input = parse2::<DeriveInput>(input)?;
     if !input.generics.params.is_empty() {
@@ -69,16 +70,14 @@ pub(crate) fn expand(input: TokenStream) -> syn::Result<TokenStream> {
                     let inner_type_str = quote!(#inner_type).to_string();
 
                     if optional_types.contains(&inner_type_str) {
-                        dependencies
-                            .push(quote!(::ironic::Dependency::optional::<#inner_type>()));
+                        dependencies.push(quote!(::ironic::Dependency::optional::<#inner_type>()));
                         initializers.push(quote!(
                             #field_name: ::std::option::Option::Some(
                                 resolver.resolve_optional::<#inner_type>().await?
                             )
                         ));
                     } else {
-                        dependencies
-                            .push(quote!(::ironic::Dependency::required::<#inner_type>()));
+                        dependencies.push(quote!(::ironic::Dependency::required::<#inner_type>()));
                         initializers
                             .push(quote!(#field_name: resolver.resolve::<#inner_type>().await?));
                     }

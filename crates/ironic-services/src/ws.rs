@@ -1,7 +1,4 @@
-use std::{
-    collections::HashMap,
-    sync::Arc,
-};
+use std::{collections::HashMap, sync::Arc};
 use tokio::sync::{RwLock, mpsc};
 
 /// Unique identifier for a connected WebSocket client.
@@ -62,10 +59,7 @@ impl WsConnections {
     /// Adds a client to a named room.
     pub async fn join_room(&self, room: &str, client: ClientId) {
         let mut rooms = self.rooms.write().await;
-        rooms
-            .entry(room.to_string())
-            .or_default()
-            .push(client);
+        rooms.entry(room.to_string()).or_default().push(client);
     }
 
     /// Removes a client from a named room.

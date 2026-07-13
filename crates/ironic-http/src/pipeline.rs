@@ -178,7 +178,8 @@ impl PipelineComponents {
         self.middleware.extend(other.middleware.iter().cloned());
         self.guards.extend(other.guards.iter().cloned());
         self.interceptors.extend(other.interceptors.iter().cloned());
-        self.exception_filters.append(&mut other.exception_filters.clone());
+        self.exception_filters
+            .append(&mut other.exception_filters.clone());
     }
 }
 
@@ -231,12 +232,18 @@ pub(crate) async fn execute(
         Err(error) => {
             let filter_ctx = crate::FilterContext::new(route.metadata().clone());
             // Route-level filters (includes controller filters, most specific first)
-            if let Some(result) = route.pipeline().exception_filters.catch(&error, &filter_ctx) {
+            if let Some(result) = route
+                .pipeline()
+                .exception_filters
+                .catch(&error, &filter_ctx)
+            {
                 return result;
             }
             // Global-level filters
-            if let Some(result) =
-                application.pipeline().exception_filters.catch(&error, &filter_ctx)
+            if let Some(result) = application
+                .pipeline()
+                .exception_filters
+                .catch(&error, &filter_ctx)
             {
                 return result;
             }
@@ -1133,8 +1140,8 @@ mod tests {
         let mut container = ContainerBuilder::new();
         container.register(controller.provider().clone()).unwrap();
         let routes = compile_controller_routes([controller]).unwrap();
-        let application = CompiledHttpApplication::new(container.build(), routes)
-            .exception_filter(filter);
+        let application =
+            CompiledHttpApplication::new(container.build(), routes).exception_filter(filter);
 
         let mut context = request_context();
         let result = application
@@ -1191,8 +1198,8 @@ mod tests {
         let mut container = ContainerBuilder::new();
         container.register(controller.provider().clone()).unwrap();
         let routes = compile_controller_routes([controller]).unwrap();
-        let application = CompiledHttpApplication::new(container.build(), routes)
-            .exception_filter(global_filter);
+        let application =
+            CompiledHttpApplication::new(container.build(), routes).exception_filter(global_filter);
 
         let mut context = request_context();
         let result = application

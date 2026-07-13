@@ -1058,4 +1058,64 @@ mod tests {
             Err(ResolveError::ScopeViolation { .. })
         ));
     }
+
+    #[derive(Debug)]
+    struct OptionalService;
+
+    #[tokio::test]
+    async fn optional_dependency_resolves_to_some_when_present() {
+        let mut builder = ContainerBuilder::new();
+        builder
+            .register(ProviderDefinition::value(Repository))
+            .unwrap()
+            .register(ProviderDefinition::factory(
+                Scope::Singleton,
+                vec![Dependency::optional::<Repository>()],
+                |resolver| async move {
+                    let repo = resolver.resolve_optional::<Repository>().await?;
+                    Ok(OptionalService)
+                },
+            ))
+            .unwrap();
+
+        let container = builder.build();
+        assert!(container.resolve::<OptionalService>().await.is_ok());
+    }
+
+    #[tokio::test]
+    async fn optional_dependency_resolves_to_none_when_missing() {
+        let mut builder = ContainerBuilder::new();
+        builder
+            .register(ProviderDefinition::factory(
+                Scope::Singleton,
+                vec![Dependency::optional::<Repository>()],
+                |resolver| async move {
+                    let repo = resolver.resolve_optional::<Repository>().await?;
+                    assert!(matches!(repo, None));
+                    Ok(OptionalService)
+                },
+            ))
+            .unwrap();
+
+        let container = builder.build();
+        assert!(container.resolve::<OptionalService>().await.is_ok());
+    }
+
+    #[tokio::test]
+    async fn required_dependency_missing_is_error() {
+        let mut builder = ContainerBuilder::new();
+        builder
+            .register(ProviderDefinition::factory(
+                Scope::Singleton,
+                vec![Dependency::required::<Repository>()],
+                |resolver| async move {
+                    let repository = resolver.resolve::<Repository>().await?;
+                    Ok(Service { repository })
+                },
+            ))
+            .unwrap();
+
+        let error = builder.build().resolve::<Service>().await.unwrap_err();
+        assert!(matches!(error, ResolveError::MissingProvider { .. }));
+    }
 }

@@ -4,9 +4,7 @@
 
 use std::sync::Arc;
 
-use ironic_http::{
-    Middleware, MiddlewareNext, PipelineFuture, RequestContext,
-};
+use ironic_http::{Middleware, MiddlewareNext, PipelineFuture, RequestContext};
 
 /// Security headers configuration.
 #[derive(Clone)]

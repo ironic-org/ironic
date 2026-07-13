@@ -120,8 +120,14 @@ fn generators_are_idempotent_and_register_rust_modules() {
     let registry = fs::read_to_string(root.join("src/modules/mod.rs")).unwrap();
     assert_eq!(registry.matches("pub mod users;").count(), 1);
     let module = fs::read_to_string(root.join("src/modules/users/mod.rs")).unwrap();
-    assert_eq!(module.matches("pub mod users_service;").count(), 1);
-    assert_eq!(module.matches("pub mod users_controller;").count(), 1);
+    assert_eq!(module.matches("pub mod services;").count(), 1);
+    assert_eq!(module.matches("pub mod controller;").count(), 1);
+    let services_mod =
+        fs::read_to_string(root.join("src/modules/users/services/mod.rs")).unwrap();
+    assert_eq!(services_mod.matches("pub mod users_service;").count(), 1);
+    let controller_mod =
+        fs::read_to_string(root.join("src/modules/users/controller/mod.rs")).unwrap();
+    assert_eq!(controller_mod.matches("pub mod users_controller;").count(), 1);
     let main = fs::read_to_string(root.join("src/main.rs")).unwrap();
     assert_eq!(main.matches("mod modules;").count(), 1);
     let app = fs::read_to_string(root.join("src/app.rs")).unwrap();

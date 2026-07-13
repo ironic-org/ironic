@@ -51,21 +51,20 @@ pub fn generate_controller(root: &Path, name: &str) -> Result<GenerationReport, 
     let names = Names::parse(name)?;
     let mut report = generate_module(root, name)?;
     let module_dir = root.join("src/modules").join(&names.snake);
+    let controller_dir = module_dir.join("controller");
     let file_name = format!("{}_controller.rs", names.snake);
-    let path = module_dir.join(&file_name);
+    let path = controller_dir.join(&file_name);
     record(
         &mut report,
         &path,
         write_generated(&path, &templates::controller(&names))?,
     );
+    write_generated(&controller_dir.join("mod.rs"), &templates::controller_mod(&names))?;
     ensure_items(
         &module_dir.join("mod.rs"),
         &[
-            &format!("pub mod {}_controller;", names.snake),
-            &format!(
-                "pub use {}_controller::{}Controller;",
-                names.snake, names.pascal
-            ),
+            "pub mod controller;",
+            &format!("pub use controller::{}Controller;", names.pascal),
         ],
     )?;
     report.manual_instructions.push(format!(
@@ -84,17 +83,19 @@ pub fn generate_service(root: &Path, name: &str) -> Result<GenerationReport, Cli
     let names = Names::parse(name)?;
     let mut report = generate_module(root, name)?;
     let module_dir = root.join("src/modules").join(&names.snake);
-    let path = module_dir.join(format!("{}_service.rs", names.snake));
+    let services_dir = module_dir.join("services");
+    let path = services_dir.join(format!("{}_service.rs", names.snake));
     record(
         &mut report,
         &path,
         write_generated(&path, &templates::service(&names))?,
     );
+    write_generated(&services_dir.join("mod.rs"), &templates::services_mod(&names))?;
     ensure_items(
         &module_dir.join("mod.rs"),
         &[
-            &format!("pub mod {}_service;", names.snake),
-            &format!("pub use {}_service::{}Service;", names.snake, names.pascal),
+            "pub mod services;",
+            &format!("pub use services::{}Service;", names.pascal),
         ],
     )?;
     report.manual_instructions.push(format!(
@@ -106,25 +107,67 @@ pub fn generate_service(root: &Path, name: &str) -> Result<GenerationReport, Cli
 
 /// Generates a complete module, service, and controller vertical slice.
 ///
+/// Creates the following structure inside `src/modules/{name}/`:
+///
+/// ```text
+/// mod.rs
+/// controller/
+///   mod.rs
+///   {name}_controller.rs
+/// services/
+///   mod.rs
+///   {name}_service.rs
+/// dto/
+///   mod.rs
+///   create_{name}_dto.rs
+///   update_{name}_dto.rs
+/// entities/
+///   mod.rs
+///   {name}.rs
+/// ```
+///
 /// # Errors
 ///
 /// Returns [`CliError`] for invalid names, conflicting files, or unsafe source edits.
 pub fn generate_resource(root: &Path, name: &str) -> Result<GenerationReport, CliError> {
     let names = Names::parse(name)?;
     let module_dir = root.join("src/modules").join(&names.snake);
+    let controller_dir = module_dir.join("controller");
+    let services_dir = module_dir.join("services");
+    let dto_dir = module_dir.join("dto");
+    let entities_dir = module_dir.join("entities");
     let mut report = GenerationReport::default();
     let files = [
+        (module_dir.join("mod.rs"), templates::resource_module(&names)),
         (
-            module_dir.join("mod.rs"),
-            templates::resource_module(&names),
+            controller_dir.join("mod.rs"),
+            templates::controller_mod(&names),
         ),
         (
-            module_dir.join(format!("{}_service.rs", names.snake)),
+            controller_dir.join(format!("{}_controller.rs", names.snake)),
+            templates::resource_controller(&names),
+        ),
+        (
+            services_dir.join("mod.rs"),
+            templates::services_mod(&names),
+        ),
+        (
+            services_dir.join(format!("{}_service.rs", names.snake)),
             templates::service(&names),
         ),
+        (dto_dir.join("mod.rs"), templates::dto_mod(&names)),
         (
-            module_dir.join(format!("{}_controller.rs", names.snake)),
-            templates::resource_controller(&names),
+            dto_dir.join(format!("create_{}_dto.rs", names.snake)),
+            templates::create_dto(&names),
+        ),
+        (
+            dto_dir.join(format!("update_{}_dto.rs", names.snake)),
+            templates::update_dto(&names),
+        ),
+        (entities_dir.join("mod.rs"), templates::entities_mod(&names)),
+        (
+            entities_dir.join(format!("{}.rs", names.snake)),
+            templates::entity(&names),
         ),
     ];
     for (path, contents) in files {

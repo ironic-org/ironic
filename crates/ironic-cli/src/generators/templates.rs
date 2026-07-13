@@ -2,7 +2,7 @@ use super::naming::Names;
 
 pub(crate) fn module(pascal: &str) -> String {
     format!(
-        "use ironic::prelude::*;\n\n#[derive(Module)]\n#[module()]\npub struct {pascal}Module;\n"
+        "use ironic::prelude::*;\n\npub mod controller;\npub mod services;\npub mod dto;\npub mod entities;\n\n#[derive(Module)]\n#[module()]\npub struct {pascal}Module;\n"
     )
 }
 
@@ -22,15 +22,64 @@ pub(crate) fn controller(names: &Names) -> String {
 
 pub(crate) fn resource_module(names: &Names) -> String {
     format!(
-        "use ironic::prelude::*;\n\npub mod {0}_controller;\npub mod {0}_service;\n\npub use {0}_controller::{1}Controller;\npub use {0}_service::{1}Service;\n\n#[derive(Module)]\n#[module(\n    providers = [{1}Service],\n    controllers = [{1}Controller],\n)]\npub struct {1}Module;\n",
-        names.snake, names.pascal
+        "use ironic::prelude::*;\n\npub mod controller;\npub mod services;\npub mod dto;\npub mod entities;\n\npub use controller::{}Controller;\npub use services::{}Service;\n\n#[derive(Module)]\n#[module(\n    providers = [{}Service],\n    controllers = [{}Controller],\n)]\npub struct {}Module;\n",
+        names.pascal, names.pascal, names.pascal, names.pascal, names.pascal
     )
 }
 
 pub(crate) fn resource_controller(names: &Names) -> String {
     format!(
-        "use std::sync::Arc;\n\nuse ironic::prelude::*;\n\nuse super::{0}_service::{1}Service;\n\n#[controller(\"/{2}\")]\n#[derive(Injectable)]\npub struct {1}Controller {{\n    service: Arc<{1}Service>,\n}}\n\n#[routes]\nimpl {1}Controller {{\n    #[get(\"/\")]\n    #[allow(clippy::unused_async)]\n    async fn list(&self) -> Result<String, HttpError> {{\n        Ok(self.service.name().to_owned())\n    }}\n}}\n",
-        names.snake, names.pascal, names.kebab
+        "use std::sync::Arc;\n\nuse ironic::prelude::*;\n\nuse super::super::services::{}Service;\n\n#[controller(\"/{}\")]\n#[derive(Injectable)]\npub struct {}Controller {{\n    service: Arc<{}Service>,\n}}\n\n#[routes]\nimpl {}Controller {{\n    #[get(\"/\")]\n    #[allow(clippy::unused_async)]\n    async fn list(&self) -> Result<String, HttpError> {{\n        Ok(self.service.name().to_owned())\n    }}\n}}\n",
+        names.pascal, names.kebab, names.pascal, names.pascal, names.pascal
+    )
+}
+
+pub(crate) fn controller_mod(names: &Names) -> String {
+    format!(
+        "pub mod {0}_controller;\npub use {0}_controller::{1}Controller;\n",
+        names.snake, names.pascal
+    )
+}
+
+pub(crate) fn services_mod(names: &Names) -> String {
+    format!(
+        "pub mod {0}_service;\npub use {0}_service::{1}Service;\n",
+        names.snake, names.pascal
+    )
+}
+
+pub(crate) fn dto_mod(names: &Names) -> String {
+    format!(
+        "pub mod create_{0}_dto;\npub mod update_{0}_dto;\npub use create_{0}_dto::Create{1}Dto;\npub use update_{0}_dto::Update{1}Dto;\n",
+        names.snake, names.pascal
+    )
+}
+
+pub(crate) fn entities_mod(names: &Names) -> String {
+    format!(
+        "pub mod {0};\npub use {0}::{1};\n",
+        names.snake, names.pascal
+    )
+}
+
+pub(crate) fn create_dto(names: &Names) -> String {
+    format!(
+        "use serde::{{Deserialize, Serialize}};\n\n#[derive(Debug, Clone, Serialize, Deserialize)]\npub struct Create{0}Dto {{\n    pub name: String,\n}}\n",
+        names.pascal
+    )
+}
+
+pub(crate) fn update_dto(names: &Names) -> String {
+    format!(
+        "use serde::{{Deserialize, Serialize}};\n\n#[derive(Debug, Clone, Serialize, Deserialize)]\npub struct Update{0}Dto {{\n    pub name: Option<String>,\n}}\n",
+        names.pascal
+    )
+}
+
+pub(crate) fn entity(names: &Names) -> String {
+    format!(
+        "use serde::{{Deserialize, Serialize}};\n\n#[derive(Debug, Clone, Serialize, Deserialize)]\npub struct {0} {{\n    pub id: String,\n    pub name: String,\n}}\n",
+        names.pascal
     )
 }
 

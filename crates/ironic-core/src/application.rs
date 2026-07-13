@@ -27,7 +27,7 @@ pub enum ApplicationError {
     },
     /// The root module graph is invalid.
     #[error(transparent)]
-    Module(#[from] ModuleError),
+    Module(Box<ModuleError>),
     /// HTTP runtime compilation failed.
     #[error(transparent)]
     Http(#[from] HttpApplicationBuildError),
@@ -61,6 +61,12 @@ pub enum ApplicationError {
         /// The invalid address.
         address: String,
     },
+}
+
+impl From<ModuleError> for ApplicationError {
+    fn from(err: ModuleError) -> Self {
+        Self::Module(Box::new(err))
+    }
 }
 
 /// Starts application construction from a root module and platform adapter.
@@ -390,12 +396,12 @@ async fn shutdown_application(
 ) -> Result<(), ApplicationError> {
     let mut first_error = None;
     for lifecycle in initialized.iter().rev() {
-        if let Some(callback) = &lifecycle.definition.application_shutdown {
-            if let Err(error) = callback(Arc::clone(&lifecycle.provider), signal).await {
-                first_error.get_or_insert_with(|| {
-                    lifecycle_error(lifecycle.definition.key(), "application shutdown", &error)
-                });
-            }
+        if let Some(callback) = &lifecycle.definition.application_shutdown
+            && let Err(error) = callback(Arc::clone(&lifecycle.provider), signal).await
+        {
+            first_error.get_or_insert_with(|| {
+                lifecycle_error(lifecycle.definition.key(), "application shutdown", &error)
+            });
         }
     }
     if let Err(error) = destroy_modules(initialized).await {
@@ -407,12 +413,12 @@ async fn shutdown_application(
 async fn destroy_modules(initialized: &[InitializedLifecycle]) -> Result<(), ApplicationError> {
     let mut first_error = None;
     for lifecycle in initialized.iter().rev() {
-        if let Some(callback) = &lifecycle.definition.module_destroy {
-            if let Err(error) = callback(Arc::clone(&lifecycle.provider)).await {
-                first_error.get_or_insert_with(|| {
-                    lifecycle_error(lifecycle.definition.key(), "module destruction", &error)
-                });
-            }
+        if let Some(callback) = &lifecycle.definition.module_destroy
+            && let Err(error) = callback(Arc::clone(&lifecycle.provider)).await
+        {
+            first_error.get_or_insert_with(|| {
+                lifecycle_error(lifecycle.definition.key(), "module destruction", &error)
+            });
         }
     }
     first_error.map_or(Ok(()), Err)

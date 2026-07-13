@@ -131,7 +131,7 @@ mongodb = { version = "3.3.0", optional = true, default-features = false, featur
 redis = { version = "0.32.7", optional = true, default-features = false, features = ["aio", "tokio-comp", "connection-manager"] }
 argon2 = { version = "0.5.3", optional = true, features = ["std"] }
 getrandom = { version = "0.4.3", optional = true }
-jsonwebtoken = { version = "10", optional = true, default-features = false }
+jsonwebtoken = { version = "9", optional = true, default-features = false }
 oauth2 = { version = "5.0.0", optional = true, default-features = false, features = ["reqwest", "rustls-tls"] }
 tonic = { version = "0.14.2", optional = true, default-features = false, features = ["transport", "codegen", "router"] }
 async-graphql = { version = "=7.0.16", optional = true, default-features = false, features = ["graphiql"] }

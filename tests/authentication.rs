@@ -143,7 +143,7 @@ async fn in_memory_sessions_round_trip_and_delete() {
     use ironic::auth::sessions::{InMemorySessionStore, Session, SessionStore};
 
     let store = InMemorySessionStore::default();
-    let mut session = Session::new(Duration::from_secs(60)).unwrap();
+    let mut session = Session::new(Duration::from_mins(1)).unwrap();
     session.insert("user_id", "user-1").unwrap();
     let id = session.id.clone();
     store.save(session).await.unwrap();

@@ -113,15 +113,18 @@ async fn snapshot_json(State(snapshot): State<Arc<DevtoolsSnapshot>>) -> Json<De
 }
 
 async fn index(State(snapshot): State<Arc<DevtoolsSnapshot>>) -> Html<String> {
+    use std::fmt::Write;
+
     let mut rows = String::new();
     for route in &snapshot.routes {
-        rows.push_str(&format!(
+        let _ = write!(
+            rows,
             "<tr><td>{}</td><td>{}</td><td>{}::{}</td></tr>",
             escape(&route.method),
             escape(&route.path),
             escape(&route.controller),
             escape(&route.handler)
-        ));
+        );
     }
     Html(format!(
         "<!doctype html><html><head><meta charset=\"utf-8\"><title>Ironic Devtools</title><style>body{{font:14px system-ui;margin:2rem;max-width:1100px}}table{{border-collapse:collapse;width:100%}}td,th{{border:1px solid #ddd;padding:.6rem;text-align:left}}code{{background:#f4f4f4;padding:.15rem .3rem}}</style></head><body><h1>Ironic Devtools</h1><p>Root module: <code>{}</code></p><p>{} modules · {} routes · <a href=\"snapshot.json\">JSON snapshot</a></p><table><thead><tr><th>Method</th><th>Path</th><th>Handler</th></tr></thead><tbody>{rows}</tbody></table></body></html>",

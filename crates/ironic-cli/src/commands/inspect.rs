@@ -24,11 +24,10 @@ pub(crate) fn routes(root: &Path, output: &mut impl Write) -> Result<(), CliErro
     let mut prefixes = HashMap::new();
     for (_, source) in &parsed {
         for item in &source.items {
-            if let Item::Struct(item) = item {
-                if let Some(prefix) = attribute(&item.attrs, "controller").and_then(string_argument)
-                {
-                    prefixes.insert(item.ident.to_string(), prefix);
-                }
+            if let Item::Struct(item) = item
+                && let Some(prefix) = attribute(&item.attrs, "controller").and_then(string_argument)
+            {
+                prefixes.insert(item.ident.to_string(), prefix);
             }
         }
     }

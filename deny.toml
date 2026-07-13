@@ -1,5 +1,8 @@
 [advisories]
-ignore = []
+ignore = [
+    "RUSTSEC-2023-0071",  # rsa: Marvin Attack - no fix available (transient via oauth2)
+    "RUSTSEC-2026-0118",  # hickory-proto: NSEC3 loop - no fix available (transient via mongodb)
+]
 
 [bans]
 multiple-versions = "warn"

@@ -1,0 +1,21 @@
+[package]
+name = "hello-world"
+description = "Minimal RustFrame workspace example"
+publish = false
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[dependencies]
+rustframe.workspace = true
+rustframe-platform-axum.workspace = true
+serde.workspace = true
+
+[dev-dependencies]
+axum.workspace = true
+serde_json.workspace = true
+tower.workspace = true
+
+[lints]
+workspace = true

@@ -1,0 +1,13 @@
+{
+  "title": "RustFrame",
+  "pages": [
+    "index",
+    "getting-started",
+    "fundamentals",
+    "configuration",
+    "openapi",
+    "security",
+    "examples",
+    "benchmarks"
+  ]
+}

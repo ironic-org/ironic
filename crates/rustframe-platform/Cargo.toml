@@ -1,0 +1,16 @@
+[package]
+name = "rustframe-platform"
+description = "Platform adapter contracts for RustFrame"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+rustframe-common.workspace = true
+rustframe-http.workspace = true
+
+[lints]
+workspace = true
+

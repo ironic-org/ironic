@@ -67,8 +67,8 @@ pub use di::*;
 pub use http_impl::*;
 pub use ironic_macros::{
     Injectable, Module, OpenApiSchema, Serializable, body, controller, custom, delete, get, head,
-    header, main, options, param, patch, pipe, post, put, query, routes, use_guard,
-    use_interceptor,
+    header, main, options, param, patch, pipe, post, put, query, routes, subscribe_message,
+    use_guard, use_interceptor, web_socket_gateway,
 };
 pub use openapi::*;
 pub use platform::*;
@@ -137,9 +137,10 @@ pub mod prelude {
         OpenApiSchema, ParameterPipe, PathParameter, PipelineFuture, ProviderDefinition,
         QueryParameters, RequestContext, RequestId, RequestScope, RequestTracing, RouteDefinition,
         RouteMetadata, Scope, Secret, SecretString, Serializable, ShutdownSignal,
-        ValidateConfiguration, VersionMetadata, VersioningStrategy, body, controller, create_param_decorator, custom, delete, get,
-        handler_fn, head, header, options, param, patch, pipe, pipe_fn, post, put, query, routes,
-        use_guard, use_interceptor,
+        ValidateConfiguration, VersionMetadata, VersioningStrategy, WsGatewayDefinition, body,
+        controller, create_param_decorator, custom, delete, get, handler_fn, head, header, options,
+        param, patch, pipe, pipe_fn, post, put, query, routes, subscribe_message, use_guard,
+        use_interceptor, web_socket_gateway,
     };
     #[cfg(feature = "serialization")]
     pub use crate::{FieldRule, FieldRules, SerializeInterceptor, set_current_roles};

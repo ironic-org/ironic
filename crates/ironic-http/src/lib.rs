@@ -39,7 +39,7 @@ pub use request::{FrameworkRequest, RequestContext};
 pub use response::{FrameworkBody, FrameworkResponse, IntoFrameworkResponse, Json};
 pub use route::{
     CompiledHttpApplication, CompiledRoute, ControllerDefinition, RouteDefinition, RouteError,
-    RouteMetadata, compile_controller_routes,
+    RouteMetadata, WsGatewayDefinition, compile_controller_routes,
 };
 #[cfg(feature = "serialization")]
 pub use serialization::{FieldRule, FieldRules, SerializeInterceptor, set_current_roles};

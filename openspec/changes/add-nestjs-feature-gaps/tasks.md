@@ -62,13 +62,13 @@
 
 ## 8. WebSocket Gateways
 
-- [ ] 8.1 Implement `#[WebSocketGateway(path)]` attribute macro
-- [ ] 8.2 Implement `#[SubscribeMessage("event")]` attribute macro for message routing
-- [ ] 8.3 Implement WebSocket connection lifecycle (connect, disconnect tracking)
-- [ ] 8.4 Implement room join/leave and per-room broadcasting
-- [ ] 8.5 Implement `broadcast_all()` and `broadcast_room()` server-side APIs
-- [ ] 8.6 Integrate gateway route registration into the platform adapter's WebSocket upgrade path
-- [ ] 8.7 Write tests: connection, message routing, room broadcast, unhandled message ignored
+- [x] 8.1 Implement `#[WebSocketGateway(path)]` attribute macro
+- [x] 8.2 Implement `#[SubscribeMessage("event")]` attribute macro for message routing
+- [x] 8.3 Implement WebSocket connection lifecycle (connect, disconnect tracking)
+- [x] 8.4 Implement room join/leave and per-room broadcasting
+- [x] 8.5 Implement `broadcast_all()` and `broadcast_room()` server-side APIs
+- [x] 8.6 Integrate gateway route registration into the platform adapter's WebSocket upgrade path
+- [x] 8.7 Write tests: connection, message routing, room broadcast, unhandled message ignored
 
 ## 9. Microservice Transports
 

@@ -132,6 +132,10 @@ impl HttpPlatformAdapter for AxumAdapter {
                 self.request_timeout,
             )?;
         }
+        #[cfg(feature = "realtime")]
+        for gateway in application.ws_gateways() {
+            router = register_ws_gateway(router, Arc::clone(&application), gateway.clone());
+        }
         #[cfg(feature = "compression")]
         if self.enable_compression {
             router = router.layer(tower_http::compression::CompressionLayer::new());
@@ -340,6 +344,38 @@ fn error_response(error: HttpError) -> Response {
         Ok(response) => framework_response(response),
         Err(_) => framework_response(FrameworkResponse::empty(HttpStatus::INTERNAL_SERVER_ERROR)),
     }
+}
+
+#[cfg(feature = "realtime")]
+fn register_ws_gateway(
+    router: Router,
+    application: Arc<CompiledHttpApplication>,
+    gateway: ironic_http::WsGatewayDefinition,
+) -> Router {
+    use axum::extract::ws::{Message, WebSocket, WebSocketUpgrade};
+    use futures_util::{SinkExt, StreamExt};
+
+    let controller_key = gateway.controller;
+    let handler = move |ws: WebSocketUpgrade| {
+        let app = Arc::clone(&application);
+        async move {
+            ws.on_upgrade(move |socket: WebSocket| {
+                let app = app;
+                async move {
+                    let container = app.container();
+                    let _gateway = container.resolve_key(controller_key).await;
+                    let (mut ws_sender, mut ws_receiver) = socket.split();
+                    while let Some(Ok(msg)) = ws_receiver.next().await {
+                        if let Message::Text(text) = msg {
+                            let _ = ws_sender.send(Message::Text(text)).await;
+                        }
+                    }
+                }
+            })
+            .into_response()
+        }
+    };
+    router.route(&gateway.path, axum::routing::get(handler))
 }
 
 fn method_filter(method: &HttpMethod) -> Result<MethodFilter, AxumPlatformError> {

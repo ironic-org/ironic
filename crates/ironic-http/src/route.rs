@@ -430,6 +430,27 @@ impl ControllerDefinition {
     }
 }
 
+/// An executable WebSocket gateway registered with a compiled HTTP application.
+#[derive(Clone)]
+pub struct WsGatewayDefinition {
+    /// The WebSocket upgrade path.
+    pub path: String,
+    /// The owning controller/provider key resolved via DI.
+    pub controller: ProviderKey,
+    /// The handler name for diagnostics.
+    pub handler_name: &'static str,
+}
+
+impl fmt::Debug for WsGatewayDefinition {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("WsGatewayDefinition")
+            .field("path", &self.path)
+            .field("controller", &self.controller)
+            .field("handler_name", &self.handler_name)
+            .finish()
+    }
+}
+
 /// A normalized executable route in a compiled HTTP application.
 #[derive(Clone)]
 pub struct CompiledRoute {
@@ -533,6 +554,7 @@ impl fmt::Debug for CompiledRoute {
 pub struct CompiledHttpApplication {
     container: Container,
     routes: Arc<[CompiledRoute]>,
+    ws_gateways: Arc<[WsGatewayDefinition]>,
     pipeline: PipelineComponents,
 }
 
@@ -543,6 +565,7 @@ impl CompiledHttpApplication {
         Self {
             container,
             routes: routes.into(),
+            ws_gateways: Arc::new([]),
             pipeline: PipelineComponents::new(),
         }
     }
@@ -557,6 +580,21 @@ impl CompiledHttpApplication {
     #[must_use]
     pub fn routes(&self) -> &[CompiledRoute] {
         &self.routes
+    }
+
+    /// Returns all registered WebSocket gateways.
+    #[must_use]
+    pub fn ws_gateways(&self) -> &[WsGatewayDefinition] {
+        &self.ws_gateways
+    }
+
+    /// Registers a WebSocket gateway.
+    #[must_use]
+    pub fn ws_gateway(mut self, gateway: WsGatewayDefinition) -> Self {
+        let mut gateways = self.ws_gateways.to_vec();
+        gateways.push(gateway);
+        self.ws_gateways = gateways.into();
+        self
     }
 
     /// Registers global middleware before controller and route middleware.
@@ -729,5 +767,36 @@ mod tests {
             normalize_path("users"),
             Err(RouteError::InvalidPath { .. })
         ));
+    }
+
+    #[test]
+    fn ws_gateway_definition_round_trip() {
+        let provider = controller_provider();
+        let key = provider.key();
+        let gateway = WsGatewayDefinition {
+            path: "/ws".to_string(),
+            controller: key,
+            handler_name: "ChatGateway",
+        };
+        assert_eq!(gateway.path, "/ws");
+        assert_eq!(gateway.handler_name, "ChatGateway");
+        assert_eq!(gateway.controller, key);
+    }
+
+    #[test]
+    fn compiled_app_holds_ws_gateways() {
+        let container = ironic_di::ContainerBuilder::new().build();
+        let app = CompiledHttpApplication::new(container, Vec::new());
+        assert!(app.ws_gateways().is_empty());
+
+        let provider = controller_provider();
+        let gateway = WsGatewayDefinition {
+            path: "/ws".to_string(),
+            controller: provider.key(),
+            handler_name: "EchoGateway",
+        };
+        let app = app.ws_gateway(gateway);
+        assert_eq!(app.ws_gateways().len(), 1);
+        assert_eq!(app.ws_gateways()[0].path, "/ws");
     }
 }

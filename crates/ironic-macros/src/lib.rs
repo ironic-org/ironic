@@ -8,6 +8,7 @@ mod module;
 mod openapi;
 mod routes;
 mod serializable;
+mod ws_gateway;
 
 #[proc_macro_derive(Injectable, attributes(injectable))]
 /// Derives a dependency-injection provider definition.
@@ -68,6 +69,14 @@ macro_rules! marker_attribute {
     )+};
 }
 
+#[proc_macro_attribute]
+/// Declares a WebSocket gateway and its path.
+pub fn web_socket_gateway(attribute: TokenStream, item: TokenStream) -> TokenStream {
+    ws_gateway::expand(attribute.into(), item.into())
+        .unwrap_or_else(syn::Error::into_compile_error)
+        .into()
+}
+
 marker_attribute!(
     get,
     post,
@@ -82,6 +91,7 @@ marker_attribute!(
     header,
     custom,
     pipe,
+    subscribe_message,
     use_guard,
     use_interceptor,
 );

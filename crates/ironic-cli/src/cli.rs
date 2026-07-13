@@ -32,7 +32,7 @@ pub enum Command {
 /// Arguments for project creation.
 #[derive(Debug, Args)]
 pub struct NewArgs {
-    /// Project name and destination directory.
+    /// Project name and destination directory, or `.` for the current directory.
     pub name: String,
     /// Uses local framework crates from a workspace checkout.
     #[arg(long, hide = true)]

@@ -41,6 +41,65 @@ fn rejects_names_that_cannot_form_rust_identifiers() {
 }
 
 #[test]
+fn derives_a_project_name_from_the_current_directory() {
+    let directory = std::path::Path::new("parent").join("test_ironic");
+    assert_eq!(
+        project::name_from_directory(&directory).unwrap(),
+        "test-ironic"
+    );
+}
+
+#[test]
+fn removes_cargo_unsafe_punctuation_from_project_names() {
+    let name = project::directory_name("my.api project").unwrap();
+    assert_eq!(name, "my-api-project");
+}
+
+#[test]
+fn creates_a_project_inside_an_existing_directory() {
+    let temporary = tempfile::tempdir().unwrap();
+    let destination = temporary.path().join("existing_project");
+    fs::create_dir(&destination).unwrap();
+    fs::write(destination.join("README.md"), "# Existing notes\n").unwrap();
+
+    project::create(
+        &destination,
+        "existing_project",
+        Some(std::path::Path::new(env!("CARGO_MANIFEST_DIR"))),
+    )
+    .unwrap();
+
+    assert!(destination.join("Cargo.toml").is_file());
+    assert!(destination.join("src/main.rs").is_file());
+    assert_eq!(
+        fs::read_to_string(destination.join("README.md")).unwrap(),
+        "# Existing notes\n"
+    );
+}
+
+#[test]
+fn checks_all_generated_paths_before_writing_into_an_existing_directory() {
+    let temporary = tempfile::tempdir().unwrap();
+    let destination = temporary.path().join("existing-project");
+    fs::create_dir_all(destination.join("src")).unwrap();
+    fs::write(destination.join("src/main.rs"), "fn main() {}\n").unwrap();
+
+    assert!(
+        project::create(
+            &destination,
+            "existing-project",
+            Some(std::path::Path::new(env!("CARGO_MANIFEST_DIR"))),
+        )
+        .is_err()
+    );
+    assert!(!destination.join("Cargo.toml").exists());
+    assert_eq!(
+        fs::read_to_string(destination.join("src/main.rs")).unwrap(),
+        "fn main() {}\n"
+    );
+}
+
+#[test]
 fn generators_are_idempotent_and_register_rust_modules() {
     let temporary = tempfile::tempdir().unwrap();
     let root = temporary.path();

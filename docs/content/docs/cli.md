@@ -47,11 +47,23 @@ cd my-api
 ironic start
 ```
 
+To initialize the directory you are already in, pass `.`. The project name is inferred from the
+current directory and normalized for Cargo:
+
+```bash
+mkdir test_ironic
+cd test_ironic
+ironic new .
+ironic start
+```
+
 Names are normalized for their destination: `My API` becomes the `my-api` directory and Rust-safe
 identifiers inside generated source. A name must contain a letter and cannot resolve to a Rust
 keyword.
 
-The command refuses to overwrite a non-empty destination. A new project contains:
+An existing directory may contain unrelated files such as `README.md` or `.git`. Before writing,
+the CLI checks every generated path and refuses to overwrite a conflicting `Cargo.toml`,
+`ironic.toml`, or source file. A new project contains:
 
 ```text
 my-api/
@@ -198,7 +210,7 @@ hand.
 ## Command summary
 
 ```text
-ironic new <name>
+ironic new <name|.>
 ironic start [-- <cargo arguments>...]
 ironic build [-- <cargo arguments>...]
 ironic test [-- <cargo arguments>...]

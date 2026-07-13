@@ -16,9 +16,19 @@ impl Names {
                 name: value.to_owned(),
             });
         }
-        let snake = value.to_case(Case::Snake);
-        let pascal = value.to_case(Case::Pascal);
-        let kebab = value.to_case(Case::Kebab);
+        let safe_source = value
+            .chars()
+            .map(|character| {
+                if character.is_alphanumeric() {
+                    character
+                } else {
+                    ' '
+                }
+            })
+            .collect::<String>();
+        let snake = safe_source.to_case(Case::Snake);
+        let pascal = safe_source.to_case(Case::Pascal);
+        let kebab = safe_source.to_case(Case::Kebab);
         if snake.is_empty()
             || pascal.is_empty()
             || kebab.is_empty()

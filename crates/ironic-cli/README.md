@@ -12,6 +12,9 @@ cd my-api
 ironic start
 ```
 
+Use `ironic new .` to generate into the current directory. Its folder name is normalized into the
+Cargo package name, and unrelated existing files are preserved.
+
 See the [complete CLI reference](../../docs/content/docs/cli.md) for generated project structure,
 Cargo argument forwarding, generator aliases, safe regeneration, and troubleshooting.
 

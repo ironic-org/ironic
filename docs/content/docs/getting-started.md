@@ -14,6 +14,9 @@ cd my-api
 ironic start
 ```
 
+To generate into an existing current directory, run `ironic new .`; the directory name becomes
+the normalized Cargo package name.
+
 The repository toolchain also pins the matching `rust-analyzer` component so procedural macros are
 expanded by a server built for the same compiler. After changing or installing the toolchain,
 reload the editor workspace once. `rust-analyzer analysis-stats .` provides a command-line check if

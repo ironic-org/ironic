@@ -22,6 +22,22 @@ pub fn directory_name(name: &str) -> Result<String, CliError> {
     Ok(Names::parse(name)?.kebab)
 }
 
+/// Derives a normalized project name from an existing directory.
+///
+/// # Errors
+///
+/// Returns [`CliError`] when the directory has no file name or its name cannot form a safe Rust
+/// identifier.
+pub fn name_from_directory(directory: &Path) -> Result<String, CliError> {
+    let name = directory
+        .file_name()
+        .and_then(|name| name.to_str())
+        .ok_or_else(|| CliError::InvalidName {
+            name: directory.display().to_string(),
+        })?;
+    directory_name(name)
+}
+
 /// Creates a complete application scaffold.
 ///
 /// `framework_workspace` selects local path dependencies for framework development and tests.
@@ -36,19 +52,6 @@ pub fn create(
     framework_workspace: Option<&Path>,
 ) -> Result<ProjectReport, CliError> {
     let names = Names::parse(name)?;
-    if destination.exists()
-        && fs::read_dir(destination)
-            .map_err(|error| CliError::io("read directory", destination, error))?
-            .next()
-            .is_some()
-    {
-        return Err(CliError::ProjectExists {
-            path: destination.to_owned(),
-        });
-    }
-    fs::create_dir_all(destination)
-        .map_err(|error| CliError::io("create directory", destination, error))?;
-
     let manifest = manifest(&names.kebab, framework_workspace);
     let files = [
         (destination.join("Cargo.toml"), manifest),
@@ -60,6 +63,22 @@ pub fn create(
         (destination.join("src/app.rs"), app_source()),
         (destination.join("src/modules/mod.rs"), String::new()),
     ];
+    // Validate all owned paths before writing. This allows unrelated files in an existing
+    // directory without leaving a partially generated project when one target conflicts.
+    for (path, contents) in &files {
+        if path.exists() {
+            let existing =
+                fs::read_to_string(path).map_err(|error| CliError::io("read", path, error))?;
+            if existing != *contents {
+                return Err(CliError::FileConflict {
+                    path: path.to_owned(),
+                });
+            }
+        }
+    }
+
+    fs::create_dir_all(destination)
+        .map_err(|error| CliError::io("create directory", destination, error))?;
     for (path, contents) in files {
         write_generated(&path, &contents)?;
     }

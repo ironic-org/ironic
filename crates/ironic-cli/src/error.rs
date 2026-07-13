@@ -42,12 +42,6 @@ pub enum CliError {
         /// Process exit status or signal description.
         status: String,
     },
-    /// A project already occupies the requested destination.
-    #[error("RF_CLI_PROJECT_EXISTS: destination `{path}` is not empty")]
-    ProjectExists {
-        /// Existing destination.
-        path: PathBuf,
-    },
 }
 
 impl CliError {

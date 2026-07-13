@@ -33,6 +33,12 @@ impl HttpError {
         Self::new(HttpStatus::NOT_FOUND, code, message)
     }
 
+    /// Creates an authentication-required error.
+    #[must_use]
+    pub fn unauthorized(code: &'static str, message: impl Into<String>) -> Self {
+        Self::new(HttpStatus::UNAUTHORIZED, code, message)
+    }
+
     /// Creates a forbidden error.
     #[must_use]
     pub fn forbidden(code: &'static str, message: impl Into<String>) -> Self {

@@ -178,3 +178,53 @@ fn generated_project_builds_and_tests_offline() {
         "generated project did not pass cargo test"
     );
 }
+
+#[test]
+fn route_and_graph_inspectors_are_deterministic() {
+    let temporary = tempfile::tempdir().unwrap();
+    let source = temporary.path().join("src");
+    fs::create_dir(&source).unwrap();
+    fs::write(
+        source.join("app.rs"),
+        r#"
+#[derive(Module)]
+#[module(imports = [UsersModule], providers = [AppService], controllers = [])]
+struct AppModule;
+
+#[derive(Injectable)]
+struct AppService { repository: std::sync::Arc<Repository> }
+
+#[controller("/users")]
+struct UsersController;
+
+#[routes]
+impl UsersController {
+    #[get("/:id")]
+    async fn find(&self) -> Result<(), HttpError> { Ok(()) }
+}
+"#,
+    )
+    .unwrap();
+
+    let mut routes = Vec::new();
+    ironic::run_with(
+        Cli::try_parse_from(["ironic", "routes", temporary.path().to_str().unwrap()]).unwrap(),
+        &mut routes,
+    )
+    .unwrap();
+    assert!(
+        String::from_utf8(routes)
+            .unwrap()
+            .contains("GET     /users/:id")
+    );
+
+    let mut graph = Vec::new();
+    ironic::run_with(
+        Cli::try_parse_from(["ironic", "graph", temporary.path().to_str().unwrap()]).unwrap(),
+        &mut graph,
+    )
+    .unwrap();
+    let graph = String::from_utf8(graph).unwrap();
+    assert!(graph.contains("\"AppModule\" -> \"UsersModule\" [label=\"imports\"]"));
+    assert!(graph.contains("\"AppService\" -> \"std::sync::Arc<Repository>\""));
+}

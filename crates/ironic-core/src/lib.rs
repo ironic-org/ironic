@@ -10,6 +10,7 @@ use std::{
     any::{TypeId, type_name},
     collections::{HashMap, HashSet},
     fmt,
+    sync::Arc,
 };
 
 use rustframe_di::{ContainerBuilder, ProviderDefinition, ProviderKey, RegistrationError};
@@ -20,6 +21,7 @@ use rustframe_http::{
 
 pub use application::{
     ApplicationError, FrameworkApplication, FrameworkApplicationBuilder, MissingPlatform,
+    ModuleConfigurationError,
 };
 pub use health::{HealthModule, HealthStatus};
 pub use lifecycle::{
@@ -73,17 +75,25 @@ impl fmt::Display for ModuleId {
 }
 
 /// A lazily expanded static module import.
-#[derive(Clone, Copy)]
+#[derive(Clone)]
 pub struct ModuleDefinitionFactory {
     id: ModuleId,
-    define: fn() -> ModuleDefinition,
+    define: Arc<dyn Fn() -> ModuleDefinition + Send + Sync>,
 }
 
 impl ModuleDefinitionFactory {
     fn of<T: Module>() -> Self {
         Self {
             id: ModuleId::of::<T>(),
-            define: T::definition,
+            define: Arc::new(T::definition),
+        }
+    }
+
+    fn value(definition: ModuleDefinition) -> Self {
+        let id = definition.id;
+        Self {
+            id,
+            define: Arc::new(move || definition.clone()),
         }
     }
 }
@@ -147,6 +157,26 @@ impl ModuleDefinitionBuilder {
         self
     }
 
+    /// Adds an import whose static definition is expanded only during graph compilation.
+    #[must_use]
+    pub fn import_lazy<T: Module>(self) -> Self {
+        self.import::<T>()
+    }
+
+    /// Adds a runtime-created module definition as a direct import.
+    #[must_use]
+    pub fn import_definition(mut self, definition: ModuleDefinition) -> Self {
+        self.imports
+            .push(ModuleDefinitionFactory::value(definition));
+        self
+    }
+
+    /// Adds a static import only when `enabled` is true.
+    #[must_use]
+    pub fn import_if<T: Module>(self, enabled: bool) -> Self {
+        if enabled { self.import::<T>() } else { self }
+    }
+
     /// Adds a provider owned by this module.
     #[must_use]
     pub fn provider(mut self, provider: ProviderDefinition) -> Self {
@@ -154,11 +184,31 @@ impl ModuleDefinitionBuilder {
         self
     }
 
+    /// Adds a provider only when `enabled` is true.
+    #[must_use]
+    pub fn provider_if(self, enabled: bool, provider: ProviderDefinition) -> Self {
+        if enabled {
+            self.provider(provider)
+        } else {
+            self
+        }
+    }
+
     /// Adds a controller owned by this module.
     #[must_use]
     pub fn controller(mut self, controller: ControllerDefinition) -> Self {
         self.controllers.push(controller);
         self
+    }
+
+    /// Adds a controller only when `enabled` is true.
+    #[must_use]
+    pub fn controller_if(self, enabled: bool, controller: ControllerDefinition) -> Self {
+        if enabled {
+            self.controller(controller)
+        } else {
+            self
+        }
     }
 
     /// Exports provider `T` to modules that directly import this module.
@@ -793,6 +843,35 @@ mod tests {
             Some(ModuleId::of::<UsersModule>())
         );
         assert_eq!(app.provider_owner(ProviderKey::of::<Database>()), None);
+    }
+
+    #[test]
+    fn supports_dynamic_and_conditional_module_composition() {
+        let dynamic_database = ModuleDefinition::builder::<DatabaseModule>()
+            .provider_if(true, provider::<Database>(Vec::new()))
+            .export::<Database>()
+            .build();
+        let root = ModuleDefinition::builder::<AppModule>()
+            .import_definition(dynamic_database)
+            .import_if::<UsersModule>(false)
+            .build();
+
+        let graph = compile_module_graph(root).unwrap();
+        assert_eq!(
+            graph.initialization_order(),
+            &[
+                ModuleId::of::<DatabaseModule>(),
+                ModuleId::of::<AppModule>()
+            ]
+        );
+        assert_eq!(
+            graph
+                .module(ModuleId::of::<DatabaseModule>())
+                .unwrap()
+                .providers()
+                .len(),
+            1
+        );
     }
 
     struct CycleA;

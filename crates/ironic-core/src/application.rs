@@ -1,4 +1,4 @@
-use std::{future::Future, net::SocketAddr, sync::Arc};
+use std::{future::Future, net::SocketAddr, pin::Pin, sync::Arc};
 
 use rustframe_di::{Container, ProviderKey, ProviderValue, ResolveError};
 use rustframe_platform::{HttpPlatformAdapter, HttpPlatformApplication, Shutdown, ShutdownSignal};
@@ -19,6 +19,12 @@ pub enum ApplicationError {
     /// No root module was configured.
     #[error("RF_APP_MISSING_ROOT_MODULE: configure a root module before building")]
     MissingRootModule,
+    /// Asynchronous root module configuration failed.
+    #[error("IRONIC_APP_MODULE_CONFIGURATION: {message}")]
+    ModuleConfiguration {
+        /// A safe configuration failure message.
+        message: String,
+    },
     /// The root module graph is invalid.
     #[error(transparent)]
     Module(#[from] ModuleError),
@@ -59,9 +65,34 @@ pub enum ApplicationError {
 
 /// Starts application construction from a root module and platform adapter.
 pub struct FrameworkApplicationBuilder<A = MissingPlatform> {
-    root: Option<ModuleDefinition>,
+    root: Option<RootModule>,
     overrides: Vec<rustframe_di::ProviderDefinition>,
     adapter: A,
+}
+
+type ModuleConfigurationFuture =
+    Pin<Box<dyn Future<Output = Result<ModuleDefinition, ModuleConfigurationError>> + Send>>;
+
+enum RootModule {
+    Ready(ModuleDefinition),
+    Deferred(ModuleConfigurationFuture),
+}
+
+/// A safe error returned by asynchronous module configuration.
+#[derive(Clone, Debug, Eq, PartialEq, thiserror::Error)]
+#[error("{message}")]
+pub struct ModuleConfigurationError {
+    message: String,
+}
+
+impl ModuleConfigurationError {
+    /// Creates a safe configuration error. Do not include credentials in `message`.
+    #[must_use]
+    pub fn new(message: impl Into<String>) -> Self {
+        Self {
+            message: message.into(),
+        }
+    }
 }
 
 impl Default for FrameworkApplicationBuilder<MissingPlatform> {
@@ -78,7 +109,20 @@ impl<A> FrameworkApplicationBuilder<A> {
     /// Sets the explicit root module definition.
     #[must_use]
     pub fn module(mut self, module: ModuleDefinition) -> Self {
-        self.root = Some(module);
+        self.root = Some(RootModule::Ready(module));
+        self
+    }
+
+    /// Defers root module construction until asynchronous application build.
+    ///
+    /// This supports configuration loaded from secret managers, service discovery, or other
+    /// asynchronous sources without introducing a second module compiler.
+    #[must_use]
+    pub fn module_async<F>(mut self, module: F) -> Self
+    where
+        F: Future<Output = Result<ModuleDefinition, ModuleConfigurationError>> + Send + 'static,
+    {
+        self.root = Some(RootModule::Deferred(Box::pin(module)));
         self
     }
 
@@ -114,7 +158,16 @@ where
     /// callbacks, or platform construction fails. Successfully initialized lifecycle providers are
     /// destroyed before an error is returned.
     pub async fn build(self) -> Result<FrameworkApplication<A::Application>, ApplicationError> {
-        let root = self.root.ok_or(ApplicationError::MissingRootModule)?;
+        let root = match self.root.ok_or(ApplicationError::MissingRootModule)? {
+            RootModule::Ready(module) => module,
+            RootModule::Deferred(module) => {
+                module
+                    .await
+                    .map_err(|error| ApplicationError::ModuleConfiguration {
+                        message: error.to_string(),
+                    })?
+            }
+        };
         let graph = compile_module_graph(root)?;
         let http = build_http_application_with_overrides(&graph, self.overrides)?;
         let container = http.container().clone();
@@ -391,7 +444,7 @@ mod tests {
 
     use super::*;
     use crate::{
-        LifecycleDefinition, LifecycleFuture, Module, OnApplicationBootstrap,
+        LifecycleDefinition, LifecycleFuture, Module, ModuleId, OnApplicationBootstrap,
         OnApplicationShutdown, OnModuleDestroy, OnModuleInit,
     };
 
@@ -686,5 +739,47 @@ mod tests {
             .build()
             .await;
         assert!(matches!(result, Err(ApplicationError::MissingRootModule)));
+    }
+
+    #[tokio::test]
+    async fn asynchronously_configures_the_root_module() {
+        let events = Arc::new(Mutex::new(Vec::new()));
+        let application = FrameworkApplication::builder()
+            .module_async(async {
+                tokio::task::yield_now().await;
+                Ok(TestModule::definition())
+            })
+            .platform(FakeAdapter {
+                events: Arc::clone(&events),
+                fail_build: false,
+            })
+            .build()
+            .await
+            .unwrap();
+
+        assert_eq!(application.graph().root(), ModuleId::of::<TestModule>());
+        assert_eq!(events.lock().unwrap().as_slice(), ["platform-build"]);
+    }
+
+    #[tokio::test]
+    async fn reports_async_module_configuration_failures() {
+        let events = Arc::new(Mutex::new(Vec::new()));
+        let result = FrameworkApplication::builder()
+            .module_async(async {
+                Err(ModuleConfigurationError::new(
+                    "remote configuration is unavailable",
+                ))
+            })
+            .platform(FakeAdapter {
+                events,
+                fail_build: false,
+            })
+            .build()
+            .await;
+
+        assert!(matches!(
+            result,
+            Err(ApplicationError::ModuleConfiguration { .. })
+        ));
     }
 }

@@ -1,6 +1,7 @@
 mod cargo;
 mod doctor;
 mod generate;
+mod inspect;
 mod new;
 
 use std::io::Write;
@@ -18,5 +19,7 @@ pub(crate) fn execute(command: Cli, output: &mut impl Write) -> Result<(), CliEr
         Command::Test(arguments) => cargo::execute("test", arguments),
         Command::Generate(arguments) => generate::execute(arguments, output),
         Command::Doctor => doctor::execute(output),
+        Command::Routes(arguments) => inspect::routes(&arguments.path, output),
+        Command::Graph(arguments) => inspect::graph(&arguments.path, output),
     }
 }

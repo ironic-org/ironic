@@ -497,6 +497,9 @@ impl CompiledHttpApplication {
         route: &CompiledRoute,
         context: &mut RequestContext,
     ) -> Result<FrameworkResponse, HttpError> {
+        if context.extension::<crate::RequestScope>().is_none() {
+            context.insert_extension(self.container.request_scope());
+        }
         super::pipeline::execute(self, route, context).await
     }
 

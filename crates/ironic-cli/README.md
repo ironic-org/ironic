@@ -27,4 +27,6 @@ ironic generate controller users
 ironic generate service users
 ironic generate resource products
 ironic doctor
+ironic routes
+ironic graph
 ```

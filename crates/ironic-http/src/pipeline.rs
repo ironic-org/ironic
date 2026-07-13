@@ -275,9 +275,7 @@ fn run_interceptor<'a>(
         )
     } else {
         Box::pin(async move {
-            let controller = state
-                .application
-                .container()
+            let controller = route_scope(context)?
                 .resolve_key(state.route.controller())
                 .await
                 .map_err(|_| {
@@ -289,6 +287,18 @@ fn run_interceptor<'a>(
             state.route.invoke_handler(controller, context).await
         })
     }
+}
+
+fn route_scope(context: &RequestContext) -> Result<crate::RequestScope, HttpError> {
+    context
+        .extension::<crate::RequestScope>()
+        .cloned()
+        .ok_or_else(|| {
+            HttpError::internal(
+                "IRONIC_HTTP_REQUEST_SCOPE_MISSING",
+                "Request dependency scope was not initialized",
+            )
+        })
 }
 
 fn middleware_at<'a>(

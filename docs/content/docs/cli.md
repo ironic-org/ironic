@@ -166,6 +166,22 @@ Run the doctor from an application directory:
 ironic doctor
 ```
 
+## Inspect routes and dependencies
+
+`ironic routes [path]` scans the project's Rust source and prints controller route declarations in
+stable method/path/handler order. `ironic graph [path]` prints Graphviz DOT edges for module imports,
+providers, controllers, exports, and injectable struct fields:
+
+```text
+ironic routes
+ironic graph > application.dot
+dot -Tsvg application.dot -o application.svg
+```
+
+These commands inspect macro declarations without compiling or executing application code. Dynamic
+module definitions assembled only at runtime are therefore available through the framework's
+`CompiledApplicationGraph` API, but cannot appear in static CLI output.
+
 It checks:
 
 - the installed Rust compiler;

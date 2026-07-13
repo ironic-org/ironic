@@ -28,6 +28,46 @@ include = [
     "/LICENSE-*",
 ]
 
+[features]
+default = []
+database = ["sqlx", "seaorm", "diesel", "mongodb", "redis"]
+sqlx = ["dep:sqlx"]
+sqlx-postgres = ["sqlx", "sqlx/postgres"]
+sqlx-mysql = ["sqlx", "sqlx/mysql"]
+sqlx-sqlite = ["sqlx", "sqlx/sqlite"]
+seaorm = ["dep:sea-orm"]
+seaorm-postgres = ["seaorm", "sea-orm/sqlx-postgres"]
+seaorm-mysql = ["seaorm", "sea-orm/sqlx-mysql"]
+seaorm-sqlite = ["seaorm", "sea-orm/sqlx-sqlite"]
+diesel = ["dep:diesel"]
+mongodb = ["dep:mongodb"]
+redis = ["dep:redis"]
+auth = ["dep:argon2"]
+jwt = ["auth", "dep:jsonwebtoken"]
+oauth = ["auth", "dep:oauth2"]
+sessions = ["auth", "dep:getrandom"]
+authentication = ["auth", "jwt", "oauth", "sessions"]
+cache = []
+scheduling = []
+events = []
+realtime = ["axum/ws"]
+application-services = ["cache", "scheduling", "events", "realtime"]
+queues = []
+microservices = []
+cqrs = []
+sagas = []
+grpc = ["microservices", "dep:tonic"]
+graphql = [
+    "dep:async-graphql",
+    "dep:async-graphql-derive",
+    "dep:async-graphql-parser",
+    "dep:async-graphql-value",
+]
+distributed = ["queues", "microservices", "cqrs", "sagas", "grpc", "graphql"]
+plugins = []
+devtools = ["axum/json"]
+plugin-ecosystem = ["plugins", "devtools"]
+
 [[bin]]
 name = "ironic"
 path = "crates/ironic-cli/src/main.rs"
@@ -54,6 +94,18 @@ path = "crates/ironic-testing/tests/testing.rs"
 name = "ui"
 path = "crates/ironic/tests/ui.rs"
 
+[[test]]
+name = "database-integrations"
+path = "tests/database_integrations.rs"
+
+[[test]]
+name = "authentication"
+path = "tests/authentication.rs"
+
+[[test]]
+name = "extended-features"
+path = "tests/extended_features.rs"
+
 [dependencies]
 axum.workspace = true
 clap.workspace = true
@@ -72,6 +124,20 @@ thiserror.workspace = true
 tokio.workspace = true
 tower.workspace = true
 tracing.workspace = true
+sqlx = { version = "0.8.6", optional = true, default-features = false, features = ["runtime-tokio", "migrate"] }
+sea-orm = { version = "1.1.20", optional = true, default-features = false, features = ["runtime-tokio-rustls"] }
+diesel = { version = "2.2.12", optional = true, default-features = false, features = ["r2d2", "32-column-tables"] }
+mongodb = { version = "3.3.0", optional = true, default-features = false, features = ["rustls-tls", "dns-resolver", "bson-3", "compat-3-3-0"] }
+redis = { version = "0.32.7", optional = true, default-features = false, features = ["aio", "tokio-comp", "connection-manager"] }
+argon2 = { version = "0.5.3", optional = true, features = ["std"] }
+getrandom = { version = "0.3.4", optional = true }
+jsonwebtoken = { version = "9.3.1", optional = true, default-features = false }
+oauth2 = { version = "5.0.0", optional = true, default-features = false, features = ["reqwest", "rustls-tls"] }
+tonic = { version = "0.14.2", optional = true, default-features = false, features = ["transport", "codegen", "router"] }
+async-graphql = { version = "=7.0.16", optional = true, default-features = false, features = ["graphiql"] }
+async-graphql-derive = { version = "=7.0.16", optional = true }
+async-graphql-parser = { version = "=7.0.16", optional = true }
+async-graphql-value = { version = "=7.0.16", optional = true }
 
 [dev-dependencies]
 tempfile.workspace = true

@@ -6,7 +6,7 @@ use std::{
     fmt,
     future::Future,
     pin::Pin,
-    sync::Arc,
+    sync::{Arc, Mutex},
 };
 
 use tokio::sync::OnceCell;
@@ -65,6 +65,8 @@ pub enum Scope {
     Singleton,
     /// A new value is constructed for every resolution.
     Transient,
+    /// One value is constructed and shared within a single request.
+    Request,
 }
 
 /// A dependency declared by a provider factory.
@@ -273,6 +275,24 @@ pub enum ResolveError {
         /// The dependency chain leading to the mismatch.
         path: Vec<ProviderKey>,
     },
+    /// A request-scoped provider was resolved without a request scope.
+    #[error("IRONIC_DI_REQUEST_SCOPE_REQUIRED: provider `{key}` requires a request scope")]
+    RequestScopeRequired {
+        /// The request-scoped provider key.
+        key: ProviderKey,
+        /// The dependency chain leading to the failure.
+        path: Vec<ProviderKey>,
+    },
+    /// A singleton attempted to depend on request-scoped state.
+    #[error(
+        "IRONIC_DI_SCOPE_VIOLATION: singleton construction cannot resolve request provider `{key}`"
+    )]
+    ScopeViolation {
+        /// The invalid request-scoped dependency.
+        key: ProviderKey,
+        /// The dependency chain leading to the failure.
+        path: Vec<ProviderKey>,
+    },
 }
 
 impl ResolveError {
@@ -293,7 +313,9 @@ impl ResolveError {
             Self::MissingProvider { path, .. }
             | Self::CircularDependency { path, .. }
             | Self::FactoryFailed { path, .. }
-            | Self::TypeMismatch { path, .. } => path,
+            | Self::TypeMismatch { path, .. }
+            | Self::RequestScopeRequired { path, .. }
+            | Self::ScopeViolation { path, .. } => path,
         }
     }
 
@@ -302,7 +324,9 @@ impl ResolveError {
             Self::MissingProvider { path, .. }
             | Self::CircularDependency { path, .. }
             | Self::FactoryFailed { path, .. }
-            | Self::TypeMismatch { path, .. } => path,
+            | Self::TypeMismatch { path, .. }
+            | Self::RequestScopeRequired { path, .. }
+            | Self::ScopeViolation { path, .. } => path,
         };
         if target.is_empty() {
             target.extend_from_slice(path);
@@ -406,6 +430,8 @@ impl Container {
         Resolver {
             container: self.clone(),
             path: Arc::from([]),
+            request_cache: None,
+            request_allowed: false,
         }
         .resolve::<T>()
         .await
@@ -423,6 +449,8 @@ impl Container {
         Resolver {
             container: self.clone(),
             path: Arc::from([]),
+            request_cache: None,
+            request_allowed: false,
         }
         .resolve_erased(key)
         .await
@@ -439,9 +467,86 @@ impl Container {
         Resolver {
             container: self.clone(),
             path: Arc::from([]),
+            request_cache: None,
+            request_allowed: false,
         }
         .resolve_optional::<T>()
         .await
+    }
+
+    /// Creates an isolated resolver that caches request-scoped providers.
+    #[must_use]
+    pub fn request_scope(&self) -> RequestScope {
+        RequestScope {
+            container: self.clone(),
+            cache: Arc::new(RequestCache::default()),
+        }
+    }
+}
+
+#[derive(Default)]
+struct RequestCache {
+    providers: Mutex<HashMap<ProviderKey, Arc<OnceCell<ProviderValue>>>>,
+}
+
+impl RequestCache {
+    fn cell(&self, key: ProviderKey) -> Arc<OnceCell<ProviderValue>> {
+        let mut providers = self
+            .providers
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        Arc::clone(
+            providers
+                .entry(key)
+                .or_insert_with(|| Arc::new(OnceCell::new())),
+        )
+    }
+}
+
+/// An isolated dependency resolver for one request.
+#[derive(Clone)]
+pub struct RequestScope {
+    container: Container,
+    cache: Arc<RequestCache>,
+}
+
+impl RequestScope {
+    fn resolver(&self) -> Resolver {
+        Resolver {
+            container: self.container.clone(),
+            path: Arc::from([]),
+            request_cache: Some(Arc::clone(&self.cache)),
+            request_allowed: true,
+        }
+    }
+
+    /// Resolves a provider, caching request-scoped values within this scope.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`ResolveError`] when lookup, construction, or downcasting fails.
+    pub async fn resolve<T: Send + Sync + 'static>(&self) -> Result<Arc<T>, ResolveError> {
+        self.resolver().resolve().await
+    }
+
+    /// Resolves a provider by erased metadata within this scope.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`ResolveError`] when lookup or construction fails.
+    pub async fn resolve_key(&self, key: ProviderKey) -> Result<ProviderValue, ResolveError> {
+        self.resolver().resolve_erased(key).await
+    }
+
+    /// Resolves an optional provider within this scope.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`ResolveError`] if a registered provider fails to construct or downcast.
+    pub async fn resolve_optional<T: Send + Sync + 'static>(
+        &self,
+    ) -> Result<Option<Arc<T>>, ResolveError> {
+        self.resolver().resolve_optional().await
     }
 }
 
@@ -450,6 +555,8 @@ impl Container {
 pub struct Resolver {
     container: Container,
     path: Arc<[ProviderKey]>,
+    request_cache: Option<Arc<RequestCache>>,
+    request_allowed: bool,
 }
 
 impl Resolver {
@@ -498,11 +605,29 @@ impl Resolver {
             });
         };
 
+        if registration.definition.scope == Scope::Request {
+            if self.request_cache.is_none() {
+                return Err(ResolveError::RequestScopeRequired {
+                    key,
+                    path: self.path.to_vec(),
+                });
+            }
+            if !self.request_allowed {
+                return Err(ResolveError::ScopeViolation {
+                    key,
+                    path: self.path.to_vec(),
+                });
+            }
+        }
+
         let mut path = self.path.to_vec();
         path.push(key);
         let child = Self {
             container: self.container.clone(),
             path: path.clone().into(),
+            request_cache: self.request_cache.clone(),
+            request_allowed: self.request_allowed
+                && registration.definition.scope != Scope::Singleton,
         };
 
         let construct = || async {
@@ -518,6 +643,14 @@ impl Resolver {
                 .await
                 .cloned(),
             Scope::Transient => construct().await,
+            Scope::Request => {
+                let cell = self
+                    .request_cache
+                    .as_ref()
+                    .expect("request scope was validated")
+                    .cell(key);
+                cell.get_or_try_init(construct).await.cloned()
+            }
         }
     }
 }
@@ -837,5 +970,92 @@ mod tests {
                 .now(),
             42
         );
+    }
+
+    #[tokio::test]
+    async fn request_providers_are_shared_only_within_one_request() {
+        #[derive(Debug)]
+        struct RequestValue(usize);
+
+        let calls = Arc::new(AtomicUsize::new(0));
+        let mut builder = ContainerBuilder::new();
+        builder
+            .register(ProviderDefinition::constructor(
+                Scope::Request,
+                Vec::new(),
+                {
+                    let calls = Arc::clone(&calls);
+                    move |_resolver| Ok(RequestValue(calls.fetch_add(1, Ordering::SeqCst)))
+                },
+            ))
+            .unwrap();
+        let container = builder.build();
+
+        let first_request = container.request_scope();
+        let (first, repeated) = tokio::join!(
+            first_request.resolve::<RequestValue>(),
+            first_request.resolve::<RequestValue>()
+        );
+        let first = first.unwrap();
+        let repeated = repeated.unwrap();
+        assert!(Arc::ptr_eq(&first, &repeated));
+        assert_eq!(first.0, 0);
+
+        let second = container
+            .request_scope()
+            .resolve::<RequestValue>()
+            .await
+            .unwrap();
+        assert!(!Arc::ptr_eq(&first, &second));
+        assert_eq!(second.0, 1);
+        assert_eq!(calls.load(Ordering::SeqCst), 2);
+    }
+
+    #[tokio::test]
+    async fn request_provider_requires_an_explicit_request_scope() {
+        struct RequestValue;
+
+        let mut builder = ContainerBuilder::new();
+        builder
+            .register(ProviderDefinition::constructor(
+                Scope::Request,
+                Vec::new(),
+                |_resolver| Ok(RequestValue),
+            ))
+            .unwrap();
+
+        assert!(matches!(
+            builder.build().resolve::<RequestValue>().await,
+            Err(ResolveError::RequestScopeRequired { .. })
+        ));
+    }
+
+    #[tokio::test]
+    async fn singleton_cannot_capture_request_scoped_state() {
+        struct RequestValue;
+        struct Singleton;
+
+        let mut builder = ContainerBuilder::new();
+        builder
+            .register(ProviderDefinition::constructor(
+                Scope::Request,
+                Vec::new(),
+                |_resolver| Ok(RequestValue),
+            ))
+            .unwrap()
+            .register(ProviderDefinition::factory(
+                Scope::Singleton,
+                vec![Dependency::required::<RequestValue>()],
+                |resolver| async move {
+                    resolver.resolve::<RequestValue>().await?;
+                    Ok(Singleton)
+                },
+            ))
+            .unwrap();
+
+        assert!(matches!(
+            builder.build().request_scope().resolve::<Singleton>().await,
+            Err(ResolveError::ScopeViolation { .. })
+        ));
     }
 }

@@ -176,14 +176,14 @@ This checklist turns the architecture in [`rust_framework_full_docs.md`](./rust_
 ## Deferred until after 0.1
 
 - [x] OpenAPI generation and Swagger UI.
-- [ ] SQLx, SeaORM, Diesel, MongoDB, and Redis integration crates.
-- [ ] Authentication, JWT, OAuth, sessions, and authorization helpers.
-- [ ] Request-scoped providers.
-- [ ] Dynamic, lazy, conditional, and async-configured modules.
-- [ ] Route inspector and dependency graph CLI commands.
-- [ ] Caching, scheduling, events, WebSockets, and SSE.
-- [ ] Queues, microservice transports, gRPC, CQRS, sagas, and GraphQL.
-- [ ] Devtools UI and plugin ecosystem.
+- [x] SQLx, SeaORM, Diesel, MongoDB, and Redis integrations (single-crate feature modules).
+- [x] Authentication, JWT, OAuth, sessions, and authorization helpers.
+- [x] Request-scoped providers.
+- [x] Dynamic, lazy, conditional, and async-configured modules.
+- [x] Route inspector and dependency graph CLI commands.
+- [x] Caching, scheduling, events, WebSockets, and SSE.
+- [x] Queues, microservice transports, gRPC, CQRS, sagas, and GraphQL.
+- [x] Devtools UI and plugin ecosystem.
 
 ## Version 0.1 release checklist
 

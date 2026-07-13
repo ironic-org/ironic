@@ -31,16 +31,19 @@ pub(crate) fn expand(input: TokenStream) -> syn::Result<TokenStream> {
                 scope = match value.value().as_str() {
                     "singleton" => quote!(::ironic::Scope::Singleton),
                     "transient" => quote!(::ironic::Scope::Transient),
+                    "request" => quote!(::ironic::Scope::Request),
                     _ => {
                         return Err(syn::Error::new(
                             value.span(),
-                            "scope must be `singleton` or `transient`",
+                            "scope must be `singleton`, `transient`, or `request`",
                         ));
                     }
                 };
                 return Ok(());
             }
-            Err(meta.error("supported options are `scope = \"singleton|transient\"` and `eager`"))
+            Err(meta.error(
+                "supported options are `scope = \"singleton|transient|request\"` and `eager`",
+            ))
         })?;
     }
 

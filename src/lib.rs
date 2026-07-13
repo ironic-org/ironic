@@ -8,6 +8,9 @@ extern crate self as rustframe_http;
 extern crate self as rustframe_platform;
 extern crate self as rustframe_platform_axum;
 
+#[cfg(feature = "auth")]
+#[path = "../crates/ironic-auth/src/lib.rs"]
+pub mod auth;
 #[path = "../crates/ironic-cli/src/lib.rs"]
 mod cli_impl;
 #[path = "../crates/ironic-common/src/lib.rs"]
@@ -18,14 +21,37 @@ mod config_impl;
 mod core;
 #[path = "../crates/ironic-di/src/lib.rs"]
 mod di;
+#[cfg(any(
+    feature = "queues",
+    feature = "microservices",
+    feature = "cqrs",
+    feature = "sagas",
+    feature = "grpc",
+    feature = "graphql"
+))]
+#[path = "../crates/ironic-distributed/src/lib.rs"]
+pub mod distributed;
+#[cfg(any(feature = "plugins", feature = "devtools"))]
+#[path = "../crates/ironic-devtools/src/lib.rs"]
+pub mod ecosystem;
 #[path = "../crates/ironic-http/src/lib.rs"]
 mod http_impl;
+#[path = "../crates/ironic-integrations/src/lib.rs"]
+pub mod integrations;
 #[path = "../crates/ironic-openapi/src/lib.rs"]
 mod openapi;
 #[path = "../crates/ironic-platform/src/lib.rs"]
 mod platform;
 #[path = "../crates/ironic-platform-axum/src/lib.rs"]
 mod platform_axum;
+#[cfg(any(
+    feature = "cache",
+    feature = "scheduling",
+    feature = "events",
+    feature = "realtime"
+))]
+#[path = "../crates/ironic-services/src/lib.rs"]
+pub mod services;
 #[path = "../crates/ironic-testing/src/lib.rs"]
 mod testing;
 
@@ -71,9 +97,9 @@ pub mod prelude {
         LifecycleDefinition, Middleware, Module, ModuleDefinition, OnApplicationBootstrap,
         OnApplicationShutdown, OnModuleDestroy, OnModuleInit, OpenApiSchema, ParameterPipe,
         PathParameter, PipelineFuture, ProviderDefinition, QueryParameters, RequestContext,
-        RequestId, RequestTracing, RouteDefinition, RouteMetadata, Scope, Secret, SecretString,
-        ShutdownSignal, ValidateConfiguration, body, controller, delete, get, handler_fn, head,
-        header, options, param, patch, pipe_fn, post, put, query, routes, use_guard,
-        use_interceptor,
+        RequestId, RequestScope, RequestTracing, RouteDefinition, RouteMetadata, Scope, Secret,
+        SecretString, ShutdownSignal, ValidateConfiguration, body, controller, delete, get,
+        handler_fn, head, header, options, param, patch, pipe_fn, post, put, query, routes,
+        use_guard, use_interceptor,
     };
 }

@@ -27,6 +27,10 @@ pub enum Command {
     Generate(GenerateArgs),
     /// Checks the local Rust and project environment.
     Doctor,
+    /// Lists routes declared by controller macros.
+    Routes(InspectArgs),
+    /// Prints a Graphviz dependency graph from module and injectable declarations.
+    Graph(InspectArgs),
 }
 
 /// Arguments for project creation.
@@ -45,6 +49,14 @@ pub struct CargoArgs {
     /// Additional Cargo arguments.
     #[arg(last = true, allow_hyphen_values = true)]
     pub cargo_args: Vec<String>,
+}
+
+/// Arguments shared by source inspection commands.
+#[derive(Debug, Args)]
+pub struct InspectArgs {
+    /// Project directory containing `src`.
+    #[arg(default_value = ".")]
+    pub path: PathBuf,
 }
 
 /// Generator selection and source name.

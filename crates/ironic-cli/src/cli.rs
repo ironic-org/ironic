@@ -27,6 +27,9 @@ pub enum Command {
     Generate(GenerateArgs),
     /// Checks the local Rust and project environment.
     Doctor,
+    /// Checks crates.io for a newer version and shows update instructions.
+    #[command(alias = "upgrade")]
+    Update,
     /// Lists routes declared by controller macros.
     Routes(InspectArgs),
     /// Prints a Graphviz dependency graph from module and injectable declarations.

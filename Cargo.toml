@@ -161,6 +161,7 @@ chrono = { workspace = true, optional = true }
 uuid = { workspace = true, optional = true }
 lapin = { workspace = true, optional = true }
 kafka = { workspace = true, optional = true }
+ureq = { version = "2.12", features = ["json"] }
 
 [dev-dependencies]
 tempfile.workspace = true
@@ -206,13 +207,13 @@ tempfile = "3.23.0"
 thiserror = "2.0.18"
 tokio = { version = "1.52.0", features = ["macros", "net", "rt-multi-thread", "signal", "sync", "time"] }
 tower = { version = "0.5.3", features = ["util"] }
-tower-http = { version = "0.6.2", default-features = false, features = ["cors", "set-header", "compression-gzip", "compression-br", "compression-zstd"] }
+tower-http = { version = "0.7.0", default-features = false, features = ["cors", "set-header", "compression-gzip", "compression-br", "compression-zstd"] }
 tracing = "0.1.43"
-garde = { version = "0.22.0", features = ["derive"] }
-cron = "0.15.0"
+garde = { version = "0.23.0", features = ["derive"] }
+cron = "0.17.0"
 chrono = { version = "0.4.42", features = ["serde"] }
 uuid = { version = "1.16.0", features = ["v4", "serde"] }
-lapin = { version = "2.5.1", default-features = false, features = ["rustls"] }
+lapin = { version = "4.10.0", default-features = false, features = ["rustls"] }
 kafka = { version = "0.10.0", default-features = false, features = ["snappy"] }
 
 ironic = { path = ".", version = "0.1.0" }

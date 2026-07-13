@@ -1,0 +1,75 @@
+use std::io::Write;
+
+use crate::CliError;
+
+const CRATES_IO_API: &str = "https://crates.io/api/v1/crates/ironic";
+const USER_AGENT: &str = concat!("ironic-cli/", env!("CARGO_PKG_VERSION"));
+
+pub(crate) fn execute(output: &mut impl Write) -> Result<(), CliError> {
+    let map = |e: std::io::Error| CliError::io("write output", "stdout", e);
+    let current = env!("CARGO_PKG_VERSION");
+    let installed = which_install_method()
+        .map(|method| format!(" ({method})"))
+        .unwrap_or_default();
+
+    match check_latest_version() {
+        Ok(Some(latest)) if latest != current => {
+            writeln!(output, "A new version of ironic is available: {latest}").map_err(&map)?;
+            writeln!(output, "  installed: {current}{installed}").map_err(&map)?;
+            writeln!(output, "Run `cargo install ironic` to update.").map_err(&map)?;
+            writeln!(
+                output,
+                "Changelog: https://github.com/ironic-org/ironic/releases/tag/v{latest}"
+            )
+            .map_err(&map)?;
+        }
+        Ok(Some(_)) => {
+            writeln!(output, "ironic {current} is the latest version.").map_err(&map)?;
+        }
+        Ok(None) => {
+            writeln!(output, "ironic {current}").map_err(&map)?;
+            writeln!(output, "Could not find version information on crates.io.").map_err(&map)?;
+        }
+        Err(error) => {
+            writeln!(output, "ironic {current}").map_err(&map)?;
+            writeln!(output, "Could not check for updates: {error}").map_err(&map)?;
+            writeln!(
+                output,
+                "Visit https://crates.io/crates/ironic to check manually."
+            )
+            .map_err(&map)?;
+        }
+    }
+    Ok(())
+}
+
+pub(crate) fn check_latest_version() -> Result<Option<String>, String> {
+    let response = ureq::get(CRATES_IO_API)
+        .set("User-Agent", USER_AGENT)
+        .call()
+        .map_err(|e| format!("request failed: {e}"))?;
+    let body: serde_json::Value = response
+        .into_json()
+        .map_err(|e| format!("invalid response: {e}"))?;
+    let version = body
+        .pointer("/crate/max_stable_version")
+        .and_then(|v| v.as_str())
+        .map(String::from);
+    Ok(version)
+}
+
+fn which_install_method() -> Option<&'static str> {
+    let exe = std::env::current_exe().ok()?;
+    let path = exe.to_string_lossy();
+    if path.contains("/.cargo/bin/") {
+        Some("cargo install")
+    } else if path.contains("/nix/") {
+        Some("nix")
+    } else if path.contains("/homebrew/") || path.contains("/opt/homebrew/") {
+        Some("homebrew")
+    } else if path.contains("/usr/local/") || path.contains("/usr/bin/") {
+        Some("system package manager")
+    } else {
+        None
+    }
+}

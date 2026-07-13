@@ -22,7 +22,38 @@ pub(crate) fn execute(output: &mut impl Write) -> Result<(), CliError> {
         framework,
         if framework { "found" } else { "not found" },
     )?;
+
+    check_ironic_version(output)?;
+
     Ok(())
+}
+
+fn check_ironic_version(output: &mut impl Write) -> Result<(), CliError> {
+    let current = env!("CARGO_PKG_VERSION");
+    let latest = match super::update::check_latest_version() {
+        Ok(Some(version)) => version,
+        Ok(None) => {
+            return report(output, "CLI version", true, current);
+        }
+        Err(error) => {
+            return report(
+                output,
+                "CLI version",
+                true,
+                &format!("{current} (could not check for updates: {error})"),
+            );
+        }
+    };
+    if latest == current {
+        report(output, "CLI version", true, &format!("{current} (latest)"))
+    } else {
+        report(
+            output,
+            "CLI version",
+            false,
+            &format!("{current} (latest: {latest}; run `ironic update`)"),
+        )
+    }
 }
 
 fn check_tool(

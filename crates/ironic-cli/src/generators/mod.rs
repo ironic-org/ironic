@@ -59,7 +59,10 @@ pub fn generate_controller(root: &Path, name: &str) -> Result<GenerationReport, 
         &path,
         write_generated(&path, &templates::controller(&names))?,
     );
-    write_generated(&controller_dir.join("mod.rs"), &templates::controller_mod(&names))?;
+    write_generated(
+        &controller_dir.join("mod.rs"),
+        &templates::controller_mod(&names),
+    )?;
     ensure_items(
         &module_dir.join("mod.rs"),
         &[
@@ -90,7 +93,10 @@ pub fn generate_service(root: &Path, name: &str) -> Result<GenerationReport, Cli
         &path,
         write_generated(&path, &templates::service(&names))?,
     );
-    write_generated(&services_dir.join("mod.rs"), &templates::services_mod(&names))?;
+    write_generated(
+        &services_dir.join("mod.rs"),
+        &templates::services_mod(&names),
+    )?;
     ensure_items(
         &module_dir.join("mod.rs"),
         &[
@@ -138,7 +144,10 @@ pub fn generate_resource(root: &Path, name: &str) -> Result<GenerationReport, Cl
     let entities_dir = module_dir.join("entities");
     let mut report = GenerationReport::default();
     let files = [
-        (module_dir.join("mod.rs"), templates::resource_module(&names)),
+        (
+            module_dir.join("mod.rs"),
+            templates::resource_module(&names),
+        ),
         (
             controller_dir.join("mod.rs"),
             templates::controller_mod(&names),
@@ -147,10 +156,7 @@ pub fn generate_resource(root: &Path, name: &str) -> Result<GenerationReport, Cl
             controller_dir.join(format!("{}_controller.rs", names.snake)),
             templates::resource_controller(&names),
         ),
-        (
-            services_dir.join("mod.rs"),
-            templates::services_mod(&names),
-        ),
+        (services_dir.join("mod.rs"), templates::services_mod(&names)),
         (
             services_dir.join(format!("{}_service.rs", names.snake)),
             templates::service(&names),

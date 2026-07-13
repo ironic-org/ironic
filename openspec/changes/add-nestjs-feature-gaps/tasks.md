@@ -72,44 +72,44 @@
 
 ## 9. Microservice Transports
 
-- [ ] 9.1 Implement `RedisTransport` adapter for `Transport` trait with pub/sub
-- [ ] 9.2 Implement `RabbitMqTransport` adapter for `Transport` trait with queues
-- [ ] 9.3 Implement `KafkaTransport` adapter for `Transport` trait with topics
-- [ ] 9.4 Add typed builder patterns for each transport adapter configuration
-- [ ] 9.5 Add feature flags (`transport-redis`, `transport-rabbitmq`, `transport-kafka`) in `ironic-distributed`
+- [x] 9.1 Implement `RedisTransport` adapter for `Transport` trait with pub/sub
+- [x] 9.2 Implement `RabbitMqTransport` adapter for `Transport` trait with queues
+- [x] 9.3 Implement `KafkaTransport` adapter for `Transport` trait with topics
+- [x] 9.4 Add typed builder patterns for each transport adapter configuration
+- [x] 9.5 Add feature flags (`transport-redis`, `transport-rabbitmq`, `transport-kafka`) in `ironic-distributed`
 - [ ] 9.6 Write tests: transport send/receive (in-memory integration test patterns)
 
 ## 10. Cache Decorators
 
-- [ ] 10.1 Implement `#[cache(ttl_secs = N)]` route attribute macro for cache metadata
-- [ ] 10.2 Implement `CacheInterceptor` that checks cache pre-handler and writes post-handler
-- [ ] 10.3 Implement `RedisCache` backend implementing the `Cache` trait
-- [ ] 10.4 Integrate cache metadata into `RouteDefinition` and `CompiledHttpApplication`
+- [x] 10.1 Implement `#[cache(ttl_secs = N)]` route attribute macro for cache metadata
+- [x] 10.2 Implement `CacheInterceptor` that checks cache pre-handler and writes post-handler
+- [x] 10.3 Implement `RedisCache` backend implementing the `Cache` trait
+- [x] 10.4 Integrate cache metadata into `RouteDefinition` and `CompiledHttpApplication`
 - [ ] 10.5 Write tests: cache hit returns cached response, cache miss invokes handler, TTL expiry
 
 ## 11. Cron Scheduling
 
-- [ ] 11.1 Add `cron` crate dependency and implement cron expression parsing for scheduling
-- [ ] 11.2 Implement `#[cron("expr")]`, `#[interval(ms)]`, `#[timeout(ms)]` attribute macros
-- [ ] 11.3 Integrate scheduled task registration into module compilation and lifecycle hooks
-- [ ] 11.4 Implement auto-start on `OnApplicationBootstrap` and graceful stop on `OnApplicationShutdown`
+- [x] 11.1 Add `cron` crate dependency and implement cron expression parsing for scheduling
+- [x] 11.2 Implement `#[cron("expr")]`, `#[interval(ms)]`, `#[timeout(ms)]` attribute macros
+- [x] 11.3 Integrate scheduled task registration into module compilation and lifecycle hooks
+- [x] 11.4 Implement auto-start on `OnApplicationBootstrap` and graceful stop on `OnApplicationShutdown`
 - [ ] 11.5 Write tests: cron execution at expected time, interval periodicity, shutdown cancellation
 
 ## 12. Dynamic Modules
 
-- [ ] 12.1 Implement `ModuleDefinitionBuilder::for_root(config)` for static module configuration
-- [ ] 12.2 Implement `ModuleDefinitionBuilder::for_root_async(config_future)` for async config
-- [ ] 12.3 Implement `register()` pattern for parameterized module imports
-- [ ] 12.4 Implement `#[global]` module attribute that exports providers globally
-- [ ] 12.5 Implement `ModuleRef` service for runtime DI container access
-- [ ] 12.6 Write tests: forRoot configuration, async config resolution, global scope, ModuleRef resolution
+- [x] 12.1 Implement `ModuleDefinitionBuilder::for_root(config)` for static module configuration
+- [x] 12.2 Implement `ModuleDefinitionBuilder::for_root_async(config_future)` for async config
+- [x] 12.3 Implement `register()` pattern for parameterized module imports
+- [x] 12.4 Implement `#[global]` module attribute that exports providers globally
+- [x] 12.5 Implement `ModuleRef` service for runtime DI container access
+- [x] 12.6 Write tests: forRoot configuration, async config resolution, global scope, ModuleRef resolution
 
 ## 13. Optional Dependencies
 
-- [ ] 13.1 Extend `#[derive(Injectable)]` proc macro to accept `optional = [Type1, Type2]` attribute
-- [ ] 13.2 Generate `Dependency::optional` for listed types instead of `Dependency::required`
-- [ ] 13.3 Generate `Option<T>` field type for optional dependencies
-- [ ] 13.4 Write tests: optional resolves to Some when provider exists, None when missing, required missing is error
+- [x] 13.1 Extend `#[derive(Injectable)]` proc macro to accept `optional = [Type1, Type2]` attribute
+- [x] 13.2 Generate `Dependency::optional` for listed types instead of `Dependency::required`
+- [x] 13.3 Generate `Option<T>` field type for optional dependencies
+- [x] 13.4 Write tests: optional resolves to Some when provider exists, None when missing, required missing is error
 
 ## 14. Custom Decorators
 
@@ -122,6 +122,6 @@
 
 - [ ] 15.1 Add doc pages for each new capability in `docs/content/docs/`
 - [ ] 15.2 Update CHANGELOG.md with all new features
-- [ ] 15.3 Run full CI pipeline: `cargo fmt`, `cargo clippy -D warnings`, `cargo test --all-features`
+- [x] 15.3 Run full CI pipeline: `cargo fmt`, `cargo clippy -D warnings`, `cargo test --all-features`
 - [ ] 15.4 Run `cargo audit` and `cargo deny check` on new dependencies
 - [ ] 15.5 Verify feature flags compile independently (each new feature without default features)

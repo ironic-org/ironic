@@ -66,15 +66,13 @@ impl InMemoryRateLimiter {
     pub fn remaining(&self, key: &str) -> u64 {
         let windows = self.windows.lock().unwrap();
         let now = Instant::now();
-        windows
-            .get(key)
-            .map_or(self.max_requests, |entries| {
-                let active = entries
-                    .iter()
-                    .filter(|e| now.duration_since(e.timestamp).as_secs() < self.window_secs)
-                    .count() as u64;
-                self.max_requests.saturating_sub(active)
-            })
+        windows.get(key).map_or(self.max_requests, |entries| {
+            let active = entries
+                .iter()
+                .filter(|e| now.duration_since(e.timestamp).as_secs() < self.window_secs)
+                .count() as u64;
+            self.max_requests.saturating_sub(active)
+        })
     }
 }
 

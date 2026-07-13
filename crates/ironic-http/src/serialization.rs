@@ -206,8 +206,7 @@ mod tests {
 
     use crate::{
         CompiledHttpApplication, ControllerDefinition, HeaderMap, HttpMethod, Json,
-        ProviderDefinition, RequestContext, RouteDefinition, compile_controller_routes,
-        handler_fn,
+        ProviderDefinition, RequestContext, RouteDefinition, compile_controller_routes, handler_fn,
     };
     use ironic_di::{ContainerBuilder, Scope};
     use serde::Serialize;

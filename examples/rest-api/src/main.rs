@@ -122,9 +122,7 @@ mod tests {
     use std::sync::Arc;
 
     use axum::body::Body;
-    use ironic::{
-        ContainerBuilder, FrameworkResponse, HttpStatus, TestApplication, prelude::*,
-    };
+    use ironic::{ContainerBuilder, FrameworkResponse, HttpStatus, TestApplication, prelude::*};
     use tower::ServiceExt;
 
     use super::*;

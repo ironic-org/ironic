@@ -18,7 +18,7 @@ Use `auth` for Argon2 password hashing and pipeline contracts, `jwt` for signed 
 
 ## Passwords
 
-```rust,no_run
+```rust
 use ironic::auth::{hash_password, verify_password};
 
 # fn example() -> Result<(), ironic::auth::password_driver::password_hash::Error> {
@@ -39,14 +39,14 @@ add `RequireAuthenticated<MyPrincipal>` where authentication is mandatory.
 
 Principals implement `Principal`. Implement `Authorizable` to use role and permission guards:
 
-```rust,ignore
+```text
 PipelineComponents::new()
     .guard(RequireAccess::<User>::role("admin"))
 ```
 
 ## JWT bearer tokens
 
-```rust,no_run
+```rust
 use ironic::auth::jwt::{JwtService, driver::Algorithm};
 
 let service = JwtService::hmac(

@@ -8,7 +8,7 @@ description: Create dependency-injection values once per HTTP request.
 Use request scope for values that must be isolated between requests but shared by every controller,
 service, and repository participating in one request:
 
-```rust,ignore
+```text
 ProviderDefinition::factory(
     Scope::Request,
     vec![Dependency::required::<DatabasePool>()],
@@ -21,7 +21,7 @@ ProviderDefinition::factory(
 
 With macros, select it on an injectable type:
 
-```rust,ignore
+```text
 #[derive(Injectable)]
 #[injectable(scope = "request")]
 struct CurrentRequest { /* ... */ }

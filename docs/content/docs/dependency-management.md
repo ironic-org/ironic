@@ -1,6 +1,60 @@
-# Dependency Management
+---
+title: Dependency management
+description: Workspace dependency versioning, optional dependencies, and feature flag configuration.
+---
 
-Ironic uses a centralized workspace dependency model. All dependency versions are defined once in `Cargo.toml` under `[workspace.dependencies]` and referenced by individual crates via `<name>.workspace = true`.
+# Dependency management
+
+Ironic uses a centralized workspace dependency model. All dependency versions are defined once in
+`Cargo.toml` under `[workspace.dependencies]` and referenced by individual crates via
+`<name>.workspace = true`.
+
+## Feature flags
+
+Enable only the capabilities your project needs:
+
+```toml
+ironic = { features = [
+    "security",           # CORS, rate limiting, headers, CSRF
+    "validation",         # ParseIntPipe, ValidationPipe, etc.
+    "versioning",         # API versioning
+    "serialization",      # Field-level serialization rules
+    "compression",        # gzip, brotli, zstd
+    "cache",              # In-memory and Redis caching
+    "scheduling",         # Cron and interval scheduling
+    "realtime",           # WebSocket gateways
+    "cron",               # Cron expression parsing
+    "database",           # SQLx, SeaORM, Diesel, MongoDB, Redis
+    "authentication",     # Argon2, JWT, OAuth2, sessions
+    "distributed",        # Queues, microservices, CQRS, sagas, gRPC, GraphQL
+] }
+```
+
+## Optional DI dependencies
+
+Mark injectable fields as optional with the `#[injectable(optional = [...])]` attribute:
+
+```rust
+use ironic::Injectable;
+
+#[injectable(optional = [Logger])]
+struct ReportingService {
+    database: Arc<DatabaseConnection>,
+    logger: Option<Arc<Logger>>, // optional — resolves to None when Logger is not registered
+}
+```
+
+```rust
+use ironic::{Injectable, Dependency, Dependency::required, Dependency::optional};
+
+#[injectable(optional = [Notifier])]
+struct OrderService {
+    notifier: Option<Arc<Notifier>>, // None in testing, Some in production
+}
+```
+
+The framework generates `Dependency::optional` for listed types and skips validation when the
+provider is not registered. The field type must be `Option<Arc<T>>`.
 
 ## Version Strategy
 
@@ -24,7 +78,9 @@ cargo audit
 
 ## Automated Updates
 
-[Dependabot](https://docs.github.com/en/code-security/dependabot) is configured in `.github/dependabot.yml` and opens weekly PRs for version bumps. CI (`cargo test`, `cargo clippy`, `cargo audit`) must pass before merging.
+[Dependabot](https://docs.github.com/en/code-security/dependabot) is configured in
+`.github/dependabot.yml` and opens weekly PRs for version bumps. CI (`cargo test`,
+`cargo clippy`, `cargo audit`) must pass before merging.
 
 ## Breaking Changes
 

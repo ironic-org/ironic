@@ -13,7 +13,7 @@ important to the reader.
 
 ## Conditional composition
 
-```rust,ignore
+```text
 ModuleDefinition::builder::<AppModule>()
     .import_if::<MetricsModule>(settings.metrics_enabled)
     .provider_if(settings.local_cache, LocalCache::provider_definition())
@@ -34,7 +34,7 @@ visibility, and lifecycle ordering receive the same validation as static modules
 
 Use `module_async` when the root graph depends on an asynchronous source:
 
-```rust,ignore
+```text
 FrameworkApplication::builder()
     .module_async(async move {
         let settings = settings_service.load().await
@@ -48,3 +48,76 @@ FrameworkApplication::builder()
 
 Return only safe messages from `ModuleConfigurationError`; configuration failures can be logged or
 rendered and must not expose secret values.
+
+## Global modules
+
+Annotate a module with `#[global]` to make its exported providers visible to every module in the
+application without explicit imports:
+
+```rust
+use ironic::Module;
+
+#[global]
+#[module(providers = [DatabaseConnection], exports = [DatabaseConnection])]
+struct DatabaseModule;
+```
+
+Global providers injected anywhere:
+
+```rust
+#[module(providers = [ReportingService])]
+struct ReportsModule;
+
+#[injectable]
+struct ReportingService {
+    connection: Arc<DatabaseConnection>, // visible without importing DatabaseModule
+}
+```
+
+## ModuleRef — runtime container access
+
+Inject `ModuleRef` to resolve providers dynamically at runtime:
+
+```rust
+use ironic::ModuleRef;
+
+#[injectable]
+struct LazyService {
+    module_ref: Arc<ModuleRef>,
+}
+
+impl LazyService {
+    async fn resolve_something(&self) -> Result<Arc<EmailSender>, ResolveError> {
+        self.module_ref.resolve::<EmailSender>().await
+    }
+}
+```
+
+`ModuleRef::resolve_optional()` returns `None` for unregistered providers instead of failing:
+
+```rust
+let maybe_logger = self.module_ref.resolve_optional::<Logger>().await?;
+```
+
+## Parameterized modules (forRoot / register)
+
+Use static methods to accept configuration and return a composed `ModuleDefinition`:
+
+```rust
+impl DatabaseModule {
+    pub fn for_root(config: DatabaseConfig) -> ModuleDefinition {
+        ModuleDefinition::builder::<Self>()
+            .provider(ProviderDefinition::value(config))
+            .export::<DatabaseConfig>()
+            .build()
+    }
+}
+
+// Use it as an import:
+ModuleDefinition::builder::<AppModule>()
+    .import_definition(DatabaseModule::for_root(DatabaseConfig::new()))
+    .build()
+```
+
+The same pattern supports `for_root_async`, `register`, or any custom static method that
+returns a `ModuleDefinition`. Use `import_definition()` to attach the result to any parent module.

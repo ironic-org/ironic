@@ -37,7 +37,7 @@ its PostgreSQL and MySQL features can require native system libraries.
 
 ## SQLx
 
-```rust,no_run
+```rust
 use ironic::{ProviderDefinition, integrations::sqlx};
 use sqlx::driver::postgres::PgPoolOptions;
 
@@ -56,7 +56,7 @@ Use `integrations::sqlx::migrate` with a native `sqlx::migrate::Migrator`. Pools
 
 ## SeaORM
 
-```rust,no_run
+```rust
 use ironic::integrations::seaorm;
 
 # async fn example() -> Result<(), seaorm::driver::DbErr> {
@@ -80,7 +80,7 @@ ironic = { version = "0.1", features = ["diesel"] }
 diesel = { version = "2.2", features = ["postgres", "r2d2"] }
 ```
 
-```rust,no_run
+```rust
 use diesel::PgConnection;
 use ironic::integrations::diesel;
 
@@ -97,7 +97,7 @@ checkout does not block the asynchronous executor.
 
 ## MongoDB
 
-```rust,no_run
+```rust
 use ironic::integrations::mongodb::{self, MongoDatabase};
 
 # async fn example() -> Result<(), mongodb::driver::error::Error> {
@@ -114,7 +114,7 @@ standard `ping` command.
 
 ## Redis
 
-```rust,no_run
+```rust
 use ironic::integrations::redis::{self, RedisConnection};
 
 # async fn example() -> Result<(), redis::driver::RedisError> {
@@ -133,7 +133,7 @@ concurrent commands, and its health check sends `PING`.
 
 Every integration handle implements the common `IntegrationHealth` contract:
 
-```rust,ignore
+```text
 use ironic::integrations::IntegrationHealth;
 
 database.check_health().await?;

@@ -1,0 +1,46 @@
+# Dependabot configuration
+# https://docs.github.com/en/code-security/dependabot/dependabot-version-updates/configuration-options-for-the-dependabot.yml-file
+
+version: 2
+updates:
+  - package-ecosystem: cargo
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: "09:00"
+      timezone: UTC
+    open-pull-requests-limit: 10
+    labels:
+      - dependencies
+      - automated
+    commit-message:
+      prefix: fix
+      prefix-development: chore
+      include: scope
+    groups:
+      rust-patches:
+        patterns:
+          - "*"
+        update-types:
+          - patch
+      rust-minor:
+        patterns:
+          - "*"
+        update-types:
+          - minor
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: "09:00"
+      timezone: UTC
+    open-pull-requests-limit: 5
+    labels:
+      - ci
+      - automated
+    commit-message:
+      prefix: ci
+      include: scope

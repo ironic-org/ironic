@@ -1,7 +1,7 @@
 # RFC 0005: Platform Adapter Boundary
 
 - Status: Accepted for initial implementation
-- Target: RustFrame 0.1
+- Target: Ironic 0.1
 
 ## Summary
 
@@ -10,15 +10,15 @@ The kernel compiles transport-neutral application metadata into a `CompiledHttpA
 ## Dependency boundary
 
 ```text
-rustframe-common       rustframe-di
+ironic-common       ironic-di
          \               /
-          rustframe-core
+          ironic-core
                │
-       rustframe-http
+       ironic-http
                │
-     rustframe-platform
+     ironic-platform
                │
- rustframe-platform-axum ──▶ axum / tower / hyper / tokio
+ ironic-platform-axum ──▶ axum / tower / hyper / tokio
 ```
 
 Neutral crates must not depend on Axum, Tower, or Hyper types. Tokio may be used by runtime and DI implementations but must not appear in transport-neutral public contracts unless the contract is explicitly runtime-specific.
@@ -98,13 +98,13 @@ Rules:
 - A native route conflicting with a framework route is a startup error when detectable; otherwise Axum's route-conflict error is wrapped.
 - Native routes participate in configured Tower layers.
 - Native routes do not automatically receive framework middleware, guards, interceptors, validation, DI controllers, or route metadata.
-- Applications may invoke public RustFrame services manually from native state if they explicitly attach that state.
+- Applications may invoke public Ironic services manually from native state if they explicitly attach that state.
 
 The closure is called once during application build. The running router is immutable.
 
 ## Native state
 
-The adapter owns one internal state object containing the compiled application and container handles. User native state is composed through an explicit wrapper or extension API; RustFrame does not overwrite existing state silently.
+The adapter owns one internal state object containing the compiled application and container handles. User native state is composed through an explicit wrapper or extension API; Ironic does not overwrite existing state silently.
 
 ## Listening and shutdown
 
@@ -121,12 +121,12 @@ Platform errors are wrapped by `FrameworkError::Platform` and use stable categor
 ## Alternatives considered
 
 - An async route-registration method was rejected because route construction is deterministic startup work without I/O.
-- Exposing Axum request/response types in `rustframe-http` was rejected because it would make the adapter abstraction cosmetic.
+- Exposing Axum request/response types in `ironic-http` was rejected because it would make the adapter abstraction cosmetic.
 - Automatically wrapping native routes in the framework pipeline was rejected because parameter and controller metadata would be absent.
 
 ## Performance impact
 
-The adapter adds request/response conversion and one application-state lookup. Route metadata and pipeline lists are immutable and shared. Benchmarks compare equivalent raw Axum and RustFrame applications.
+The adapter adds request/response conversion and one application-state lookup. Route metadata and pipeline lists are immutable and shared. Benchmarks compare equivalent raw Axum and Ironic applications.
 
 ## Testing strategy
 

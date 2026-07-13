@@ -1,13 +1,13 @@
 # Explicit Core API Sketch
 
-This is the pre-implementation contract sketch for RustFrame 0.1. It intentionally uses no procedural macros. During Phase 1, this sketch becomes the compile-checked `examples/hello-world`; until then, it is reviewed for coherence against RFCs 0001–0005.
+This is the pre-implementation contract sketch for Ironic 0.1. It intentionally uses no procedural macros. During Phase 1, this sketch becomes the compile-checked `examples/hello-world`; until then, it is reviewed for coherence against RFCs 0001–0005.
 
 Names on builders may be refined during implementation, but changing ownership, async construction, visibility, handler erasure, pipeline order, or platform boundaries requires updating the relevant RFC.
 
 ```rust
 use std::{sync::Arc, time::Duration};
 
-use rustframe::{
+use ironic::{
     app::FrameworkApplication,
     di::{DependencySet, Injectable, ProviderDefinition, ResolveError},
     http::{
@@ -16,7 +16,7 @@ use rustframe::{
     },
     module::{Module, ModuleDefinition},
 };
-use rustframe_platform_axum::AxumAdapter;
+use ironic_platform_axum::AxumAdapter;
 use serde::Serialize;
 
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
@@ -112,7 +112,7 @@ enum AppError {
     UserNotFound,
 }
 
-impl rustframe::http::IntoFrameworkResponse for AppError {
+impl ironic::http::IntoFrameworkResponse for AppError {
     fn into_framework_response(self) -> FrameworkResponse {
         match self {
             Self::UserNotFound => FrameworkResponse::not_found(
@@ -148,7 +148,7 @@ impl Module for AppModule {
 }
 
 #[tokio::main]
-async fn main() -> Result<(), rustframe::FrameworkError> {
+async fn main() -> Result<(), ironic::FrameworkError> {
     let application = FrameworkApplication::builder()
         .module(AppModule::definition())
         .platform(

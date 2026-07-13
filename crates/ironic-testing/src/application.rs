@@ -1,9 +1,9 @@
 use std::{convert::Infallible, future::Future, net::SocketAddr, sync::Arc};
 
-use rustframe_core::{ApplicationError, FrameworkApplication, Module};
-use rustframe_di::{Dependency, ProviderDefinition, ResolveError, Scope};
-use rustframe_http::{CompiledHttpApplication, HttpMethod};
-use rustframe_platform::{
+use ironic_core::{ApplicationError, FrameworkApplication, Module};
+use ironic_di::{Dependency, ProviderDefinition, ResolveError, Scope};
+use ironic_http::{CompiledHttpApplication, HttpMethod};
+use ironic_platform::{
     HttpPlatformAdapter, HttpPlatformApplication, PlatformFuture, Shutdown, ShutdownSignal,
 };
 
@@ -11,7 +11,7 @@ use crate::TestRequestBuilder;
 
 /// Builds an in-process HTTP application with test-local provider overrides.
 pub struct TestApplicationBuilder {
-    root: rustframe_core::ModuleDefinition,
+    root: ironic_core::ModuleDefinition,
     overrides: Vec<ProviderDefinition>,
 }
 
@@ -40,7 +40,7 @@ impl TestApplicationBuilder {
     ) -> Self
     where
         T: Send + Sync + 'static,
-        F: Fn(rustframe_di::Resolver) -> Fut + Send + Sync + 'static,
+        F: Fn(ironic_di::Resolver) -> Fut + Send + Sync + 'static,
         Fut: Future<Output = Result<T, ResolveError>> + Send + 'static,
     {
         self.overrides

@@ -5,7 +5,7 @@ use std::{
     sync::Arc,
 };
 
-use rustframe_di::{Container, Dependency, ProviderDefinition, ProviderKey, ProviderValue};
+use ironic_di::{Container, Dependency, ProviderDefinition, ProviderKey, ProviderValue};
 
 use crate::{
     ErasedHandler, FrameworkResponse, Guard, HandlerArguments, HttpError, HttpMethod, Interceptor,
@@ -571,7 +571,7 @@ fn join_paths(prefix: &str, path: &str) -> String {
 
 #[cfg(test)]
 mod tests {
-    use rustframe_di::{ProviderDefinition, Scope};
+    use ironic_di::{ProviderDefinition, Scope};
 
     use super::*;
     use crate::{Json, PathParameter, handler_fn};

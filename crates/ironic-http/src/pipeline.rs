@@ -340,7 +340,7 @@ fn interceptor_at<'a>(
 mod tests {
     use std::sync::{Arc, Mutex};
 
-    use rustframe_di::{ContainerBuilder, ProviderDefinition, Scope};
+    use ironic_di::{ContainerBuilder, ProviderDefinition, Scope};
 
     use super::*;
     use crate::{

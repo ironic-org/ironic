@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use rustframe_http::{
+use ironic_http::{
     CompiledHttpApplication, FrameworkRequest, FrameworkResponse, HeaderMap, HeaderName,
     HeaderValue, HttpError, HttpMethod, HttpStatus, IntoFrameworkResponse, RequestContext, Uri,
 };
@@ -61,8 +61,8 @@ impl<'a> TestRequestBuilder<'a> {
             Ok(body) => {
                 self.body = body;
                 self.headers.insert(
-                    rustframe_http::HeaderName::from_static("content-type"),
-                    rustframe_http::HeaderValue::from_static("application/json"),
+                    ironic_http::HeaderName::from_static("content-type"),
+                    ironic_http::HeaderValue::from_static("application/json"),
                 );
             }
             Err(error) => {

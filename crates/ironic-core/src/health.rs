@@ -1,9 +1,7 @@
 use std::sync::Arc;
 
-use rustframe_di::{ProviderDefinition, Scope};
-use rustframe_http::{
-    ControllerDefinition, HttpError, HttpMethod, Json, RouteDefinition, handler_fn,
-};
+use ironic_di::{ProviderDefinition, Scope};
+use ironic_http::{ControllerDefinition, HttpError, HttpMethod, Json, RouteDefinition, handler_fn};
 use serde::Serialize;
 
 use crate::{Module, ModuleDefinition};

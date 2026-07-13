@@ -10,11 +10,11 @@ use axum::{
     routing::{MethodFilter, Route, on},
 };
 use futures_util::FutureExt;
-use rustframe_http::{
+use ironic_http::{
     CompiledHttpApplication, CompiledRoute, FrameworkBody, FrameworkRequest, FrameworkResponse,
     HttpError, HttpMethod, HttpStatus, IntoFrameworkResponse, RequestContext,
 };
-use rustframe_platform::{
+use ironic_platform::{
     HttpPlatformAdapter, HttpPlatformApplication, PlatformFuture, Shutdown, ShutdownSignal,
 };
 use tower::{Layer, Service};
@@ -322,8 +322,8 @@ fn native_path(path: &str) -> String {
 #[cfg(test)]
 mod tests {
     use axum::{body::to_bytes, http::Request, routing::get};
-    use rustframe_di::{ContainerBuilder, Dependency, ProviderDefinition, ResolveError, Scope};
-    use rustframe_http::{
+    use ironic_di::{ContainerBuilder, Dependency, ProviderDefinition, ResolveError, Scope};
+    use ironic_http::{
         ControllerDefinition, Json, PathParameter, RouteDefinition, compile_controller_routes,
         handler_fn,
     };

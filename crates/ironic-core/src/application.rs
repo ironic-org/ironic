@@ -1,7 +1,7 @@
 use std::{future::Future, net::SocketAddr, pin::Pin, sync::Arc};
 
-use rustframe_di::{Container, ProviderKey, ProviderValue, ResolveError};
-use rustframe_platform::{HttpPlatformAdapter, HttpPlatformApplication, Shutdown, ShutdownSignal};
+use ironic_di::{Container, ProviderKey, ProviderValue, ResolveError};
+use ironic_platform::{HttpPlatformAdapter, HttpPlatformApplication, Shutdown, ShutdownSignal};
 
 use crate::{
     CompiledApplicationGraph, HttpApplicationBuildError, LifecycleDefinition, LifecycleError,
@@ -72,7 +72,7 @@ impl From<ModuleError> for ApplicationError {
 /// Starts application construction from a root module and platform adapter.
 pub struct FrameworkApplicationBuilder<A = MissingPlatform> {
     root: Option<RootModule>,
-    overrides: Vec<rustframe_di::ProviderDefinition>,
+    overrides: Vec<ironic_di::ProviderDefinition>,
     adapter: A,
 }
 
@@ -136,7 +136,7 @@ impl<A> FrameworkApplicationBuilder<A> {
     ///
     /// The override must use the same concrete provider key as an existing module registration.
     #[must_use]
-    pub fn override_provider(mut self, provider: rustframe_di::ProviderDefinition) -> Self {
+    pub fn override_provider(mut self, provider: ironic_di::ProviderDefinition) -> Self {
         self.overrides.push(provider);
         self
     }
@@ -444,9 +444,9 @@ fn resolution_message(error: &ResolveError) -> String {
 mod tests {
     use std::sync::{Arc, Mutex};
 
-    use rustframe_di::{ProviderDefinition, Scope};
-    use rustframe_http::CompiledHttpApplication;
-    use rustframe_platform::{PlatformFuture, Shutdown};
+    use ironic_di::{ProviderDefinition, Scope};
+    use ironic_http::CompiledHttpApplication;
+    use ironic_platform::{PlatformFuture, Shutdown};
 
     use super::*;
     use crate::{

@@ -1,11 +1,11 @@
 # RFC 0004: Request Lifecycle
 
 - Status: Accepted for initial implementation
-- Target: RustFrame 0.1
+- Target: Ironic 0.1
 
 ## Summary
 
-RustFrame executes requests through a deterministic nested pipeline: framework middleware, guards, interceptor pre-processing, extraction and validation, handler execution, interceptor post-processing, then error-to-response mapping. Platform middleware remains outside this framework pipeline.
+Ironic executes requests through a deterministic nested pipeline: framework middleware, guards, interceptor pre-processing, extraction and validation, handler execution, interceptor post-processing, then error-to-response mapping. Platform middleware remains outside this framework pipeline.
 
 ## Normative order
 
@@ -76,7 +76,7 @@ Errors carry a stable public code, safe message, optional status, and internal s
 
 ## Panic boundary
 
-RustFrame 0.1 does not promise recovery from process-wide aborts. When panic unwinding is enabled, the Axum adapter installs a per-request panic-catching boundary around the framework pipeline and maps a panic to a redacted 500 response while logging request and route identifiers. Applications must not rely on this for memory or invariant safety.
+Ironic 0.1 does not promise recovery from process-wide aborts. When panic unwinding is enabled, the Axum adapter installs a per-request panic-catching boundary around the framework pipeline and maps a panic to a redacted 500 response while logging request and route identifiers. Applications must not rely on this for memory or invariant safety.
 
 ## Registration snapshots
 
@@ -84,7 +84,7 @@ Pipeline component lists are compiled at application startup into immutable `Arc
 
 ## Cancellation
 
-Dropping the platform request future cancels the framework pipeline. Components that spawn background work own its cancellation semantics. RustFrame does not detach handler futures automatically. Shutdown stops accepting new requests and allows the adapter's configured graceful-shutdown deadline to govern in-flight work.
+Dropping the platform request future cancels the framework pipeline. Components that spawn background work own its cancellation semantics. Ironic does not detach handler futures automatically. Shutdown stops accepting new requests and allows the adapter's configured graceful-shutdown deadline to govern in-flight work.
 
 ## Error and ordering tests
 

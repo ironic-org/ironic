@@ -2,11 +2,11 @@
 
 // Keep the source modules independent internally while presenting one public crate.
 // These aliases also keep generated and hand-written framework internals on stable paths.
-extern crate self as rustframe_core;
-extern crate self as rustframe_di;
-extern crate self as rustframe_http;
-extern crate self as rustframe_platform;
-extern crate self as rustframe_platform_axum;
+extern crate self as ironic_core;
+extern crate self as ironic_di;
+extern crate self as ironic_http;
+extern crate self as ironic_platform;
+extern crate self as ironic_platform_axum;
 
 #[cfg(feature = "auth")]
 #[path = "../crates/ironic-auth/src/lib.rs"]

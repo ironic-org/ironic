@@ -1,6 +1,6 @@
-# RustFrame 0.1 preview release notes
+# Ironic 0.1 preview release notes
 
-RustFrame 0.1 is the first usable preview of the modular Rust application framework described by the project RFCs. It targets Rust 1.85 and Edition 2024.
+Ironic 0.1 is the first usable preview of the modular Rust application framework described by the project RFCs. It targets Rust 1.85 and Edition 2024.
 
 ## Highlights
 
@@ -23,10 +23,10 @@ Measured on Darwin 25.5.0 arm64 with rustc 1.85.0 in release mode. These single-
 | Route registration | 436 ns/op |
 | Transient provider resolution | 157 ns/op |
 | HTTP runtime startup | 555 ns/op |
-| RustFrame in-process request | 780 ns/op |
+| Ironic in-process request | 780 ns/op |
 | Equivalent raw Axum request | 319 ns/op |
 
-Reproduce the snapshot with `cargo bench -p rustframe --bench overhead`.
+Reproduce the snapshot with `cargo bench -p ironic --bench overhead`.
 
 ## Known limitations
 

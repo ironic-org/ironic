@@ -1,5 +1,5 @@
-use rustframe_core::{ApplicationError, HttpApplicationBuildError, ModuleError};
-use rustframe_di::ResolveError;
+use ironic_core::{ApplicationError, HttpApplicationBuildError, ModuleError};
+use ironic_di::ResolveError;
 
 /// A failure while compiling an isolated test module.
 #[derive(Debug, thiserror::Error)]

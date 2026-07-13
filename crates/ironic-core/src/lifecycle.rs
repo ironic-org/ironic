@@ -1,7 +1,7 @@
 use std::{future::Future, marker::PhantomData, pin::Pin, sync::Arc};
 
-use rustframe_di::{ProviderKey, ProviderValue};
-use rustframe_platform::ShutdownSignal;
+use ironic_di::{ProviderKey, ProviderValue};
+use ironic_platform::ShutdownSignal;
 
 /// The asynchronous result of a lifecycle callback.
 pub type LifecycleFuture<'a> =

@@ -1,6 +1,6 @@
 use std::collections::{BTreeMap, HashSet};
 
-use rustframe_http::{CompiledHttpApplication, HttpMethod, RouteDefinition};
+use ironic_http::{CompiledHttpApplication, HttpMethod, RouteDefinition};
 use serde_json::{Map, Value, json};
 
 use crate::OpenApiSchema;

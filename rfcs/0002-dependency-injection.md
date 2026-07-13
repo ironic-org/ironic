@@ -1,12 +1,12 @@
 # RFC 0002: Dependency Injection
 
 - Status: Accepted for initial implementation
-- Target: RustFrame 0.1
-- Authors: RustFrame contributors
+- Target: Ironic 0.1
+- Authors: Ironic contributors
 
 ## Summary
 
-RustFrame dependency injection uses type-based provider keys, asynchronous type-erased factories, singleton and transient scopes, module-aware visibility, and immutable override layers created before compilation. All provider construction uses one asynchronous internal contract; synchronous constructors are adapted into immediately ready futures.
+Ironic dependency injection uses type-based provider keys, asynchronous type-erased factories, singleton and transient scopes, module-aware visibility, and immutable override layers created before compilation. All provider construction uses one asynchronous internal contract; synchronous constructors are adapted into immediately ready futures.
 
 ## Motivation
 
@@ -142,7 +142,7 @@ Exact builder naming may change during implementation, but the metadata and cons
 
 ## Trait-object dependencies
 
-The 0.1 strategy is an explicit newtype token. RustFrame will not initially expose `bind::<dyn Trait>().to::<Implementation>()`.
+The 0.1 strategy is an explicit newtype token. Ironic will not initially expose `bind::<dyn Trait>().to::<Implementation>()`.
 
 ```rust
 pub trait UserRepository: Send + Sync {

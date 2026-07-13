@@ -1,7 +1,7 @@
 # RFC 0003: Controllers and Routing
 
 - Status: Accepted for initial implementation
-- Target: RustFrame 0.1
+- Target: Ironic 0.1
 
 ## Summary
 

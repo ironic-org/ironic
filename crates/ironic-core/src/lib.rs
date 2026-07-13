@@ -13,8 +13,8 @@ use std::{
     sync::Arc,
 };
 
-use rustframe_di::{ContainerBuilder, ProviderDefinition, ProviderKey, RegistrationError};
-use rustframe_http::{
+use ironic_di::{ContainerBuilder, ProviderDefinition, ProviderKey, RegistrationError};
+use ironic_http::{
     CompiledHttpApplication, ControllerDefinition, RequestTracing, RouteError,
     compile_controller_routes,
 };
@@ -711,7 +711,7 @@ fn compile_module(
 fn validate_dependencies(
     module: ModuleId,
     consumer: ProviderKey,
-    dependencies: &[rustframe_di::Dependency],
+    dependencies: &[ironic_di::Dependency],
     visible: &HashMap<ProviderKey, ModuleId>,
     definitions: &HashMap<ModuleId, ModuleDefinition>,
 ) -> Result<(), ModuleError> {
@@ -750,7 +750,7 @@ fn validate_dependencies(
 
 #[cfg(test)]
 mod tests {
-    use rustframe_di::{Dependency, ProviderDefinition, Scope};
+    use ironic_di::{Dependency, ProviderDefinition, Scope};
 
     use super::*;
 
@@ -760,7 +760,7 @@ mod tests {
     struct Controller;
 
     fn provider<T: Send + Sync + 'static>(
-        dependencies: Vec<rustframe_di::Dependency>,
+        dependencies: Vec<ironic_di::Dependency>,
     ) -> ProviderDefinition {
         ProviderDefinition::factory::<T, _, _>(Scope::Singleton, dependencies, |_resolver| async {
             panic!("graph compilation must not instantiate providers")

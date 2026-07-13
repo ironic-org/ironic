@@ -1,12 +1,12 @@
 # RFC 0001: Module System
 
 - Status: Accepted for initial implementation
-- Target: RustFrame 0.1
-- Authors: RustFrame contributors
+- Target: Ironic 0.1
+- Authors: Ironic contributors
 
 ## Summary
 
-RustFrame modules are static application-assembly descriptions. A module has a stable type-based identity, imports other modules, owns providers and controllers, and explicitly exports providers that imported modules may use. The module compiler validates the complete graph before any provider is instantiated.
+Ironic modules are static application-assembly descriptions. A module has a stable type-based identity, imports other modules, owns providers and controllers, and explicitly exports providers that imported modules may use. The module compiler validates the complete graph before any provider is instantiated.
 
 ## Motivation
 

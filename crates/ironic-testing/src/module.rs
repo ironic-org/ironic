@@ -1,9 +1,9 @@
 use std::{future::Future, sync::Arc};
 
-use rustframe_core::{
+use ironic_core::{
     CompiledApplicationGraph, Module, build_http_application_with_overrides, compile_module_graph,
 };
-use rustframe_di::{Container, Dependency, ProviderDefinition, ResolveError, Scope};
+use ironic_di::{Container, Dependency, ProviderDefinition, ResolveError, Scope};
 
 use crate::TestBuildError;
 
@@ -24,7 +24,7 @@ impl TestModule {
 
 /// Builds an isolated module container.
 pub struct TestModuleBuilder {
-    root: rustframe_core::ModuleDefinition,
+    root: ironic_core::ModuleDefinition,
     overrides: Vec<ProviderDefinition>,
 }
 
@@ -53,7 +53,7 @@ impl TestModuleBuilder {
     ) -> Self
     where
         T: Send + Sync + 'static,
-        F: Fn(rustframe_di::Resolver) -> Fut + Send + Sync + 'static,
+        F: Fn(ironic_di::Resolver) -> Fut + Send + Sync + 'static,
         Fut: Future<Output = Result<T, ResolveError>> + Send + 'static,
     {
         self.overrides

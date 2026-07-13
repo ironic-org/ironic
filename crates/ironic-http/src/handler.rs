@@ -1,6 +1,6 @@
 use std::{any::type_name, future::Future, marker::PhantomData, pin::Pin, sync::Arc};
 
-use rustframe_di::ProviderValue;
+use ironic_di::ProviderValue;
 
 use crate::{FrameworkResponse, HttpError, IntoFrameworkResponse};
 

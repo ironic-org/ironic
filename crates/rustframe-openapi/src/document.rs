@@ -569,15 +569,22 @@ fn operation_json(metadata: &OpenApiOperation, operation_id: &str, path: &str) -
 }
 
 fn method_name(method: &HttpMethod) -> String {
-    match *method {
-        HttpMethod::GET => "get".to_owned(),
-        HttpMethod::POST => "post".to_owned(),
-        HttpMethod::PUT => "put".to_owned(),
-        HttpMethod::PATCH => "patch".to_owned(),
-        HttpMethod::DELETE => "delete".to_owned(),
-        HttpMethod::HEAD => "head".to_owned(),
-        HttpMethod::OPTIONS => "options".to_owned(),
-        _ => method.as_str().to_ascii_lowercase(),
+    if method == HttpMethod::GET {
+        "get".to_owned()
+    } else if method == HttpMethod::POST {
+        "post".to_owned()
+    } else if method == HttpMethod::PUT {
+        "put".to_owned()
+    } else if method == HttpMethod::PATCH {
+        "patch".to_owned()
+    } else if method == HttpMethod::DELETE {
+        "delete".to_owned()
+    } else if method == HttpMethod::HEAD {
+        "head".to_owned()
+    } else if method == HttpMethod::OPTIONS {
+        "options".to_owned()
+    } else {
+        method.as_str().to_ascii_lowercase()
     }
 }
 

@@ -287,19 +287,24 @@ fn error_response(error: HttpError) -> Response {
 }
 
 fn method_filter(method: &HttpMethod) -> Result<MethodFilter, AxumPlatformError> {
-    let filter = match *method {
-        HttpMethod::GET => MethodFilter::GET,
-        HttpMethod::POST => MethodFilter::POST,
-        HttpMethod::PUT => MethodFilter::PUT,
-        HttpMethod::PATCH => MethodFilter::PATCH,
-        HttpMethod::DELETE => MethodFilter::DELETE,
-        HttpMethod::HEAD => MethodFilter::HEAD,
-        HttpMethod::OPTIONS => MethodFilter::OPTIONS,
-        _ => {
-            return Err(AxumPlatformError::UnsupportedMethod {
-                method: method.clone(),
-            });
-        }
+    let filter = if method == HttpMethod::GET {
+        MethodFilter::GET
+    } else if method == HttpMethod::POST {
+        MethodFilter::POST
+    } else if method == HttpMethod::PUT {
+        MethodFilter::PUT
+    } else if method == HttpMethod::PATCH {
+        MethodFilter::PATCH
+    } else if method == HttpMethod::DELETE {
+        MethodFilter::DELETE
+    } else if method == HttpMethod::HEAD {
+        MethodFilter::HEAD
+    } else if method == HttpMethod::OPTIONS {
+        MethodFilter::OPTIONS
+    } else {
+        return Err(AxumPlatformError::UnsupportedMethod {
+            method: method.clone(),
+        });
     };
     Ok(filter)
 }

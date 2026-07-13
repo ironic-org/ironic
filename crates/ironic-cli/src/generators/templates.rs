@@ -22,7 +22,7 @@ pub(crate) fn controller(names: &Names) -> String {
 
 pub(crate) fn resource_module(names: &Names) -> String {
     format!(
-        "use ironic::prelude::*;\n\npub mod controller;\npub mod services;\npub mod dto;\npub mod entities;\n\npub use controller::{}Controller;\npub use services::{}Service;\n\n#[derive(Module)]\n#[module(\n    providers = [{}Service],\n    controllers = [{}Controller],\n)]\npub struct {}Module;\n",
+        "use ironic::prelude::*;\n\npub mod controller;\npub mod services;\npub mod dto;\npub mod entities;\n\n#[cfg(test)]\nmod tests;\n\npub use controller::{}Controller;\npub use services::{}Service;\n\n#[derive(Module)]\n#[module(\n    providers = [{}Service],\n    controllers = [{}Controller],\n)]\npub struct {}Module;\n",
         names.pascal, names.pascal, names.pascal, names.pascal, names.pascal
     )
 }
@@ -135,6 +135,25 @@ pub(crate) fn pipe(names: &Names) -> String {
 pub(crate) fn provider(names: &Names) -> String {
     format!(
         "use ironic::prelude::*;\n\n#[derive(Injectable)]\npub struct {0}Provider;\n\nimpl {0}Provider {{\n    #[must_use]\n    pub const fn name(&self) -> &'static str {{\n        \"{1}\"\n    }}\n}}\n",
+        names.pascal, names.kebab
+    )
+}
+
+pub(crate) fn test_mod(_names: &Names) -> String {
+    "/// Unit tests — service and business logic in isolation (no HTTP).\n#[cfg(test)]\nmod unit;\n/// Integration tests — full HTTP request/response through the framework.\n#[cfg(test)]\nmod integration;\n"
+        .to_owned()
+}
+
+pub(crate) fn test_unit(names: &Names) -> String {
+    format!(
+        "//! Unit tests for `{0}Service` — verifies business logic without HTTP overhead.\n\nuse super::super::*;\n\n#[test]\nfn service_has_the_correct_name() {{\n    let svc = {0}Service;\n    assert_eq!(svc.name(), \"{1}\");\n}}\n\n#[test]\nfn service_is_injectable() {{\n    let _def = {0}Service::provider_definition();\n}}\n",
+        names.pascal, names.kebab
+    )
+}
+
+pub(crate) fn test_integration(names: &Names) -> String {
+    format!(
+        "//! Integration tests for `{0}` — full HTTP request/response cycles.\n//! Run with `cargo test`.\n\nuse ironic::{{HttpStatus, TestApplication, prelude::*}};\n\nuse super::super::*;\n\nasync fn app() -> TestApplication {{\n    TestApplication::new::<{0}Module>()\n        .await\n        .expect(\"test application must initialise\")\n}}\n\n#[tokio::test]\nasync fn list_endpoint_returns_empty_when_no_data() {{\n    let app = app().await;\n    let response = app.get(\"/{1}\").send().await;\n    assert_eq!(response.status(), HttpStatus::OK);\n    app.shutdown().await.unwrap();\n}}\n\n#[tokio::test]\nasync fn get_endpoint_returns_not_found_for_missing_id() {{\n    let app = app().await;\n    app.get(\"/{1}/999\")\n        .send()\n        .await\n        .assert_status(404);\n    app.shutdown().await.unwrap();\n}}\n",
         names.pascal, names.kebab
     )
 }

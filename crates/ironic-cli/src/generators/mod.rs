@@ -117,6 +117,10 @@ pub fn generate_service(root: &Path, name: &str) -> Result<GenerationReport, Cli
 ///
 /// ```text
 /// mod.rs
+/// tests/
+///   mod.rs             — test entry (declares unit + integration)
+///   unit.rs            — business logic tests (no HTTP)
+///   integration.rs     — full HTTP request/response tests
 /// controller/
 ///   mod.rs
 ///   {name}_controller.rs
@@ -142,11 +146,18 @@ pub fn generate_resource(root: &Path, name: &str) -> Result<GenerationReport, Cl
     let services_dir = module_dir.join("services");
     let dto_dir = module_dir.join("dto");
     let entities_dir = module_dir.join("entities");
+    let tests_dir = module_dir.join("tests");
     let mut report = GenerationReport::default();
     let files = [
         (
             module_dir.join("mod.rs"),
             templates::resource_module(&names),
+        ),
+        (tests_dir.join("mod.rs"), templates::test_mod(&names)),
+        (tests_dir.join("unit.rs"), templates::test_unit(&names)),
+        (
+            tests_dir.join("integration.rs"),
+            templates::test_integration(&names),
         ),
         (
             controller_dir.join("mod.rs"),

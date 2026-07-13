@@ -1,64 +1,94 @@
 import { Button } from '@/components/ui/button';
-import { ChevronRight, Sparkles } from 'lucide-react';
+import { ArrowRight, Github, Terminal } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import FadeUp from './fade-up';
-import MarqueeContent from './marquee-content';
 
 const HeroSection = () => {
     return (
-        <section className='relative pt-24 pb-20 px-6 max-w-7xl mx-auto flex flex-col items-center text-center'>
+        <section className='relative pt-28 pb-16 px-6 max-w-7xl mx-auto flex flex-col items-center text-center'>
             <FadeUp>
                 <a
-                    href="/docs"
-                    className='group relative inline-flex items-center gap-3 rounded-full border border-fd-border bg-fd-card/50 pr-4 pl-1.5 py-1.5 hover:border-fd-accent transition-all mb-10'>
-                    <span className='rounded-full bg-brand/10 border border-brand/20 px-2.5 py-0.5 text-[10px] font-bold text-brand tracking-widest uppercase'>
-                        V0.1 PREVIEW
+                    href='https://github.com/ironic-org/ironic'
+                    target='_blank'
+                    rel='noopener noreferrer'
+                    className='group relative inline-flex items-center gap-3 rounded-full border border-fd-border bg-fd-card/50 px-4 py-1.5 text-xs font-medium text-fd-muted-foreground hover:border-fd-accent hover:text-fd-foreground transition-all mb-8'>
+                    <span className='relative flex h-2 w-2'>
+                        <span className='absolute inline-flex h-full w-full animate-ping rounded-full bg-brand opacity-75' />
+                        <span className='relative inline-flex h-2 w-2 rounded-full bg-brand' />
                     </span>
-                    <span className='text-xs font-medium text-fd-muted-foreground flex items-center gap-1 group-hover:text-fd-foreground transition-colors'>
-                        Ironic
-                        <ChevronRight className='w-3 h-3 text-fd-muted-foreground/60' />
-                    </span>
+                    v0.1.3 — now available on GitHub
+                    <ArrowRight className='w-3 h-3 group-hover:translate-x-0.5 transition-transform' />
                 </a>
             </FadeUp>
 
             <FadeUp delay='100ms'>
-                <h1 className='text-5xl sm:text-7xl md:text-8xl font-bold tracking-tighter text-fd-foreground leading-[1.05] mb-6'>
-                    Build, deploy,
+                <h1 className='text-5xl sm:text-6xl md:text-7xl lg:text-8xl font-bold tracking-tighter text-fd-foreground leading-[1.05] mb-6 max-w-5xl'>
+                    A type-safe
                     <br />
-                    <span className='font-serif italic font-normal text-brand inline-block mt-2'>
-                        and operate.
+                    <span className='font-serif italic font-normal text-brand'>
+                        application framework
                     </span>
+                    <br />
+                    for Rust
                 </h1>
             </FadeUp>
 
-            <FadeUp delay='200ms' className='max-w-2xl mx-auto'>
-                <p className='text-lg md:text-xl text-fd-muted-foreground font-medium leading-relaxed mb-12'>
-                    A modular, type-safe application framework for structured
-                    Rust APIs on Axum.
+            <FadeUp delay='200ms' className='max-w-xl mx-auto'>
+                <p className='text-base md:text-lg text-fd-muted-foreground font-medium leading-relaxed mb-10'>
+                    Ironic provides modules, dependency injection, controllers, pipelines,
+                    lifecycle hooks, security middleware, WebSocket gateways, and an
+                    Axum adapter — all without runtime reflection or global mutable state.
                 </p>
             </FadeUp>
 
             <FadeUp
                 delay='300ms'
-                className='flex flex-col sm:flex-row gap-4 justify-center items-center w-full'>
+                className='flex flex-col sm:flex-row gap-4 justify-center items-center w-full mb-16'>
                 <Button
                     asChild
-                    className='group h-14 px-12 rounded-full bg-brand hover:opacity-90 text-brand-foreground font-bold text-md shadow-[0_0_20px_-5px_var(--color-brand)] transition-all'>
+                    size='lg'
+                    className='h-12 px-8 rounded-full bg-brand hover:bg-brand/90 text-white font-semibold text-sm shadow-lg shadow-brand/20 transition-all'>
                     <Link to='/docs'>
-                        Read the Docs
-                        <Sparkles className='ml-2 w-5 h-5 group-hover:translate-x-1 transition-transform' />
+                        Get started
+                        <ArrowRight className='ml-2 w-4 h-4' />
                     </Link>
                 </Button>
-
+                <Button
+                    asChild
+                    variant='outline'
+                    size='lg'
+                    className='h-12 px-8 rounded-full border-fd-border hover:bg-fd-accent hover:text-fd-accent-foreground font-semibold text-sm transition-all'>
+                    <a href='https://github.com/ironic-org/ironic' target='_blank' rel='noopener noreferrer'>
+                        <Github className='mr-2 w-4 h-4' />
+                        View on GitHub
+                    </a>
+                </Button>
             </FadeUp>
 
-            {/* Logo Cloud / Tech Stack Marquee */}
-            <FadeUp delay='400ms' className='mt-24 w-full'>
-                <p className='text-[10px] font-bold text-fd-muted-foreground/60 uppercase tracking-[0.3em] mb-10'>
-                    Built on explicit Rust contracts
-                </p>
-                <div className='relative flex overflow-hidden group'>
-                    <MarqueeContent />
+            <FadeUp delay='400ms' className='w-full max-w-2xl'>
+                <div className='relative rounded-xl border border-fd-border bg-fd-card/80 p-4 text-left shadow-sm overflow-hidden'>
+                    <div className='flex items-center gap-2 mb-3 border-b border-fd-border pb-3'>
+                        <Terminal className='w-4 h-4 text-fd-muted-foreground' />
+                        <span className='text-xs font-medium text-fd-muted-foreground font-mono'>
+                            src/users/controller.rs
+                        </span>
+                    </div>
+                    <pre className='text-sm leading-relaxed overflow-x-auto font-mono'>
+                        <code className='text-fd-foreground'>
+{`#[controller("/users")]
+struct UsersController;
+
+#[routes]
+impl UsersController {
+    #[get("/")]
+    async fn list(
+        &self,
+        #[query] filters: QueryFilters,
+    ) -> Result<Json<Vec<User>>, HttpError> {
+        Ok(Json(self.service.find_all(filters).await?))
+    }
+}`}</code>
+                    </pre>
                 </div>
             </FadeUp>
         </section>

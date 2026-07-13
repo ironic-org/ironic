@@ -25,6 +25,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Feature-gated authentication: Argon2, JWT, OAuth2, sessions
 - Feature-gated services: caching, scheduling, events, realtime, queues
 - Feature-gated distributed features: microservices, CQRS, sagas, gRPC, GraphQL
+- NestJS feature parity: security middleware (CORS, rate limiting, CSRF, security headers)
+- NestJS feature parity: validation pipes (`ParseIntPipe`, `ParseFloatPipe`, `ParseBoolPipe`, `ValidationPipe`)
+- NestJS feature parity: exception filters with route metadata access and scope precedence
+- NestJS feature parity: API versioning (URI prefix, header, media type strategies)
+- NestJS feature parity: response serialization with `#[exclude]` / `#[expose(role)]` field-level rules
+- NestJS feature parity: compression middleware (gzip, brotli, deflate) via `tower-http`
+- NestJS feature parity: WebSocket gateways with `#[web_socket_gateway]`, `#[subscribe_message]`, rooms, and broadcasting
+- NestJS feature parity: microservice transport adapters for Redis, RabbitMQ, Kafka (feature-gated)
+- NestJS feature parity: cache interceptor with `#[cache(ttl_secs = N)]` route attribute and `CacheMetadata`
+- NestJS feature parity: cron scheduling with `cron_schedule()`, `#[cron]`, `#[interval]`, `#[timeout]` markers
+- NestJS feature parity: global modules with `#[global]` attribute and `ModuleRef` runtime DI container access
+- NestJS feature parity: optional dependencies via `#[injectable(optional = [Type, ...])]`
+- NestJS feature parity: custom decorator support with `create_param_decorator!` macro
+- New feature flags: `security`, `security-cors`, `security-rate-limit`, `security-headers`, `security-csrf`, `compression`, `versioning`, `serialization`, `validation`, `cron`, `custom-decorators`, `transport-redis`, `transport-rabbitmq`, `transport-kafka`
 
 ### Changed
 

@@ -1,5 +1,13 @@
 //! Behavioral contracts for post-0.1 feature modules.
 
+#[cfg(all(feature = "cache", feature = "application-services"))]
+#[test]
+fn cache_interceptor_constructs_with_in_memory_backend() {
+    use ironic::{CacheInterceptor, services::cache::InMemoryCache};
+    use std::sync::Arc;
+    let _interceptor = CacheInterceptor::new(Arc::new(InMemoryCache::new(16)));
+}
+
 #[cfg(feature = "cache")]
 #[tokio::test]
 async fn in_memory_cache_round_trips_json_and_expires_values() {
@@ -51,6 +59,22 @@ async fn scheduled_tasks_shutdown_cooperatively() {
     tokio::time::sleep(Duration::from_millis(18)).await;
     task.shutdown().await.unwrap();
     assert!(calls.load(Ordering::SeqCst) >= 1);
+}
+
+#[cfg(all(feature = "scheduling", feature = "cron"))]
+#[tokio::test]
+async fn cron_schedule_parses_expression() {
+    use ironic::services::scheduling;
+    let result = scheduling::cron_schedule("0 0 * * * *", || async {});
+    assert!(result.is_ok());
+}
+
+#[cfg(all(feature = "scheduling", feature = "cron"))]
+#[test]
+fn cron_schedule_rejects_invalid_expression() {
+    use ironic::services::scheduling;
+    let result = scheduling::cron_schedule("not-a-cron", || async {});
+    assert!(result.is_err());
 }
 
 #[cfg(feature = "queues")]

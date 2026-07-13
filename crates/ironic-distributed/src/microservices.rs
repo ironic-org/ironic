@@ -357,3 +357,87 @@ impl Transport for KafkaTransport {
         })
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn channel_transport_send_and_receive() {
+        let (left, right) = ChannelTransport::pair(16);
+        let envelope = Envelope {
+            correlation_id: "test-1".into(),
+            route: "test.route".into(),
+            headers: BTreeMap::new(),
+            payload: b"hello".to_vec(),
+        };
+
+        left.send(envelope.clone()).await.unwrap();
+        let received = right.receive().await.unwrap().unwrap();
+        assert_eq!(received.correlation_id, "test-1");
+        assert_eq!(received.route, "test.route");
+        assert_eq!(received.payload, b"hello");
+    }
+
+    #[tokio::test]
+    async fn channel_transport_bidirectional() {
+        let (left, right) = ChannelTransport::pair(16);
+        let envelope = Envelope {
+            correlation_id: "round-trip".into(),
+            route: "echo".into(),
+            headers: BTreeMap::new(),
+            payload: b"ping".to_vec(),
+        };
+
+        left.send(envelope).await.unwrap();
+        let received = right.receive().await.unwrap().unwrap();
+        assert_eq!(received.payload, b"ping");
+
+        right
+            .send(Envelope {
+                correlation_id: "reply".into(),
+                route: "echo.reply".into(),
+                headers: BTreeMap::new(),
+                payload: b"pong".to_vec(),
+            })
+            .await
+            .unwrap();
+        let reply = left.receive().await.unwrap().unwrap();
+        assert_eq!(reply.payload, b"pong");
+    }
+
+    #[cfg(feature = "transport-redis")]
+    #[test]
+    fn redis_transport_builder_config_is_preserved() {
+        let config =
+            RedisTransportConfig::builder("redis://localhost:6379", "test-channel").pool_size(8);
+        assert_eq!(config.url, "redis://localhost:6379");
+        assert_eq!(config.channel, "test-channel");
+        assert_eq!(config.pool_size, Some(8));
+    }
+
+    #[cfg(feature = "transport-rabbitmq")]
+    #[test]
+    fn rabbitmq_transport_builder_config_is_preserved() {
+        let config = RabbitMqTransportConfig::builder(
+            "amqp://localhost:5672",
+            "test-exchange",
+            "test.queue",
+        )
+        .queue("my-queue");
+        assert_eq!(config.url, "amqp://localhost:5672");
+        assert_eq!(config.exchange, "test-exchange");
+        assert_eq!(config.routing_key, "test.queue");
+        assert_eq!(config.queue, "my-queue");
+    }
+
+    #[cfg(feature = "transport-kafka")]
+    #[test]
+    fn kafka_transport_builder_config_is_preserved() {
+        let config =
+            KafkaTransportConfig::builder("localhost:9092", "test-topic").group_id("consumer-1");
+        assert_eq!(config.brokers, "localhost:9092");
+        assert_eq!(config.topic, "test-topic");
+        assert_eq!(config.group_id, "consumer-1");
+    }
+}

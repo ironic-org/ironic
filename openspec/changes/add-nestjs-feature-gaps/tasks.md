@@ -77,7 +77,7 @@
 - [x] 9.3 Implement `KafkaTransport` adapter for `Transport` trait with topics
 - [x] 9.4 Add typed builder patterns for each transport adapter configuration
 - [x] 9.5 Add feature flags (`transport-redis`, `transport-rabbitmq`, `transport-kafka`) in `ironic-distributed`
-- [ ] 9.6 Write tests: transport send/receive (in-memory integration test patterns)
+- [x] 9.6 Write tests: transport send/receive (in-memory integration test patterns)
 
 ## 10. Cache Decorators
 
@@ -85,7 +85,7 @@
 - [x] 10.2 Implement `CacheInterceptor` that checks cache pre-handler and writes post-handler
 - [x] 10.3 Implement `RedisCache` backend implementing the `Cache` trait
 - [x] 10.4 Integrate cache metadata into `RouteDefinition` and `CompiledHttpApplication`
-- [ ] 10.5 Write tests: cache hit returns cached response, cache miss invokes handler, TTL expiry
+- [x] 10.5 Write tests: cache hit returns cached response, cache miss invokes handler, TTL expiry
 
 ## 11. Cron Scheduling
 
@@ -93,7 +93,7 @@
 - [x] 11.2 Implement `#[cron("expr")]`, `#[interval(ms)]`, `#[timeout(ms)]` attribute macros
 - [x] 11.3 Integrate scheduled task registration into module compilation and lifecycle hooks
 - [x] 11.4 Implement auto-start on `OnApplicationBootstrap` and graceful stop on `OnApplicationShutdown`
-- [ ] 11.5 Write tests: cron execution at expected time, interval periodicity, shutdown cancellation
+- [x] 11.5 Write tests: cron execution at expected time, interval periodicity, shutdown cancellation
 
 ## 12. Dynamic Modules
 
@@ -120,8 +120,8 @@
 
 ## 15. Documentation and Final Verification
 
-- [ ] 15.1 Add doc pages for each new capability in `docs/content/docs/`
-- [ ] 15.2 Update CHANGELOG.md with all new features
+- [x] 15.1 Add doc pages for each new capability in `docs/content/docs/`
+- [x] 15.2 Update CHANGELOG.md with all new features
 - [x] 15.3 Run full CI pipeline: `cargo fmt`, `cargo clippy -D warnings`, `cargo test --all-features`
-- [ ] 15.4 Run `cargo audit` and `cargo deny check` on new dependencies
-- [ ] 15.5 Verify feature flags compile independently (each new feature without default features)
+- [x] 15.4 Run `cargo audit` and `cargo deny check` on new dependencies
+- [x] 15.5 Verify feature flags compile independently (each new feature without default features)

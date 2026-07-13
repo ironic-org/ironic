@@ -94,17 +94,22 @@ pub mod __private {
 /// Commonly used Ironic types and macros.
 pub mod prelude {
     pub use crate::{
-        CacheMetadata, ConfigurationError, ConfigurationLoader, ControllerDefinition, Dependency,
-        ExceptionFilter, FilterContext, FrameworkApplication, FrameworkError, FrameworkResult,
-        Guard, GuardDecision, GuardFuture, HeaderParameter, HealthModule, HealthStatus, HttpError,
-        HttpMethod, HttpPlatformAdapter, HttpPlatformApplication, Injectable, Interceptor,
-        InterceptorNext, Json, JsonBody, LifecycleDefinition, Middleware, Module, ModuleDefinition,
+        AxumAdapter, CacheMetadata, CompiledHttpApplication, ConfigurationError,
+        ConfigurationLoader, ControllerDefinition, Dependency, ExceptionFilter, FilterContext,
+        FrameworkApplication, FrameworkError, FrameworkResult, Guard, GuardDecision, GuardFuture,
+        HeaderParameter, HealthModule, HealthStatus, HttpError, HttpMethod,
+        HttpPlatformAdapter, HttpPlatformApplication, Injectable, Interceptor, InterceptorNext,
+        Json, JsonBody, LifecycleDefinition, Middleware, Module, ModuleDefinition,
         OnApplicationBootstrap, OnApplicationShutdown, OnModuleDestroy, OnModuleInit,
         OpenApiSchema, ParameterPipe, PathParameter, PipelineFuture, ProviderDefinition,
         QueryParameters, RequestContext, RequestId, RequestScope, RequestTracing, RouteDefinition,
-        RouteMetadata, Scope, Secret, SecretString, ShutdownSignal, ValidateConfiguration,
-        VersionMetadata, VersioningStrategy, body, controller, delete, get, handler_fn, head,
-        header, options, param, patch, pipe_fn, post, put, query, routes, use_guard,
-        use_interceptor,
+        RouteMetadata, Scope, Secret, SecretString, Serializable, ShutdownSignal,
+        ValidateConfiguration, VersionMetadata, VersioningStrategy, body, controller, delete, get,
+        handler_fn, head, header, options, param, patch, pipe_fn, post, put, query, routes,
+        use_guard, use_interceptor,
     };
+    #[cfg(feature = "serialization")]
+    pub use crate::{FieldRule, FieldRules, SerializeInterceptor, set_current_roles};
+    #[cfg(feature = "validation")]
+    pub use crate::ValidationPipe;
 }

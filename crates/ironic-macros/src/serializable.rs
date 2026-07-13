@@ -39,12 +39,12 @@ pub(crate) fn expand(input: DeriveInput) -> syn::Result<proc_macro2::TokenStream
 
         if has_exclude {
             rules.push(quote! {
-                rules = rules.exclude(#field_name);
+                let rules = rules.exclude(#field_name);
             });
         }
         if let Some(role) = expose_role {
             rules.push(quote! {
-                rules = rules.expose(#field_name, #role);
+                let rules = rules.expose(#field_name, #role);
             });
         }
     }

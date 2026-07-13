@@ -1,6 +1,6 @@
 [package]
 name = "rest-api"
-description = "Ironic REST, validation, error-handling, and testing example"
+description = "Ironic REST, validation, error-handling, testing, versioning, serialization, compression, and security example"
 publish = false
 version.workspace = true
 edition.workspace = true
@@ -8,12 +8,20 @@ rust-version.workspace = true
 license.workspace = true
 
 [dependencies]
-ironic.workspace = true
+ironic = { workspace = true, features = [
+    "validation",
+    "versioning",
+    "serialization",
+    "compression",
+    "security-cors",
+    "security-headers",
+] }
 serde.workspace = true
 serde_json.workspace = true
+garde.workspace = true
+tower.workspace = true
+tower-http.workspace = true
+axum.workspace = true
 
 [dev-dependencies]
 tokio.workspace = true
-
-[lints]
-workspace = true

@@ -137,6 +137,126 @@ pub fn generate_resource(root: &Path, name: &str) -> Result<GenerationReport, Cl
     Ok(report)
 }
 
+/// Generates a custom parameter decorator.
+///
+/// # Errors
+///
+/// Returns [`CliError`] for invalid names or conflicting files.
+pub fn generate_decorator(root: &Path, name: &str) -> Result<GenerationReport, CliError> {
+    let names = Names::parse(name)?;
+    single_file(
+        root,
+        &format!("{}_decorator.rs", names.snake),
+        &templates::decorator(&names),
+    )
+}
+
+/// Generates an exception filter.
+///
+/// # Errors
+///
+/// Returns [`CliError`] for invalid names or conflicting files.
+pub fn generate_filter(root: &Path, name: &str) -> Result<GenerationReport, CliError> {
+    let names = Names::parse(name)?;
+    single_file(
+        root,
+        &format!("{}_filter.rs", names.snake),
+        &templates::filter(&names),
+    )
+}
+
+/// Generates a WebSocket gateway.
+///
+/// # Errors
+///
+/// Returns [`CliError`] for invalid names or conflicting files.
+pub fn generate_gateway(root: &Path, name: &str) -> Result<GenerationReport, CliError> {
+    let names = Names::parse(name)?;
+    single_file(
+        root,
+        &format!("{}_gateway.rs", names.snake),
+        &templates::gateway(&names),
+    )
+}
+
+/// Generates a guard.
+///
+/// # Errors
+///
+/// Returns [`CliError`] for invalid names or conflicting files.
+pub fn generate_guard(root: &Path, name: &str) -> Result<GenerationReport, CliError> {
+    let names = Names::parse(name)?;
+    single_file(
+        root,
+        &format!("{}_guard.rs", names.snake),
+        &templates::guard(&names),
+    )
+}
+
+/// Generates an interceptor.
+///
+/// # Errors
+///
+/// Returns [`CliError`] for invalid names or conflicting files.
+pub fn generate_interceptor(root: &Path, name: &str) -> Result<GenerationReport, CliError> {
+    let names = Names::parse(name)?;
+    single_file(
+        root,
+        &format!("{}_interceptor.rs", names.snake),
+        &templates::interceptor(&names),
+    )
+}
+
+/// Generates middleware.
+///
+/// # Errors
+///
+/// Returns [`CliError`] for invalid names or conflicting files.
+pub fn generate_middleware(root: &Path, name: &str) -> Result<GenerationReport, CliError> {
+    let names = Names::parse(name)?;
+    single_file(
+        root,
+        &format!("{}_middleware.rs", names.snake),
+        &templates::middleware(&names),
+    )
+}
+
+/// Generates a parameter pipe.
+///
+/// # Errors
+///
+/// Returns [`CliError`] for invalid names or conflicting files.
+pub fn generate_pipe(root: &Path, name: &str) -> Result<GenerationReport, CliError> {
+    let names = Names::parse(name)?;
+    single_file(
+        root,
+        &format!("{}_pipe.rs", names.snake),
+        &templates::pipe(&names),
+    )
+}
+
+/// Generates an injectable provider.
+///
+/// # Errors
+///
+/// Returns [`CliError`] for invalid names or conflicting files.
+pub fn generate_provider(root: &Path, name: &str) -> Result<GenerationReport, CliError> {
+    let names = Names::parse(name)?;
+    single_file(
+        root,
+        &format!("{}_provider.rs", names.snake),
+        &templates::provider(&names),
+    )
+}
+
+fn single_file(root: &Path, file_name: &str, contents: &str) -> Result<GenerationReport, CliError> {
+    let mut report = GenerationReport::default();
+    let path = root.join("src").join(file_name);
+    let state = write_generated(&path, contents)?;
+    record(&mut report, &path, state);
+    Ok(report)
+}
+
 fn register_root_module(
     root: &Path,
     names: &Names,

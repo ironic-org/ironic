@@ -49,6 +49,7 @@ pub enum AxumPlatformError {
 pub struct AxumAdapter {
     request_body_limit: usize,
     request_timeout: Duration,
+    #[cfg(feature = "compression")]
     enable_compression: bool,
     configure_router: Vec<RouterConfigurator>,
 }
@@ -67,6 +68,7 @@ impl AxumAdapter {
         Self {
             request_body_limit: DEFAULT_REQUEST_BODY_LIMIT,
             request_timeout: DEFAULT_REQUEST_TIMEOUT,
+            #[cfg(feature = "compression")]
             enable_compression: false,
             configure_router: Vec::new(),
         }

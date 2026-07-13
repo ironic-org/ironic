@@ -14,6 +14,16 @@ pub(crate) fn execute(arguments: GenerateArgs, output: &mut impl Write) -> Resul
         Generator::Controller(arguments) => generators::generate_controller(&root, &arguments.name),
         Generator::Service(arguments) => generators::generate_service(&root, &arguments.name),
         Generator::Resource(arguments) => generators::generate_resource(&root, &arguments.name),
+        Generator::Decorator(arguments) => generators::generate_decorator(&root, &arguments.name),
+        Generator::Filter(arguments) => generators::generate_filter(&root, &arguments.name),
+        Generator::Gateway(arguments) => generators::generate_gateway(&root, &arguments.name),
+        Generator::Guard(arguments) => generators::generate_guard(&root, &arguments.name),
+        Generator::Interceptor(arguments) => {
+            generators::generate_interceptor(&root, &arguments.name)
+        }
+        Generator::Middleware(arguments) => generators::generate_middleware(&root, &arguments.name),
+        Generator::Pipe(arguments) => generators::generate_pipe(&root, &arguments.name),
+        Generator::Provider(arguments) => generators::generate_provider(&root, &arguments.name),
     }?;
 
     for path in report.created {

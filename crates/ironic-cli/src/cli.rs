@@ -82,6 +82,30 @@ pub enum Generator {
     /// Generates a module, service, and controller vertical slice.
     #[command(alias = "res")]
     Resource(NameArgs),
+    /// Generates a custom parameter decorator.
+    #[command(alias = "d")]
+    Decorator(NameArgs),
+    /// Generates an exception filter.
+    #[command(alias = "f")]
+    Filter(NameArgs),
+    /// Generates a WebSocket gateway.
+    #[command(alias = "ga")]
+    Gateway(NameArgs),
+    /// Generates a guard.
+    #[command(alias = "gu")]
+    Guard(NameArgs),
+    /// Generates an interceptor.
+    #[command(alias = "itc")]
+    Interceptor(NameArgs),
+    /// Generates middleware.
+    #[command(alias = "mi")]
+    Middleware(NameArgs),
+    /// Generates a pipe.
+    #[command(alias = "pi")]
+    Pipe(NameArgs),
+    /// Generates an injectable provider.
+    #[command(alias = "pr")]
+    Provider(NameArgs),
 }
 
 /// A named generator target.

@@ -245,14 +245,27 @@ impl fmt::Debug for RouteDefinition {
 }
 
 /// Static metadata, provider construction, and routes for a controller.
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 pub struct ControllerDefinition {
     key: ProviderKey,
     path: String,
     provider: ProviderDefinition,
     routes: Vec<RouteDefinition>,
     pipeline: PipelineComponents,
+    pipes: Vec<Arc<dyn ParameterPipe>>,
     version: Option<crate::VersionMetadata>,
+}
+
+impl fmt::Debug for ControllerDefinition {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter
+            .debug_struct("ControllerDefinition")
+            .field("key", &self.key)
+            .field("path", &self.path)
+            .field("route_count", &self.routes.len())
+            .field("pipe_count", &self.pipes.len())
+            .finish_non_exhaustive()
+    }
 }
 
 impl ControllerDefinition {
@@ -278,6 +291,7 @@ impl ControllerDefinition {
             provider,
             routes: Vec::new(),
             pipeline: PipelineComponents::new(),
+            pipes: Vec::new(),
             version: None,
         })
     }
@@ -321,6 +335,13 @@ impl ControllerDefinition {
     #[must_use]
     pub fn version(mut self, metadata: crate::VersionMetadata) -> Self {
         self.version = Some(metadata);
+        self
+    }
+
+    /// Registers a controller-level pipe applied to all route parameters.
+    #[must_use]
+    pub fn pipe(mut self, pipe: Arc<dyn ParameterPipe>) -> Self {
+        self.pipes.push(pipe);
         self
     }
 
@@ -371,12 +392,20 @@ impl ControllerDefinition {
             if let Some(version) = &self.version {
                 metadata.insert(version.clone());
             }
+            let mut cloneable_params = route.parameters.clone();
+            if !self.pipes.is_empty() {
+                for param in &mut cloneable_params {
+                    let mut all_pipes = self.pipes.clone();
+                    all_pipes.append(&mut param.pipes);
+                    param.pipes = all_pipes;
+                }
+            }
             compiled.push(CompiledRoute {
                 controller: self.key,
                 method: route.method.clone(),
                 path,
                 handler_name: route.handler_name,
-                parameters: route.parameters.clone(),
+                parameters: cloneable_params,
                 handler: Arc::clone(&route.handler),
                 pipeline,
                 metadata,
@@ -519,6 +548,19 @@ impl CompiledHttpApplication {
     #[must_use]
     pub fn interceptor(mut self, interceptor: impl Interceptor) -> Self {
         self.pipeline = self.pipeline.interceptor(interceptor);
+        self
+    }
+
+    /// Registers a global pipe applied to every parameter of every route.
+    #[must_use]
+    pub fn pipe(mut self, pipe: &Arc<dyn ParameterPipe>) -> Self {
+        let mut routes = self.routes.to_vec();
+        for route in &mut routes {
+            for param in &mut route.parameters {
+                param.pipes.push(Arc::clone(pipe));
+            }
+        }
+        self.routes = routes.into();
         self
     }
 

@@ -15,6 +15,7 @@
     "devtools-plugins",
     "openapi",
     "security",
+    "dependency-management",
     "examples",
     "benchmarks"
   ]

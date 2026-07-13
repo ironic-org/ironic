@@ -11,6 +11,8 @@ mod pipes;
 mod request;
 mod response;
 mod route;
+#[cfg(feature = "serialization")]
+mod serialization;
 
 pub use error::HttpError;
 pub use exception_filter::{ExceptionFilter, FilterContext};
@@ -39,6 +41,8 @@ pub use route::{
     CompiledHttpApplication, CompiledRoute, ControllerDefinition, RouteDefinition, RouteError,
     RouteMetadata, compile_controller_routes,
 };
+#[cfg(feature = "serialization")]
+pub use serialization::{FieldRule, FieldRules, SerializeInterceptor, set_current_roles};
 
 /// The HTTP method used in route metadata.
 pub use http::Method as HttpMethod;

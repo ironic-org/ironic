@@ -66,8 +66,8 @@ pub use http_impl::{CacheMetadata, ExceptionFilter, FilterContext, VersionMetada
 pub use di::*;
 pub use http_impl::*;
 pub use ironic_macros::{
-    Injectable, Module, OpenApiSchema, body, controller, delete, get, head, header, main, options,
-    param, patch, post, put, query, routes, use_guard, use_interceptor,
+    Injectable, Module, OpenApiSchema, Serializable, body, controller, delete, get, head, header,
+    main, options, param, patch, post, put, query, routes, use_guard, use_interceptor,
 };
 pub use openapi::*;
 pub use platform::*;

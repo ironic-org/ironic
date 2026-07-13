@@ -7,6 +7,7 @@ mod injectable;
 mod module;
 mod openapi;
 mod routes;
+mod serializable;
 
 #[proc_macro_derive(Injectable, attributes(injectable))]
 /// Derives a dependency-injection provider definition.
@@ -44,6 +45,15 @@ pub fn controller(attribute: TokenStream, item: TokenStream) -> TokenStream {
 /// Collects route metadata from an inherent controller implementation.
 pub fn routes(attribute: TokenStream, item: TokenStream) -> TokenStream {
     routes::expand(attribute.into(), item.into())
+        .unwrap_or_else(syn::Error::into_compile_error)
+        .into()
+}
+
+#[proc_macro_derive(Serializable, attributes(exclude, expose))]
+/// Derives a `field_rules()` method from `#[exclude]` and `#[expose(role = "...")]`
+/// field attributes.
+pub fn derive_serializable(input: TokenStream) -> TokenStream {
+    serializable::expand(syn::parse_macro_input!(input as syn::DeriveInput))
         .unwrap_or_else(syn::Error::into_compile_error)
         .into()
 }

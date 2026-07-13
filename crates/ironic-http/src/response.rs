@@ -120,6 +120,11 @@ impl FrameworkResponse {
     pub fn into_parts(self) -> (HttpStatus, HeaderMap, FrameworkBody) {
         (self.status, self.headers, self.body)
     }
+
+    /// Replaces the response body.
+    pub fn set_body(&mut self, body: FrameworkBody) {
+        self.body = body;
+    }
 }
 
 /// Converts a handler result into a framework response.

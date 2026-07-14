@@ -1,102 +1,118 @@
 ---
-title: Task scheduling
-description: Schedule recurring tasks with fixed intervals or cron expressions using cooperative scheduling.
+title: Task Scheduling
+description: Run background jobs on a schedule — fixed intervals, cron expressions, with graceful shutdown.
 ---
 
-# Task scheduling
+# Task Scheduling
 
-Enable `scheduling` to spawn repeating background tasks with cooperative shutdown. Add `cron`
-for cron-expression-based scheduling.
+## What you'll learn
+
+- Run tasks every N seconds with `interval()`
+- Use cron expressions for complex schedules
+- Start tasks at app startup, stop them cleanly on shutdown
+
+Enable in `Cargo.toml`:
 
 ```toml
 ironic = { features = ["scheduling"] }
+# For cron support:
+ironic = { features = ["scheduling", "cron"] }
 ```
 
-## Fixed-interval tasks
+---
+
+## Interval tasks
+
+Run a task every N seconds:
 
 ```rust
-use ironic::services::scheduling::{interval, ScheduledTask};
+use ironic::services::scheduling::interval;
 use std::time::Duration;
 
-let task: ScheduledTask = interval(Duration::from_secs(30), || async move {
-    // Runs every 30 seconds
-    reconcile_subscriptions().await;
+let task = interval(Duration::from_secs(30), || async move {
+    println!("Cleaning up old data...");
+    // Your background logic here
 });
 ```
 
-Missed ticks are skipped when the task runs longer than the interval. The first invocation fires
-after one full period, not immediately.
+## Cron tasks
 
-## Cron-expression tasks
-
-Enable `cron` for expressive scheduling:
-
-```toml
-ironic = { features = ["scheduling", "cron"] }
-```
+Run at specific times:
 
 ```rust
 use ironic::services::scheduling::cron_schedule;
 
-let task = cron_schedule("0 0 2 * * *", || async move {
-    // Runs daily at 2:00 AM
-    nightly_report().await;
-})?;
+// Every day at 3 AM
+let task = cron_schedule("0 3 * * *", || async move {
+    generate_daily_report().await;
+});
+
+// Every Monday at 9 AM
+cron_schedule("0 9 * * 1", || async move {
+    send_weekly_digest().await;
+});
 ```
 
-Supports the standard six-field cron format: `sec min hour day-of-month month day-of-week`.
-Invalid expressions return a parse error.
+### Cron syntax
 
-## Shutdown
-
-Tasks are cooperative. Call `shutdown()` to stop a task gracefully after the current invocation
-completes. Call `abort()` for immediate termination.
-
-```rust
-task.shutdown().await?;
-// or
-task.abort();
 ```
+┌── minute (0-59)
+│ ┌── hour (0-23)
+│ │ ┌── day of month (1-31)
+│ │ │ ┌── month (1-12)
+│ │ │ │ ┌── day of week (0-6, 0=Sunday)
+│ │ │ │ │
+* * * * *
+```
+
+| Expression | Meaning |
+|------------|---------|
+| `0 * * * *` | Every hour |
+| `*/15 * * * *` | Every 15 minutes |
+| `0 9 * * 1-5` | Weekdays at 9 AM |
+| `0 0 1 * *` | Midnight on the 1st |
 
 ## Lifecycle integration
 
-Start tasks in `OnModuleInit` and stop them in `OnModuleDestroy`:
+Start tasks when the app boots, stop them on shutdown:
 
 ```rust
-use ironic::{OnModuleInit, OnModuleDestroy, LifecycleFuture, LifecycleError};
-use ironic::services::scheduling::{ScheduledTask, interval};
+use ironic::{OnModuleInit, OnModuleDestroy};
 
-struct BackgroundWorker {
-    task: std::sync::Mutex<Option<ScheduledTask>>,
-}
+#[derive(Injectable)]
+struct SchedulerService;
 
-impl OnModuleInit for BackgroundWorker {
-    fn on_module_init(&self) -> LifecycleFuture<'_> {
-        Box::pin(async move {
-            let task = interval(Duration::from_secs(10), || async move { /* work */ });
-            *self.task.lock().unwrap() = Some(task);
-            Ok(())
-        })
+impl OnModuleInit for SchedulerService {
+    async fn on_module_init(&self) {
+        interval(Duration::from_secs(60), || async move {
+            cleanup_expired_sessions().await;
+        });
     }
 }
 
-impl OnModuleDestroy for BackgroundWorker {
-    fn on_module_destroy(&self) -> LifecycleFuture<'_> {
-        Box::pin(async move {
-            if let Some(task) = self.task.lock().unwrap().take() {
-                let _ = task.shutdown().await;
-            }
-            Ok(())
-        })
+impl OnModuleDestroy for SchedulerService {
+    async fn on_module_destroy(&self) {
+        // Tasks are automatically cancelled — no manual cleanup needed
     }
 }
 ```
 
-## Marker attributes
+## Graceful shutdown
 
-Ironic provides three marker attributes for documenting handler roles in scheduling. These
-are consumed by tooling and code generation:
+When the app shuts down:
+1. The current task invocation **completes**
+2. No new invocations are scheduled
+3. The server stops cleanly
 
-- `#[cron("expr")]` — declare a cron schedule
-- `#[interval(ms)]` — declare a fixed-interval schedule
-- `#[timeout(ms)]` — declare a timeout constraint
+## Try it yourself
+
+1. Create a task that logs "tick" every 5 seconds
+2. Start the server, watch the logs
+3. Press Ctrl+C — verify the task stops cleanly
+
+## What you learned
+
+- [x] `interval()` runs tasks on a fixed schedule
+- [x] `cron_schedule()` uses cron expressions
+- [x] Start tasks in `on_module_init`, they stop in `on_module_destroy`
+- [x] Graceful shutdown waits for in-flight tasks

@@ -1,150 +1,152 @@
 ---
-title: Security and production defaults
-description: Request limits, CORS, security headers, rate limits, CSRF, and secret handling.
+title: Security
+description: Protect your API with CORS, rate limiting, CSRF tokens, and security headers — all feature-flagged for zero overhead.
 ---
 
-# Security and production defaults
+# Security
 
-The Axum adapter buffers at most 1 MiB per request and applies a 30-second end-to-end timeout.
-Override these only after measuring the endpoint:
+## What you'll learn
 
-```rust
-use std::time::Duration;
-use ironic::AxumAdapter;
+- Enable CORS to control which websites can call your API
+- Add rate limiting to prevent abuse
+- Protect forms with CSRF tokens
+- Set security headers (HSTS, CSP, X-Frame-Options)
+- Enable compression for faster responses
 
-let adapter = AxumAdapter::new()
-    .request_body_limit(2 * 1024 * 1024)
-    .request_timeout(Duration::from_secs(10));
-```
-
-## Built-in security middleware
-
-Ironic provides four security middleware modules under the `security` feature umbrella.
-Each module implements the `Middleware` trait from the Ironic request pipeline and is
-registered through `RouteDefinition::middleware()`, `ControllerDefinition::middleware()`,
-or on a compiled application's global pipeline.
-
-### Enabling features
+Enable in `Cargo.toml`:
 
 ```toml
-# Cargo.toml
-ironic = { features = ["security"] }
+ironic = { features = ["security", "compression"] }
 ```
 
-Or enable individual modules:
+---
 
-```toml
-ironic = { features = [
-    "security-cors",      # CORS middleware
-    "security-headers",   # Security response headers
-    "security-rate-limit",# In-memory rate limiting (requires dep:redis)
-    "security-csrf",      # CSRF token validation (requires dep:uuid)
-] }
-```
+## CORS (Cross-Origin Resource Sharing)
 
-### CORS
-
-`CorsConfig` and `CorsMiddleware` handle cross-origin requests:
+Control which websites can access your API:
 
 ```rust
-use ironic::{CorsConfig, CorsMiddleware, HttpMethod};
+use ironic::security::cors::{CorsConfig, CorsMiddleware};
 
-let config = CorsConfig::new()
-    .allowed_origins(["https://app.example.com"])
-    .allowed_methods([HttpMethod::GET, HttpMethod::POST])
-    .allowed_headers(["content-type", "authorization"])
-    .allow_credentials(true)
+let cors = CorsConfig::new()
+    .allow_origin("https://myapp.com")
+    .allow_methods(["GET", "POST"])
+    .allow_headers(["Content-Type", "Authorization"])
     .max_age(3600);
 
-let middleware = CorsMiddleware::new(config);
-
-// Register on a route, controller, or globally:
-// RouteDefinition::new(...).middleware(middleware)
+FrameworkApplication::builder()
+    .platform(AxumAdapter::new().configure_router(|r| {
+        r.layer(CorsMiddleware::layer(cors));
+    }))
+    .build().await.unwrap();
 ```
 
-Do not use a wildcard origin with credentials; enumerate trusted origins and methods.
-The middleware sets `Access-Control-Allow-Origin`, `Access-Control-Allow-Methods`,
-`Access-Control-Allow-Headers`, `Access-Control-Allow-Credentials`, and
-`Access-Control-Max-Age` headers. Preflight `OPTIONS` requests are handled automatically.
+> **Why this matters:** Without CORS, any website can call your API with the user's cookies. CORS restricts it to trusted origins.
 
-### Security headers
+---
 
-`SecurityHeadersConfig` and `SecurityHeadersMiddleware` set recommended response headers:
+## Rate Limiting
+
+Prevent abuse by limiting requests per client:
 
 ```rust
-use ironic::SecurityHeadersConfig;
+use ironic::security::rate_limit::{InMemoryRateLimiter, RateLimitConfig, RateLimitMiddleware};
 
-let config = SecurityHeadersConfig::new()
-    .hsts("max-age=31536000; includeSubDomains")
-    .csp("default-src 'self'")
-    .x_content_type_options("nosniff")
-    .x_frame_options("DENY")
-    .referrer_policy("strict-origin-when-cross-origin");
+let config = RateLimitConfig::new()
+    .max_requests(100)                           // 100 requests...
+    .per_window(std::time::Duration::from_secs(60)); // ...per minute
 
-let middleware = SecurityHeadersMiddleware::new(config);
-// RouteDefinition::new(...).middleware(middleware)
+AxumAdapter::new().configure_router(|r| {
+    r.layer(RateLimitMiddleware::layer(config));
+});
 ```
 
-Disable individual headers when termination happens at a proxy:
+When a client exceeds the limit: **429 Too Many Requests**.
+
+> **Production note:** The in-memory limiter is fine for single-server deployments. For multi-server setups, enable the `redis` feature for a distributed rate limiter.
+
+---
+
+## CSRF Protection
+
+Protect HTML forms from cross-site request forgery:
 
 ```rust
-SecurityHeadersConfig::new()
-    .disable_hsts()        // TLS terminated at proxy
-    .disable_csp()         // CSP managed externally
-    .x_content_type_options("nosniff");
-```
+use ironic::security::csrf::{CsrfConfig, CsrfMiddleware};
 
-### Rate limiting
-
-`RateLimiter` provides in-memory sliding-window rate limiting:
-
-```rust
-use ironic::{
-    RateLimiter, RateLimitConfig, RateLimitMiddleware,
-};
-
-let limiter = RateLimiter::new(100, 60); // 100 requests per 60-second window
-// RouteDefinition::new(...).middleware(RateLimitMiddleware::new(limiter))
-```
-
-The rate limiter is keyed by the calling IP address. Custom key functions can be
-provided for authenticated principals. On exceeding the limit, the middleware returns
-`429 Too Many Requests`.
-
-### CSRF
-
-`CsrfConfig` and `CsrfMiddleware` validate CSRF tokens from request headers against
-signed cookies:
-
-```rust
-use ironic::{CsrfConfig, CsrfMiddleware};
-
-let config = CsrfConfig::new()
+let csrf = CsrfConfig::new()
     .cookie_name("csrf-token")
-    .header_name("x-csrf-token");
+    .header_name("X-CSRF-Token");
 
-let middleware = CsrfMiddleware::new(config);
-// RouteDefinition::new(...).middleware(middleware)
+AxumAdapter::new().configure_router(|r| {
+    r.layer(CsrfMiddleware::layer(csrf));
+});
 ```
 
-The middleware generates a token on `GET` requests (stored in a signed cookie) and
-validates the token from the configured header on state-changing requests.
+The server sets a CSRF cookie. The client reads it and sends it back in the `X-CSRF-Token` header. If they don't match → **403 Forbidden**.
 
-## Response compression
+---
 
-Enable gzip, brotli, or zstd compression with a single builder call:
+## Security Headers
+
+Add browser security headers automatically:
 
 ```rust
-use ironic::AxumAdapter;
+use ironic::security::security_headers::SecurityHeadersMiddleware;
 
-let adapter = AxumAdapter::new().compression();
+AxumAdapter::new().configure_router(|r| {
+    r.layer(SecurityHeadersMiddleware::layer());
+});
 ```
 
-The compression layer respects `Accept-Encoding` from the client and only compresses
-responses larger than 1 KB with a compressible content type.
+This adds:
 
-## Secrets
+| Header | Value | What it does |
+|--------|-------|--------------|
+| `Strict-Transport-Security` | `max-age=31536000` | Forces HTTPS |
+| `X-Content-Type-Options` | `nosniff` | Prevents MIME sniffing |
+| `X-Frame-Options` | `DENY` | Prevents clickjacking |
+| `X-XSS-Protection` | `1; mode=block` | Stops reflected XSS |
+| `Referrer-Policy` | `strict-origin-when-cross-origin` | Limits referrer info |
+| `Content-Security-Policy` | `default-src 'self'` | Blocks inline scripts |
 
-Load credentials from environment variables or a secret manager, wrap typed values in `Secret<T>`,
-and never include exposed values in logs, errors, tracing fields, panic messages, or generated
-configuration files. Rotate credentials independently of application releases.
+---
+
+## Compression
+
+Make responses smaller (and faster):
+
+```rust
+FrameworkApplication::builder()
+    .platform(AxumAdapter::new().compression())
+    .build().await.unwrap();
+```
+
+Supports **gzip**, **brotli**, and **zstd** — automatically pick the best one the client supports.
+
+---
+
+## Try it yourself
+
+1. Add CORS that only allows `https://example.com`
+2. Add rate limiting: 5 requests per second
+3. Enable all security headers
+4. Test: call from a different origin → should be blocked
+5. Test: make 6 rapid requests → should get 429
+
+## Common mistakes
+
+| Mistake | Fix |
+|---------|-----|
+| CORS `*` in production | Never use `*` — specify exact origins |
+| Rate limit too aggressive | Test with real client behavior before setting limits |
+| CSRF on pure API (no forms) | CSRF is for form-based auth; skip it if you use JWT with Authorization header |
+| Compression on tiny responses | Compressing 10-byte responses is wasteful; it's fine for normal API responses |
+
+## What you learned
+
+- [x] CORS controls cross-origin access
+- [x] Rate limiting prevents abuse (100 req/min)
+- [x] CSRF protects form submissions
+- [x] Security headers harden your API
+- [x] Compression speeds up responses

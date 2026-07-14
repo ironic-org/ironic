@@ -1,143 +1,127 @@
 ---
-title: Database integrations
-description: Register SQLx, SeaORM, Diesel, MongoDB, and Redis clients with Ironic dependency injection.
+title: Database Integrations
+description: Connect Ironic to PostgreSQL, MySQL, SQLite, MongoDB, and Redis — with built-in connection management.
 ---
 
-# Database integrations
+# Database Integrations
 
-Database support is opt-in. Ironic wraps each library's native pool or client instead of replacing
-its query API, migrations, transactions, or configuration types.
+## What you'll learn
 
-## Features
+- Choose the right database for your app
+- Set up connection pools that Ironic manages for you
+- Use SQLx, SeaORM, Diesel, MongoDB, or Redis
+
+## The big picture
+
+```
+Your App ──► Ironic (connection pool) ──► PostgreSQL / MySQL / SQLite / MongoDB / Redis
+                  │
+                  ├── Auto-creates connection pool
+                  ├── Health checks included
+                  └── Injection-ready (Arc<Pool>)
+```
+
+## Available integrations
+
+| Database | Feature flag | Best for |
+|----------|-------------|----------|
+| **SQLx** (Postgres) | `sqlx-postgres` | Raw SQL, migrations, compile-time checked queries |
+| **SQLx** (MySQL) | `sqlx-mysql` | Raw SQL with MySQL |
+| **SQLx** (SQLite) | `sqlx-sqlite` | Embedded, testing, small apps |
+| **SeaORM** (Postgres) | `seaorm-postgres` | ORM with relations, Active Record pattern |
+| **Diesel** | `diesel` | Type-safe query builder, schema-first |
+| **MongoDB** | `mongodb` | Document store, flexible schema |
+| **Redis** | `redis` | Caching, sessions, pub/sub, rate limiting |
+
+> **Recommendation:** Start with `sqlx-postgres` — it's the simplest and most well-tested.
+
+## SQLx example (PostgreSQL)
+
+### Cargo.toml
 
 ```toml
-[dependencies]
-ironic = { version = "0.1", features = ["sqlx-postgres"] }
+ironic = { features = ["sqlx-postgres"] }
 ```
 
-Available features are:
-
-| Integration | Ironic feature |
-| --- | --- |
-| SQLx core | `sqlx` |
-| SQLx PostgreSQL | `sqlx-postgres` |
-| SQLx MySQL | `sqlx-mysql` |
-| SQLx SQLite | `sqlx-sqlite` |
-| SeaORM core | `seaorm` |
-| SeaORM PostgreSQL | `seaorm-postgres` |
-| SeaORM MySQL | `seaorm-mysql` |
-| SeaORM SQLite | `seaorm-sqlite` |
-| Diesel pooling | `diesel` |
-| MongoDB | `mongodb` |
-| Redis | `redis` |
-
-`database` enables every backend-neutral integration API. Select a SQLx or SeaORM driver feature
-separately. Diesel backend selection remains on the application's direct Diesel dependency because
-its PostgreSQL and MySQL features can require native system libraries.
-
-## SQLx
+### Your service
 
 ```rust
-use ironic::{ProviderDefinition, integrations::sqlx};
-use sqlx::driver::postgres::PgPoolOptions;
+use ironic::integrations::sqlx::{PgPool, Postgres};
+use ironic::prelude::*;
 
-# async fn example() -> Result<(), sqlx::driver::Error> {
-let pool = PgPoolOptions::new()
-    .max_connections(10)
-    .connect("postgres://localhost/app")
-    .await?;
-let provider: ProviderDefinition = sqlx::provider(pool);
-# Ok(())
-# }
+#[derive(Injectable)]
+pub struct UserRepository {
+    pool: std::sync::Arc<PgPool>,    // ← Connection pool injected automatically
+}
+
+impl UserRepository {
+    pub async fn find_by_id(&self, id: u64) -> Result<User, HttpError> {
+        sqlx::query_as::<_, User>("SELECT * FROM users WHERE id = $1")
+            .bind(id as i64)
+            .fetch_optional(&*self.pool)
+            .await
+            .map_err(|e| HttpError::internal("DB_ERROR", e.to_string()))?
+            .ok_or_else(|| HttpError::not_found("USER_NOT_FOUND", format!("User {id} not found")))
+    }
+
+    pub async fn list(&self) -> Result<Vec<User>, HttpError> {
+        sqlx::query_as::<_, User>("SELECT * FROM users ORDER BY id")
+            .fetch_all(&*self.pool)
+            .await
+            .map_err(|e| HttpError::internal("DB_ERROR", e.to_string()))
+    }
+}
 ```
 
-Use `integrations::sqlx::migrate` with a native `sqlx::migrate::Migrator`. Pools implement
-`IntegrationHealth`, which acquires and returns a connection without running application queries.
-
-## SeaORM
-
-```rust
-use ironic::integrations::seaorm;
-
-# async fn example() -> Result<(), seaorm::driver::DbErr> {
-let connection = seaorm::connect("sqlite::memory:").await?;
-let provider = seaorm::provider(connection);
-# let _ = provider;
-# Ok(())
-# }
-```
-
-The registered value is the native `sea_orm::DatabaseConnection`; repositories can inject and use
-it directly. Health checks delegate to SeaORM's native `ping` operation.
-
-## Diesel
-
-Select a backend on Diesel itself and enable Ironic's backend-neutral pool integration:
+### Configuration in `ironic.toml`
 
 ```toml
-[dependencies]
-ironic = { version = "0.1", features = ["diesel"] }
-diesel = { version = "2.2", features = ["postgres", "r2d2"] }
+[settings]
+database_url = "postgres://user:password@localhost:5432/mydb"
 ```
+
+> The connection pool is created automatically and injected wherever you use `Arc<PgPool>`.
+
+## SeaORM example
 
 ```rust
-use diesel::PgConnection;
-use ironic::integrations::diesel;
+use ironic::integrations::seaorm::DatabaseConnection;
+use sea_orm::*;
 
-# fn example() -> Result<(), diesel::r2d2::PoolError> {
-let pool = diesel::connect::<PgConnection>("postgres://localhost/app")?;
-let provider = diesel::provider(pool);
-# let _ = provider;
-# Ok(())
-# }
+#[derive(Injectable)]
+pub struct UserRepository {
+    db: std::sync::Arc<DatabaseConnection>,
+}
+
+impl UserRepository {
+    pub async fn find_by_id(&self, id: u64) -> Result<Option<user::Model>, DbErr> {
+        user::Entity::find_by_id(id as i64).one(&*self.db).await
+    }
+}
 ```
-
-Diesel connections are blocking. Ironic's health check uses `tokio::task::spawn_blocking` so a pool
-checkout does not block the asynchronous executor.
-
-## MongoDB
-
-```rust
-use ironic::integrations::mongodb::{self, MongoDatabase};
-
-# async fn example() -> Result<(), mongodb::driver::error::Error> {
-let database = MongoDatabase::connect("mongodb://localhost:27017", "app").await?;
-let users = database.database().collection::<mongodb::driver::bson::Document>("users");
-let provider = mongodb::provider(database);
-# let _ = (users, provider);
-# Ok(())
-# }
-```
-
-The wrapper retains both the native client and selected database. Its health check sends MongoDB's
-standard `ping` command.
-
-## Redis
-
-```rust
-use ironic::integrations::redis::{self, RedisConnection};
-
-# async fn example() -> Result<(), redis::driver::RedisError> {
-let connection = RedisConnection::connect("redis://127.0.0.1/").await?;
-let manager = connection.manager();
-let provider = redis::provider(connection);
-# let _ = (manager, provider);
-# Ok(())
-# }
-```
-
-`RedisConnection` uses the native reconnecting async connection manager. It is cloneable for
-concurrent commands, and its health check sends `PING`.
 
 ## Health checks
 
-Every integration handle implements the common `IntegrationHealth` contract:
+Each integration comes with built-in health checks:
 
-```text
-use ironic::integrations::IntegrationHealth;
-
-database.check_health().await?;
+```rust
+// The framework automatically:
+// 1. Pings the database on startup
+// 2. Reports connection status in /health
+// 3. Reconnects if the connection drops
 ```
 
-Connection strings can contain credentials. Do not include them in logs or public error responses;
-load them through `SecretString` and expose them only while constructing the native client.
+## Try it yourself
+
+1. Add `sqlx-postgres` feature flag
+2. Set `database_url` in `ironic.toml`
+3. Create a `UserRepository` with `Arc<PgPool>`
+4. Write a `find_all` method that returns all users
+5. Call it from a controller
+
+## What you learned
+
+- [x] Choose from SQLx, SeaORM, Diesel, MongoDB, and Redis
+- [x] Connection pools are auto-created and injected
+- [x] Use `Arc<PgPool>` (or equivalent) in your services
+- [x] Health checks are included automatically

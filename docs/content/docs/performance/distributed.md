@@ -1,59 +1,124 @@
 ---
-title: Queues and distributed architecture
-description: Queues, microservice transports, gRPC, CQRS, sagas, and GraphQL feature modules.
+title: Distributed Systems
+description: Build microservices with queues, CQRS, sagas, gRPC, and GraphQL — all integrated with Ironic's DI system.
 ---
 
-# Queues and distributed architecture
+# Distributed Systems
 
-The `distributed` feature enables all APIs in this section; each can also be selected separately.
+## What you'll learn
 
-- `queues`: the `Queue` contract and bounded `InMemoryQueue` with acknowledgement/requeue APIs.
-- `microservices`: transport-neutral envelopes and connected in-memory duplex endpoints.
-- `grpc`: the upstream Tonic API plus DI registration for reusable channels.
-- `cqrs`: a typed command/query dispatcher that validates duplicate and missing handlers.
-- `sagas`: ordered forward steps with reverse compensation after failure.
-- `graphql`: the upstream async-graphql API and schema DI registration.
+- Add message queues for async processing
+- Implement CQRS (Command Query Responsibility Segregation)
+- Orchestrate distributed transactions with Sagas
+- Serve gRPC and GraphQL endpoints
 
-## Microservice transports
+Enable in `Cargo.toml`:
 
-The `Transport` trait defines a bidirectional message endpoint. `ChannelTransport` provides
-connected in-memory duplex pairs for development and testing.
-
-External transport adapters are available behind feature flags:
-
-| Feature flag | Adapter | Protocol |
-|-------------|---------|----------|
-| `transport-redis` | `RedisTransport` | Redis pub/sub |
-| `transport-rabbitmq` | `RabbitMqTransport` | AMQP |
-| `transport-kafka` | `KafkaTransport` | Kafka topics |
-
-Each adapter has a typed builder for configuration:
-
-```rust
-use ironic::distributed::microservices::RedisTransportConfig;
-
-let config = RedisTransportConfig::builder("redis://localhost:6379", "orders-channel")
-    .pool_size(8);
-let transport = config.connect().await?;
+```toml
+ironic = { features = ["distributed"] }
+# Or pick individual features:
+# ironic = { features = ["queues", "cqrs", "grpc"] }
 ```
 
-```rust
-use ironic::distributed::microservices::KafkaTransportConfig;
+---
 
-let config = KafkaTransportConfig::builder("localhost:9092", "events-topic")
-    .group_id("processor-1");
-let transport = config.connect().await?;
-```
+## Queues
 
-Use `ChannelTransport::pair()` for deterministic integration tests:
+Process work asynchronously:
 
 ```rust
-let (client, server) = ChannelTransport::pair(16);
-client.send(envelope).await?;
-let received = server.receive().await?.unwrap();
+use ironic::distributed::queues::InMemoryQueue;
+
+let queue = InMemoryQueue::new();
+
+// Producer
+queue.enqueue("send-email", email_payload).await;
+
+// Consumer
+let msg = queue.dequeue("send-email").await;
+process_email(msg.payload);
+
+// Acknowledge (remove from queue)
+queue.ack(msg.id).await;
+
+// Or reject (re-queue for retry)
+queue.reject(msg.id).await;
 ```
 
-The in-memory queue and channel transport are deterministic development/test implementations. Use a
-durable broker adapter for production delivery guarantees. Application message IDs, idempotency,
-retry limits, dead-letter handling, tracing propagation, and schema evolution remain explicit
-deployment decisions rather than hidden defaults.
+Transports available: Redis, RabbitMQ, Kafka.
+
+## CQRS
+
+Separate read and write operations:
+
+```rust
+use ironic::distributed::cqrs::{Command, CqrsBus, Query};
+
+// Commands (write)
+struct CreateOrder { items: Vec<u64> }
+impl Command for CreateOrder { type Result = u64; }
+
+// Queries (read)
+struct GetOrder { id: u64 }
+impl Query for GetOrder { type Result = Order; }
+
+let bus = CqrsBus::builder()
+    .command_handler(|cmd: CreateOrder| async move { Ok(42) })
+    .query_handler(|q: GetOrder| async move { Ok(Order { id: q.id, .. }) })
+    .build();
+
+let order_id = bus.execute(CreateOrder { items: vec![1, 2] }).await?;
+let order = bus.query(GetOrder { id: order_id }).await?;
+```
+
+## Sagas
+
+Orchestrate multi-step transactions with compensation:
+
+```rust
+#[derive(Saga)]
+struct OrderSaga {
+    order_id: u64,
+    payment_id: Option<u64>,
+}
+
+impl Saga for OrderSaga {
+    type Input = CreateOrder;
+    type Output = u64;
+
+    async fn execute(&mut self, input: Self::Input) -> SagaResult<Self::Output> {
+        // Step 1: Reserve inventory
+        self.reserve_inventory().await?;
+        // Step 2: Process payment
+        self.payment_id = Some(self.process_payment().await?);
+        // Step 3: Confirm order
+        Ok(self.order_id)
+    }
+
+    async fn compensate(&mut self) {
+        // Rollback: refund payment, release inventory
+        if let Some(pid) = self.payment_id {
+            self.refund_payment(pid).await;
+        }
+        self.release_inventory().await;
+    }
+}
+```
+
+## gRPC
+
+Serve gRPC alongside REST:
+
+```rust
+use ironic::distributed::grpc::GrpcService;
+
+let service = GrpcService::new(my_grpc_service);
+app.register_service(service);
+```
+
+## What you learned
+
+- [x] Queues decouple producers and consumers
+- [x] CQRS separates commands (writes) from queries (reads)
+- [x] Sagas handle distributed transactions with rollback
+- [x] gRPC and GraphQL integrate with Ironic's DI

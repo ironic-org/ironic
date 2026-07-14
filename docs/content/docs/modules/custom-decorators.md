@@ -1,34 +1,40 @@
 ---
-title: Custom decorators
-description: Define reusable parameter extractors with the create_param_decorator macro and pipe chaining.
+title: Custom Decorators
+description: Create your own parameter extractors — extract the current user, request metadata, or any custom data from requests.
 ---
 
-# Custom decorators
+# Custom Decorators
 
-Use `create_param_decorator!` to define named parameter decorators that extract typed values from
-requests. Combine them with pipes for validation and transformation.
+## What you'll learn
+
+- Create custom parameter extractors
+- Use them in route handlers with `#[custom(Name)]`
+- Extract common data (current user, client IP, locale) once and reuse
+
+Enable in `Cargo.toml`:
 
 ```toml
 ironic = { features = ["custom-decorators"] }
 ```
 
-## Defining a custom decorator
+---
 
-Implement `ParameterExtractor` and register it as a named decorator:
+## Creating a custom decorator
 
 ```rust
-use ironic::{ParameterExtractor, RequestContext, ExtractFuture, create_param_decorator, HttpError};
+use ironic::{ExtractFuture, ParameterExtractor, RequestContext, create_param_decorator};
 
 struct CurrentUser;
 
 impl ParameterExtractor for CurrentUser {
     fn extract<'a>(&'a self, context: &'a mut RequestContext) -> ExtractFuture<'a> {
         Box::pin(async move {
-            let user = context.extension::<AuthUser>()
-                .ok_or_else(|| HttpError::unauthorized("UNAUTHORIZED", "not authenticated"))?;
-            Ok(Box::new(user.clone()) as ExtractedValue)
+            // Read the user from the request context
+            let user_id = context.get::<u64>("user_id").copied();
+            Ok(Box::new(user_id))
         })
     }
+
     fn description(&self) -> &'static str {
         "current_user"
     }
@@ -37,40 +43,36 @@ impl ParameterExtractor for CurrentUser {
 create_param_decorator!(current_user, CurrentUser);
 ```
 
-## Using in route handlers
+## Using it in a handler
 
 ```rust
 #[routes]
-impl UserController {
+impl Controller {
     #[get("/me")]
-    async fn profile(&self, #[custom(current_user)] user: AuthUser) -> Result<impl IntoFrameworkResponse, HttpError> {
-        // `user` is extracted by the CurrentUser extractor
+    async fn profile(
+        &self,
+        #[custom(current_user)] user_id: Option<u64>,  // ← Extracted automatically
+    ) -> Result<Json<User>, HttpError> {
+        match user_id {
+            Some(id) => self.service.find_user(id).map(Json),
+            None => Err(HttpError::unauthorized("UNAUTHORIZED", "Login required")),
+        }
     }
 }
 ```
 
-The decorator name after `#[custom(...)]` must match the name passed to `create_param_decorator!`.
+## Common custom decorators
 
-## Chaining pipes
+| Decorator | What it extracts |
+|-----------|-----------------|
+| `CurrentUser` | Authenticated user ID |
+| `ClientIp` | Client's IP address |
+| `UserLocale` | Accept-Language header |
+| `RequestId` | X-Request-ID header |
 
-Custom decorators support pipe chaining just like built-in extractors:
+## What you learned
 
-```rust
-#[get("/item/:id")]
-async fn get(
-    &self,
-    #[custom(header_id)] #[pipe(parse_int)] id: i64,
-) -> Result<impl IntoFrameworkResponse, HttpError> { ... }
-```
-
-Pipes transform the decorator's output before the handler receives it.
-
-## Extraction context
-
-The `extract` method receives `&mut RequestContext`, granting access to:
-
-- The raw request (method, URI, headers, body, path parameters)
-- Request extensions (typed request-scoped state set by middleware or guards)
-
-Return `HttpError` to short-circuit the request. The error propagates through the normal
-pipeline and exception filter chain.
+- [x] Implement `ParameterExtractor` to extract custom data
+- [x] Register with `create_param_decorator!`
+- [x] Use with `#[custom(name)]` in route handlers
+- [x] Extract once, reuse across many handlers

@@ -1,109 +1,70 @@
 ---
-title: Dependency management
-description: Workspace dependency versioning, optional dependencies, and feature flag configuration.
+title: Dependency Management
+description: Master Ironic's dependency injection — optional deps, eager initialization, circular dependency detection.
 ---
 
-# Dependency management
+# Dependency Management
 
-Ironic uses a centralized workspace dependency model. All dependency versions are defined once in
-`Cargo.toml` under `[workspace.dependencies]` and referenced by individual crates via
-`<name>.workspace = true`.
+## What you'll learn
 
-## Feature flags
+- Mark dependencies as optional (fail gracefully if missing)
+- Force services to initialize eagerly at startup
+- Understand how Ironic detects circular dependencies
 
-Enable only the capabilities your project needs:
+---
 
-```toml
-ironic = { features = [
-    "security",           # CORS, rate limiting, headers, CSRF
-    "validation",         # ParseIntPipe, ValidationPipe, etc.
-    "versioning",         # API versioning
-    "serialization",      # Field-level serialization rules
-    "compression",        # gzip, brotli, zstd
-    "cache",              # In-memory and Redis caching
-    "scheduling",         # Cron and interval scheduling
-    "realtime",           # WebSocket gateways
-    "cron",               # Cron expression parsing
-    "database",           # SQLx, SeaORM, Diesel, MongoDB, Redis
-    "authentication",     # Argon2, JWT, OAuth2, sessions
-    "distributed",        # Queues, microservices, CQRS, sagas, gRPC, GraphQL
-] }
-```
+## Optional dependencies
 
-## Optional DI dependencies
-
-Mark injectable fields as optional with the `#[injectable(optional = [...])]` attribute:
+Sometimes a dependency might not be registered. Use optional resolution:
 
 ```rust
-use ironic::Injectable;
+use ironic::ModuleRef;
 
-#[injectable(optional = [Logger])]
-struct ReportingService {
-    database: Arc<DatabaseConnection>,
-    logger: Option<Arc<Logger>>, // optional — resolves to None when Logger is not registered
+#[derive(Injectable)]
+struct AnalyticsService {
+    // Will be None if CacheService isn't registered
+    cache: Option<std::sync::Arc<CacheService>>,
+}
+
+impl AnalyticsService {
+    pub fn track(&self, event: &str) {
+        if let Some(cache) = &self.cache {
+            cache.set(event, 1);
+        }
+        // Silently skip caching if not configured
+    }
 }
 ```
 
-```rust
-use ironic::{Injectable, Dependency, Dependency::required, Dependency::optional};
+## Eager initialization
 
-#[injectable(optional = [Notifier])]
-struct OrderService {
-    notifier: Option<Arc<Notifier>>, // None in testing, Some in production
+By default, services are created on first use. Force immediate creation:
+
+```rust
+#[derive(Injectable)]
+#[injectable(eager)]
+pub struct DatabasePool {
+    // Created at startup, not on first request
+    // Catches connection errors early!
 }
 ```
 
-The framework generates `Dependency::optional` for listed types and skips validation when the
-provider is not registered. The field type must be `Option<Arc<T>>`.
+> **Use eager for:** Database pools, external service connections. Catch misconfigurations at startup, not at 3 AM.
 
-## Version Strategy
+## Circular dependency detection
 
-- Pin minor versions (e.g. `"0.8"`) for core framework deps — deliberate upgrades only
-- Patch versions auto-resolve via `Cargo.lock`
-- Lockfile is committed to ensure reproducible CI builds
+Ironic catches circular dependencies at startup:
 
-## Keeping Dependencies Updated
-
-```bash
-# Check what's outdated
-cargo install cargo-edit
-cargo outdated --workspace
-
-# Upgrade everything to latest compatible versions
-cargo upgrade --workspace
-
-# Check for security advisories
-cargo audit
+```rust
+struct A { b: Arc<B> }    // A depends on B
+struct B { a: Arc<A> }    // B depends on A
+                          // → Error: "Circular dependency detected: A → B → A"
 ```
 
-## Automated Updates
+The error message shows the full dependency chain so you can fix it.
 
-[Dependabot](https://docs.github.com/en/code-security/dependabot) is configured in
-`.github/dependabot.yml` and opens weekly PRs for version bumps. CI (`cargo test`,
-`cargo clippy`, `cargo audit`) must pass before merging.
+## What you learned
 
-## Breaking Changes
-
-When upgrading a dep with breaking changes:
-
-1. Check the dep's changelog / migration guide
-2. Update usages across all crates in the workspace
-3. Run `cargo test --workspace --all-features`
-4. Update the minimum pinned version if needed
-5. Review `RELEASE_NOTES.md` for public API consumers
-
-## Vendoring (Offline / Air-Gapped)
-
-```bash
-cargo vendor vendor
-```
-
-Add this to `.cargo/config.toml` when working offline:
-
-```toml
-[source.crates-io]
-replace-with = "vendored-sources"
-
-[source.vendored-sources]
-directory = "vendor"
-```
+- [x] Optional deps return `None` when not registered
+- [x] `#[injectable(eager)]` forces startup initialization
+- [x] Circular dependencies are detected and reported clearly

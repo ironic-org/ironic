@@ -1,238 +1,80 @@
 ---
-title: CLI reference
-description: Install and use the Ironic CLI to create, run, test, and extend applications.
+title: CLI Reference
+description: Master the Ironic command-line tools — create, generate, run, test, and inspect your application.
 ---
 
-# CLI reference
+# CLI Reference
 
-The `ironic` package includes the `ironic` command-line tool. It creates new applications,
-delegates build workflows to Cargo, generates framework source files, and checks the local
-development environment.
+## What you'll learn
 
-## Install or update
+- Every CLI command and what it does
+- Generator commands for scaffolding code
+- Project inspection tools
+- Doctor command for debugging
 
-Install the latest published release from crates.io:
+---
 
-```bash
-cargo install ironic
-```
+## Project commands
 
-Update an existing installation:
+| Command | What it does |
+|---------|-------------|
+| `ironic new <name>` | Create a new project |
+| `ironic new .` | Create project in the current directory |
+| `ironic start` | Run the server (`cargo run`) |
+| `ironic build` | Build the project (`cargo build`) |
+| `ironic test` | Run tests (`cargo test`) |
 
-```bash
-cargo install ironic --force
-```
+## Generator commands
 
-Framework contributors can install the CLI from a local checkout:
+| Command | Alias | Creates |
+|---------|-------|---------|
+| `ironic generate resource <name>` | `g res` | Full module with controller, service, DTOs, entity, and tests |
+| `ironic generate module <name>` | `g mo` | Module shell only |
+| `ironic generate controller <name>` | `g co` | Controller inside a module |
+| `ironic generate service <name>` | `g s` | Service inside a module |
+| `ironic generate decorator <name>` | `g d` | Custom parameter decorator |
+| `ironic generate filter <name>` | `g f` | Exception filter |
+| `ironic generate guard <name>` | `g gu` | Auth guard |
+| `ironic generate middleware <name>` | `g mi` | Middleware |
+| `ironic generate pipe <name>` | `g pi` | Parameter pipe |
+| `ironic generate provider <name>` | `g pr` | Injectable provider |
 
-```bash
-cargo install --path .
-```
+## Inspection commands
 
-Confirm which executable and version are active:
+| Command | What it does |
+|---------|-------------|
+| `ironic routes` | List all routes in the project |
+| `ironic graph` | Print a Graphviz dependency graph |
 
-```bash
-which ironic
-ironic --version
-ironic --help
-```
-
-## Create an application
-
-Run `new` from the directory that should contain the project:
-
-```bash
-ironic new my-api
-cd my-api
-ironic start
-```
-
-To initialize the directory you are already in, pass `.`. The project name is inferred from the
-current directory and normalized for Cargo:
-
-```bash
-mkdir test_ironic
-cd test_ironic
-ironic new .
-ironic start
-```
-
-Names are normalized for their destination: `My API` becomes the `my-api` directory and Rust-safe
-identifiers inside generated source. A name must contain a letter and cannot resolve to a Rust
-keyword.
-
-An existing directory may contain unrelated files such as `README.md` or `.git`. Before writing,
-the CLI checks every generated path and refuses to overwrite a conflicting `Cargo.toml`,
-`ironic.toml`, or source file. A new project contains:
-
-```text
-my-api/
-├── Cargo.toml
-├── ironic.toml
-└── src/
-    ├── app.rs
-    ├── main.rs
-    └── modules/
-        └── mod.rs
-```
-
-`Cargo.toml` declares the single `ironic` dependency. `main.rs` configures `AxumAdapter` and starts
-the application on `127.0.0.1:3000`; `app.rs` declares the root application module.
-
-## Run Cargo workflows
-
-The workflow commands execute Cargo in the current directory:
-
-| Ironic command | Executed command |
-| --- | --- |
-| `ironic start` | `cargo run` |
-| `ironic build` | `cargo build` |
-| `ironic test` | `cargo test` |
-
-Place extra Cargo arguments after `--`:
-
-```bash
-ironic start -- --release
-ironic build -- --all-features
-ironic test -- --workspace --all-targets
-```
-
-If Cargo fails, Ironic returns a non-zero exit status and reports the failed Cargo command.
-
-## Generate source files
-
-Generators run against the current project. The long form is `ironic generate`; `ironic g` is an
-alias.
-
-### Complete resource
-
-Generate a module, injectable service, controller, and their registrations together:
-
-```bash
-ironic generate resource products
-# Short form:
-ironic g res products
-```
-
-This creates:
-
-```text
-src/modules/products/
-├── mod.rs
-├── products_controller.rs
-└── products_service.rs
-```
-
-It also registers `products` in `src/modules/mod.rs` and imports `ProductsModule` from
-`src/app.rs` when those files can be updated safely.
-
-### Individual generators
-
-```bash
-ironic generate module users
-ironic generate controller users
-ironic generate service users
-```
-
-Available aliases are:
-
-| Generator | Alias | Result |
-| --- | --- | --- |
-| `module` | `mo` | Creates the module directory and module definition. |
-| `controller` | `co` | Creates a controller inside the same-named module. |
-| `service` | `s` | Creates an injectable service inside the same-named module. |
-| `resource` | `res` | Creates and registers the complete vertical slice. |
-
-The controller and service generators print a `manual:` instruction when their generated type
-still needs to be added to the module's `controllers` or `providers` list.
-
-## Safe regeneration
-
-Generation is deterministic and safe to run repeatedly:
-
-- `created` means a file was created or safely updated.
-- `unchanged` means the existing source already matches the requested result.
-- `manual:` means the CLI could not safely make a source-level decision and tells you what to add.
-- A conflicting generated file is never silently overwritten.
-
-Commit or review your work before generating a large resource so the resulting changes are easy
-to inspect.
-
-## Check the environment
-
-Run the doctor from an application directory:
+## Doctor command
 
 ```bash
 ironic doctor
 ```
 
-## Inspect routes and dependencies
+Checks your environment:
 
-`ironic routes [path]` scans the project's Rust source and prints controller route declarations in
-stable method/path/handler order. `ironic graph [path]` prints Graphviz DOT edges for module imports,
-providers, controllers, exports, and injectable struct fields:
-
-```text
-ironic routes
-ironic graph > application.dot
-dot -Tsvg application.dot -o application.svg
+```
+Rust                   OK rustc 1.97.0
+Cargo                  OK cargo 1.97.0
+Project manifest       OK /path/to/Cargo.toml
+Ironic dependency      OK found
+CLI version            OK 0.1.7 (latest)
 ```
 
-These commands inspect macro declarations without compiling or executing application code. Dynamic
-module definitions assembled only at runtime are therefore available through the framework's
-`CompiledApplicationGraph` API, but cannot appear in static CLI output.
-
-It checks:
-
-- the installed Rust compiler;
-- the installed Cargo executable;
-- whether `Cargo.toml` exists in the current directory;
-- whether the manifest contains an Ironic dependency.
-
-`WARN` lines identify missing tools or project configuration without changing any files.
-
-## Troubleshooting
-
-### Command not found
-
-Ensure Cargo's binary directory is on `PATH`:
+## Update command
 
 ```bash
-export PATH="$HOME/.cargo/bin:$PATH"
+ironic update
+# or: ironic upgrade
 ```
 
-Then open a new terminal and run `ironic --version`.
+Checks crates.io for a newer version and shows update instructions.
 
-### Proc-macro server exited
+## What you learned
 
-The repository pins Rust and `rust-analyzer` to compatible versions. From the project directory,
-run:
-
-```bash
-cargo clean
-cargo check
-rust-analyzer analysis-stats .
-```
-
-Then reload the editor window. Do not combine an editor-provided `rust-analyzer` from one
-toolchain with a compiler from an incompatible toolchain.
-
-### Generator refuses to overwrite a file
-
-The file differs from the deterministic template. Keep the existing implementation and apply the
-printed manual instruction, or move the file aside, regenerate it, and merge the two versions by
-hand.
-
-## Command summary
-
-```text
-ironic new <name|.>
-ironic start [-- <cargo arguments>...]
-ironic build [-- <cargo arguments>...]
-ironic test [-- <cargo arguments>...]
-ironic generate module <name>
-ironic generate controller <name>
-ironic generate service <name>
-ironic generate resource <name>
-ironic doctor
-```
+- [x] `ironic new` creates projects
+- [x] `ironic start/build/test` wraps Cargo commands
+- [x] `ironic generate resource` creates full vertical slices
+- [x] `ironic doctor` diagnoses environment issues
+- [x] `ironic routes` and `ironic graph` inspect projects

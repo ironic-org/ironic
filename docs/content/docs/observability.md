@@ -1,65 +1,57 @@
 ---
 title: Observability
-description: Production metrics, logging, and distributed tracing for the Ironic framework.
+description: Production monitoring — Prometheus metrics, distributed tracing, and structured logging for your Ironic application.
 ---
 
 # Observability
 
-Ironic provides built-in observability features for production monitoring.
+## What you'll learn
+
+- Expose Prometheus metrics at `/metrics`
+- Add retry and circuit breaker for resilience
+- Set up distributed tracing with OpenTelemetry
+- Monitor your app in production
+
+---
 
 ## Metrics (Prometheus)
 
-Enable the `metrics` feature in `Cargo.toml`:
+Enable in `Cargo.toml`:
 
 ```toml
 ironic = { features = ["metrics"] }
 ```
 
-### Quick start
-
-Apply the `MetricsLayer` to your Axum router and import `MetricsModule`:
+Add to your app:
 
 ```rust
-use ironic::prelude::*;
 use ironic::metrics::{MetricsConfig, MetricsLayer, MetricsModule};
+use ironic::{AxumAdapter, FrameworkApplication};
 
 #[derive(Module)]
-#[module(imports = [MetricsModule])]
+#[module(imports = [MetricsModule])]      // ← Exposes GET /metrics
 struct AppModule;
 
 #[ironic::main]
 async fn main() {
     FrameworkApplication::builder()
         .module(AppModule::definition())
-        .platform(
-            AxumAdapter::new()
-                .configure_router(|r| r.layer(MetricsLayer::new(MetricsConfig::default())))
-        )
+        .platform(AxumAdapter::new().configure_router(|r| {
+            r.layer(MetricsLayer::new(MetricsConfig::default()));
+        }))
         .build().await.unwrap()
         .listen("127.0.0.1:3000").await.unwrap();
 }
 ```
 
-### Exposed metrics
+Visit `http://localhost:3000/metrics`:
 
-| Metric | Type | Description |
-|--------|------|-------------|
-| `ironic_http_requests_total` | counter | Total number of HTTP requests |
-| `ironic_http_responses_total` | counter | Responses by status code (`status="200"`, `"500"`, etc.) |
-| `ironic_http_request_duration_seconds` | histogram | Request latency with pre-configured buckets |
-| `ironic_http_requests_in_flight` | gauge | Currently executing requests |
-| `ironic_info` | gauge | Framework version (`version="0.1.7"`) |
-
-### Configuration
-
-```rust
-MetricsConfig {
-    latency_buckets: vec![
-        0.001, 0.005, 0.01, 0.025, 0.05,
-        0.1, 0.25, 0.5, 1.0, 2.5, 5.0, 10.0,
-    ],
-    per_endpoint: true,  // set false to aggregate all paths
-}
+```
+# HELP ironic_http_requests_total Total HTTP requests
+ironic_http_requests_total 1547
+# HELP ironic_http_request_duration_seconds Request latency
+ironic_http_request_duration_seconds_bucket{le="0.005"} 120
+ironic_http_request_duration_seconds_bucket{le="0.1"} 890
 ```
 
 ### Prometheus scrape config
@@ -67,23 +59,18 @@ MetricsConfig {
 ```yaml
 scrape_configs:
   - job_name: 'my-api'
-    scrape_interval: 15s
     static_configs:
       - targets: ['localhost:3000']
     metrics_path: '/metrics'
 ```
 
----
-
 ## Resilience (Retry & Circuit Breaker)
-
-Enable the `resilience` feature:
 
 ```toml
 ironic = { features = ["resilience"] }
 ```
 
-### Retry with exponential backoff
+### Retry with backoff
 
 ```rust
 use ironic::resilience::{RetryConfig, RetryLayer};
@@ -91,16 +78,15 @@ use ironic::resilience::{RetryConfig, RetryLayer};
 AxumAdapter::new().configure_router(|r| {
     r.layer(RetryLayer::new(RetryConfig {
         max_retries: 3,
-        base_delay_ms: 100,
-        backoff_multiplier: 2.0,
-        jitter_factor: 0.1,
-        max_delay_ms: 10000,
-        retryable_statuses: vec![408, 429, 500, 502, 503, 504],
+        base_delay_ms: 100,         // Start at 100ms
+        backoff_multiplier: 2.0,    // Double each time
+        max_delay_ms: 10_000,       // Cap at 10 seconds
+        ..RetryConfig::default()
     }));
 });
 ```
 
-### Circuit Breaker
+### Circuit breaker
 
 ```rust
 use ironic::resilience::{CircuitBreakerConfig, CircuitBreakerLayer};
@@ -108,57 +94,50 @@ use std::time::Duration;
 
 AxumAdapter::new().configure_router(|r| {
     r.layer(CircuitBreakerLayer::new(CircuitBreakerConfig {
-        failure_threshold: 5,           // open after 5 failures
-        success_threshold: 2,           // close after 2 successes in half-open
-        recovery_timeout: Duration::from_secs(30),
-        failure_statuses: vec![500, 502, 503, 504],
+        failure_threshold: 5,                    // Open after 5 failures
+        recovery_timeout: Duration::from_secs(30), // Try again after 30s
+        ..CircuitBreakerConfig::default()
     }));
 });
 ```
 
-**State machine:** Closed → (threshold failures) → Open → (recovery timeout) → Half-Open → (threshold successes) → Closed
+Circuit breaker states:
 
----
+```
+Closed ──(5 failures)──► Open ──(30s timeout)──► Half-Open ──(2 successes)──► Closed
+   ▲                                                                              │
+   └──────────────────────────────────────────────────────────────────────────────┘
+```
 
-## Distributed Tracing (OpenTelemetry)
-
-Enable the `telemetry` feature:
+## Distributed Tracing
 
 ```toml
 ironic = { features = ["telemetry"] }
 ```
 
-### Local tracing
-
 ```rust
 use ironic::telemetry::{TelemetryConfig, init_tracing};
 
-#[ironic::main]
-async fn main() {
-    let _guard = init_tracing(TelemetryConfig::default());
-
-    // All tracing spans are captured and logged
-    FrameworkApplication::builder()
-        .module(AppModule::definition())
-        .platform(AxumAdapter::new())
-        .build().await.unwrap()
-        .listen("127.0.0.1:3000").await.unwrap();
-}
-```
-
-### OTLP export to Jaeger/Tempo
-
-```rust
 let _guard = init_tracing(TelemetryConfig {
     service_name: "my-api".into(),
-    otlp_endpoint: Some("http://localhost:4317".into()),
-    sample_rate: 1.0,  // 100% sampling in development; lower in production
+    otlp_endpoint: Some("http://localhost:4317".into()),  // Jaeger/Tempo
+    sample_rate: 1.0,
     ..TelemetryConfig::default()
 });
 ```
 
-Configure log level via `RUST_LOG` environment variable:
+Control log level with `RUST_LOG`:
+
 ```bash
-RUST_LOG=info cargo run
-RUST_LOG=my_api=debug,ironic=trace cargo run
+RUST_LOG=info cargo run                # Normal
+RUST_LOG=my_api=debug cargo run        # Your code at debug
+RUST_LOG=my_api=trace,ironic=info cargo run  # Detailed traces
 ```
+
+## What you learned
+
+- [x] `MetricsLayer` records request metrics automatically
+- [x] `GET /metrics` exposes Prometheus-compatible data
+- [x] `RetryLayer` adds exponential backoff
+- [x] `CircuitBreakerLayer` protects failing dependencies
+- [x] `init_tracing()` enables distributed tracing

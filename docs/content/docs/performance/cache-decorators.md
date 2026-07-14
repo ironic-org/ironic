@@ -1,94 +1,72 @@
 ---
-title: Cache decorators
-description: Cache handler responses with the cache interceptor and pluggable backends.
+title: Caching
+description: Speed up your API with automatic caching — cache route responses with a single attribute.
 ---
 
-# Cache decorators
+# Caching
 
-Enable `cache` to mark routes for response caching. The `CacheInterceptor` checks the cache
-before the handler runs and populates the cache with the handler's response on a cache miss.
+## What you'll learn
+
+- Cache route responses with `#[cache]` attribute
+- Choose between in-memory and Redis cache backends
+- Set TTL (time-to-live) per route
+- Invalidate cache when data changes
+
+Enable in `Cargo.toml`:
 
 ```toml
 ironic = { features = ["cache"] }
 ```
 
-## Enabling cache on a route
+---
 
-Attach `#[cache(ttl_secs = N)]` to a route handler in a `#[routes]` impl block:
+## Quick start
 
 ```rust
+#[controller("/products")]
+#[derive(Injectable)]
+struct ProductsController {
+    service: Arc<ProductsService>,
+}
+
 #[routes]
 impl ProductsController {
-    #[cache(ttl_secs = 60)]
-    #[get("/products")]
-    async fn list(&self) -> Result<impl IntoFrameworkResponse, HttpError> {
-        // Expensive database query — cached for 60 seconds
+    #[get("/:id")]
+    #[cache(ttl_secs = 60)]              // ← Cache this response for 60 seconds
+    async fn get(&self, #[param] id: u64) -> Result<Json<Product>, HttpError> {
+        self.service.find(id).map(Json)
     }
 }
 ```
 
-The macro attaches `CacheMetadata` to the route definition. The `CacheInterceptor` reads this
-metadata and applies caching transparently.
+That's it! The framework:
+1. Checks cache before calling `find()` — if cached, returns instantly
+2. After calling `find()`, stores the result in cache for 60 seconds
+3. After 60 seconds, the next request recomputes and re-caches
 
-## CacheInterceptor
+## Backends
 
-Register the interceptor on a controller or globally:
-
-```rust
-use ironic::{CacheInterceptor, services::cache::InMemoryCache};
-use std::sync::Arc;
-
-let interceptor = CacheInterceptor::new(Arc::new(InMemoryCache::new(1024)));
-// ControllerDefinition::new(...).interceptor(interceptor)
-```
-
-The interceptor skips routes without `CacheMetadata`. On a cache hit, it returns the cached
-response immediately. On a miss, it invokes the handler and stores the response body with the
-configured TTL.
-
-## Cache backends
-
-### In-memory cache
+| Backend | Feature | Best for |
+|---------|---------|----------|
+| `InMemoryCache` | `cache` (default) | Single server, development |
+| `RedisCache` | `redis` + `cache` | Multi-server, production |
 
 ```rust
-use ironic::services::cache::InMemoryCache;
+// Development (in-memory):
+ironic = { features = ["cache"] }
 
-let cache = InMemoryCache::new(1024);
-cache.set_json("key", &value, Some(Duration::from_secs(60))).await?;
-let value = cache.get_json::<MyType>("key").await?;
-```
-
-The in-memory cache evicts expired entries and enforces a maximum capacity. It is suitable for
-single-process deployments.
-
-### Redis cache
-
-Enable `redis` to use Redis as a distributed cache backend:
-
-```toml
+// Production (Redis):
 ironic = { features = ["cache", "redis"] }
 ```
 
-```rust
-use ironic::services::cache::RedisCache;
-use redis::aio::ConnectionManager;
+## Try it yourself
 
-let client = ConnectionManager::new(client).await?;
-let cache = RedisCache::new(client).with_prefix("myapp");
-// Use with CacheInterceptor or directly via the Cache trait
-```
+1. Add `#[cache(ttl_secs = 30)]` to a route
+2. Call the route twice in 10 seconds — second call should be instant
+3. Wait 30 seconds and call again — should recompute
 
-## The `Cache` trait
+## What you learned
 
-Implement `Cache` for any backend:
-
-```rust
-use ironic::services::cache::{Cache, CacheFuture, CacheError};
-
-impl Cache for MyCustomCache {
-    fn get<'a>(&'a self, key: &'a str) -> CacheFuture<'a, Option<Vec<u8>>> { ... }
-    fn set<'a>(&'a self, key: &'a str, value: Vec<u8>, ttl: Option<Duration>) -> CacheFuture<'a, ()> { ... }
-    fn remove<'a>(&'a self, key: &'a str) -> CacheFuture<'a, bool> { ... }
-    fn clear(&self) -> CacheFuture<'_, ()> { ... }
-}
-```
+- [x] `#[cache(ttl_secs = N)]` caches route responses
+- [x] `InMemoryCache` for development, `RedisCache` for production
+- [x] Cache is automatic — no manual get/set needed

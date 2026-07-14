@@ -1,89 +1,93 @@
 ---
-title: WebSocket gateways
-description: Real-time bidirectional communication with gateway classes, rooms, and event-driven message routing.
+title: WebSocket Gateways
+description: Add real-time communication to your API — WebSocket connections, rooms, and broadcasting.
 ---
 
-# WebSocket gateways
+# WebSocket Gateways
 
-Enable `realtime` to define server-side WebSocket gateways that handle connection lifecycle
-events and route incoming messages to handler methods.
+## What you'll learn
+
+- Create WebSocket endpoints
+- Handle incoming messages
+- Broadcast messages to rooms
+- Manage client connections
+
+Enable in `Cargo.toml`:
 
 ```toml
 ironic = { features = ["realtime"] }
 ```
 
-## Defining a gateway
+---
+
+## Quick start
 
 ```rust
-use ironic::{web_socket_gateway, subscribe_message, WsGatewayDefinition};
+use ironic::{HttpError, subscribe_message, web_socket_gateway};
 
-#[web_socket_gateway("/ws")]
-struct ChatGateway;
-```
-
-## Message routing
-
-Use `#[subscribe_message("event")]` on gateway methods to route incoming messages by event name:
-
-```rust
-#[web_socket_gateway("/ws")]
-struct ChatGateway;
+#[web_socket_gateway("/chat")]
+pub struct ChatGateway;
 
 #[routes]
 impl ChatGateway {
     #[subscribe_message("message")]
     async fn on_message(&self, payload: String) -> Result<String, HttpError> {
-        Ok(format!("Echo: {}", payload))
-    }
-
-    #[subscribe_message("join-room")]
-    async fn on_join(&self, room: String) -> Result<(), HttpError> {
-        // Join the client to a named room
-        Ok(())
+        Ok(format!("Echo: {payload}"))
     }
 }
 ```
 
-The event name in `#[subscribe_message("event")]` maps to the `event` field in the incoming
-JSON payload. The method receives the deserialized payload and returns a response that is sent
-back to the calling client only.
+Now clients can connect:
 
-## Connection lifecycle
+```javascript
+const ws = new WebSocket("ws://localhost:3000/chat");
+ws.onopen = () => ws.send(JSON.stringify({ event: "message", data: "Hello!" }));
+ws.onmessage = (e) => console.log("Server says:", e.data);
+// → Server says: Echo: Hello!
+```
 
-Gateways track connected clients automatically and support room management:
+## Rooms and broadcasting
+
+Group clients into rooms:
 
 ```rust
-use ironic::services::realtime::{WsServer, ConnectionId, RoomId};
+use ironic::services::ws::WebSocketServer;
 
-// Broadcasting to all connected clients
-server.broadcast_all("user-joined".to_string(), &payload).await;
+impl ChatGateway {
+    #[subscribe_message("join")]
+    async fn join_room(&self, room: String, client_id: String) {
+        WebSocketServer::join_room(&room, &client_id);
+    }
 
-// Broadcasting to members of a room
-server.broadcast_room(RoomId::new("lobby"), "room-message".to_string(), &payload).await;
-
-// Sending to a specific client
-server.send_to(connection_id, "private".to_string(), &payload).await;
+    #[subscribe_message("broadcast")]
+    async fn broadcast(&self, room: String, message: String) {
+        WebSocketServer::to_room(&room).send(message);
+    }
+}
 ```
 
-## Room management
+### Client flow
 
-```rust
-// Join a room
-server.join(connection_id, RoomId::new("lobby")).await;
+```javascript
+// Client A joins the "lobby" room
+ws.send(JSON.stringify({ event: "join", data: "lobby" }));
 
-// Leave a room
-server.leave(connection_id, RoomId::new("lobby")).await;
+// Client B broadcasts to the lobby
+ws.send(JSON.stringify({ event: "broadcast", data: { room: "lobby", message: "Hello everyone!" }}));
+
+// Client A receives: "Hello everyone!"
 ```
 
-Disconnected clients are removed from all rooms automatically.
+## Try it yourself
 
-## Incoming message format
+1. Create a `ChatGateway` at `/ws/chat`
+2. Add a "message" event handler that echoes back
+3. Connect with a browser WebSocket client
+4. Send a message and verify the echo
 
-Clients send JSON messages with an `event` field that matches the `#[subscribe_message]`
-attribute and a `data` field that is deserialized into the method parameter:
+## What you learned
 
-```json
-{ "event": "message", "data": "Hello, world!" }
-```
-
-Messages with unknown events or malformed JSON are silently discarded.
+- [x] `#[web_socket_gateway]` creates WebSocket endpoints
+- [x] `#[subscribe_message]` handles incoming messages
+- [x] Rooms group clients for broadcasting
+- [x] WebSocket connections work alongside regular HTTP routes

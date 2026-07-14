@@ -1,83 +1,104 @@
 ---
-title: Application services
-description: Caching with decorators, cron and interval scheduling, typed events, WebSockets, and Server-Sent Events.
+title: Application Services
+description: Caching, scheduling, events, and real-time WebSocket communication — all in one feature bundle.
 ---
 
-# Application services
+# Application Services
 
-Enable only the services an application uses, or select `application-services` for all of them.
+Enable all four services with one feature:
+
+```toml
+ironic = { features = ["application-services"] }
+```
+
+Or pick individual services:
+
+```toml
+ironic = { features = ["cache"] }       # Response caching
+ironic = { features = ["scheduling"] }  # Background jobs
+ironic = { features = ["events"] }      # In-process event bus
+ironic = { features = ["realtime"] }    # WebSockets + SSE
+```
+
+---
 
 ## Cache
 
-`cache` provides an asynchronous `Cache` contract, JSON helpers, TTL handling, and pluggable backends.
-
-```toml
-ironic = { features = ["cache"] }
-```
-
-| Type | Description |
-|------|-------------|
-| `InMemoryCache` | Bounded process-local cache with expiry eviction |
-| `RedisCache` | Distributed cache backed by Redis (requires `redis` feature) |
-
-Attach cache metadata to routes with `#[cache(ttl_secs = N)]`. The `CacheInterceptor` checks the
-cache before invoking the handler and populates it on a cache miss.
+Cache route responses automatically:
 
 ```rust
-#[cache(ttl_secs = 60)]
 #[get("/products")]
-async fn list(&self) -> Result<impl IntoFrameworkResponse, HttpError> { ... }
+#[cache(ttl_secs = 60)]
+async fn list(&self) -> Result<Json<Vec<Product>>, HttpError> {
+    // Result is cached for 60 seconds
+}
 ```
 
-See [Cache decorators](/docs/performance/cache-decorators) for full details.
+See [Caching](./cache-decorators) for details.
 
 ## Scheduling
 
-`scheduling` provides cooperative background tasks with deterministic shutdown.
-
-```toml
-ironic = { features = ["scheduling"] }
-```
-
-- `interval(Duration)` — fixed-interval tasks with skipped missed ticks.
-- `cron_schedule("expr")` — cron-expression scheduling (requires `cron` feature).
-- `ScheduledTask::shutdown()` — graceful stop after the current invocation.
-- `ScheduledTask::abort()` — immediate termination.
+Run background tasks:
 
 ```rust
 use ironic::services::scheduling::interval;
 use std::time::Duration;
 
-let task = interval(Duration::from_secs(30), || async move {
-    reconcile().await;
+interval(Duration::from_secs(30), || async move {
+    cleanup_old_data().await;
 });
 ```
 
-Start tasks in `OnModuleInit` and stop them in `OnModuleDestroy`. See [Task scheduling](/docs/performance/scheduling)
-for lifecycle integration and cron examples.
+```rust
+use ironic::services::scheduling::cron_schedule;
+
+cron_schedule("0 3 * * *", || async move {
+    generate_daily_report().await;
+});
+```
+
+See [Task Scheduling](./scheduling) for details.
 
 ## Events
 
-`events` provides a typed, bounded in-process event bus. Publishing applies backpressure.
-
-```toml
-ironic = { features = ["events"] }
-```
+Typed in-process pub/sub:
 
 ```rust
 use ironic::services::events::EventBus;
 
 let bus = EventBus::default();
+
+// Subscribe
 let mut receiver = bus.subscribe::<String>(16).await;
-bus.publish("created".to_string()).await;
-assert_eq!(receiver.recv().await.unwrap().as_str(), "created");
+
+// Publish
+bus.publish("user.created".to_string()).await;
+
+// Receive
+assert_eq!(receiver.recv().await.unwrap(), "user.created");
 ```
 
 ## Realtime
 
-`realtime` exposes native Axum WebSocket upgrade types and a bounded SSE channel. See
-[WebSocket gateways](/docs/advanced/websocket-gateways) for gateway classes, message routing, rooms,
-and broadcasting.
+WebSocket gateways:
 
-Background tasks should be stopped from application lifecycle shutdown hooks. In-memory caches and
-event buses are process-local and do not coordinate multiple replicas.
+```rust
+#[web_socket_gateway("/chat")]
+struct ChatGateway;
+
+#[routes]
+impl ChatGateway {
+    #[subscribe_message("message")]
+    async fn on_message(&self, payload: String) -> Result<String, HttpError> {
+        Ok(format!("Echo: {payload}"))
+    }
+}
+```
+
+See [WebSocket Gateways](./websocket-gateways) for details.
+
+## What you learned
+
+- [x] `application-services` bundles cache, scheduling, events, and realtime
+- [x] Each service can be enabled independently
+- [x] All services integrate with Ironic's DI and lifecycle

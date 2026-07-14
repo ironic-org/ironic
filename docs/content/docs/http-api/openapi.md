@@ -1,66 +1,75 @@
 ---
-title: OpenAPI and Swagger UI
-description: Generate OpenAPI 3.1 JSON from compiled routes and serve Swagger UI with Axum.
+title: OpenAPI
+description: Auto-generate OpenAPI schemas and Swagger UI from your controller definitions — no extra annotations needed.
 ---
 
-# OpenAPI and Swagger UI
+# OpenAPI
 
-OpenAPI and the Axum adapter are included in the main crate:
+## What you'll learn
 
-```toml
-[dependencies]
-ironic = "0.1"
-```
+- Generate OpenAPI specs automatically from your controllers
+- Serve Swagger UI at `/docs`
+- Add descriptions and examples to your API schema
 
-Derive JSON Schemas for request and response DTOs, register reusable components, and wrap the
-adapter:
+---
+
+## Step 1: Add the schema derive
 
 ```rust
-use ironic::{AxumAdapter, OpenApiAxumExt, OpenApiConfig, OpenApiSchema};
+use ironic::OpenApiSchema;
+use serde::Serialize;
 
-#[derive(OpenApiSchema)]
-struct CreateItem {
+#[derive(Serialize, OpenApiSchema)]    // ← Auto-generates OpenAPI schema
+struct UserView {
+    id: u64,
     name: String,
+    email: String,
 }
-
-let adapter = AxumAdapter::new()
-    .with_openapi(
-        OpenApiConfig::new("Items API", "1.0.0")
-            .description("Item management API")
-            .schema::<CreateItem>("CreateItem"),
-    )
-    .swagger_ui("/docs");
 ```
 
-The wrapper discovers every compiled framework route and serves OpenAPI 3.1 JSON at
-`/openapi.json`. Ironic route parameters such as `/:id` become OpenAPI parameters such as
-`/{id}`. The UI path and JSON path are validated before startup and cannot replace an existing GET
-route.
-
-## Operation metadata
-
-Explicit routes can attach summaries, tags, stable operation IDs, parameters, request bodies,
-responses, examples, and security requirements:
+## Step 2: Build and view
 
 ```rust
-use ironic::{
-    OpenApiOperation, OpenApiRequestBody, OpenApiResponse, OpenApiRouteExt,
-};
+#[ironic::main]
+async fn main() {
+    let app = FrameworkApplication::builder()
+        .module(AppModule::definition())
+        .platform(AxumAdapter::new())
+        .build().await.unwrap();
 
-let route = route.openapi(
-    OpenApiOperation::new()
-        .summary("Create an item")
-        .operation_id("createItem")
-        .tag("items")
-        .request_body(OpenApiRequestBody::json::<CreateItem>())
-        .response("201", OpenApiResponse::new("Created")),
-);
+    // Print OpenAPI JSON (useful for CI/CD pipelines)
+    println!("{}", ironic::generate_openapi_json(&app));
+
+    app.listen("127.0.0.1:3000").await.unwrap();
+}
 ```
 
-Register API-key, HTTP bearer, or OAuth 2 authorization-code schemes with
-`OpenApiConfig::security_scheme`, then reference the registered name through
-`OpenApiOperation::security`.
+Visit **`http://localhost:3000/docs`** for the Swagger UI:
 
-Swagger UI assets load from jsDelivr in the browser. The generated JSON endpoint remains local and
-works without those assets. Production deployments with a restrictive content security policy
-should proxy or self-host Swagger UI assets instead of enabling the provided convenience page.
+```
+┌─────────────────────────────────────────┐
+│  Swagger UI                     [docs]  │
+│  ┌─────────────────────────────────────┐│
+│  │ GET    /users          List users  ││
+│  │ POST   /users          Create user ││
+│  │ GET    /users/:id      Get user    ││
+│  │ PUT    /users/:id      Update user ││
+│  │ DELETE /users/:id      Delete user ││
+│  └─────────────────────────────────────┘│
+└─────────────────────────────────────────┘
+```
+
+> **It just works.** Every controller and route is automatically discovered. No extra code needed.
+
+## Try it yourself
+
+1. Create a `ProductView` struct with `id`, `name`, `price`
+2. Add `#[derive(OpenApiSchema)]`
+3. Run the server and visit `/docs`
+4. Verify your Product schema appears in Swagger UI
+
+## What you learned
+
+- [x] `#[derive(OpenApiSchema)]` auto-generates API documentation
+- [x] Swagger UI is available at `/docs`
+- [x] All controllers, routes, and schemas are discovered automatically

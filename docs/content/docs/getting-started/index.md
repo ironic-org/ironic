@@ -1,48 +1,56 @@
 ---
 title: Ironic
-description: A modular, type-safe Rust application framework built on Axum.
+description: The complete beginner's guide to building APIs with Ironic — a Rust framework that makes backend development simple and fun.
 ---
 
-# Ironic documentation
+# Welcome to Ironic
 
-Ironic provides explicit modules, dependency injection, controllers, request pipelines,
-lifecycle hooks, testing utilities, and an Axum adapter without runtime reflection or global
-mutable state.
+Ironic is a **Rust framework for building web APIs**. Think of it like LEGO bricks for your backend — each piece snaps together cleanly, and the compiler tells you if something's wrong before you even run the code.
 
-## Start here
+> **No prior framework experience needed.** If you know basic Rust (structs, functions, `async`), you can build a production API by the end of this guide.
 
-- [Getting started](/docs/getting-started/getting-started) — build and run the first application.
-- [CLI reference](/docs/getting-started/cli) — create, run, test, and generate application source.
-- [Fundamentals](/docs/core/fundamentals) — modules, providers, controllers, and lifecycle.
-- [Configuration](/docs/core/configuration) — typed sources, validation, and redacted secrets.
-- [Security](/docs/http-api/security) — CORS, rate limiting, security headers, CSRF, compression, and secrets.
-- [Examples](/docs/more/examples) — REST, validation, error handling, versioning, serialization, and testing.
-- [Benchmarks](/docs/more/benchmarks) — reproducible framework overhead measurements.
+## What you'll learn
 
-## Feature overview
+This documentation walks you through every feature step by step:
 
-| Area | Feature flags | Documentation |
-|------|---------------|---------------|
-| Validation pipes | `validation` | [Validation pipes](/docs/http-api/validation-pipes) |
-| Exception filters | _(always on)_ | [Exception filters](/docs/http-api/exception-filters) |
-| API versioning | `versioning` | [API versioning](/docs/http-api/api-versioning) |
-| Response serialization | `serialization` | [Response serialization](/docs/http-api/response-serialization) |
-| Compression | `compression` | [Compression](/docs/http-api/compression) |
-| CORS | `security-cors` | [Security](/docs/http-api/security#cors) |
-| Security headers | `security-headers` | [Security](/docs/http-api/security#security-headers) |
-| Rate limiting | `security-rate-limit` | [Security](/docs/http-api/security#rate-limiting) |
-| CSRF | `security-csrf` | [Security](/docs/http-api/security#csrf) |
-| Cache decorators | `cache` | [Cache decorators](/docs/performance/cache-decorators) |
-| Task scheduling | `scheduling` | [Task scheduling](/docs/performance/scheduling) |
-| Cron scheduling | `cron` | [Task scheduling](/docs/performance/scheduling#cron-expression-tasks) |
-| WebSocket gateways | `realtime` | [WebSocket gateways](/docs/advanced/websocket-gateways) |
-| Custom decorators | `custom-decorators` | [Custom decorators](/docs/modules/custom-decorators) |
-| Dynamic modules | _(always on)_ | [Dynamic modules](/docs/modules/dynamic-modules) |
-| Optional DI deps | _(always on)_ | [Dependency management](/docs/core/dependency-management#optional-di-dependencies) |
-| Transport adapters | `transport-*` | [Distributed](/docs/performance/distributed#microservice-transports) |
-| Database integrations | `database` | [Database integrations](/docs/data-auth/database-integrations) |
-| Authentication | `authentication` | [Authentication](/docs/data-auth/authentication) |
-| OpenAPI | _(always on)_ | [OpenAPI](/docs/http-api/openapi) |
+| Section | What you'll build |
+|---------|-------------------|
+| [Getting Started](./getting-started) | Install the CLI, create your first project, and see it running in 60 seconds |
+| [Core Concepts](./fundamentals) | Understand Modules, Controllers, Services, and Dependency Injection — the 4 building blocks |
+| [CLI Reference](./cli) | Master the command-line tools for scaffolding, generating code, and inspecting your app |
+| [Configuration](./configuration) | Load settings from files, environment variables, and keep secrets safe |
+| [HTTP & API](./api-versioning) | Routes, versioning, validation, error handling, serialization, compression, and OpenAPI |
+| [Security](./security) | CORS, rate limiting, CSRF protection, and security headers |
+| [Database & Auth](./database-integrations) | Connect to PostgreSQL, MySQL, MongoDB, Redis. Add login with JWT, OAuth, or sessions |
+| [Performance](./cache-decorators) | Caching, background jobs, cron scheduling, and distributed systems |
+| [Advanced](./websocket-gateways) | WebSockets, custom decorators, plugins, and devtools |
+| [Observability](./observability) | Metrics, tracing, and production monitoring |
 
-The framework remains usable through explicit Rust APIs; procedural macros only generate calls to
-those public contracts.
+## How the docs work
+
+Every page follows the same structure:
+
+1. **What you'll learn** — goals for the section
+2. **The big picture** — a simple analogy or diagram
+3. **Step-by-step code** — copy-paste examples with line-by-line explanations
+4. **Try it yourself** — a quick exercise
+5. **Common mistakes** — things that trip people up
+6. **What you learned** — a summary checklist
+
+## Quick navigation
+
+### I'm new here
+Start with [Getting Started](./getting-started) → [Fundamentals](./fundamentals) → [CLI](./cli)
+
+### I want to build an API
+[Fundamentals](./fundamentals) → [API Versioning](./api-versioning) → [Validation](./validation-pipes) → [Error Handling](./exception-filters)
+
+### I want to add a database
+[Database Integrations](./database-integrations) → [Authentication](./authentication)
+
+### I'm deploying to production
+[Security](./security) → [Observability](./observability) → [Performance](./cache-decorators)
+
+---
+
+**Ready?** Start with [Getting Started](./getting-started) — you'll have a running API in under a minute.

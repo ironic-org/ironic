@@ -1,76 +1,113 @@
 ---
-title: API versioning
-description: Version controllers with URI prefix, Accept-Version header, or media type strategies.
+title: API Versioning
+description: Version your API endpoints using URI prefixes, HTTP headers, or media types — without breaking existing clients.
 ---
 
-# API versioning
+# API Versioning
 
-Enable `versioning` to attach version metadata to controllers. Ironic supports three versioning
-strategies that route requests to the correct controller at runtime.
+## What you'll learn
 
-```toml
-ironic = { features = ["versioning"] }
+- Add version prefixes to your API routes (e.g., `/v2/items`)
+- Use header-based or media-type versioning
+- Run multiple versions of the same endpoint simultaneously
+- Upgrade clients gradually without breaking anything
+
+## The big picture
+
+When you change your API, old clients need to keep working. Versioning lets you run **v1 and v2 side by side**:
+
+```
+Client A (old) ──► GET /v1/items ──► Returns old format
+Client B (new) ──► GET /v2/items ──► Returns new format
 ```
 
-## Strategies
+## URI versioning (simplest)
 
-| Strategy | How it works | Example |
-|----------|-------------|---------|
-| `Uri` | Version prefix in the URI path | `/v1/users` → Controller v1 |
-| `Header` | `Accept-Version` header on the request | `Accept-Version: 2024-01-01` |
-| `MediaType` | Version parameter in `Accept` header | `Accept: application/vnd.api+json;version=1` |
-
-## Declaring versions
+Add a version prefix to your route URLs:
 
 ```rust
-use ironic::{controller, VersionMetadata, VersioningStrategy};
+use ironic::prelude::*;
+use ironic::{VersionMetadata, VersioningStrategy};
 
-#[controller("/users", version = "1", strategy = "uri")]
-struct UsersV1;
+#[controller("/items")]
+#[derive(Injectable)]
+struct ItemsController { /* ... */ }
 
-#[routes]
-impl UsersV1 {
-    #[get("/")]
-    async fn list(&self) -> Result<impl IntoFrameworkResponse, HttpError> {
-        // Handle v1 listing
-    }
-}
-
-#[controller("/users", version = "2", strategy = "uri")]
-struct UsersV2;
-
-#[routes]
-impl UsersV2 {
-    #[get("/")]
-    async fn list(&self) -> Result<impl IntoFrameworkResponse, HttpError> {
-        // Handle v2 listing with a different response shape
-    }
-}
+// v2 version of the same controller
+ControllerDefinition::new::<ItemsController>("/items", provider)
+    .unwrap()
+    .version(VersionMetadata::new("2", VersioningStrategy::Uri))
+    // Creates: /v2/items
 ```
 
-## Header-based versioning
+Now both `/items` (v1) and `/v2/items` (v2) work:
+
+```bash
+curl http://localhost:3000/items         # → v1 response
+curl http://localhost:3000/v2/items       # → v2 response
+```
+
+## Header versioning
+
+Clients specify the version in a request header:
 
 ```rust
-#[controller("/reports", version = "2024-01-01", strategy = "header")]
-struct ReportsController;
+ControllerDefinition::new::<ItemsController>("/items", provider)
+    .unwrap()
+    .version(VersionMetadata::new("2", VersioningStrategy::Header))
+    // Matches: Accept-Version: 2
 ```
 
-When the client sends `Accept-Version: 2024-01-01`, requests are routed to this controller.
-Requests without the header or with an unmatched version receive `404 Not Found`.
+```bash
+curl -H "Accept-Version: 2" http://localhost:3000/items    # → v2
+curl http://localhost:3000/items                            # → v1 (default)
+```
 
-## Chaining multiple versions
+## Media-type versioning
 
-Register multiple versions of the same path prefix and the platform adapter resolves the best
-match at dispatch time. Routes from all registered versions are compiled into a single route
-table with the version strategy applied.
-
-## `VersionMetadata`
-
-The metadata type is reusable beyond controllers. Attach it to individual routes when a
-controller exposes routes at different versions:
+Clients specify the version in the Accept header:
 
 ```rust
-use ironic::{VersionMetadata, VersioningStrategy, RouteMetadata};
-
-route.metadata(VersionMetadata::new("2", VersioningStrategy::Uri));
+ControllerDefinition::new::<ItemsController>("/items", provider)
+    .unwrap()
+    .version(VersionMetadata::new("2", VersioningStrategy::MediaType))
+    // Matches: Accept: application/vnd.myapp.v2+json
 ```
+
+## Multiple versions on the same controller
+
+You can register the same controller multiple times with different versions:
+
+```rust
+let v1 = ControllerDefinition::new::<ItemsController>("/items", provider.clone())
+    .unwrap()
+    .version(VersionMetadata::new("1", VersioningStrategy::Uri));
+
+let v2 = ControllerDefinition::new::<ItemsController>("/items", provider)
+    .unwrap()
+    .version(VersionMetadata::new("2", VersioningStrategy::Uri));
+```
+
+## Which strategy should I use?
+
+| Strategy | When to use | Example |
+|----------|------------|---------|
+| **URI** | Public APIs, simple to understand | `/v1/items`, `/v2/items` |
+| **Header** | Internal services, cleaner URLs | `Accept-Version: 2` |
+| **Media-Type** | REST purists, content negotiation | `Accept: application/vnd.api.v2+json` |
+
+> **Start with URI versioning.** It's the easiest for clients to understand and debug.
+
+## Try it yourself
+
+1. Create a controller at `/greet` that returns `"Hello v1"`
+2. Add a v2 version that returns `"Hello v2"`
+3. Test both: `curl /greet` and `curl /v2/greet`
+4. Add a v3 that uses header versioning
+
+## What you learned
+
+- [x] Add URI prefixes with `VersioningStrategy::Uri`
+- [x] Use header-based versioning with `VersioningStrategy::Header`
+- [x] Run multiple API versions side by side
+- [x] Choose the right versioning strategy for your use case

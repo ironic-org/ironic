@@ -1,47 +1,37 @@
 ---
-title: Response compression
-description: Serve compressed responses with gzip, brotli, or zstd via the Axum adapter.
+title: Compression
+description: Compress API responses with gzip, brotli, or zstd — reduce bandwidth and speed up clients.
 ---
 
-# Response compression
+# Compression
 
-Enable `compression` to compress responses with gzip, brotli, or zstd. Compression is applied as
-a Tower layer through the Axum adapter and respects the client's `Accept-Encoding` header.
+Enable in `Cargo.toml`:
 
 ```toml
 ironic = { features = ["compression"] }
 ```
 
-## Enabling compression
+Add one line to enable:
 
 ```rust
-use ironic::AxumAdapter;
-
-let adapter = AxumAdapter::new().compression();
+FrameworkApplication::builder()
+    .platform(AxumAdapter::new().compression())  // ← That's it!
+    .build().await.unwrap();
 ```
 
-The layer automatically selects the best encoding from what the client advertises. Responses
-smaller than approximately 1 KB and responses with non-compressible content types are skipped.
+The server automatically negotiates the best format the client supports:
 
-## Supported encodings
+| Client supports | Server sends |
+|----------------|-------------|
+| brotli + gzip | brotli (best compression) |
+| gzip only | gzip |
+| zstd + gzip | zstd |
+| nothing | uncompressed |
 
-| Encoding | `Accept-Encoding` value | Priority |
-|----------|------------------------|----------|
-| Brotli   | `br`                   | Highest  |
-| Gzip     | `gzip`                 | Medium   |
-| Zstd     | `zstd`                 | Low      |
+> **When to use:** Always enable compression in production. Typical JSON API responses compress 5-10x smaller. The CPU cost is negligible compared to network savings.
 
-## Content-type filtering
+## What you learned
 
-Only responses with compressible media types are processed. Text formats (`text/html`,
-`application/json`, `application/xml`, etc.) are compressed; binary formats (`image/*`,
-`application/octet-stream`) pass through unchanged.
-
-## Conditional compression
-
-Exclude specific routes from compression by attaching metadata:
-
-```rust
-RouteDefinition::new(HttpMethod::GET, "/stream", "stream", handler_fn(handler))?
-    .middleware(NoCompressionMiddleware);
-```
+- [x] `.compression()` enables gzip/brotli/zstd automatically
+- [x] The best format is negotiated per client
+- [x] Works with zero additional configuration

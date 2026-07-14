@@ -1,78 +1,135 @@
 ---
-title: Exception filters
-description: Catch and transform errors at global, controller, and route scope with typed exception filters.
+title: Exception Filters
+description: Handle errors gracefully — catch exceptions, transform them into user-friendly responses, and log what went wrong.
 ---
 
-# Exception filters
+# Exception Filters
 
-Exception filters let you intercept errors thrown by guards, interceptors, pipes, or handlers and
-transform them into controlled responses. Filters are typed and follow scope precedence: route
-filters run first, then controller filters, then global filters.
+## What you'll learn
 
-## Defining a filter
+- Catch errors at the controller, route, or application level
+- Transform raw errors into structured JSON responses
+- Create custom error codes for your API
+- Return proper HTTP status codes (404, 400, 500)
 
-Implement the `ExceptionFilter` trait:
+## The big picture
+
+Errors happen. Exception filters let you handle them **gracefully** instead of crashing:
+
+```
+Handler returns Err(...)
+      │
+      ▼
+┌──────────────────┐
+│ Exception Filter │ ← Transforms the error
+└──────┬───────────┘
+       ▼
+  {
+    "error": "USER_NOT_FOUND",
+    "message": "User with id 42 was not found",
+    "status": 404
+  }
+```
+
+## Built-in errors
+
+Ironic provides `HttpError` with common HTTP status codes:
 
 ```rust
-use ironic::{ExceptionFilter, FilterContext, HttpError, FrameworkResponse, HttpStatus};
+use ironic::prelude::*;
 
-struct ValidationFilter;
+// In your service or controller:
+HttpError::not_found("USER_NOT_FOUND", "User #42 does not exist")
+// → 404 with error code
 
-impl ExceptionFilter for ValidationFilter {
-    fn catch(&self, error: &HttpError, _ctx: &FilterContext) -> Result<FrameworkResponse, HttpError> {
-        if error.code() == "IRONIC_VALIDATION_FAILED" {
+HttpError::bad_request("INVALID_INPUT", "Email is required")
+// → 400 with error code
+
+HttpError::unauthorized("UNAUTHORIZED", "Invalid token")
+// → 401 with error code
+
+HttpError::forbidden("FORBIDDEN", "Admin access required")
+// → 403 with error code
+
+HttpError::internal("DB_ERROR", "Database connection failed")
+// → 500 with error code
+```
+
+## Creating a custom filter
+
+Catch specific errors and transform them:
+
+```rust
+use ironic::{ExceptionFilter, FilterContext, FrameworkResponse, HttpError, HttpStatus};
+
+pub struct NotFoundFilter;
+
+impl ExceptionFilter for NotFoundFilter {
+    fn catch(
+        &self,
+        error: &HttpError,
+        _ctx: &FilterContext,
+    ) -> Result<FrameworkResponse, HttpError> {
+        if error.status() == HttpStatus::NOT_FOUND {
             Ok(FrameworkResponse::error(
-                HttpStatus::UNPROCESSABLE_ENTITY,
-                "VALIDATION",
-                error.message(),
+                HttpStatus::NOT_FOUND,
+                "CUSTOM_NOT_FOUND",
+                format!("Resource not found: {}", error.message()),
             ))
         } else {
-            Err(HttpError::bad_request("UNHANDLED", "not handled by this filter"))
+            Err(error.clone())  // ← Pass through errors we don't handle
         }
     }
 }
 ```
 
-## Filter context
+## Where to apply filters
 
-`FilterContext` provides the route metadata that was active when the error occurred:
-
-```rust
-use ironic::{ExceptionFilter, FilterContext, HttpError, FrameworkResponse, CacheMetadata};
-
-struct CacheAwareFilter;
-
-impl ExceptionFilter for CacheAwareFilter {
-    fn catch(&self, error: &HttpError, ctx: &FilterContext) -> Result<FrameworkResponse, HttpError> {
-        if let Some(cache) = ctx.route_metadata().get::<CacheMetadata>() {
-            // Custom handling when caching was enabled on this route
-        }
-        Err(HttpError::bad_request("DEFAULT", "fall through"))
-    }
-}
-```
-
-## Scope registration
+### Route level (most specific)
 
 ```rust
-// Global: catches errors from every route
-CompiledHttpApplication::new(container, routes)
-    .exception_filter(Arc::new(GlobalExceptionFilter));
-
-// Controller: catches errors from all routes in this controller
-ControllerDefinition::new::<UsersController>("/users", provider)?
-    .exception_filter(Arc::new(ControllerExceptionFilter));
-
-// Route: catches errors only from this specific route
-RouteDefinition::new(HttpMethod::GET, "/users", "list", handler_fn(handler))?
-    .exception_filter(Arc::new(RouteExceptionFilter));
+RouteDefinition::new(HttpMethod::GET, "/:id", "get_user", handler)
+    .unwrap()
+    .exception_filter(Arc::new(NotFoundFilter))
 ```
 
-## Default behavior
+### Controller level
 
-When no filter matches an error, Ironic wraps the error as a JSON response with the status code,
-error code, and safe message from the `HttpError`. The default shape is:
-
-```json
-{ "status": 400, "code": "RF_HTTP_...", "message": "..." }
+```rust
+ControllerDefinition::new::<UserController>("/users", provider)
+    .unwrap()
+    .exception_filter(Arc::new(NotFoundFilter))
 ```
+
+### Application level (catches everything)
+
+```rust
+FrameworkApplication::builder()
+    .exception_filter(Arc::new(GlobalErrorFilter))
+    .build().await.unwrap();
+```
+
+## Filter priority
+
+More specific filters run first. If they pass, the next level runs:
+
+```
+Route filter ──► Controller filter ──► Global filter ──► Default handler
+  (tried first)     (tried next)         (last resort)     (returns 500)
+```
+
+> **Best practice:** Put specific filters at the route level and a general "catch-all" at the global level.
+
+## Try it yourself
+
+1. Create a `ValidationErrorFilter` that catches validation errors
+2. Transform them into `{"error": "VALIDATION", "fields": {...}}`
+3. Apply it at the controller level
+4. Send invalid data and verify the response format
+
+## What you learned
+
+- [x] Use `HttpError` for common HTTP errors (404, 400, 401, 403, 500)
+- [x] Create custom filters with `ExceptionFilter` trait
+- [x] Apply filters at route, controller, or global level
+- [x] Filters cascade from most specific to most general

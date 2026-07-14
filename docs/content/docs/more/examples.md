@@ -1,31 +1,56 @@
 ---
 title: Examples
-description: Hello world, REST, validation, errors, versioning, serialization, and isolated application testing.
+description: Real-world example applications built with Ironic — REST APIs, WebSockets, validation, error handling, and testing.
 ---
 
 # Examples
 
-- [`examples/hello-world`](../../../examples/hello-world/src/main.rs) demonstrates macros, DI, one
-  route, Axum construction, and in-process parity testing.
-- [`examples/rest-api`](../../../examples/rest-api/src/main.rs) demonstrates GET and POST routes,
-  JSON extraction, validation errors, domain not-found errors, `HealthModule`, OpenAPI schema
-  generation, Swagger UI, and `TestApplication`.
-- [`examples/versioning`](../../../examples/versioning/src/main.rs) demonstrates URI prefix, header,
-  and media-type API versioning strategies.
-- [`examples/serialization`](../../../examples/serialization/src/main.rs) demonstrates
-  `#[derive(Serializable)]` with `#[exclude]` and field-role based exposure.
-- [Validation pipes tests](../../../crates/ironic-pipes/tests/) demonstrate `ValidationPipe` with
-  `garde` integration, including parameter-level and body-level validation.
-- [Exception filters tests](../../../crates/ironic-exception-filters/tests/) demonstrate
-  `ExceptionFilter` chaining at the route, controller, and global level.
-- [Ironic testing integration tests](../../../crates/ironic-testing/tests/testing.rs)
-  demonstrate provider/value/factory overrides, query/header/body extraction, JSON assertions,
-  structured error assertions, and lifecycle cleanup.
-- [Explicit API tests](../../../crates/ironic-platform-axum/src/lib.rs) show the same controller
-  and route behavior without procedural macros.
+Each example is a complete, runnable project:
 
-Run all examples with:
+| Example | What it demonstrates |
+|---------|---------------------|
+| [hello-world](https://github.com/ironic-org/ironic/tree/main/examples/hello-world) | Minimal API with a controller, service, and JSON responses |
+| [rest-api](https://github.com/ironic-org/ironic/tree/main/examples/rest-api) | Validation, versioning, serialization, compression, security, and testing |
+
+## Running an example
 
 ```bash
-cargo test --workspace
+git clone https://github.com/ironic-org/ironic
+cd ironic/examples/rest-api
+ironic start
 ```
+
+## hello-world
+
+The simplest possible Ironic app — a single endpoint:
+
+```rust
+#[controller("/users")]
+struct UsersController;
+
+#[routes]
+impl UsersController {
+    #[get("/:id")]
+    async fn get(&self, #[param] id: u64) -> Result<Json<UserView>, HttpError> {
+        // ...
+    }
+}
+```
+
+## rest-api
+
+A production-style API covering:
+
+- Request validation with `garde` and `ValidationPipe`
+- API versioning (URI prefix, headers, media types)
+- Response serialization with role-based field rules
+- Custom exception filters
+- Compression (gzip, brotli, zstd)
+- CORS and security headers
+- Full test suite with `TestApplication`
+
+## What you learned
+
+- [x] Examples demonstrate real-world patterns
+- [x] `hello-world` = minimal starting point
+- [x] `rest-api` = production feature showcase

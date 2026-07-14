@@ -1,104 +1,127 @@
 ---
-title: Validation pipes
-description: Transform and validate request parameters with typed built-in pipes and custom validation logic.
+title: Validation & Pipes
+description: Validate request data automatically with garde — catch bad input before it reaches your business logic.
 ---
 
-# Validation pipes
+# Validation & Pipes
 
-Ironic pipes sit between parameter extraction and the handler. Each pipe transforms or validates one
-handler parameter and short-circuits the request on failure.
+## What you'll learn
 
-## Built-in parsing pipes
+- Add `#[garde]` validation rules to your DTOs
+- Use `ValidationPipe` to enforce rules automatically
+- Return helpful error messages when validation fails
+- Validate numbers, strings, and custom rules
 
-```rust
-use ironic::{parse_int, parse_float, parse_bool, parse_uuid};
+## The big picture
 
-RouteDefinition::new(HttpMethod::GET, "/user/:id", "get_user", handler_fn(handler))?
-    .parameter_with_pipe(PathParameter::<String>::new("id"), parse_int())
-    .parameter_with_pipe(QueryParameters::<String>::new(), parse_float())
+Bad data should never reach your business logic. Validation catches it **at the door**:
+
+```
+Request ──► ValidationPipe ──► ❌ "title is too short" (400 Bad Request)
+                  │
+                  ▼ (valid)
+              Controller → Service → ✅ Success
 ```
 
-| Pipe | Input | Output | Error code |
-|------|-------|--------|------------|
-| `parse_int()` | `String` | `i64` | `RF_PARSE_INT_FAILED` |
-| `parse_float()` | `String` | `f64` | `RF_PARSE_FLOAT_FAILED` |
-| `parse_bool()` | `String` | `bool` | `RF_PARSE_BOOL_FAILED` |
-| `parse_uuid()` | `String` | `Uuid` | `RF_PARSE_UUID_FAILED` |
-
-## Validation with `garde`
-
-Enable `validation` to use the [`garde`](https://crates.io/crates/garde) derive macro for declarative
-field validation:
+## Step 1: Enable validation
 
 ```toml
+# Cargo.toml
 ironic = { features = ["validation"] }
+garde = "0.22"
 ```
+
+## Step 2: Add validation rules
+
+Use `#[derive(Validate)]` and `#[garde(...)]` attributes:
 
 ```rust
 use garde::Validate;
-use ironic::{JsonBody, ValidationPipe};
+use serde::Deserialize;
 
-#[derive(Validate)]
-struct CreateUser {
-    #[garde(length(min = 3, max = 50))]
-    name: String,
+#[derive(Debug, Deserialize, Validate)]
+pub struct CreateUserDto {
+    #[garde(length(min = 2, max = 100))]
+    pub name: String,                    // ← Must be 2-100 characters
+
     #[garde(email)]
-    email: String,
-    #[garde(range(min = 18, max = 120))]
-    age: u8,
-}
+    pub email: String,                   // ← Must be a valid email
 
-RouteDefinition::new(HttpMethod::POST, "/users", "create_user", handler_fn(handler))?
-    .parameter_with_pipe(JsonBody::<CreateUser>::new(), ValidationPipe::new())
-```
+    #[garde(range(min = 13, max = 150))]
+    pub age: u8,                         // ← Must be 13-150
 
-`ValidationPipe` calls `garde::Validate::validate` on the extracted value and returns a
-`422 Unprocessable Entity` with `IRONIC_VALIDATION_FAILED` on failure.
-
-## Custom pipes
-
-Implement `ParameterPipe` for ad-hoc validation or transformation:
-
-```rust
-use ironic::{ParameterPipe, PipeFuture, ExtractedValue, HttpError, RequestContext};
-
-struct TrimPipe;
-
-impl ParameterPipe for TrimPipe {
-    fn transform<'a>(&'a self, value: ExtractedValue, _ctx: &'a mut RequestContext) -> PipeFuture<'a> {
-        Box::pin(async move {
-            let s = value.downcast::<String>().map_err(|_| {
-                HttpError::bad_request("TYPE_ERROR", "expected string")
-            })?;
-            Ok(Box::new(s.trim().to_string()) as ExtractedValue)
-        })
-    }
-    fn description(&self) -> &'static str { "trim" }
+    #[garde(skip)]                       // ← Don't validate this field
+    pub notes: Option<String>,
 }
 ```
 
-Create a factory for ergonomic chaining:
+## Step 3: Apply ValidationPipe
 
 ```rust
-use ironic::pipe_fn;
+use ironic::{ValidationPipe, JsonBody};
+use std::sync::Arc;
 
-let trim_pipe = pipe_fn::<String, String, _>(|value| Ok(value.trim().to_string()));
+// In your controller's route definition:
+let route = RouteDefinition::new(
+    HttpMethod::POST, "/", "create_user",
+    handler_fn(|_c: Arc<UserController>, mut args| async move {
+        let input = args.take::<CreateUserDto>(0)?;
+        // input is guaranteed valid here!
+        Ok(Json(format!("Created user {}", input.name)))
+    }),
+)
+.unwrap()
+.parameter_with_pipe(
+    JsonBody::<CreateUserDto>::new(),
+    Arc::new(ValidationPipe),   // ← Validates before handler runs
+);
 ```
 
-## Pipe scoping
+## Built-in validation rules
 
-Pipes can be registered at three levels, applied in order of **global → controller → route**:
+| Rule | What it checks | Example |
+|------|---------------|---------|
+| `#[garde(length(min = 1, max = 100))]` | String length | Title must be 1-100 chars |
+| `#[garde(range(min = 0, max = 100))]` | Number range | Score must be 0-100 |
+| `#[garde(email)]` | Valid email format | `user@domain.com` |
+| `#[garde(url)]` | Valid URL format | `https://example.com` |
+| `#[garde(pattern("^[a-z]+$"))]` | Regex match | Only lowercase letters |
+| `#[garde(required)]` | Option must be Some | Field cannot be None |
+| `#[garde(skip)]` | Don't validate | Skip this field |
 
-```rust
-// Global pipe applied to every parameter in the application
-CompiledHttpApplication::new(container, routes)
-    .pipe(&ValidationPipe::new());
+## What happens when validation fails?
 
-// Controller pipe applied to every route parameter
-ControllerDefinition::new::<UsersController>("/users", provider)?
-    .pipe(ValidatorPipe::new());
+The client gets a clear error response:
 
-// Route-level pipe applied to this parameter only
-RouteDefinition::new(...)?
-    .parameter_with_pipe(JsonBody::new(), parse_int());
+```json
+// POST /users with { "name": "A", "age": 200 }
+{
+  "error": "VALIDATION_FAILED",
+  "message": "Validation failed: name: length must be at least 2. age: must be between 13 and 150"
+}
 ```
+
+HTTP status code: **400 Bad Request**
+
+## Try it yourself
+
+1. Create a `CreateProductDto` with title (1-256 chars) and price (0.01-99999.99)
+2. Apply `ValidationPipe` to a POST route
+3. Test with invalid data: empty title, negative price
+4. Verify you get 400 errors with clear messages
+
+## Common mistakes
+
+| Mistake | Fix |
+|---------|-----|
+| Forgot `#[garde(...)]` on a field | The field won't be validated! Every field needs a rule or `#[garde(skip)]` |
+| `garde` not in Cargo.toml | Add both `ironic = { features = ["validation"] }` AND `garde = "0.22"` |
+| Wrong type for range | `#[garde(range(min = 0))]` works on numbers, not strings |
+| Validation not applied | Make sure `ValidationPipe` is added to the route with `.parameter_with_pipe()` |
+
+## What you learned
+
+- [x] Add validation rules with `#[derive(Validate)]` and `#[garde(...)]`
+- [x] Apply `ValidationPipe` to enforce rules
+- [x] Return 400 errors with helpful messages
+- [x] Skip optional fields with `#[garde(skip)]`

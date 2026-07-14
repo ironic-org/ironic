@@ -1,20 +1,50 @@
 ---
-title: Devtools and plugins
-description: Inspect compiled applications and extend modules with safe plugins.
+title: DevTools & Plugins
+description: Explore your app visually — module graph, route inspector, and plugin system for extensibility.
 ---
 
-# Devtools and plugins
+# DevTools & Plugins
 
-The `devtools` feature captures modules, provider scopes/dependencies, and routes from compiled
-runtime state. Mount `ecosystem::devtools::router(snapshot)` under a development-only path. It serves
-a small HTML route table and a machine-readable `snapshot.json`.
+Enable in `Cargo.toml`:
 
-Never expose the devtools router publicly: type names and application topology are operational
-metadata. The UI is read-only and does not resolve providers, execute handlers, or mutate runtime
-state.
+```toml
+ironic = { features = ["devtools"] }
+```
 
-The `plugins` feature provides a safe, statically linked `Plugin` trait and ordered
-`PluginRegistry`. Plugins transform `ModuleDefinitionBuilder`, so their providers, controllers,
-imports, exports, and lifecycle hooks pass through the normal graph validator. Duplicate stable
-plugin names are rejected. Native dynamic-library loading is intentionally excluded because it
-would require an unstable Rust ABI and unsafe loading boundary.
+## DevTools UI
+
+Visit `http://localhost:3000/dev` to see:
+
+- **Module graph** — visual map of all modules and their dependencies
+- **Route inspector** — every route with its HTTP method, path, and handler
+- **Provider list** — all registered services with their scope and dependencies
+
+## Plugin system
+
+Create reusable plugins that add functionality to any app:
+
+```rust
+use ironic::Plugin;
+
+struct AuditPlugin;
+
+impl Plugin for AuditPlugin {
+    fn name(&self) -> &str { "audit" }
+
+    fn register(&self, app: &mut ironic::PluginRegistry) {
+        app.add_module(AuditModule::definition());
+        app.add_middleware(AuditMiddleware);
+    }
+}
+
+// In your main:
+let registry = PluginRegistry::new()
+    .plugin(AuditPlugin)
+    .plugin(MetricsPlugin);
+```
+
+## What you learned
+
+- [x] DevTools UI shows modules, routes, and providers
+- [x] Plugins package functionality for reuse
+- [x] `PluginRegistry` manages plugin lifecycle

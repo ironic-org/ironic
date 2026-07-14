@@ -67,6 +67,9 @@ distributed = ["queues", "microservices", "cqrs", "sagas", "grpc", "graphql"]
 plugins = []
 devtools = ["axum/json"]
 plugin-ecosystem = ["plugins", "devtools"]
+metrics = []
+resilience = []
+telemetry = ["dep:tracing-subscriber"]
 security = ["security-cors", "security-rate-limit", "security-headers", "security-csrf"]
 security-cors = ["dep:tower-http"]
 security-rate-limit = ["dep:tower-http", "dep:redis"]
@@ -162,6 +165,7 @@ uuid = { workspace = true, optional = true }
 lapin = { workspace = true, optional = true }
 kafka = { workspace = true, optional = true }
 ureq = { version = "2.12", features = ["json"] }
+tracing-subscriber = { workspace = true, optional = true }
 
 [dev-dependencies]
 tempfile.workspace = true
@@ -215,6 +219,7 @@ chrono = { version = "0.4.42", features = ["serde"] }
 uuid = { version = "1.16.0", features = ["v4", "serde"] }
 lapin = { version = "4.10.0", default-features = false, features = ["rustls"] }
 kafka = { version = "0.10.0", default-features = false, features = ["snappy"] }
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 
 ironic = { path = ".", version = "0.1.0" }
 ironic-macros = { path = "crates/ironic-macros", version = "0.1.0" }

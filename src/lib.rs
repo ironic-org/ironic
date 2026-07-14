@@ -36,6 +36,15 @@ mod di;
 ))]
 #[path = "../crates/ironic-distributed/src/lib.rs"]
 pub mod distributed;
+#[cfg(feature = "metrics")]
+#[path = "../crates/ironic-metrics/src/lib.rs"]
+pub mod metrics;
+#[cfg(feature = "resilience")]
+#[path = "../crates/ironic-resilience/src/lib.rs"]
+pub mod resilience;
+#[cfg(feature = "telemetry")]
+#[path = "../crates/ironic-telemetry/src/lib.rs"]
+pub mod telemetry;
 
 #[cfg(any(feature = "plugins", feature = "devtools"))]
 #[path = "../crates/ironic-devtools/src/lib.rs"]

@@ -43,6 +43,7 @@ pub fn name_from_directory(directory: &Path) -> Result<String, CliError> {
 /// # Errors
 ///
 /// Returns [`CliError`] when the destination is occupied or files cannot be created.
+#[allow(clippy::too_many_lines)]
 pub fn create(
     destination: &Path,
     name: &str,
@@ -130,7 +131,7 @@ pub fn create(
     let cidir = destination.join(".github/workflows");
     fs::create_dir_all(&cidir).map_err(|error| CliError::io("create directory", &cidir, error))?;
     fs::write(cidir.join("ci.yml"), ci_workflow())
-        .map_err(|error| CliError::io("write", &cidir.join("ci.yml"), error))?;
+        .map_err(|error| CliError::io("write", cidir.join("ci.yml"), error))?;
 
     // Validate all owned paths before writing. Allow pre-existing non-source files
     // (README.md, .gitignore, etc.) to be preserved; error on source file conflicts.

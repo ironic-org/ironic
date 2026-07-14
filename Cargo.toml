@@ -225,8 +225,8 @@ lapin = { version = "4.10.0", default-features = false, features = ["rustls"] }
 kafka = { version = "0.10.0", default-features = false, features = ["snappy"] }
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 
-ironic = { path = ".", version = "0.2.4" }
-ironic-macros = { path = "crates/ironic-macros", version = "0.2.4" }
+ironic = { path = ".", version = "0.2.5" }
+ironic-macros = { path = "crates/ironic-macros", version = "0.2.5" }
 
 [workspace.lints.rust]
 unsafe_code = "forbid"

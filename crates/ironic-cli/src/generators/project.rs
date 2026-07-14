@@ -262,7 +262,7 @@ fn example_test_integration() -> String {
 // ── Infrastructure templates ──────────────────────────────────────────
 
 fn dotenv_example() -> String {
-    "# Server\nSERVER_HOST=0.0.0.0\nSERVER_PORT=3000\n\n# Logging\nRUST_LOG=info\n\n# Database (uncomment to use)\n# DATABASE_URL=postgres://user:password@localhost:5432/mydb\n\n# Redis (uncomment to use)\n# REDIS_URL=redis://localhost:6379\n".to_owned()
+    "# Server\nSERVER_HOST=0.0.0.0\nSERVER_PORT=3000\n\n# Logging\nRUST_LOG=info\n\n# Database (uncomment to use)\n# DATABASE_URL=postgres://user:CHANGE_ME@localhost:5432/mydb\n\n# Redis (uncomment to use)\n# REDIS_URL=redis://localhost:6379\n".to_owned()
 }
 
 fn gitignore() -> String {
@@ -275,7 +275,7 @@ fn dockerfile() -> String {
 
 fn docker_compose(name: &str) -> String {
     format!(
-        "services:\n  app:\n    build: .\n    ports:\n      - 3000:3000\n    env_file: .env\n    restart: unless-stopped\n    depends_on:\n      postgres:\n        condition: service_healthy\n      redis:\n        condition: service_healthy\n\n  postgres:\n    image: postgres:16-alpine\n    environment:\n      POSTGRES_USER: user\n      POSTGRES_PASSWORD: password\n      POSTGRES_DB: {name}\n    ports:\n      - 5432:5432\n    volumes:\n      - pgdata:/var/lib/postgresql/data\n    healthcheck:\n      test: [\"CMD-SHELL\", \"pg_isready -U user -d {name}\"]\n      interval: 5s\n      timeout: 5s\n      retries: 5\n\n  redis:\n    image: redis:7-alpine\n    ports:\n      - 6379:6379\n    healthcheck:\n      test: [\"CMD\", \"redis-cli\", \"ping\"]\n      interval: 5s\n      timeout: 3s\n      retries: 5\n\nvolumes:\n  pgdata:\n"
+        "services:\n  app:\n    build: .\n    ports:\n      - 3000:3000\n    env_file: .env\n    restart: unless-stopped\n    depends_on:\n      postgres:\n        condition: service_healthy\n      redis:\n        condition: service_healthy\n\n  postgres:\n    image: postgres:16-alpine\n    environment:\n      POSTGRES_USER: user\n      POSTGRES_PASSWORD: CHANGE_ME\n      POSTGRES_DB: {name}\n    ports:\n      - 5432:5432\n    volumes:\n      - pgdata:/var/lib/postgresql/data\n    healthcheck:\n      test: [\"CMD-SHELL\", \"pg_isready -U user -d {name}\"]\n      interval: 5s\n      timeout: 5s\n      retries: 5\n\n  redis:\n    image: redis:7-alpine\n    ports:\n      - 6379:6379\n    healthcheck:\n      test: [\"CMD\", \"redis-cli\", \"ping\"]\n      interval: 5s\n      timeout: 3s\n      retries: 5\n\nvolumes:\n  pgdata:\n"
     )
 }
 

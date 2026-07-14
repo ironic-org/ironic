@@ -15,6 +15,9 @@ pub struct SecurityHeadersConfig {
     x_frame_options: Option<String>,
     referrer_policy: Option<String>,
     permissions_policy: Option<String>,
+    cross_origin_opener_policy: Option<String>,
+    cross_origin_embedder_policy: Option<String>,
+    cross_origin_resource_policy: Option<String>,
 }
 
 impl Default for SecurityHeadersConfig {
@@ -26,6 +29,9 @@ impl Default for SecurityHeadersConfig {
             x_frame_options: Some("DENY".to_owned()),
             referrer_policy: Some("strict-origin-when-cross-origin".to_owned()),
             permissions_policy: Some("geolocation=()".to_owned()),
+            cross_origin_opener_policy: Some("same-origin".to_owned()),
+            cross_origin_embedder_policy: Some("require-corp".to_owned()),
+            cross_origin_resource_policy: Some("same-origin".to_owned()),
         }
     }
 }
@@ -85,6 +91,27 @@ impl SecurityHeadersConfig {
         self.csp = None;
         self
     }
+
+    /// Sets the `Cross-Origin-Opener-Policy` header value.
+    #[must_use]
+    pub fn cross_origin_opener_policy(mut self, value: impl Into<String>) -> Self {
+        self.cross_origin_opener_policy = Some(value.into());
+        self
+    }
+
+    /// Sets the `Cross-Origin-Embedder-Policy` header value.
+    #[must_use]
+    pub fn cross_origin_embedder_policy(mut self, value: impl Into<String>) -> Self {
+        self.cross_origin_embedder_policy = Some(value.into());
+        self
+    }
+
+    /// Sets the `Cross-Origin-Resource-Policy` header value.
+    #[must_use]
+    pub fn cross_origin_resource_policy(mut self, value: impl Into<String>) -> Self {
+        self.cross_origin_resource_policy = Some(value.into());
+        self
+    }
 }
 
 fn insert_header(headers: &mut http::HeaderMap, name: http::HeaderName, value: &str) {
@@ -138,6 +165,27 @@ impl Middleware for SecurityHeadersMiddleware {
                 insert_header(
                     headers,
                     http::header::HeaderName::from_static("permissions-policy"),
+                    val,
+                );
+            }
+            if let Some(ref val) = self.config.cross_origin_opener_policy {
+                insert_header(
+                    headers,
+                    http::header::HeaderName::from_static("cross-origin-opener-policy"),
+                    val,
+                );
+            }
+            if let Some(ref val) = self.config.cross_origin_embedder_policy {
+                insert_header(
+                    headers,
+                    http::header::HeaderName::from_static("cross-origin-embedder-policy"),
+                    val,
+                );
+            }
+            if let Some(ref val) = self.config.cross_origin_resource_policy {
+                insert_header(
+                    headers,
+                    http::header::HeaderName::from_static("cross-origin-resource-policy"),
                     val,
                 );
             }

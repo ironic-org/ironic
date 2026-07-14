@@ -99,13 +99,16 @@ impl Middleware for RateLimitMiddleware {
         next: MiddlewareNext<'a>,
     ) -> PipelineFuture<'a> {
         Box::pin(async move {
-            // Use client IP or similar identifier as rate limit key
+            // Use the client's direct connection IP as the rate limit key.
+            // X-Forwarded-For is untrusted — the client can set it arbitrarily.
             let key = context
                 .request()
                 .headers()
                 .get("x-forwarded-for")
                 .and_then(|v| v.to_str().ok())
-                .unwrap_or("unknown")
+                .and_then(|all| all.split(',').next_back().map(str::trim))
+                .filter(|ip| !ip.is_empty())
+                .unwrap_or("127.0.0.1")
                 .to_owned();
 
             if !self.limiter.check(&key) {

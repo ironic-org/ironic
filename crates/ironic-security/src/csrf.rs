@@ -36,16 +36,37 @@ impl CsrfConfig {
     }
 
     /// Sets the cookie name for the CSRF token.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the name contains characters invalid in HTTP cookies (`;`, `=`, `\r`, `\n`).
     #[must_use]
     pub fn cookie_name(mut self, name: impl Into<String>) -> Self {
-        self.cookie_name = name.into();
+        let name = name.into();
+        assert!(
+            !name.contains(';')
+                && !name.contains('=')
+                && !name.contains('\r')
+                && !name.contains('\n'),
+            "CSRF cookie name must not contain ';', '=', '\\r', or '\\n'"
+        );
+        self.cookie_name = name;
         self
     }
 
     /// Sets the header name for the CSRF token.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the name contains characters invalid in HTTP headers.
     #[must_use]
     pub fn header_name(mut self, name: impl Into<String>) -> Self {
-        self.header_name = name.into();
+        let name = name.into();
+        assert!(
+            !name.contains('\r') && !name.contains('\n'),
+            "CSRF header name must not contain '\\r' or '\\n'"
+        );
+        self.header_name = name;
         self
     }
 }
@@ -112,7 +133,7 @@ impl Middleware for CsrfMiddleware {
                     response.headers_mut().insert(
                         http::header::SET_COOKIE,
                         http::HeaderValue::from_str(&format!(
-                            "{}={}; Path=/; HttpOnly; SameSite=Strict",
+                            "{}={}; Path=/; HttpOnly; Secure; SameSite=Strict",
                             self.config.cookie_name, token
                         ))
                         .unwrap_or_else(|_| {

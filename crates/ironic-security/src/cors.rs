@@ -22,7 +22,7 @@ pub struct CorsConfig {
 impl Default for CorsConfig {
     fn default() -> Self {
         Self {
-            allowed_origins: vec!["*".to_owned()],
+            allowed_origins: Vec::new(),
             allowed_methods: vec![
                 HttpMethod::GET,
                 HttpMethod::POST,

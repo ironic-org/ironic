@@ -66,11 +66,24 @@ if [[ "$OLD_VERSION" == "$NEW_VERSION" ]]; then
 else
     echo "→ Bumping v$OLD_VERSION → v$NEW_VERSION ($BUMP)"
 
-    # Update Cargo.toml
+    # Update Cargo.toml workspace version
     if [[ "$(uname)" == "Darwin" ]]; then
         sed -i '' "s/version = \"$OLD_VERSION\"/version = \"$NEW_VERSION\"/" "$CARGO_TOML"
     else
         sed -i "s/version = \"$OLD_VERSION\"/version = \"$NEW_VERSION\"/" "$CARGO_TOML"
+    fi
+
+    # Also bump internal workspace dependency versions to match
+    local old_dep_version
+    old_dep_version=$(grep 'ironic = { path = "."' "$CARGO_TOML" | sed 's/.*version = "\(.*\)".*/\1/')
+    if [[ -n "$old_dep_version" ]] && [[ "$old_dep_version" != "$NEW_VERSION" ]]; then
+        if [[ "$(uname)" == "Darwin" ]]; then
+            sed -i '' "s/ironic = { path = \".\", version = \"$old_dep_version\"/ironic = { path = \".\", version = \"$NEW_VERSION\"/" "$CARGO_TOML"
+            sed -i '' "s/ironic-macros = { path = \"crates\/ironic-macros\", version = \"$old_dep_version\"/ironic-macros = { path = \"crates\/ironic-macros\", version = \"$NEW_VERSION\"/" "$CARGO_TOML"
+        else
+            sed -i "s/ironic = { path = \".\", version = \"$old_dep_version\"/ironic = { path = \".\", version = \"$NEW_VERSION\"/" "$CARGO_TOML"
+            sed -i "s/ironic-macros = { path = \"crates\/ironic-macros\", version = \"$old_dep_version\"/ironic-macros = { path = \"crates\/ironic-macros\", version = \"$NEW_VERSION\"/" "$CARGO_TOML"
+        fi
     fi
     echo "  ✓ $CARGO_TOML"
 fi
@@ -115,7 +128,8 @@ if [[ "$OLD_VERSION" != "$NEW_VERSION" ]]; then
         docs/src/pages/home/components/hero-section.tsx \
         docs/src/pages/home/components/stats-bar.tsx \
         docs/content/docs/getting-started/getting-started.md \
-        docs/content/docs/getting-started/cli.md
+        docs/content/docs/getting-started/cli.md \
+        docs/content/docs/observability.md 2>/dev/null || true
 
     git commit -m "chore: bump version to v$NEW_VERSION"
 fi

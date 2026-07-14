@@ -1,3 +1,13 @@
+[workspace.package]
+version = "0.1.8"
+edition = "2024"
+rust-version = "1.97"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/ironic-org/ironic"
+homepage = "https://github.com/ironic-org/ironic"
+documentation = "https://docs.rs/ironic"
+authors = ["Ironic contributors"]
+
 [package]
 name = "ironic"
 description = "A batteries-included, type-safe application framework for Rust"
@@ -142,14 +152,14 @@ thiserror.workspace = true
 tokio.workspace = true
 tower.workspace = true
 tracing.workspace = true
-sqlx = { version = "0.8.6", optional = true, default-features = false, features = ["runtime-tokio", "migrate"] }
+sqlx = { version = "0.9.0", optional = true, default-features = false, features = ["runtime-tokio", "migrate"] }
 sea-orm = { version = "1.1.20", optional = true, default-features = false, features = ["runtime-tokio-rustls"] }
 diesel = { version = "2.3.8", optional = true, default-features = false, features = ["r2d2", "32-column-tables"] }
 mongodb = { version = "3.3.0", optional = true, default-features = false, features = ["rustls-tls", "dns-resolver", "bson-3", "compat-3-3-0"] }
-redis = { version = "0.32.7", optional = true, default-features = false, features = ["aio", "tokio-comp", "connection-manager"] }
+redis = { version = "1.3.0", optional = true, default-features = false, features = ["aio", "tokio-comp", "connection-manager"] }
 argon2 = { version = "0.5.3", optional = true, features = ["std"] }
 getrandom = { version = "0.4.3", optional = true }
-jsonwebtoken = { version = "9", optional = true, default-features = false }
+jsonwebtoken = { version = "10.4.0", optional = true, default-features = false }
 oauth2 = { version = "5.0.0", optional = true, default-features = false, features = ["reqwest", "rustls-tls"] }
 tonic = { version = "0.14.2", optional = true, default-features = false, features = ["transport", "codegen", "router"] }
 async-graphql = { version = "=7.0.16", optional = true, default-features = false, features = ["graphiql"] }
@@ -164,8 +174,8 @@ chrono = { workspace = true, optional = true }
 uuid = { workspace = true, optional = true }
 lapin = { workspace = true, optional = true }
 kafka = { workspace = true, optional = true }
-ureq = { version = "2.12", features = ["json"] }
-notify = "6"
+ureq = { version = "3.3.0", features = ["json"] }
+notify = "8.2.0"
 ctrlc = "3"
 tracing-subscriber = { workspace = true, optional = true }
 
@@ -185,15 +195,7 @@ members = [
     "examples/rest-api",
 ]
 
-[workspace.package]
-version = "0.1.7"
-edition = "2024"
-rust-version = "1.97"
-license = "MIT OR Apache-2.0"
-repository = "https://github.com/ironic-org/ironic"
-homepage = "https://github.com/ironic-org/ironic"
-documentation = "https://docs.rs/ironic"
-authors = ["Ironic contributors"]
+
 
 [workspace.dependencies]
 axum = { version = "0.8.9", default-features = false, features = ["http1", "tokio"] }

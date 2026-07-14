@@ -43,7 +43,10 @@ impl InMemoryRateLimiter {
     ///
     /// Panics if the internal mutex is poisoned.
     pub fn check(&self, key: &str) -> bool {
-        let mut windows = self.windows.lock().unwrap();
+        let mut windows = self
+            .windows
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
         let now = Instant::now();
         let entries = windows.entry(key.to_owned()).or_default();
 
@@ -64,7 +67,10 @@ impl InMemoryRateLimiter {
     ///
     /// Panics if the internal mutex is poisoned.
     pub fn remaining(&self, key: &str) -> u64 {
-        let windows = self.windows.lock().unwrap();
+        let windows = self
+            .windows
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
         let now = Instant::now();
         windows.get(key).map_or(self.max_requests, |entries| {
             let active = entries

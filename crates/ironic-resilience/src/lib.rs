@@ -195,7 +195,10 @@ impl CircuitBreaker {
     }
 
     fn allow_request(&self) -> Result<(), CircuitState> {
-        let mut inner = self.inner.lock().unwrap();
+        let mut inner = self
+            .inner
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
         match inner.state {
             CircuitState::Closed | CircuitState::HalfOpen => Ok(()),
             CircuitState::Open => {
@@ -216,7 +219,10 @@ impl CircuitBreaker {
     }
 
     fn record_success(&self) {
-        let mut inner = self.inner.lock().unwrap();
+        let mut inner = self
+            .inner
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
         if inner.state == CircuitState::HalfOpen {
             inner.success_count += 1;
             if inner.success_count >= inner.config.success_threshold {
@@ -229,7 +235,10 @@ impl CircuitBreaker {
     }
 
     fn record_failure(&self) {
-        let mut inner = self.inner.lock().unwrap();
+        let mut inner = self
+            .inner
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
         inner.failure_count += 1;
         inner.last_failure = Some(Instant::now());
         if inner.failure_count >= inner.config.failure_threshold {
@@ -239,7 +248,10 @@ impl CircuitBreaker {
 
     #[allow(dead_code)]
     fn state(&self) -> CircuitState {
-        self.inner.lock().unwrap().state
+        self.inner
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .state
     }
 }
 
@@ -295,7 +307,13 @@ where
 
     fn call(&mut self, req: http::Request<ReqBody>) -> Self::Future {
         let breaker = self.breaker.clone();
-        let config = self.breaker.inner.lock().unwrap().config.clone();
+        let config = self
+            .breaker
+            .inner
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .config
+            .clone();
 
         match breaker.allow_request() {
             Ok(()) => {}

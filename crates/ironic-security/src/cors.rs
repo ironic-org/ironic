@@ -152,11 +152,12 @@ fn set_cors_headers(response: &mut FrameworkResponse, config: &CorsConfig, origi
             http::HeaderValue::from_static("*"),
         );
     } else {
-        headers.insert(
-            http::header::ACCESS_CONTROL_ALLOW_ORIGIN,
-            http::HeaderValue::from_str(origin)
-                .unwrap_or_else(|_| http::HeaderValue::from_static("*")),
-        );
+        if let Ok(value) = http::HeaderValue::from_str(origin) {
+            headers.insert(http::header::ACCESS_CONTROL_ALLOW_ORIGIN, value);
+        } else {
+            // Invalid origin — do not reflect it. Return without CORS headers.
+            return;
+        }
         if config.allow_credentials {
             headers.insert(
                 http::header::ACCESS_CONTROL_ALLOW_CREDENTIALS,

@@ -142,15 +142,30 @@ where
             "/".into()
         };
 
-        store().lock().unwrap().in_flight += 1;
+        store()
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .in_flight += 1;
 
         let fut = self.inner.call(req);
         Box::pin(async move {
+            // Scope guard ensures in_flight is always decremented, even if cancelled
+            struct DecrementGuard;
+            impl Drop for DecrementGuard {
+                fn drop(&mut self) {
+                    if let Ok(mut s) = store().lock() {
+                        s.in_flight = s.in_flight.saturating_sub(1);
+                    }
+                }
+            }
+            let _guard = DecrementGuard;
+
             let result = fut.await;
             let duration = start.elapsed().as_secs_f64();
 
-            let mut s = store().lock().unwrap();
-            s.in_flight -= 1;
+            let mut s = store()
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner);
             s.request_count += 1;
             s.latencies_secs.push(duration);
 
@@ -190,7 +205,9 @@ fn percentile(mut sorted: Vec<f64>, p: f64) -> f64 {
 ///
 /// Panics if the internal metrics store lock is poisoned.
 pub fn scrape() -> String {
-    let s = store().lock().unwrap();
+    let s = store()
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
     let mut out = String::new();
 
     let _ = writeln!(out, "# HELP ironic_http_requests_total Total HTTP requests");

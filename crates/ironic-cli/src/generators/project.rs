@@ -61,6 +61,7 @@ pub fn create(
         ),
         (destination.join("src/main.rs"), main_source(&names.kebab)),
         (destination.join("src/app.rs"), app_source()),
+        (destination.join("src/welcome.rs"), welcome_source(&names.kebab)),
         (destination.join("src/modules/mod.rs"), String::new()),
     ];
     // Validate all owned paths before writing. This allows unrelated files in an existing
@@ -98,7 +99,7 @@ fn manifest(name: &str, workspace: Option<&Path>) -> String {
         },
     );
     format!(
-        "[package]\nname = \"{name}\"\nversion = \"0.1.0\"\nedition = \"2024\"\nrust-version = \"1.97\"\npublish = false\n\n[dependencies]\n{ironic_dep}\nserde = {{ version = \"1\", features = [\"derive\"] }}\n\n[dev-dependencies]\ntokio = {{ version = \"1\", features = [\"macros\", \"rt\"] }}\n\n# Available features (uncomment to enable):\n# irony = {{ features = [\"validation\"], {dep_spec} }}\n#\n# validation      — ParseIntPipe, ParseFloatPipe, ValidationPipe\n# security        — CORS, rate limiting, security headers, CSRF\n# compression     — gzip, brotli, zstd response compression\n# versioning      — URI, header, and media-type API versioning\n# serialization   — role-based field exposure\n# cache           — CacheInterceptor with InMemoryCache\n# scheduling      — Fixed-interval and cron background tasks\n# cron            — Cron expression scheduling\n# realtime        — WebSocket gateways with rooms/broadcasting\n# custom-decorators — create_param_decorator! macro\n# database        — SQLx, SeaORM, Diesel, MongoDB, Redis\n# authentication  — JWT, OAuth2, sessions, argon2 hashing\n# distributed     — Queues, microservices, CQRS, sagas, gRPC, GraphQL\n# uuid            — UUID generation utilities\n# transport-redis    — Redis pub/sub transport\n# transport-rabbitmq — AMQP transport\n# transport-kafka    — Kafka topic transport\n# application-services — cache + scheduling + events + realtime\n\n[workspace]\n",
+        "[package]\nname = \"{name}\"\nversion = \"0.1.0\"\nedition = \"2024\"\nrust-version = \"1.97\"\npublish = false\n\n[dependencies]\n{ironic_dep}\nserde = {{ version = \"1\", features = [\"derive\"] }}\nserde_json = \"1\"\n\n[dev-dependencies]\ntokio = {{ version = \"1\", features = [\"macros\", \"rt\"] }}\n\n# Available features (uncomment to enable):\n# irony = {{ features = [\"validation\"], {dep_spec} }}\n#\n# validation      — ParseIntPipe, ParseFloatPipe, ValidationPipe\n# security        — CORS, rate limiting, security headers, CSRF\n# compression     — gzip, brotli, zstd response compression\n# versioning      — URI, header, and media-type API versioning\n# serialization   — role-based field exposure\n# cache           — CacheInterceptor with InMemoryCache\n# scheduling      — Fixed-interval and cron background tasks\n# cron            — Cron expression scheduling\n# realtime        — WebSocket gateways with rooms/broadcasting\n# custom-decorators — create_param_decorator! macro\n# database        — SQLx, SeaORM, Diesel, MongoDB, Redis\n# authentication  — JWT, OAuth2, sessions, argon2 hashing\n# distributed     — Queues, microservices, CQRS, sagas, gRPC, GraphQL\n# uuid            — UUID generation utilities\n# transport-redis    — Redis pub/sub transport\n# transport-rabbitmq — AMQP transport\n# transport-kafka    — Kafka topic transport\n# application-services — cache + scheduling + events + realtime\n\n[workspace]\n",
         dep_spec = if workspace.is_some() {
             "path = \"...\""
         } else {
@@ -111,12 +112,19 @@ fn main_source(name: &str) -> String {
     let version = env!("CARGO_PKG_VERSION");
     let banner = format!("🚀 {name} → http://127.0.0.1:3000 (ironic v{version})");
     format!(
-        "mod app;\nmod modules;\n\nuse ironic::{{AxumAdapter, prelude::*}};\n\nuse app::AppModule;\n\n#[ironic::main]\nasync fn main() {{\n    let application = FrameworkApplication::builder()\n        .module(AppModule::definition())\n        .platform(AxumAdapter::new())\n        .build()\n        .await\n        .expect(\"application must initialise\");\n\n    println!(\"{banner}\");\n\n    application\n        .listen(\"127.0.0.1:3000\")\n        .await\n        .expect(\"application server failed\");\n}}\n"
+        "mod app;\nmod modules;\nmod welcome;\n\nuse ironic::{{AxumAdapter, prelude::*}};\n\nuse app::AppModule;\n\n#[ironic::main]\nasync fn main() {{\n    let application = FrameworkApplication::builder()\n        .module(AppModule::definition())\n        .platform(AxumAdapter::new())\n        .build()\n        .await\n        .expect(\"application must initialise\");\n\n    println!(\"{banner}\");\n\n    application\n        .listen(\"127.0.0.1:3000\")\n        .await\n        .expect(\"application server failed\");\n}}\n"
     )
 }
 
 fn app_source() -> String {
-    "use ironic::prelude::*;\n\n#[derive(Module)]\n#[module()]\npub struct AppModule;\n".to_owned()
+    "use ironic::prelude::*;\nuse crate::welcome::WelcomeModule;\n\n#[derive(Module)]\n#[module(imports = [HealthModule, WelcomeModule])]\npub struct AppModule;\n".to_owned()
+}
+
+fn welcome_source(name: &str) -> String {
+    let version = env!("CARGO_PKG_VERSION");
+    format!(
+        "use ironic::prelude::*;\n\n#[controller(\"/\")]\n#[derive(Injectable)]\nstruct WelcomeController;\n\n#[routes]\nimpl WelcomeController {{\n    #[get]\n    async fn index(&self) -> Result<Json<serde_json::Value>, HttpError> {{\n        Ok(Json(serde_json::json!({{\n            \"name\": \"{name}\",\n            \"framework\": \"Ironic\",\n            \"version\": \"{version}\",\n            \"status\": \"running\",\n            \"docs\": \"/docs\",\n            \"health\": \"/health\"\n        }})))\n    }}\n}}\n\n#[derive(Module)]\n#[module(controllers = [WelcomeController])]\npub struct WelcomeModule;\n"
+    )
 }
 
 fn project_config(name: &str) -> String {

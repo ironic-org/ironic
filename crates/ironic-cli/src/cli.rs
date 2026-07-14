@@ -113,6 +113,30 @@ pub enum Generator {
     /// Generates an injectable provider.
     #[command(alias = "pr")]
     Provider(NameArgs),
+    /// Generates a production-ready module with authentication and authorization.
+    #[command(alias = "rr")]
+    ReadyResource(ReadyResourceArgs),
+}
+
+/// Ready-resource variant selection.
+#[derive(Debug, Subcommand)]
+pub enum ReadyResourceVariant {
+    /// Full authentication: passwords, JWT, OAuth, sessions, RBAC.
+    Auth,
+    /// Password hashing and sessions only.
+    AuthBasic,
+    /// JWT token management only.
+    AuthJwt,
+    /// OAuth2 social login with Google and GitHub.
+    AuthOauth,
+}
+
+/// Arguments for generating a ready resource.
+#[derive(Debug, Args)]
+pub struct ReadyResourceArgs {
+    /// Variant of the ready resource.
+    #[command(subcommand)]
+    pub variant: ReadyResourceVariant,
 }
 
 /// A named generator target.

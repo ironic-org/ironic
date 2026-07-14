@@ -1,8 +1,19 @@
 mod naming;
 /// New-project scaffolding.
 pub mod project;
+/// Production-ready resource generators (authentication, authorization, etc.).
+pub mod ready_resource;
 mod source;
 mod templates;
+
+/// Generates a full authentication module.
+pub use ready_resource::generate_ready_resource;
+/// Generates a basic auth module (passwords + sessions).
+pub use ready_resource::generate_ready_resource_basic;
+/// Generates a JWT-only auth module.
+pub use ready_resource::generate_ready_resource_jwt;
+/// Generates an OAuth-only auth module.
+pub use ready_resource::generate_ready_resource_oauth;
 
 use std::path::{Path, PathBuf};
 
@@ -362,7 +373,7 @@ fn ensure_app_import(root: &Path, names: &Names, report: &mut GenerationReport) 
     }
 }
 
-fn record(report: &mut GenerationReport, path: &Path, changed: bool) {
+pub(super) fn record(report: &mut GenerationReport, path: &Path, changed: bool) {
     if changed {
         report.created.push(path.to_owned());
     } else {

@@ -1,4 +1,7 @@
-#![doc = "Shared identifiers and error primitives for Ironic."]
+//! Shared identifiers, error primitives, and response helpers for Ironic.
+
+/// Standard error codes and response patterns.
+pub mod error_codes;
 
 /// The result type used by framework operations.
 pub type FrameworkResult<T> = Result<T, FrameworkError>;

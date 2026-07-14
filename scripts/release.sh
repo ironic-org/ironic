@@ -11,7 +11,8 @@ set -euo pipefail
 # Automatically:
 #   1. Bumps version in Cargo.toml (workspace + internal deps)
 #   2. Syncs all hardcoded version strings in docs/
-#   3. Builds + runs full test suite + clippy
+#   3. Generates CHANGELOG.md from git commits since last tag
+#   4. Builds + runs full test suite + clippy
 #   4. Creates git commit + tag
 #   5. Pushes to GitHub (triggering CI)
 #   6. Publishes to crates.io
@@ -94,7 +95,83 @@ if [[ -n "$CURRENT_DEP" ]] && [[ "$CURRENT_DEP" != "$NEW" ]]; then
     echo -e "  ${GREEN}✓${NC} internal deps synced ($CURRENT_DEP → $NEW)"
 fi
 
-# ── step 4: sync all docs to workspace version ───────────────────────
+# ── step 4: generate changelog ────────────────────────────────────
+
+echo "→ Generating changelog for v$NEW"
+
+TODAY=$(date +%Y-%m-%d)
+CHANGELOG="$ROOT/CHANGELOG.md"
+PREV_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
+
+if [[ -n "$PREV_TAG" ]]; then
+    COMMITS=$(git log --oneline --no-merges "${PREV_TAG}..HEAD" 2>/dev/null || echo "")
+else
+    COMMITS=$(git log --oneline --no-merges 2>/dev/null || echo "")
+fi
+
+# Parse commits into categories
+added=""
+fixed=""
+changed=""
+security=""
+
+while IFS= read -r line; do
+    [[ -z "$line" ]] && continue
+    # Extract commit message (strip the hash)
+    msg=$(echo "$line" | sed 's/^[a-f0-9]* //')
+    # Get short hash for linking
+    hash=$(echo "$line" | awk '{print $1}')
+    entry="- ${msg} (${hash})"
+
+    case "$msg" in
+        feat:*)     added="${added}${entry}\n" ;;
+        feat\(*:*)  added="${added}${entry}\n" ;;
+        fix:*)      fixed="${fixed}${entry}\n" ;;
+        fix\(*:*)   fixed="${fixed}${entry}\n" ;;
+        docs:*)     changed="${changed}${entry}\n" ;;
+        docs\(*:*)  changed="${changed}${entry}\n" ;;
+        chore:*)    changed="${changed}${entry}\n" ;;
+        chore\(*:*) changed="${changed}${entry}\n" ;;
+        refactor:*) changed="${changed}${entry}\n" ;;
+        refactor\(*:*) changed="${changed}${entry}\n" ;;
+        test:*)     changed="${changed}${entry}\n" ;;
+        test\(*:*)  changed="${changed}${entry}\n" ;;
+        perf:*)     changed="${changed}${entry}\n" ;;
+        perf\(*:*)  changed="${changed}${entry}\n" ;;
+        security:*) security="${security}${entry}\n" ;;
+        security\(*:*) security="${security}${entry}\n" ;;
+        *)          changed="${changed}${entry}\n" ;;
+    esac
+done <<< "$COMMITS"
+
+# Build new changelog entry
+ENTRY="## [v${NEW}] - ${TODAY}\n"
+[[ -n "$added" ]] && ENTRY="${ENTRY}\n### Added\n${added}"
+[[ -n "$fixed" ]] && ENTRY="${ENTRY}\n### Fixed\n${fixed}"
+[[ -n "$changed" ]] && ENTRY="${ENTRY}\n### Changed\n${changed}"
+[[ -n "$security" ]] && ENTRY="${ENTRY}\n### Security\n${security}"
+
+if [[ -z "$added" && -z "$fixed" && -z "$changed" && -z "$security" ]]; then
+    ENTRY="${ENTRY}\n- Initial release\n"
+fi
+
+# Insert after the [Unreleased] section header
+if grep -q "## \[Unreleased\]" "$CHANGELOG" 2>/dev/null; then
+    if [[ "$(uname)" == "Darwin" ]]; then
+        sed -i '' "/## \[Unreleased\]/a\\
+\\
+${ENTRY}" "$CHANGELOG"
+    else
+        sed -i "/## \[Unreleased\]/a\\
+\\
+${ENTRY}" "$CHANGELOG"
+    fi
+    echo -e "  ${GREEN}✓${NC} CHANGELOG.md updated"
+else
+    echo "  ! CHANGELOG.md not found or missing [Unreleased] section"
+fi
+
+# ── step 5: sync all docs to workspace version ───────────────────────
 
 echo "→ Syncing docs to v$NEW"
 
@@ -135,7 +212,7 @@ echo "→ Creating git tag v$NEW"
 
 cd "$ROOT"
 
-git add Cargo.toml Cargo.lock \
+git add Cargo.toml Cargo.lock CHANGELOG.md \
     docs/src/pages/home/components/hero-section.tsx \
     docs/src/pages/home/components/stats-bar.tsx \
     docs/content/docs/getting-started/getting-started.md \

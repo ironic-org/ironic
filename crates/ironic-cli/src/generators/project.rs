@@ -61,7 +61,10 @@ pub fn create(
         ),
         (destination.join("src/main.rs"), main_source(&names.kebab)),
         (destination.join("src/app.rs"), app_source()),
-        (destination.join("src/welcome.rs"), welcome_source(&names.kebab)),
+        (
+            destination.join("src/welcome.rs"),
+            welcome_source(&names.kebab),
+        ),
         (destination.join("src/modules/mod.rs"), String::new()),
     ];
     // Validate all owned paths before writing. This allows unrelated files in an existing

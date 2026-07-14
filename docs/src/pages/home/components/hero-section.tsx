@@ -17,8 +17,8 @@ const HeroSection = () => {
     return (
         <section className='relative pt-28 pb-16 px-6 max-w-7xl mx-auto flex flex-col items-center text-center overflow-hidden'>
             <div className='absolute inset-0 pointer-events-none overflow-hidden'>
-                <div className='absolute -top-40 left-1/4 w-[600px] h-[600px] bg-brand/8 rounded-full blur-[120px] animate-glow' />
-                <div className='absolute -bottom-40 right-1/4 w-[500px] h-[500px] bg-brand/5 rounded-full blur-[100px] animate-glow' style={{ animationDelay: '1s' }} />
+                <div className='absolute -top-40 left-1/4 w-150 h-150 bg-brand/8 rounded-full blur-[120px] animate-glow' />
+                <div className='absolute -bottom-40 right-1/4 w-125 h-125 bg-brand/5 rounded-full blur-[100px] animate-glow' style={{ animationDelay: '1s' }} />
             </div>
 
             <FadeUp>
@@ -109,7 +109,7 @@ const HeroSection = () => {
                     </div>
                     <pre className='text-sm leading-relaxed overflow-x-auto font-mono'>
                         <code className='text-fd-foreground'>
-{`#[controller("/users")]
+                            {`#[controller("/users")]
 struct UsersController;
 
 #[routes]

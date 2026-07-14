@@ -10,7 +10,7 @@ const stats = [
 const StatsBar = () => {
     return (
         <section className='relative py-16 px-6 max-w-7xl mx-auto border-t border-fd-border'>
-            <div className='absolute inset-0 bg-brand/[0.02] -mx-6' />
+            <div className='absolute inset-0 bg-brand/2 -mx-6' />
             <FadeUp className='grid grid-cols-1 sm:grid-cols-3 gap-8 max-w-2xl mx-auto relative'>
                 {stats.map((stat) => (
                     <div key={stat.label} className='flex flex-col items-center text-center gap-3 p-6 rounded-2xl hover:bg-fd-card/50 transition-colors'>

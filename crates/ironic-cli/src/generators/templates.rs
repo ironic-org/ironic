@@ -50,35 +50,35 @@ pub(crate) fn services_mod(names: &Names) -> String {
 
 pub(crate) fn dto_mod(names: &Names) -> String {
     format!(
-        "pub mod create_{0}_dto;\npub mod update_{0}_dto;\npub use create_{0}_dto::Create{1}Dto;\npub use update_{0}_dto::Update{1}Dto;\n",
+        "pub mod create_{0}_dto;\npub mod update_{0}_dto;\n#[allow(unused_imports)]\npub use create_{0}_dto::Create{1}Dto;\n#[allow(unused_imports)]\npub use update_{0}_dto::Update{1}Dto;\n",
         names.snake, names.pascal
     )
 }
 
 pub(crate) fn entities_mod(names: &Names) -> String {
     format!(
-        "pub mod {0};\npub use {0}::{1};\n",
+        "pub mod {0};\n#[allow(unused_imports)]\npub use {0}::{1};\n",
         names.snake, names.pascal
     )
 }
 
 pub(crate) fn create_dto(names: &Names) -> String {
     format!(
-        "use serde::{{Deserialize, Serialize}};\n\n#[derive(Debug, Clone, Serialize, Deserialize)]\npub struct Create{0}Dto {{\n    pub name: String,\n}}\n",
+        "use serde::{{Deserialize, Serialize}};\n\n#[allow(dead_code)]\n#[derive(Debug, Clone, Serialize, Deserialize)]\npub struct Create{0}Dto {{\n    pub name: String,\n}}\n",
         names.pascal
     )
 }
 
 pub(crate) fn update_dto(names: &Names) -> String {
     format!(
-        "use serde::{{Deserialize, Serialize}};\n\n#[derive(Debug, Clone, Serialize, Deserialize)]\npub struct Update{0}Dto {{\n    pub name: Option<String>,\n}}\n",
+        "use serde::{{Deserialize, Serialize}};\n\n#[allow(dead_code)]\n#[derive(Debug, Clone, Serialize, Deserialize)]\npub struct Update{0}Dto {{\n    pub name: Option<String>,\n}}\n",
         names.pascal
     )
 }
 
 pub(crate) fn entity(names: &Names) -> String {
     format!(
-        "use serde::{{Deserialize, Serialize}};\n\n#[derive(Debug, Clone, Serialize, Deserialize)]\npub struct {0} {{\n    pub id: String,\n    pub name: String,\n}}\n",
+        "use serde::{{Deserialize, Serialize}};\n\n#[allow(dead_code)]\n#[derive(Debug, Clone, Serialize, Deserialize)]\npub struct {0} {{\n    pub id: String,\n    pub name: String,\n}}\n",
         names.pascal
     )
 }
@@ -153,7 +153,7 @@ pub(crate) fn test_unit(names: &Names) -> String {
 
 pub(crate) fn test_integration(names: &Names) -> String {
     format!(
-        "//! Integration tests for `{0}` — full HTTP request/response cycles.\n//! Run with `cargo test`.\n\nuse ironic::{{HttpStatus, TestApplication, prelude::*}};\n\nuse super::super::*;\n\nasync fn app() -> TestApplication {{\n    TestApplication::new::<{0}Module>()\n        .await\n        .expect(\"test application must initialise\")\n}}\n\n#[tokio::test]\nasync fn list_endpoint_returns_empty_when_no_data() {{\n    let app = app().await;\n    let response = app.get(\"/{1}\").send().await;\n    assert_eq!(response.status(), HttpStatus::OK);\n    app.shutdown().await.unwrap();\n}}\n\n#[tokio::test]\nasync fn get_endpoint_returns_not_found_for_missing_id() {{\n    let app = app().await;\n    app.get(\"/{1}/999\")\n        .send()\n        .await\n        .assert_status(404);\n    app.shutdown().await.unwrap();\n}}\n",
+        "//! Integration tests for `{0}` — full HTTP request/response cycles.\n//! Run with `cargo test`.\n\nuse ironic::{{HttpStatus, TestApplication}};\n\nuse super::super::*;\n\nasync fn app() -> TestApplication {{\n    TestApplication::new::<{0}Module>()\n        .await\n        .expect(\"test application must initialise\")\n}}\n\n#[tokio::test]\nasync fn list_endpoint_returns_empty_when_no_data() {{\n    let app = app().await;\n    let response = app.get(\"/{1}\").send().await;\n    assert_eq!(response.status(), HttpStatus::OK);\n    app.shutdown().await.unwrap();\n}}\n\n#[tokio::test]\nasync fn get_endpoint_returns_not_found_for_missing_id() {{\n    let app = app().await;\n    app.get(\"/{1}/999\")\n        .send()\n        .await\n        .assert_status(404);\n    app.shutdown().await.unwrap();\n}}\n",
         names.pascal, names.kebab
     )
 }

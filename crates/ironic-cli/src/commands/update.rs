@@ -44,12 +44,17 @@ pub(crate) fn execute(output: &mut impl Write) -> Result<(), CliError> {
 }
 
 pub(crate) fn check_latest_version() -> Result<Option<String>, String> {
-    let response = ureq::get(CRATES_IO_API)
-        .set("User-Agent", USER_AGENT)
+    let agent = ureq::Agent::config_builder()
+        .user_agent(USER_AGENT)
+        .build()
+        .new_agent();
+    let response = agent
+        .get(CRATES_IO_API)
         .call()
         .map_err(|e| format!("request failed: {e}"))?;
     let body: serde_json::Value = response
-        .into_json()
+        .into_body()
+        .read_json()
         .map_err(|e| format!("invalid response: {e}"))?;
     let version = body
         .pointer("/crate/max_stable_version")

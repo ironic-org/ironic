@@ -21,7 +21,14 @@ struct Route {
 pub(crate) fn workspace(root: &Path, output: &mut impl Write) -> Result<(), CliError> {
     let manifest = root.join("Cargo.toml");
     if !manifest.is_file() {
-        return Err(CliError::io("open Cargo.toml", &manifest, std::io::Error::new(std::io::ErrorKind::NotFound, "no Cargo.toml found — are you in an Ironic project?")));
+        return Err(CliError::io(
+            "open Cargo.toml",
+            &manifest,
+            std::io::Error::new(
+                std::io::ErrorKind::NotFound,
+                "no Cargo.toml found — are you in an Ironic project?",
+            ),
+        ));
     }
     let content = fs::read_to_string(&manifest)
         .map_err(|error| CliError::io("read Cargo.toml", &manifest, error))?;
@@ -59,14 +66,18 @@ fn list_modules(dir: &Path) -> Result<String, std::io::Error> {
     let mut names = Vec::new();
     for entry in fs::read_dir(dir)? {
         let entry = entry?;
-        if entry.file_type()?.is_dir() {
-            if let Some(name) = entry.file_name().to_str() {
-                names.push(name.to_owned());
-            }
+        if entry.file_type()?.is_dir()
+            && let Some(name) = entry.file_name().to_str()
+        {
+            names.push(name.to_owned());
         }
     }
     names.sort();
-    Ok(if names.is_empty() { "none".into() } else { names.join(", ") })
+    Ok(if names.is_empty() {
+        "none".into()
+    } else {
+        names.join(", ")
+    })
 }
 
 pub(crate) fn routes(root: &Path, output: &mut impl Write) -> Result<(), CliError> {

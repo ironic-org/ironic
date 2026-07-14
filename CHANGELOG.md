@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v0.2.8] - 2026-07-14
+
+### Added
+- add workspace command to print project information (f4edadd)\n
+
+## [v0.2.8] - 2026-07-14
+
+### Added
+- add workspace command to print project information (f4edadd)\n
+
 ## [v0.2.7] - 2026-07-14
 
 ### Added

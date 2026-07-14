@@ -73,8 +73,7 @@ mod tests {
     #[cfg(feature = "security-cors")]
     #[test]
     fn cors_config_allows_explicit_origins() {
-        let config = super::cors::CorsConfig::new()
-            .allowed_origins(["https://myapp.com"]);
+        let config = super::cors::CorsConfig::new().allowed_origins(["https://myapp.com"]);
         assert!(config.is_origin_allowed("https://myapp.com"));
         assert!(!config.is_origin_allowed("https://other.com"));
     }

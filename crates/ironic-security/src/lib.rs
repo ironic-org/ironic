@@ -63,10 +63,20 @@ mod tests {
 
     #[cfg(feature = "security-cors")]
     #[test]
-    fn cors_config_wildcard_allows_all() {
+    fn cors_config_denies_by_default() {
         let config = super::cors::CorsConfig::new();
-        assert!(config.is_origin_allowed("https://any.com"));
-        assert!(config.is_origin_allowed("http://localhost:3000"));
+        // Default is deny — no origins allowed unless explicitly added
+        assert!(!config.is_origin_allowed("https://any.com"));
+        assert!(!config.is_origin_allowed("http://localhost:3000"));
+    }
+
+    #[cfg(feature = "security-cors")]
+    #[test]
+    fn cors_config_allows_explicit_origins() {
+        let config = super::cors::CorsConfig::new()
+            .allowed_origins(["https://myapp.com"]);
+        assert!(config.is_origin_allowed("https://myapp.com"));
+        assert!(!config.is_origin_allowed("https://other.com"));
     }
 
     #[cfg(feature = "security-headers")]

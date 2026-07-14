@@ -30,6 +30,9 @@ description: Master the Ironic command-line tools — create, generate, run, tes
 | Command | Alias | Creates |
 |---------|-------|---------|
 | `ironic generate resource <name>` | `g res` | Full module with controller, service, DTOs, entity, and tests |
+| `ironic generate ready-resource auth` | `g rr auth` | Production-ready auth module (JWT, OAuth, RBAC) |
+| `ironic generate ready-resource file-upload` | `g rr file-upload` | File upload module (local, S3, R2 backends) |
+| `ironic generate ready-resource email` | `g rr email` | Email module (SMTP, SES, SendGrid, Mailgun) |
 | `ironic generate module <name>` | `g mo` | Module shell only |
 | `ironic generate controller <name>` | `g co` | Controller inside a module |
 | `ironic generate service <name>` | `g s` | Service inside a module |

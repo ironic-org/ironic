@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v0.2.9] - 2026-07-15
+
+### Added
+- add file upload and email modules with respective generators (3bc21f8)\n- add comprehensive authentication module with various strategies (8dc08b2)\n- add ready-resource generator for complete authentication module with variants (81e9e9f)\n
+### Fixed
+- update error code reference in rate limit middleware (603fcae)\n- update permissions and restructure GitHub Actions workflow for documentation deployment (f63caf3)\n- add permissions section for GitHub Actions workflow to enable content writing (0800ae6)\n- adjust formatting of router creation in main.tsx for improved readability (e76ab60)\n- simplify GitHub Actions workflow for deploying documentation to GitHub Pages (5841216)\n- restructure GitHub Actions workflow for deploying documentation to GitHub Pages (1856566)\n- update link in HeroSection to point to the getting started page (0890f33)\n
+
 ## [v0.2.9] - 2026-07-14
 
 ### Fixed

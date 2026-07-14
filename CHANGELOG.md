@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v0.2.5] - 2026-07-14nn### Addedn- feat: add changelog generation to release script (0653753)n- feat: enhance project scaffold generation with example module and CI workflow (13a29dc)nn### Changedn- chore: update version numbers to 0.2.5 in documentation and code (9408e57)n
+
 ## [v0.2.5] - 2026-07-14nn### Addedn- feat: add changelog generation to release script (0653753)n- feat: enhance project scaffold generation with example module and CI workflow (13a29dc)n
 
 ## [0.1.4] - 2026-07-13

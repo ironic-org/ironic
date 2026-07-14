@@ -109,63 +109,81 @@ else
     COMMITS=$(git log --oneline --no-merges 2>/dev/null || echo "")
 fi
 
-# Parse commits into categories
+# Parse commits into categories. Strips conventional commit prefix for clean output.
 added=""
 fixed=""
 changed=""
 security=""
 
+strip_prefix() {
+    # Removes "type: " or "type(scope): " prefix from conventional commits
+    sed -E 's/^[a-z]+(\([^)]*\))?:[[:space:]]*//' <<< "$1"
+}
+
+format_entry() {
+    local msg="$1" hash="$2"
+    local clean; clean=$(strip_prefix "$msg")
+    echo "- ${clean} (${hash:0:7})"
+}
+
 while IFS= read -r line; do
     [[ -z "$line" ]] && continue
-    # Extract commit message (strip the hash)
     msg=$(echo "$line" | sed 's/^[a-f0-9]* //')
-    # Get short hash for linking
     hash=$(echo "$line" | awk '{print $1}')
-    entry="- ${msg} (${hash})"
 
     case "$msg" in
-        feat:*)     added="${added}${entry}\n" ;;
-        feat\(*:*)  added="${added}${entry}\n" ;;
-        fix:*)      fixed="${fixed}${entry}\n" ;;
-        fix\(*:*)   fixed="${fixed}${entry}\n" ;;
-        docs:*)     changed="${changed}${entry}\n" ;;
-        docs\(*:*)  changed="${changed}${entry}\n" ;;
-        chore:*)    changed="${changed}${entry}\n" ;;
-        chore\(*:*) changed="${changed}${entry}\n" ;;
-        refactor:*) changed="${changed}${entry}\n" ;;
-        refactor\(*:*) changed="${changed}${entry}\n" ;;
-        test:*)     changed="${changed}${entry}\n" ;;
-        test\(*:*)  changed="${changed}${entry}\n" ;;
-        perf:*)     changed="${changed}${entry}\n" ;;
-        perf\(*:*)  changed="${changed}${entry}\n" ;;
-        security:*) security="${security}${entry}\n" ;;
-        security\(*:*) security="${security}${entry}\n" ;;
-        *)          changed="${changed}${entry}\n" ;;
+        feat:*)     added="${added}$(format_entry "$msg" "$hash")\n" ;;
+        feat\(*:*)  added="${added}$(format_entry "$msg" "$hash")\n" ;;
+        fix:*)      fixed="${fixed}$(format_entry "$msg" "$hash")\n" ;;
+        fix\(*:*)   fixed="${fixed}$(format_entry "$msg" "$hash")\n" ;;
+        docs:*)     changed="${changed}$(format_entry "$msg" "$hash")\n" ;;
+        docs\(*:*)  changed="${changed}$(format_entry "$msg" "$hash")\n" ;;
+        chore:*)    changed="${changed}$(format_entry "$msg" "$hash")\n" ;;
+        chore\(*:*) changed="${changed}$(format_entry "$msg" "$hash")\n" ;;
+        refactor:*) changed="${changed}$(format_entry "$msg" "$hash")\n" ;;
+        refactor\(*:*) changed="${changed}$(format_entry "$msg" "$hash")\n" ;;
+        test:*)     changed="${changed}$(format_entry "$msg" "$hash")\n" ;;
+        test\(*:*)  changed="${changed}$(format_entry "$msg" "$hash")\n" ;;
+        perf:*)     changed="${changed}$(format_entry "$msg" "$hash")\n" ;;
+        perf\(*:*)  changed="${changed}$(format_entry "$msg" "$hash")\n" ;;
+        security:*) security="${security}$(format_entry "$msg" "$hash")\n" ;;
+        security\(*:*) security="${security}$(format_entry "$msg" "$hash")\n" ;;
+        *)          changed="${changed}$(format_entry "$msg" "$hash")\n" ;;
     esac
 done <<< "$COMMITS"
 
-# Build new changelog entry
-ENTRY="## [v${NEW}] - ${TODAY}\n"
-[[ -n "$added" ]] && ENTRY="${ENTRY}\n### Added\n${added}"
-[[ -n "$fixed" ]] && ENTRY="${ENTRY}\n### Fixed\n${fixed}"
-[[ -n "$changed" ]] && ENTRY="${ENTRY}\n### Changed\n${changed}"
-[[ -n "$security" ]] && ENTRY="${ENTRY}\n### Security\n${security}"
+# Build new changelog entry with real newlines
+ENTRY="## [v${NEW}] - ${TODAY}
+"
+[[ -n "$added" ]] && ENTRY="${ENTRY}
+### Added
+${added}"
+[[ -n "$fixed" ]] && ENTRY="${ENTRY}
+### Fixed
+${fixed}"
+[[ -n "$changed" ]] && ENTRY="${ENTRY}
+### Changed
+${changed}"
+[[ -n "$security" ]] && ENTRY="${ENTRY}
+### Security
+${security}"
 
 if [[ -z "$added" && -z "$fixed" && -z "$changed" && -z "$security" ]]; then
-    ENTRY="${ENTRY}\n- Initial release\n"
+    ENTRY="${ENTRY}
+- Initial release
+"
 fi
 
-# Insert after the [Unreleased] section header
+# Insert after the [Unreleased] section header using temp file
 if grep -q "## \[Unreleased\]" "$CHANGELOG" 2>/dev/null; then
-    if [[ "$(uname)" == "Darwin" ]]; then
-        sed -i '' "/## \[Unreleased\]/a\\
-\\
-${ENTRY}" "$CHANGELOG"
-    else
-        sed -i "/## \[Unreleased\]/a\\
-\\
-${ENTRY}" "$CHANGELOG"
-    fi
+    head_line=$(grep -n "## \[Unreleased\]" "$CHANGELOG" | head -1 | cut -d: -f1)
+    {
+        head -n "$head_line" "$CHANGELOG"
+        echo ""
+        echo "$ENTRY"
+        tail -n +$((head_line + 1)) "$CHANGELOG"
+    } > "${CHANGELOG}.tmp"
+    mv "${CHANGELOG}.tmp" "$CHANGELOG"
     echo -e "  ${GREEN}✓${NC} CHANGELOG.md updated"
 else
     echo "  ! CHANGELOG.md not found or missing [Unreleased] section"

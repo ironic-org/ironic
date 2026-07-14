@@ -56,8 +56,8 @@ ironic doctor
 Checks your environment:
 
 ```
-Rust                   OK rustc 0.2.5
-Cargo                  OK cargo 0.2.5
+Rust                   OK rustc 0.2.6
+Cargo                  OK cargo 0.2.6
 Project manifest       OK /path/to/Cargo.toml
 Ironic dependency      OK found
 CLI version            OK 0.2.0 (latest)

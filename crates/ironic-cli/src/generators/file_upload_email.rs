@@ -51,12 +51,7 @@ pub fn generate_ready_resource_email(root: &Path) -> Result<GenerationReport, Cl
     Ok(report)
 }
 
-fn register_module(
-    root: &Path,
-    name: &str,
-    pascal: &str,
-    report: &mut GenerationReport,
-) {
+fn register_module(root: &Path, name: &str, pascal: &str, report: &mut GenerationReport) {
     let registry = root.join("src/modules/mod.rs");
     if let Err(e) = ensure_items(&registry, &[&format!("pub mod {name};")]) {
         report.manual_instructions.push(format!(

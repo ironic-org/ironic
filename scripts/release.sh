@@ -9,8 +9,8 @@ set -euo pipefail
 #   ./scripts/release.sh major        → bump major (0.1.8 → 1.0.0)
 #
 # Automatically:
-#   1. Bumps version in Cargo.toml
-#   2. Updates all hardcoded version strings in docs/
+#   1. Bumps version in Cargo.toml (workspace + internal deps)
+#   2. Syncs all hardcoded version strings in docs/
 #   3. Builds + runs full test suite + clippy
 #   4. Creates git commit + tag
 #   5. Pushes to GitHub (triggering CI)
@@ -20,9 +20,14 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 CARGO_TOML="$ROOT/Cargo.toml"
 
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+CYAN='\033[0;36m'
+NC='\033[0m'
+
 # ── helpers ──────────────────────────────────────────────────────────
 
-current_version() {
+workspace_version() {
     grep '^version = ' "$CARGO_TOML" | head -1 | sed 's/.*"\(.*\)".*/\1/'
 }
 
@@ -37,71 +42,78 @@ bump_version() {
     esac
 }
 
-replace_version() {
+# Replace <old> with <new> in a file (exact string, not regex)
+sync_file() {
     local old="$1" new="$2" file="$3"
-    if grep -q "$old" "$file" 2>/dev/null; then
-        # use sed -i '' for macOS, sed -i for Linux
+    if [[ ! -f "$file" ]]; then return; fi
+    if grep -qF "$old" "$file" 2>/dev/null; then
         if [[ "$(uname)" == "Darwin" ]]; then
             sed -i '' "s/$old/$new/g" "$file"
         else
             sed -i "s/$old/$new/g" "$file"
         fi
-        echo "  ✓ $file"
+        echo -e "  ${GREEN}✓${NC} $file"
     fi
 }
 
 # ── step 1: determine version ────────────────────────────────────────
 
-OLD_VERSION=$(current_version)
+CURRENT=$(workspace_version)
 BUMP="${1:-}"
 
 if [[ -n "$BUMP" ]]; then
-    NEW_VERSION=$(bump_version "$OLD_VERSION" "$BUMP")
+    NEW=$(bump_version "$CURRENT" "$BUMP")
+    echo -e "→ Bumping ${CYAN}v$CURRENT → v$NEW${NC} ($BUMP)"
 else
-    NEW_VERSION="$OLD_VERSION"
+    NEW="$CURRENT"
+    echo -e "→ Releasing ${CYAN}v$NEW${NC}"
 fi
 
-if [[ "$OLD_VERSION" == "$NEW_VERSION" ]]; then
-    echo "→ Releasing v$NEW_VERSION (no bump)"
-else
-    echo "→ Bumping v$OLD_VERSION → v$NEW_VERSION ($BUMP)"
+# ── step 2: bump Cargo.toml if needed ────────────────────────────────
 
-    # Update Cargo.toml workspace version
+if [[ "$CURRENT" != "$NEW" ]]; then
     if [[ "$(uname)" == "Darwin" ]]; then
-        sed -i '' "s/version = \"$OLD_VERSION\"/version = \"$NEW_VERSION\"/" "$CARGO_TOML"
+        sed -i '' "s/version = \"$CURRENT\"/version = \"$NEW\"/" "$CARGO_TOML"
     else
-        sed -i "s/version = \"$OLD_VERSION\"/version = \"$NEW_VERSION\"/" "$CARGO_TOML"
+        sed -i "s/version = \"$CURRENT\"/version = \"$NEW\"/" "$CARGO_TOML"
     fi
-
-    # Also bump internal workspace dependency versions to match
-    local old_dep_version
-    old_dep_version=$(grep 'ironic = { path = "."' "$CARGO_TOML" | sed 's/.*version = "\(.*\)".*/\1/')
-    if [[ -n "$old_dep_version" ]] && [[ "$old_dep_version" != "$NEW_VERSION" ]]; then
-        if [[ "$(uname)" == "Darwin" ]]; then
-            sed -i '' "s/ironic = { path = \".\", version = \"$old_dep_version\"/ironic = { path = \".\", version = \"$NEW_VERSION\"/" "$CARGO_TOML"
-            sed -i '' "s/ironic-macros = { path = \"crates\/ironic-macros\", version = \"$old_dep_version\"/ironic-macros = { path = \"crates\/ironic-macros\", version = \"$NEW_VERSION\"/" "$CARGO_TOML"
-        else
-            sed -i "s/ironic = { path = \".\", version = \"$old_dep_version\"/ironic = { path = \".\", version = \"$NEW_VERSION\"/" "$CARGO_TOML"
-            sed -i "s/ironic-macros = { path = \"crates\/ironic-macros\", version = \"$old_dep_version\"/ironic-macros = { path = \"crates\/ironic-macros\", version = \"$NEW_VERSION\"/" "$CARGO_TOML"
-        fi
-    fi
-    echo "  ✓ $CARGO_TOML"
+    echo -e "  ${GREEN}✓${NC} $CARGO_TOML"
 fi
 
-# ── step 2: update hardcoded versions in docs ────────────────────────
+# ── step 3: sync internal deps to workspace version ──────────────────
 
-echo "→ Updating docs from v$OLD_VERSION → v$NEW_VERSION"
+CURRENT_DEP=$(grep 'ironic = { path = "."' "$CARGO_TOML" | sed 's/.*version = "\(.*\)".*/\1/')
+if [[ -n "$CURRENT_DEP" ]] && [[ "$CURRENT_DEP" != "$NEW" ]]; then
+    if [[ "$(uname)" == "Darwin" ]]; then
+        sed -i '' "s/ironic = { path = \".\", version = \"$CURRENT_DEP\"/ironic = { path = \".\", version = \"$NEW\"/" "$CARGO_TOML"
+        sed -i '' "s/ironic-macros = { path = \"crates\/ironic-macros\", version = \"$CURRENT_DEP\"/ironic-macros = { path = \"crates\/ironic-macros\", version = \"$NEW\"/" "$CARGO_TOML"
+    else
+        sed -i "s/ironic = { path = \".\", version = \"$CURRENT_DEP\"/ironic = { path = \".\", version = \"$NEW\"/" "$CARGO_TOML"
+        sed -i "s/ironic-macros = { path = \"crates\/ironic-macros\", version = \"$CURRENT_DEP\"/ironic-macros = { path = \"crates\/ironic-macros\", version = \"$NEW\"/" "$CARGO_TOML"
+    fi
+    echo -e "  ${GREEN}✓${NC} internal deps synced ($CURRENT_DEP → $NEW)"
+fi
 
-replace_version "$OLD_VERSION" "$NEW_VERSION" \
+# ── step 4: sync all docs to workspace version ───────────────────────
+
+echo "→ Syncing docs to v$NEW"
+
+DOC_FILES=(
     "$ROOT/docs/src/pages/home/components/hero-section.tsx"
-replace_version "$OLD_VERSION" "$NEW_VERSION" \
     "$ROOT/docs/src/pages/home/components/stats-bar.tsx"
-replace_version "$OLD_VERSION" "$NEW_VERSION" \
     "$ROOT/docs/content/docs/getting-started/getting-started.md"
-replace_version "$OLD_VERSION" "$NEW_VERSION" \
     "$ROOT/docs/content/docs/getting-started/cli.md"
+)
 
-# ── step 3: pre-flight checks ────────────────────────────────────────
+for f in "${DOC_FILES[@]}"; do
+    # extract the first version-like string from the file
+    DOC_VER=$(grep -oE '[0-9]+\.[0-9]+\.[0-9]+' "$f" | head -1)
+    if [[ -n "$DOC_VER" ]] && [[ "$DOC_VER" != "$NEW" ]]; then
+        sync_file "$DOC_VER" "$NEW" "$f"
+    fi
+done
+
+# ── step 5: pre-flight checks ───────────────────────────────────────
 
 echo "→ Running pre-flight checks..."
 
@@ -117,47 +129,48 @@ cargo test --all-features
 echo "  • npm run build (docs)"
 npm --prefix "$ROOT/docs" run build
 
-# ── step 4: git tag & push ───────────────────────────────────────────
+# ── step 6: git tag & push ───────────────────────────────────────────
 
-echo "→ Creating git tag v$NEW_VERSION"
+echo "→ Creating git tag v$NEW"
 
 cd "$ROOT"
 
-if [[ "$OLD_VERSION" != "$NEW_VERSION" ]]; then
-    git add Cargo.toml Cargo.lock \
-        docs/src/pages/home/components/hero-section.tsx \
-        docs/src/pages/home/components/stats-bar.tsx \
-        docs/content/docs/getting-started/getting-started.md \
-        docs/content/docs/getting-started/cli.md \
-        docs/content/docs/observability.md 2>/dev/null || true
+git add Cargo.toml Cargo.lock \
+    docs/src/pages/home/components/hero-section.tsx \
+    docs/src/pages/home/components/stats-bar.tsx \
+    docs/content/docs/getting-started/getting-started.md \
+    docs/content/docs/getting-started/cli.md 2>/dev/null || true
 
-    git commit -m "chore: bump version to v$NEW_VERSION"
-fi
-
-if git rev-parse "v$NEW_VERSION" >/dev/null 2>&1; then
-    echo "  ! tag v$NEW_VERSION already exists, skipping"
+if ! git diff --cached --quiet; then
+    git commit -m "chore: release v$NEW"
+    echo -e "  ${GREEN}✓${NC} committed"
 else
-    git tag -a "v$NEW_VERSION" -m "Release v$NEW_VERSION"
-    echo "  ✓ tag v$NEW_VERSION created"
+    echo "  - nothing to commit"
 fi
+
+if git rev-parse "v$NEW" >/dev/null 2>&1; then
+    git tag -d "v$NEW" 2>/dev/null || true
+fi
+git tag -a "v$NEW" -m "Release v$NEW"
+echo -e "  ${GREEN}✓${NC} tag v$NEW created"
 
 echo "→ Pushing to GitHub..."
 git push origin HEAD
-git push origin "v$NEW_VERSION"
+git push origin "v$NEW"
 
-echo "  ✓ pushed to origin"
+echo -e "  ${GREEN}✓${NC} pushed to origin"
 
-# ── step 5: publish to crates.io ─────────────────────────────────────
+# ── step 7: publish to crates.io ─────────────────────────────────────
 
 echo "→ Publishing to crates.io..."
 
-cargo publish -p ironic-macros --allow-dirty 2>&1 || echo "  ! ironic-macros publish skipped (may already be published)"
+cargo publish -p ironic-macros --allow-dirty 2>&1 || echo "  ! ironic-macros publish skipped"
 cargo publish -p ironic --allow-dirty
 
 echo ""
-echo "╔══════════════════════════════════════════════════════════════════╗"
-echo "║  🚀 Released v$NEW_VERSION                                       ║"
-echo "║                                                                  ║"
-echo "║  https://crates.io/crates/ironic/$NEW_VERSION                     "
-echo "║  https://github.com/ironic-org/ironic/releases/tag/v$NEW_VERSION  "
-echo "╚══════════════════════════════════════════════════════════════════╝"
+echo -e "${GREEN}╔══════════════════════════════════════════════════════════════════╗${NC}"
+echo -e "${GREEN}║${NC}  🚀 Released ${CYAN}v$NEW${NC}"
+echo -e "${GREEN}║${NC}"
+echo -e "${GREEN}║${NC}  https://crates.io/crates/ironic/$NEW"
+echo -e "${GREEN}║${NC}  https://github.com/ironic-org/ironic/releases/tag/v$NEW"
+echo -e "${GREEN}╚══════════════════════════════════════════════════════════════════╝${NC}"

@@ -60,7 +60,7 @@ Rust                   OK rustc 1.97.0
 Cargo                  OK cargo 1.97.0
 Project manifest       OK /path/to/Cargo.toml
 Ironic dependency      OK found
-CLI version            OK 0.1.8 (latest)
+CLI version            OK 0.2.0 (latest)
 ```
 
 ## Update command

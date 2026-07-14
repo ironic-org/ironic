@@ -120,7 +120,7 @@ impl Middleware for RateLimitMiddleware {
             if !self.limiter.check(&key) {
                 let mut response = FrameworkResponse::error(
                     HttpStatus::TOO_MANY_REQUESTS,
-                    ironic_common::error_codes::codes::RATE_LIMIT_EXCEEDED,
+                    ironic_core::error_codes::codes::RATE_LIMIT_EXCEEDED,
                     "Too many requests, please try again later",
                 );
                 response.headers_mut().insert(

@@ -12,7 +12,9 @@ async fn main() {
         .platform(AxumAdapter::new())
         .build()
         .await
-        .expect("application must initialize");
+        .expect("application must initialise");
+
+    println!("🚀 Todo API → http://127.0.0.1:3000 (ironic v0.2)");
 
     application
         .listen("127.0.0.1:3000")

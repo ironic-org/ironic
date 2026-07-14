@@ -59,7 +59,7 @@ pub fn create(
             destination.join("ironic.toml"),
             project_config(&names.kebab),
         ),
-        (destination.join("src/main.rs"), main_source()),
+        (destination.join("src/main.rs"), main_source(&names.kebab)),
         (destination.join("src/app.rs"), app_source()),
         (destination.join("src/modules/mod.rs"), String::new()),
     ];
@@ -107,9 +107,12 @@ fn manifest(name: &str, workspace: Option<&Path>) -> String {
     )
 }
 
-fn main_source() -> String {
-    "mod app;\nmod modules;\n\nuse ironic::{AxumAdapter, prelude::*};\n\nuse app::AppModule;\n\n#[ironic::main]\nasync fn main() {\n    let application = FrameworkApplication::builder()\n        .module(AppModule::definition())\n        .platform(AxumAdapter::new())\n        .build()\n        .await\n        .expect(\"application must initialize\");\n\n    application\n        .listen(\"127.0.0.1:3000\")\n        .await\n        .expect(\"application server failed\");\n}\n"
-        .to_owned()
+fn main_source(name: &str) -> String {
+    let version = env!("CARGO_PKG_VERSION");
+    let banner = format!("🚀 {name} → http://127.0.0.1:3000 (ironic v{version})");
+    format!(
+        "mod app;\nmod modules;\n\nuse ironic::{{AxumAdapter, prelude::*}};\n\nuse app::AppModule;\n\n#[ironic::main]\nasync fn main() {{\n    let application = FrameworkApplication::builder()\n        .module(AppModule::definition())\n        .platform(AxumAdapter::new())\n        .build()\n        .await\n        .expect(\"application must initialise\");\n\n    println!(\"{banner}\");\n\n    application\n        .listen(\"127.0.0.1:3000\")\n        .await\n        .expect(\"application server failed\");\n}}\n"
+    )
 }
 
 fn app_source() -> String {

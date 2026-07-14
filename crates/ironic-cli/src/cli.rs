@@ -18,6 +18,8 @@ pub enum Command {
     New(NewArgs),
     /// Runs the current project through Cargo.
     Start(CargoArgs),
+    /// Runs the server in development mode with hot reload on file changes.
+    Dev(CargoArgs),
     /// Builds the current project through Cargo.
     Build(CargoArgs),
     /// Tests the current project through Cargo.

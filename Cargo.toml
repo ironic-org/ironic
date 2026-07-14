@@ -165,6 +165,8 @@ uuid = { workspace = true, optional = true }
 lapin = { workspace = true, optional = true }
 kafka = { workspace = true, optional = true }
 ureq = { version = "2.12", features = ["json"] }
+notify = "6"
+ctrlc = "3"
 tracing-subscriber = { workspace = true, optional = true }
 
 [dev-dependencies]

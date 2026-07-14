@@ -61,16 +61,38 @@ my-first-api/
         └── mod.rs      ← Module registry — empty for now
 ```
 
-## Step 3: Run it
+## Step 3: Run it (development mode)
+
+The best way to develop is with hot reload — the server restarts automatically when you save a file:
 
 ```bash
-ironic start
+ironic dev
 ```
 
 You'll see:
 
 ```
+ironic dev — watching for changes in src/
+Press Ctrl+C to stop
+
+🔨 Building...
 🚀 Server listening on http://127.0.0.1:3000
+```
+
+Now edit any `.rs` file — the server detects the change and rebuilds instantly. No need to stop and restart manually.
+
+> **What `ironic dev` does:**
+> - Watches `src/` for file changes
+> - Kills the running server
+> - Runs `cargo run` to rebuild and restart
+> - Full round-trip takes ~2-5 seconds depending on project size
+
+### Alternative: start without reload
+
+If you prefer manual control:
+
+```bash
+ironic start
 ```
 
 Open `http://localhost:3000/health` in your browser. You should see:
@@ -185,6 +207,50 @@ curl http://localhost:3000/products
 # → ["Laptop"]
 ```
 
+## Your development workflow
+
+Here's the cycle you'll use every day:
+
+```
+┌──────────────────────────────────────────────────────────┐
+│                    Development Loop                       │
+│                                                          │
+│  1. ironic dev           ← Start with hot reload         │
+│         │                                                │
+│  2. Edit code            ← Change controller/service     │
+│         │                                                │
+│  3. Save file            ← Server auto-restarts          │
+│         │                                                │
+│  4. Test with curl       ← curl /products                │
+│         │                                                │
+│  5. ironic test          ← Run unit + integration tests  │
+│         │                                                │
+│  6. Repeat!              ← Go back to step 2             │
+└──────────────────────────────────────────────────────────┘
+```
+
+### Quick commands for daily use
+
+| Task | Command |
+|------|---------|
+| Start developing | `ironic dev` |
+| Run without reload | `ironic start` |
+| Add a new feature | `ironic generate resource users` |
+| Check for errors | `ironic test` |
+| Fix environment issues | `ironic doctor` |
+| Update Ironic itself | `ironic update` |
+| Inspect all routes | `ironic routes` |
+
+### The `ironic dev` advantage
+
+| Without dev mode | With `ironic dev` |
+|-----------------|-------------------|
+| Edit code | Edit code |
+| Press Ctrl+C to stop | Save file |
+| Type `ironic start` | Wait 2-5 seconds |
+| Wait for build | Test immediately |
+| Test | Continue coding |
+
 ## Try it yourself
 
 1. Create a new project called `bookstore-api`
@@ -205,7 +271,7 @@ curl http://localhost:3000/products
 
 - [x] Installed `ironic` CLI globally
 - [x] Created a new project with `ironic new`
-- [x] Ran the development server with `ironic start`
+- [x] Started dev mode with hot reload using `ironic dev`
 - [x] Generated a full resource with controller, service, DTOs, entity, and tests
 - [x] Wrote real business logic and tested it with curl
 - [x] Ran auto-generated tests with `ironic test`

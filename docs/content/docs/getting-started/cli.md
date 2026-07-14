@@ -21,6 +21,7 @@ description: Master the Ironic command-line tools — create, generate, run, tes
 | `ironic new <name>` | Create a new project |
 | `ironic new .` | Create project in the current directory |
 | `ironic start` | Run the server (`cargo run`) |
+| `ironic dev` | Run with hot reload — auto-restarts on file changes |
 | `ironic build` | Build the project (`cargo build`) |
 | `ironic test` | Run tests (`cargo test`) |
 

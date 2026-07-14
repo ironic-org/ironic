@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v0.2.7] - 2026-07-14
+
+### Added
+- add dotenvy support for configurable server host and port in main source (846e89b)\n
+
 ## [v0.2.6] - 2026-07-14
 
 ### Added

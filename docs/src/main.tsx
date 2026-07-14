@@ -5,12 +5,17 @@ import { appRoutes } from './routes';
 import AppRoot from './AppRoot';
 import './styles/global.css';
 
-const router = createBrowserRouter([
+const router = createBrowserRouter(
+  [
+    {
+      element: <AppRoot />,
+      children: appRoutes,
+    },
+  ],
   {
-    element: <AppRoot />,
-    children: appRoutes,
+    basename: import.meta.env.BASE_URL,
   },
-]);
+);
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>

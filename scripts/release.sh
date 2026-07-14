@@ -243,17 +243,26 @@ else
     echo "  - nothing to commit"
 fi
 
-if git rev-parse "v$NEW" >/dev/null 2>&1; then
-    git tag -d "v$NEW" 2>/dev/null || true
-fi
+# Always delete stale local tag before creating a new one
+git tag -d "v$NEW" 2>/dev/null || true
 git tag -a "v$NEW" -m "Release v$NEW"
 echo -e "  ${GREEN}✓${NC} tag v$NEW created"
 
 echo "→ Pushing to GitHub..."
-git push origin HEAD
-git push origin "v$NEW"
+if ! git push origin HEAD; then
+    echo -e "  ${RED}✗${NC} failed to push to origin — aborting"
+    git tag -d "v$NEW" 2>/dev/null || true
+    exit 1
+fi
 
-echo -e "  ${GREEN}✓${NC} pushed to origin"
+echo "→ Pushing tag v$NEW..."
+if git push origin "v$NEW" 2>&1; then
+    echo -e "  ${GREEN}✓${NC} tag pushed"
+else
+    echo -e "  ${CYAN}!${NC} tag already exists on remote — force pushing..."
+    git push --force origin "v$NEW"
+    echo -e "  ${GREEN}✓${NC} tag force-pushed"
+fi
 
 # ── step 7: publish to crates.io ─────────────────────────────────────
 

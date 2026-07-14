@@ -10,6 +10,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [v0.2.8] - 2026-07-14
 
 ### Added
+- update dotenv example with placeholder values and improve CSRF cookie/header name validation (da96fc8)\n
+### Fixed
+- handle poisoned mutex locks in metrics, resilience, security modules (399821a)\n
+### Changed
+- streamline CorsConfig initialization in tests (9517f27)\n- update CORS configuration tests to reflect default deny behavior and explicit origin allowance (90e16ad)\n
+
+## [v0.2.8] - 2026-07-14
+
+### Added
 - add workspace command to print project information (f4edadd)\n
 
 ## [v0.2.8] - 2026-07-14

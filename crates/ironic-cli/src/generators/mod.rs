@@ -1,3 +1,4 @@
+mod file_upload_email;
 mod naming;
 /// New-project scaffolding.
 pub mod project;
@@ -6,6 +7,10 @@ pub mod ready_resource;
 mod source;
 mod templates;
 
+/// Generates an email module with configurable delivery backends.
+pub use file_upload_email::generate_ready_resource_email;
+/// Generates a file upload module with configurable storage backends.
+pub use file_upload_email::generate_ready_resource_file_upload;
 /// Generates a full authentication module.
 pub use ready_resource::generate_ready_resource;
 /// Generates a basic auth module (passwords + sessions).

@@ -127,8 +127,12 @@ pub enum ReadyResourceVariant {
     AuthBasic,
     /// JWT token management only.
     AuthJwt,
-    /// OAuth2 social login with Google and GitHub.
+    /// `OAuth2` social login with Google and GitHub.
     AuthOauth,
+    /// File upload with local, `S3`, `R2`, `Azure`, and `GCS` backends.
+    FileUpload,
+    /// Email delivery with `SMTP`, `SES`, `SendGrid`, `Mailgun`, and development log.
+    Email,
 }
 
 /// Arguments for generating a ready resource.

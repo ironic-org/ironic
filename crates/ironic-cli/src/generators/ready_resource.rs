@@ -8,6 +8,10 @@ use super::{
 };
 
 /// Generates a full authentication module with passwords, JWT, OAuth, sessions, and RBAC.
+///
+/// # Errors
+///
+/// Returns an error if file I/O fails during module generation or registration.
 pub fn generate_ready_resource(root: &Path, name: &str) -> Result<GenerationReport, CliError> {
     let module_dir = root.join("src/modules").join(name);
     let mut report = GenerationReport::default();
@@ -18,11 +22,15 @@ pub fn generate_ready_resource(root: &Path, name: &str) -> Result<GenerationRepo
         super::record(&mut report, path, state);
     }
 
-    register_module(root, name, &mut report)?;
+    register_module(root, name, &mut report);
     Ok(report)
 }
 
 /// Generates a basic auth module (passwords + sessions only).
+///
+/// # Errors
+///
+/// Returns an error if file I/O fails during module generation or registration.
 pub fn generate_ready_resource_basic(root: &Path) -> Result<GenerationReport, CliError> {
     let module_dir = root.join("src/modules/auth");
     let mut report = GenerationReport::default();
@@ -33,11 +41,15 @@ pub fn generate_ready_resource_basic(root: &Path) -> Result<GenerationReport, Cl
         super::record(&mut report, path, state);
     }
 
-    register_module(root, "auth", &mut report)?;
+    register_module(root, "auth", &mut report);
     Ok(report)
 }
 
 /// Generates a JWT-only auth module.
+///
+/// # Errors
+///
+/// Returns an error if file I/O fails during module generation or registration.
 pub fn generate_ready_resource_jwt(root: &Path) -> Result<GenerationReport, CliError> {
     let module_dir = root.join("src/modules/auth");
     let mut report = GenerationReport::default();
@@ -48,11 +60,15 @@ pub fn generate_ready_resource_jwt(root: &Path) -> Result<GenerationReport, CliE
         super::record(&mut report, path, state);
     }
 
-    register_module(root, "auth", &mut report)?;
+    register_module(root, "auth", &mut report);
     Ok(report)
 }
 
 /// Generates an OAuth-only auth module.
+///
+/// # Errors
+///
+/// Returns an error if file I/O fails during module generation or registration.
 pub fn generate_ready_resource_oauth(root: &Path) -> Result<GenerationReport, CliError> {
     let module_dir = root.join("src/modules/auth");
     let mut report = GenerationReport::default();
@@ -63,11 +79,11 @@ pub fn generate_ready_resource_oauth(root: &Path) -> Result<GenerationReport, Cl
         super::record(&mut report, path, state);
     }
 
-    register_module(root, "auth", &mut report)?;
+    register_module(root, "auth", &mut report);
     Ok(report)
 }
 
-fn register_module(root: &Path, name: &str, report: &mut GenerationReport) -> Result<(), CliError> {
+fn register_module(root: &Path, name: &str, report: &mut GenerationReport) {
     let registry = root.join("src/modules/mod.rs");
     if let Err(e) = ensure_items(&registry, &[&format!("pub mod {name};")]) {
         report.manual_instructions.push(format!(
@@ -104,8 +120,6 @@ fn register_module(root: &Path, name: &str, report: &mut GenerationReport) -> Re
                 .to_owned(),
         );
     }
-
-    Ok(())
 }
 
 // ── Auth helper source ───────────────────────────────────────────────
@@ -300,9 +314,7 @@ fn auth_oauth_files(module_dir: &Path) -> Vec<(PathBuf, String)> {
 // ── Module ────────────────────────────────────────────────────────────
 
 fn auth_module_body(_name: &str) -> String {
-    format!(
-        "pub use controller::AuthController;\npub use services::auth_service::AuthService;\npub use services::password_service::PasswordService;\npub use guards::AuthGuard;\n\n#[derive(Module)]\n#[module(\n    providers = [AuthService, PasswordService],\n    controllers = [AuthController],\n    exports = [AuthService],\n)]\npub struct AuthModule;\n"
-    )
+    "pub use controller::AuthController;\npub use services::auth_service::AuthService;\npub use services::password_service::PasswordService;\npub use guards::AuthGuard;\n\n#[derive(Module)]\n#[module(\n    providers = [AuthService, PasswordService],\n    controllers = [AuthController],\n    exports = [AuthService],\n)]\npub struct AuthModule;\n".to_string()
 }
 
 // ── Entity ────────────────────────────────────────────────────────────

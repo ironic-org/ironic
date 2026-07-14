@@ -29,6 +29,10 @@ pub(crate) fn execute(arguments: GenerateArgs, output: &mut impl Write) -> Resul
             ReadyResourceVariant::AuthBasic => generators::generate_ready_resource_basic(&root),
             ReadyResourceVariant::AuthJwt => generators::generate_ready_resource_jwt(&root),
             ReadyResourceVariant::AuthOauth => generators::generate_ready_resource_oauth(&root),
+            ReadyResourceVariant::FileUpload => {
+                generators::generate_ready_resource_file_upload(&root)
+            }
+            ReadyResourceVariant::Email => generators::generate_ready_resource_email(&root),
         },
     }?;
 

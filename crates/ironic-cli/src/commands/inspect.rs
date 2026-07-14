@@ -18,6 +18,57 @@ struct Route {
     handler: String,
 }
 
+pub(crate) fn workspace(root: &Path, output: &mut impl Write) -> Result<(), CliError> {
+    let manifest = root.join("Cargo.toml");
+    if !manifest.is_file() {
+        return Err(CliError::io("open Cargo.toml", &manifest, std::io::Error::new(std::io::ErrorKind::NotFound, "no Cargo.toml found — are you in an Ironic project?")));
+    }
+    let content = fs::read_to_string(&manifest)
+        .map_err(|error| CliError::io("read Cargo.toml", &manifest, error))?;
+
+    let name = content
+        .lines()
+        .find(|l| l.starts_with("name = "))
+        .and_then(|l| l.split('"').nth(1))
+        .unwrap_or("unknown");
+    let version = content
+        .lines()
+        .find(|l| l.starts_with("version = "))
+        .and_then(|l| l.split('"').nth(1))
+        .unwrap_or("unknown");
+    let edition = content
+        .lines()
+        .find(|l| l.starts_with("edition = "))
+        .and_then(|l| l.split('"').nth(1))
+        .unwrap_or("unknown");
+
+    let modules = list_modules(&root.join("src/modules"))
+        .map_err(|e| CliError::io("read modules", root, e))?;
+
+    writeln!(output, "Project: {name}").map_err(|e| CliError::io("write", root, e))?;
+    writeln!(output, "Version: {version}").map_err(|e| CliError::io("write", root, e))?;
+    writeln!(output, "Edition: {edition}").map_err(|e| CliError::io("write", root, e))?;
+    writeln!(output, "Modules: {modules}").map_err(|e| CliError::io("write", root, e))?;
+    Ok(())
+}
+
+fn list_modules(dir: &Path) -> Result<String, std::io::Error> {
+    if !dir.is_dir() {
+        return Ok("none".into());
+    }
+    let mut names = Vec::new();
+    for entry in fs::read_dir(dir)? {
+        let entry = entry?;
+        if entry.file_type()?.is_dir() {
+            if let Some(name) = entry.file_name().to_str() {
+                names.push(name.to_owned());
+            }
+        }
+    }
+    names.sort();
+    Ok(if names.is_empty() { "none".into() } else { names.join(", ") })
+}
+
 pub(crate) fn routes(root: &Path, output: &mut impl Write) -> Result<(), CliError> {
     let files = rust_files(root)?;
     let parsed = parse_files(&files)?;

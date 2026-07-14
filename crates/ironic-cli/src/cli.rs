@@ -32,6 +32,8 @@ pub enum Command {
     /// Checks crates.io for a newer version and shows update instructions.
     #[command(alias = "upgrade")]
     Update,
+    /// Prints project workspace information (name, version, modules).
+    Workspace(InspectArgs),
     /// Lists routes declared by controller macros.
     Routes(InspectArgs),
     /// Prints a Graphviz dependency graph from module and injectable declarations.

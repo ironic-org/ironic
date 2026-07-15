@@ -150,7 +150,7 @@ fn auth_full_files(module_dir: &Path, name: &str) -> Vec<(PathBuf, String)> {
         (d.join("guards/mod.rs"), "pub mod auth_guard;\npub mod role_guard;\npub use auth_guard::AuthGuard;\npub use role_guard::RoleGuard;\n".into()),
         (d.join("guards/auth_guard.rs"), auth_guard().into()),
         (d.join("guards/role_guard.rs"), role_guard().into()),
-        (d.join("decorators/mod.rs"), "pub mod current_user;\npub mod roles;\npub use current_user::current_user as CurrentUser;\npub use roles::roles as Roles;\n".into()),
+        (d.join("decorators/mod.rs"), "pub mod current_user;\npub mod roles;\npub use current_user::CurrentUser as CurrentUser;\npub use roles::Roles as Roles;\n".into()),
         (d.join("decorators/current_user.rs"), current_user_decorator().into()),
         (d.join("decorators/roles.rs"), roles_decorator().into()),
         (d.join("tests/mod.rs"), tests_mod().into()),
@@ -247,7 +247,7 @@ fn auth_jwt_files(module_dir: &Path) -> Vec<(PathBuf, String)> {
         (d.join("guards/auth_guard.rs"), auth_guard().into()),
         (
             d.join("decorators/mod.rs"),
-            "pub mod current_user;\npub use current_user::current_user as CurrentUser;\n".into(),
+            "pub mod current_user;\npub use current_user::CurrentUser as CurrentUser;\n".into(),
         ),
         (
             d.join("decorators/current_user.rs"),
@@ -299,7 +299,7 @@ fn auth_oauth_files(module_dir: &Path) -> Vec<(PathBuf, String)> {
         (d.join("guards/auth_guard.rs"), auth_guard_oauth().into()),
         (
             d.join("decorators/mod.rs"),
-            "pub mod current_user;\npub use current_user::current_user as CurrentUser;\n".into(),
+            "pub mod current_user;\npub use current_user::CurrentUser as CurrentUser;\n".into(),
         ),
         (
             d.join("decorators/current_user.rs"),
@@ -530,10 +530,12 @@ fn token_response() -> &'static str {
 fn auth_controller_full() -> &'static str {
     r#"use std::sync::Arc;
 use ironic::prelude::*;
-use serde_json::json;
 use super::super::services::AuthService;
 use crate::modules::auth::dto::{LoginDto, RefreshDto, RegisterDto, TokenResponse};
 use crate::modules::auth::entities::user::PublicUser;
+
+use super::super::guards::AuthGuard;
+use super::super::decorators::current_user::CurrentUser;
 
 #[controller("/auth")]
 #[derive(Injectable)]
@@ -558,7 +560,7 @@ impl AuthController {
 
      #[get("/me")]
      #[use_guard(AuthGuard)]
-     async fn me(&self, #[custom(current_user)] user_id: u64) -> Result<Json<PublicUser>, HttpError> {
+     async fn me(&self, #[custom(CurrentUser)] user_id: u64) -> Result<Json<PublicUser>, HttpError> {
          Ok(Json(self.service.me(user_id)?.public_view()))
      }
  }
@@ -622,7 +624,7 @@ impl AuthController {
 
     #[get("/me")]
     #[use_guard(AuthGuard)]
-    async fn me(&self, #[custom(current_user)] user_id: u64) -> Result<Json<PublicUser>, HttpError> {
+    async fn me(&self, #[custom(CurrentUser)] user_id: u64) -> Result<Json<PublicUser>, HttpError> {
         Ok(Json(PublicUser { id: user_id, email: "oauth@user.com".into(), name: "OAuth User".into(), role: crate::modules::auth::entities::role::Role::User, provider: "oauth".into() }))
     }
 }
@@ -695,18 +697,18 @@ fn role_guard() -> &'static str {
     r#"use ironic::{Guard, GuardDecision, GuardFuture, RequestContext};
 
 pub struct RoleGuard {
-    required_roles: Vec<String>,
+    required_Roles: Vec<String>,
 }
 
 impl RoleGuard {
-    pub fn new(roles: &[&str]) -> Self { Self { required_roles: roles.iter().map(|s| s.to_string()).collect() } }
+    pub fn new(Roles: &[&str]) -> Self { Self { required_Roles: Roles.iter().map(|s| s.to_string()).collect() } }
 }
 
 impl Guard for RoleGuard {
     fn can_activate<'a>(&'a self, context: &'a mut RequestContext) -> GuardFuture<'a> {
         Box::pin(async move {
-            let user_role = context.extensions.get::<String>().cloned().unwrap_or_default();
-            if self.required_roles.iter().any(|r| r == &user_role) {
+            let user_role = context.extension::<String>().cloned().unwrap_or_default();
+            if self.required_Roles.iter().any(|r| r == &user_role) {
                 Ok(GuardDecision::Allow)
             } else {
                 Ok(GuardDecision::Deny)
@@ -727,14 +729,14 @@ struct CurrentUserExtractor;
 impl ParameterExtractor for CurrentUserExtractor {
     fn extract<'a>(&'a self, context: &'a mut RequestContext) -> ExtractFuture<'a> {
         Box::pin(async move {
-            let user_id = context.extensions.get::<u64>().copied();
+            let user_id = context.extension::<u64>().copied();
             Ok(Box::new(user_id))
         })
     }
     fn description(&self) -> &'static str { "current_user" }
 }
 
-create_param_decorator!(current_user, CurrentUserExtractor);
+create_param_decorator!(CurrentUser, CurrentUserExtractor);
 "#
 }
 
@@ -746,14 +748,14 @@ struct RolesExtractor;
 impl ParameterExtractor for RolesExtractor {
     fn extract<'a>(&'a self, context: &'a mut RequestContext) -> ExtractFuture<'a> {
         Box::pin(async move {
-            let role = context.extensions.get::<String>().cloned();
+            let role = context.extension::<String>().cloned();
             Ok(Box::new(role))
         })
     }
     fn description(&self) -> &'static str { "roles" }
 }
 
-create_param_decorator!(roles, RolesExtractor);
+create_param_decorator!(Roles, RolesExtractor);
 "#
 }
 

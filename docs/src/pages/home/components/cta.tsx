@@ -2,6 +2,7 @@ import { Button } from '@/components/ui/button';
 import { ArrowRight, Github, Terminal } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import FadeUp from './fade-up';
+import { StarCount } from './github-stars';
 
 const CTA = () => {
     return (
@@ -42,6 +43,7 @@ const CTA = () => {
                             rel='noopener noreferrer'>
                             <Github className='mr-2 w-4 h-4' />
                             Star on GitHub
+                            <StarCount className='ml-1.5 text-xs' />
                         </a>
                     </Button>
                 </div>

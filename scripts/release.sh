@@ -391,20 +391,6 @@ if [[ ! -f "$RELEASES_V" ]]; then
         echo ""
     } > "$RELEASES_V"
     echo -e "  ${GREEN}✓${NC} created $RELEASES_V with new series"
-    # Append the last entry from the previous series as a reference point
-    if [[ -n "$PREV_SERIES" ]]; then
-        PREV_FILE="$ROOT/docs/content/docs/releases/v${PREV_SERIES}.x/index.md"
-        PREV_FIRST_VER=$(grep -E "^## v" "$PREV_FILE" | head -1 | sed 's/^## //; s/ —.*//' || true)
-        if [[ -n "$PREV_FIRST_VER" ]]; then
-            {
-                echo ""
-                echo "## v$PREV_FIRST_VER — Legacy"
-                echo ""
-                echo "---"
-                echo ""
-            } >> "$RELEASES_V"
-        fi
-    fi
 fi
 
 # Find the first existing version entry to use as the insertion anchor
@@ -423,8 +409,8 @@ $BLOG_BODY
     if [[ -n "$RELEASES_V_ANCHOR" ]]; then
         ANCHOR_LINE=$(grep -n "^## v$RELEASES_V_ANCHOR" "$RELEASES_V" | head -1 | cut -d: -f1 || true)
     else
-        # No version entries yet — anchor after the first --- separator
-        ANCHOR_LINE=$(grep -n "^---$" "$RELEASES_V" | head -1 | cut -d: -f1 || true)
+        # No version entries yet — anchor after the last --- (intro separator)
+        ANCHOR_LINE=$(grep -n "^---$" "$RELEASES_V" | tail -1 | cut -d: -f1 || true)
         if [[ -n "$ANCHOR_LINE" ]]; then
             ANCHOR_LINE=$((ANCHOR_LINE + 1))
         else

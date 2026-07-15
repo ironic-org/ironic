@@ -3,7 +3,7 @@ title: v0.3.x
 description: Complete changelog and release notes for the Ironic v0.3.x stable series.
 ---
 
-# v0.3.x — Current Stable Series
+# v0.3.x — Stable Series (Legacy)
 
 All versions in the v0.3.x series. Visit the [Blog](/blog) for detailed release announcements.
 

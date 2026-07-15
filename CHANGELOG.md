@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v0.3.3] - 2026-07-15
+
+### Added
+- auto-add required dependencies to Cargo.toml during module registration (e8de7ce)\n
+### Fixed
+- format manual instructions for clarity in module registration (4f55008)\n
+
 ## [v0.3.2] - 2026-07-15
 
 ### Fixed

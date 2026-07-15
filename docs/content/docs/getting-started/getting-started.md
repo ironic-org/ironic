@@ -36,7 +36,7 @@ This installs the `ironic` command globally. Verify it worked:
 
 ```bash
 ironic --version
-# → ironic 0.3.2
+# → ironic 0.3.3
 ```
 
 > **Troubleshooting:** If you get "command not found", make sure `~/.cargo/bin` is in your `PATH`. Add `export PATH="$HOME/.cargo/bin:$PATH"` to your `~/.zshrc` or `~/.bashrc`.

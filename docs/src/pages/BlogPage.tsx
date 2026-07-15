@@ -3,6 +3,8 @@ import { Link, useLocation } from 'react-router-dom';
 import { getMDXComponents } from '@/mdx-components';
 import { blogSource } from '@/lib/source';
 import { ArrowLeft, Calendar, Clock, Github } from 'lucide-react';
+import Navigation from './home/components/navigation';
+import Footer from './home/components/footer';
 import BlogIndex from './BlogIndex';
 
 function getBlogSlug(pathname: string): string[] | undefined {
@@ -20,30 +22,36 @@ export default function BlogPage() {
     if (!slug) {
         return (
             <div className="min-h-screen bg-fd-background">
+                <Navigation />
                 <BlogIndex />
+                <Footer />
             </div>
         );
     }
 
     if (!page || !pageData) {
         return (
-            <div className="min-h-screen bg-fd-background flex items-center justify-center">
-                <div className="text-center px-6 py-16 max-w-md">
-                    <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-fd-muted/30 text-fd-muted-foreground mb-6">
-                        <span className="text-3xl font-bold">404</span>
+            <div className="min-h-screen bg-fd-background">
+                <Navigation />
+                <div className="flex items-center justify-center py-24">
+                    <div className="text-center px-6 max-w-md">
+                        <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-fd-muted/30 text-fd-muted-foreground mb-6">
+                            <span className="text-3xl font-bold">404</span>
+                        </div>
+                        <h1 className="text-2xl font-bold text-fd-foreground mb-2">Post not found</h1>
+                        <p className="text-fd-muted-foreground text-sm leading-relaxed mb-6">
+                            This post may have been moved or renamed. Check the blog index for all available releases.
+                        </p>
+                        <Link
+                            to="/blog"
+                            className="inline-flex items-center gap-2 rounded-full bg-brand px-5 py-2 text-sm font-semibold text-white hover:bg-brand/90 transition-colors"
+                        >
+                            <ArrowLeft className="size-4" />
+                            Browse all posts
+                        </Link>
                     </div>
-                    <h1 className="text-2xl font-bold text-fd-foreground mb-2">Post not found</h1>
-                    <p className="text-fd-muted-foreground text-sm leading-relaxed mb-6">
-                        This post may have been moved or renamed. Check the blog index for all available releases.
-                    </p>
-                    <Link
-                        to="/blog"
-                        className="inline-flex items-center gap-2 rounded-full bg-brand px-5 py-2 text-sm font-semibold text-white hover:bg-brand/90 transition-colors"
-                    >
-                        <ArrowLeft className="size-4" />
-                        Browse all posts
-                    </Link>
                 </div>
+                <Footer />
             </div>
         );
     }
@@ -53,6 +61,8 @@ export default function BlogPage() {
 
     return (
         <div className="min-h-screen bg-fd-background">
+            <Navigation />
+
             {/* Article header */}
             <div className="relative overflow-hidden border-b border-fd-border">
                 <div className="absolute inset-0 pointer-events-none">
@@ -118,7 +128,6 @@ export default function BlogPage() {
                     <Body components={getMDXComponents()} />
                 </article>
 
-                {/* Bottom nav */}
                 <div className="mt-16 pt-8 border-t border-fd-border flex items-center justify-between">
                     <Link
                         to="/blog"
@@ -138,6 +147,8 @@ export default function BlogPage() {
                     </a>
                 </div>
             </div>
+
+            <Footer />
         </div>
     );
 }

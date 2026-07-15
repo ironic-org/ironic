@@ -113,7 +113,7 @@ export default function BlogIndex() {
     const rest = posts.slice(1);
 
     return (
-        <div className="min-h-screen bg-fd-background">
+        <div className="bg-fd-background">
             {/* Hero */}
             <section className="relative overflow-hidden border-b border-fd-border">
                 <div className="absolute inset-0 pointer-events-none">

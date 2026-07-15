@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v0.3.8] - 2026-07-15
+
+### Added
+- enhance observability section with health checks, metrics, and tracing documentation (cf2cc42)\n- update server host in dotenv example and Dockerfile for better accessibility (381f0eb)\n- update Dockerfile generation to use kebab-case project name (137202a)\n
+
+## [v0.3.8] - 2026-07-15
+
+### Added
+- enhance observability section with health checks, metrics, and tracing documentation (cf2cc42)\n- update server host in dotenv example and Dockerfile for better accessibility (381f0eb)\n- update Dockerfile generation to use kebab-case project name (137202a)\n
+
 ## [v0.3.7] - 2026-07-15
 
 ### Added

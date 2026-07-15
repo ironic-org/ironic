@@ -121,7 +121,9 @@ impl Error for HttpError {}
 impl IntoFrameworkResponse for HttpError {
     fn into_framework_response(self) -> Result<FrameworkResponse, HttpError> {
         #[cfg(feature = "backtrace")]
-        if cfg!(debug_assertions) && let Some(backtrace) = self.backtrace {
+        if cfg!(debug_assertions)
+            && let Some(backtrace) = self.backtrace
+        {
             #[derive(serde::Serialize)]
             struct ErrorBody {
                 status: u16,
@@ -138,6 +140,10 @@ impl IntoFrameworkResponse for HttpError {
             };
             return FrameworkResponse::json(self.status, &body);
         }
-        Ok(FrameworkResponse::error(self.status, self.code, self.message))
+        Ok(FrameworkResponse::error(
+            self.status,
+            self.code,
+            self.message,
+        ))
     }
 }

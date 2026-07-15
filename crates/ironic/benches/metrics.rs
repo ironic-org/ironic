@@ -1,13 +1,9 @@
 //! Benchmarks measuring metrics recording overhead — both the built-in
-//! MetricsLayer and custom MetricsRegistry operations.
+//! `MetricsLayer` and custom `MetricsRegistry` operations.
 //!
 //! Run with: cargo bench --bench metrics --features metrics
 
-use std::{
-    hint::black_box,
-    sync::Arc,
-    time::Instant,
-};
+use std::{hint::black_box, sync::Arc, time::Instant};
 
 use axum::{Router, body::Body, http::Request, routing::get};
 use ironic::metrics::{MetricsConfig, MetricsLayer, MetricsRegistry, scrape};

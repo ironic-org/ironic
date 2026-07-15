@@ -1,10 +1,6 @@
 //! Optional integrations with database drivers and object-relational mappers.
 
-use std::{
-    future::Future,
-    pin::Pin,
-    sync::Arc,
-};
+use std::{future::Future, pin::Pin, sync::Arc};
 
 use ironic_core::{HealthIndicator, HealthStatus};
 
@@ -73,10 +69,7 @@ impl<T: IntegrationHealth + 'static> HealthIndicator for HealthIndicatorWrapper<
 /// so it appears on the `GET /health` composite endpoint.
 ///
 /// Call this from each integration module after creating the connection/pool.
-pub fn register_integration_health<T: IntegrationHealth + 'static>(
-    name: &'static str,
-    inner: T,
-) {
+pub fn register_integration_health<T: IntegrationHealth + 'static>(name: &'static str, inner: T) {
     ironic_core::register_health_indicator(Arc::new(HealthIndicatorWrapper { name, inner }));
 }
 

@@ -7,8 +7,8 @@ use std::{
     collections::{HashMap, VecDeque},
     fmt::Write,
     sync::{
-        atomic::{AtomicU64, Ordering},
         Arc, LazyLock, Mutex, RwLock,
+        atomic::{AtomicU64, Ordering},
     },
     time::Instant,
 };
@@ -100,9 +100,18 @@ struct PerEndpointMetrics {
 
 fn new_per_endpoint_buckets() -> [AtomicU64; NUM_BUCKETS] {
     [
-        AtomicU64::new(0), AtomicU64::new(0), AtomicU64::new(0), AtomicU64::new(0),
-        AtomicU64::new(0), AtomicU64::new(0), AtomicU64::new(0), AtomicU64::new(0),
-        AtomicU64::new(0), AtomicU64::new(0), AtomicU64::new(0), AtomicU64::new(0),
+        AtomicU64::new(0),
+        AtomicU64::new(0),
+        AtomicU64::new(0),
+        AtomicU64::new(0),
+        AtomicU64::new(0),
+        AtomicU64::new(0),
+        AtomicU64::new(0),
+        AtomicU64::new(0),
+        AtomicU64::new(0),
+        AtomicU64::new(0),
+        AtomicU64::new(0),
+        AtomicU64::new(0),
         AtomicU64::new(0),
     ]
 }
@@ -137,10 +146,11 @@ fn ensure_per_endpoint(key: &str) {
              consider disabling per-endpoint metrics or increasing the limit"
         );
     }
-    map.entry(key.to_string()).or_insert_with(|| PerEndpointMetrics {
-        request_count: AtomicU64::new(0),
-        latency_buckets: new_per_endpoint_buckets(),
-    });
+    map.entry(key.to_string())
+        .or_insert_with(|| PerEndpointMetrics {
+            request_count: AtomicU64::new(0),
+            latency_buckets: new_per_endpoint_buckets(),
+        });
 }
 
 fn record_per_endpoint(key: &str, duration: f64) {
@@ -161,9 +171,15 @@ fn compute_percentiles() -> Option<(f64, f64, f64)> {
     let mut samples: Vec<f64> = buf.iter().copied().collect();
     samples.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
     let len = samples.len();
-    let p50 = samples[(len as f64 * 0.50).ceil() as usize - 1].min(samples[len - 1]);
-    let p90 = samples[(len as f64 * 0.90).ceil() as usize - 1].min(samples[len - 1]);
-    let p99 = samples[(len as f64 * 0.99).ceil() as usize - 1].min(samples[len - 1]);
+    #[allow(
+        clippy::cast_precision_loss,
+        clippy::cast_possible_truncation,
+        clippy::cast_sign_loss
+    )]
+    let idx = |pct: f64| (len as f64 * pct).ceil() as usize - 1;
+    let p50 = samples[idx(0.50)].min(samples[len - 1]);
+    let p90 = samples[idx(0.90)].min(samples[len - 1]);
+    let p99 = samples[idx(0.99)].min(samples[len - 1]);
     Some((p50, p90, p99))
 }
 
@@ -257,7 +273,7 @@ where
             "/".into()
         };
         let key = if self.config.per_endpoint {
-            let k = format!("{}:{}", method, path);
+            let k = format!("{method}:{path}");
             ensure_per_endpoint(&k);
             Some(k)
         } else {
@@ -305,6 +321,7 @@ where
 // ---------------------------------------------------------------------------
 
 /// Returns the current metrics snapshot in Prometheus text format.
+#[allow(clippy::too_many_lines)]
 pub fn scrape() -> String {
     let mut out = String::new();
 
@@ -330,7 +347,10 @@ pub fn scrape() -> String {
         let mut sorted: Vec<_> = statuses.iter().collect();
         sorted.sort_by_key(|(k, _)| *k);
         for (code, count) in &sorted {
-            let _ = writeln!(out, "ironic_http_responses_total{{status=\"{code}\"}} {count}");
+            let _ = writeln!(
+                out,
+                "ironic_http_responses_total{{status=\"{code}\"}} {count}"
+            );
         }
         let _ = writeln!(out);
     }
@@ -353,7 +373,10 @@ pub fn scrape() -> String {
         out,
         "ironic_http_request_duration_seconds_bucket{{le=\"+Inf\"}} {cumulative}"
     );
-    let _ = writeln!(out, "ironic_http_request_duration_seconds_count {cumulative}");
+    let _ = writeln!(
+        out,
+        "ironic_http_request_duration_seconds_count {cumulative}"
+    );
     let _ = writeln!(out);
 
     if let Some((p50, p90, p99)) = compute_percentiles() {
@@ -361,10 +384,22 @@ pub fn scrape() -> String {
             out,
             "# HELP ironic_http_request_duration_seconds_sum Request latency sum (from raw samples)"
         );
-        let _ = writeln!(out, "# TYPE ironic_http_request_duration_seconds_sum summary");
-        let _ = writeln!(out, "ironic_http_request_duration_seconds_sum{{quantile=\"0.5\"}} {p50:.6}");
-        let _ = writeln!(out, "ironic_http_request_duration_seconds_sum{{quantile=\"0.9\"}} {p90:.6}");
-        let _ = writeln!(out, "ironic_http_request_duration_seconds_sum{{quantile=\"0.99\"}} {p99:.6}");
+        let _ = writeln!(
+            out,
+            "# TYPE ironic_http_request_duration_seconds_sum summary"
+        );
+        let _ = writeln!(
+            out,
+            "ironic_http_request_duration_seconds_sum{{quantile=\"0.5\"}} {p50:.6}"
+        );
+        let _ = writeln!(
+            out,
+            "ironic_http_request_duration_seconds_sum{{quantile=\"0.9\"}} {p90:.6}"
+        );
+        let _ = writeln!(
+            out,
+            "ironic_http_request_duration_seconds_sum{{quantile=\"0.99\"}} {p99:.6}"
+        );
         let _ = writeln!(out);
     }
 
@@ -382,8 +417,14 @@ pub fn scrape() -> String {
             .read()
             .unwrap_or_else(std::sync::PoisonError::into_inner);
         if !ep_map.is_empty() {
-            let _ = writeln!(out, "# HELP ironic_http_request_duration_seconds_per_endpoint Per-endpoint request latency histogram");
-            let _ = writeln!(out, "# TYPE ironic_http_request_duration_seconds_per_endpoint histogram");
+            let _ = writeln!(
+                out,
+                "# HELP ironic_http_request_duration_seconds_per_endpoint Per-endpoint request latency histogram"
+            );
+            let _ = writeln!(
+                out,
+                "# TYPE ironic_http_request_duration_seconds_per_endpoint histogram"
+            );
             let mut keys: Vec<&String> = ep_map.keys().collect();
             keys.sort();
             for key in &keys {
@@ -394,20 +435,17 @@ pub fn scrape() -> String {
                         ep_total += ep.latency_buckets[i].load(Ordering::Relaxed);
                         let _ = writeln!(
                             out,
-                            "ironic_http_request_duration_seconds_per_endpoint_bucket{{endpoint=\"{}\",le=\"{boundary}\"}} {ep_total}",
-                            key
+                            "ironic_http_request_duration_seconds_per_endpoint_bucket{{endpoint=\"{key}\",le=\"{boundary}\"}} {ep_total}",
                         );
                     }
                     ep_total += ep.latency_buckets[12].load(Ordering::Relaxed);
                     let _ = writeln!(
                         out,
-                        "ironic_http_request_duration_seconds_per_endpoint_bucket{{endpoint=\"{}\",le=\"+Inf\"}} {ep_total}",
-                        key
+                        "ironic_http_request_duration_seconds_per_endpoint_bucket{{endpoint=\"{key}\",le=\"+Inf\"}} {ep_total}",
                     );
                     let _ = writeln!(
                         out,
-                        "ironic_http_request_duration_seconds_per_endpoint_count{{endpoint=\"{}\"}} {ep_count}",
-                        key
+                        "ironic_http_request_duration_seconds_per_endpoint_count{{endpoint=\"{key}\"}} {ep_count}",
                     );
                 }
             }
@@ -526,8 +564,7 @@ impl Histogram {
 // Global storage for user-registered custom metrics.
 static CUSTOM_COUNTERS: LazyLock<Mutex<Vec<Arc<Counter>>>> =
     LazyLock::new(|| Mutex::new(Vec::new()));
-static CUSTOM_GAUGES: LazyLock<Mutex<Vec<Arc<Gauge>>>> =
-    LazyLock::new(|| Mutex::new(Vec::new()));
+static CUSTOM_GAUGES: LazyLock<Mutex<Vec<Arc<Gauge>>>> = LazyLock::new(|| Mutex::new(Vec::new()));
 static CUSTOM_HISTOGRAMS: LazyLock<Mutex<Vec<Arc<Histogram>>>> =
     LazyLock::new(|| Mutex::new(Vec::new()));
 
@@ -601,11 +638,7 @@ fn scrape_custom(out: &mut String) {
             let mut cumulative: u64 = 0;
             for (i, boundary) in BOUNDARIES.iter().enumerate() {
                 cumulative += h.buckets[i].load(Ordering::Relaxed);
-                let _ = writeln!(
-                    out,
-                    "{}_bucket{{le=\"{boundary}\"}} {cumulative}",
-                    h.name
-                );
+                let _ = writeln!(out, "{}_bucket{{le=\"{boundary}\"}} {cumulative}", h.name);
             }
             cumulative += h.buckets[12].load(Ordering::Relaxed);
             let _ = writeln!(out, "{}_bucket{{le=\"+Inf\"}} {cumulative}", h.name);
@@ -640,12 +673,10 @@ impl Module for MetricsModule {
             ),
         )
         .expect("the built-in metrics route is valid");
-        let controller = ControllerDefinition::new::<MetricsController>(
-            "/metrics",
-            controller_provider,
-        )
-        .expect("the built-in metrics controller path is valid")
-        .route(route);
+        let controller =
+            ControllerDefinition::new::<MetricsController>("/metrics", controller_provider)
+                .expect("the built-in metrics controller path is valid")
+                .route(route);
         let registry_provider =
             ProviderDefinition::constructor(Scope::Singleton, Vec::new(), |_resolver| {
                 Ok(MetricsRegistry)

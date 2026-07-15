@@ -12,12 +12,10 @@ pub mod csrf;
 #[cfg(feature = "security-rate-limit")]
 pub mod rate_limit;
 #[cfg(feature = "security-rate-limit")]
-pub use rate_limit::{
-    InMemoryRateLimiter, RateLimitBackend, RateLimitMiddleware, RateLimitResult,
-};
-#[cfg(feature = "security-rate-limit")]
 #[cfg(feature = "redis")]
 pub use rate_limit::RedisRateLimiter;
+#[cfg(feature = "security-rate-limit")]
+pub use rate_limit::{InMemoryRateLimiter, RateLimitBackend, RateLimitMiddleware, RateLimitResult};
 #[cfg(feature = "security-headers")]
 pub mod security_headers;
 #[cfg(feature = "security-headers")]
@@ -26,7 +24,7 @@ pub use security_headers::{SecurityHeadersConfig, SecurityHeadersMiddleware};
 #[cfg(test)]
 #[cfg(feature = "security")]
 mod tests {
-    use super::rate_limit::{InMemoryRateLimiter, RateLimitBackend};
+    use super::rate_limit::InMemoryRateLimiter;
 
     #[test]
     fn rate_limiter_allows_within_limit() {

@@ -49,8 +49,8 @@ use std::convert::Infallible;
 
 use std::{
     sync::{
-        atomic::{AtomicU64, Ordering},
         Arc, Mutex,
+        atomic::{AtomicU64, Ordering},
     },
     task::{Context, Poll},
     time::{Duration, Instant},
@@ -415,8 +415,7 @@ pub struct ConcurrencyLimitService<S> {
 }
 
 #[cfg(feature = "resilience-ext")]
-impl<S, ReqBody, ResBody> tower::Service<http::Request<ReqBody>>
-    for ConcurrencyLimitService<S>
+impl<S, ReqBody, ResBody> tower::Service<http::Request<ReqBody>> for ConcurrencyLimitService<S>
 where
     S: tower::Service<http::Request<ReqBody>, Response = http::Response<ResBody>>,
     S::Future: Send + 'static,

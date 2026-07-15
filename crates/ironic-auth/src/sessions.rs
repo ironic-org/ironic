@@ -210,7 +210,7 @@ pub fn expired_session_cookie(name: &str, secure: bool) -> String {
 ///
 /// Controls session TTL in seconds.
 #[cfg(all(feature = "redis", feature = "sessions"))]
-#[derive(Clone, Debug)]
+#[derive(Clone, Copy, Debug)]
 pub struct RedisSessionConfig {
     /// Session TTL in seconds (default: 86400 / 24 hours).
     pub session_ttl: u64,
@@ -219,9 +219,7 @@ pub struct RedisSessionConfig {
 #[cfg(all(feature = "redis", feature = "sessions"))]
 impl Default for RedisSessionConfig {
     fn default() -> Self {
-        Self {
-            session_ttl: 86400,
-        }
+        Self { session_ttl: 86400 }
     }
 }
 
@@ -261,13 +259,16 @@ impl RedisSessionStore {
     pub fn new(connection_manager: redis::aio::ConnectionManager) -> Self {
         Self {
             connection_manager,
-            session_ttl: Duration::from_secs(86400),
+            session_ttl: Duration::from_hours(24),
         }
     }
 
     /// Creates a store with a [`RedisSessionConfig`].
     #[must_use]
-    pub fn with_config(connection_manager: redis::aio::ConnectionManager, config: RedisSessionConfig) -> Self {
+    pub fn with_config(
+        connection_manager: redis::aio::ConnectionManager,
+        config: RedisSessionConfig,
+    ) -> Self {
         Self {
             connection_manager,
             session_ttl: Duration::from_secs(config.session_ttl),
@@ -295,8 +296,8 @@ impl SessionStore for RedisSessionStore {
 
             match data {
                 Some(json) => {
-                    let value: serde_json::Value = serde_json::from_str(&json)
-                        .map_err(SessionError::from)?;
+                    let value: serde_json::Value =
+                        serde_json::from_str(&json).map_err(SessionError::from)?;
 
                     let id_str = value["id"].as_str().ok_or_else(|| {
                         SessionError::Store("Missing session id in stored data".into())
@@ -307,8 +308,7 @@ impl SessionStore for RedisSessionStore {
                     let expires_at_secs = value["expires_at"].as_u64().ok_or_else(|| {
                         SessionError::Store("Missing expires_at in stored data".into())
                     })?;
-                    let expires_at =
-                        SystemTime::UNIX_EPOCH + Duration::from_secs(expires_at_secs);
+                    let expires_at = SystemTime::UNIX_EPOCH + Duration::from_secs(expires_at_secs);
 
                     if expires_at <= SystemTime::now() {
                         let _ = conn.del::<_, ()>(&key).await;

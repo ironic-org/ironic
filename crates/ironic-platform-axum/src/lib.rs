@@ -1,11 +1,7 @@
 #![doc = "Axum integration for Ironic."]
 
 use std::{
-    collections::HashMap,
-    convert::Infallible,
-    net::SocketAddr,
-    path::PathBuf,
-    sync::Arc,
+    collections::HashMap, convert::Infallible, net::SocketAddr, path::PathBuf, sync::Arc,
     time::Duration,
 };
 
@@ -24,8 +20,8 @@ use ironic_http::{
 use ironic_platform::{
     HttpPlatformAdapter, HttpPlatformApplication, PlatformFuture, Shutdown, ShutdownSignal,
 };
+use tower::{Layer, Service, ServiceBuilder};
 use tracing::warn;
-use tower::{Layer, Service, ServiceBuilder, ServiceExt};
 
 /// A failure while converting framework metadata into Axum routes.
 #[derive(Clone, Debug, Eq, PartialEq, thiserror::Error)]
@@ -127,7 +123,7 @@ impl AxumAdapter {
 
     /// Mounts a static file directory at the given route prefix.
     ///
-    /// Files are served with built-in ETag and `If-None-Match`/304 support.
+    /// Files are served with built-in `ETag` and `If-None-Match`/304 support.
     /// The default `Cache-Control` is `public, max-age=3600`.
     ///
     /// # Feature flag
@@ -218,20 +214,12 @@ impl HttpPlatformAdapter for AxumAdapter {
             // ServeDir uses Infallible errors (404s are returned as responses),
             // so get_service works directly without handle_error.
             let dir_service = ServiceBuilder::new()
-                .layer(
-                    tower_http::set_header::SetResponseHeaderLayer::overriding(
-                        axum::http::header::CACHE_CONTROL,
-                        axum::http::HeaderValue::from_static("public, max-age=3600"),
-                    ),
-                )
-                .service(
-                    tower_http::services::ServeDir::new(&sf.fs_dir)
-                        .precompressed_gzip(),
-                );
-            router = router.route(
-                &wildcard_path,
-                axum::routing::get_service(dir_service),
-            );
+                .layer(tower_http::set_header::SetResponseHeaderLayer::overriding(
+                    axum::http::header::CACHE_CONTROL,
+                    axum::http::HeaderValue::from_static("public, max-age=3600"),
+                ))
+                .service(tower_http::services::ServeDir::new(&sf.fs_dir).precompressed_gzip());
+            router = router.route(&wildcard_path, axum::routing::get_service(dir_service));
         }
         for configure in self.configure_router {
             router = configure(router);
@@ -299,7 +287,8 @@ impl AxumApplication {
         }
         // Drain timeout starts now.
         tokio::time::sleep(drain_timeout).await;
-        rx.borrow().unwrap_or(ShutdownSignal::Custom("drain-timeout"))
+        rx.borrow()
+            .unwrap_or(ShutdownSignal::Custom("drain-timeout"))
     }
 }
 
@@ -319,16 +308,14 @@ impl HttpPlatformApplication for AxumApplication {
                     message: error.to_string(),
                 })?;
             // Watch channel: graceful writes the signal, drain futures read it.
-            let (drain_tx, drain_rx) =
-                tokio::sync::watch::channel(None::<ShutdownSignal>);
+            let (drain_tx, drain_rx) = tokio::sync::watch::channel(None::<ShutdownSignal>);
             let graceful = {
                 async move {
                     let sig = shutdown.wait().await;
                     let _ = drain_tx.send(Some(sig));
                 }
             };
-            let serve_fut =
-                axum::serve(listener, self.router).with_graceful_shutdown(graceful);
+            let serve_fut = axum::serve(listener, self.router).with_graceful_shutdown(graceful);
 
             let signal = tokio::select! {
                 result = serve_fut => {

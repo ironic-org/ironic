@@ -5,14 +5,14 @@ mod exception_filter;
 mod extract;
 mod handler;
 mod metadata;
+#[cfg(feature = "multipart")]
+mod multipart;
 mod observability;
 mod pipeline;
 mod pipes;
 mod request;
 mod response;
 mod route;
-#[cfg(feature = "multipart")]
-mod multipart;
 #[cfg(feature = "serialization")]
 mod serialization;
 
@@ -25,6 +25,8 @@ pub use extract::{
 };
 pub use handler::{ErasedHandler, HandlerArguments, HandlerFuture, handler_fn};
 pub use metadata::{CacheMetadata, VersionMetadata, VersioningStrategy};
+#[cfg(feature = "multipart")]
+pub use multipart::{MultipartConfig, MultipartForm, MultipartFormData, UploadedFile};
 pub use observability::{RequestId, RequestTracing};
 pub use pipeline::{
     Guard, GuardDecision, GuardFuture, Interceptor, InterceptorNext, Middleware, MiddlewareNext,
@@ -36,8 +38,6 @@ pub use pipes::{ParseUUIDPipe, parse_uuid};
 #[cfg(feature = "validation")]
 pub use pipes::{ValidationPipe, validate};
 pub use request::{FrameworkRequest, RequestContext};
-#[cfg(feature = "multipart")]
-pub use multipart::{MultipartConfig, MultipartForm, MultipartFormData, UploadedFile};
 pub use response::{FrameworkBody, FrameworkResponse, IntoFrameworkResponse, Json};
 pub use route::{
     CompiledHttpApplication, CompiledRoute, ControllerDefinition, RouteDefinition, RouteError,

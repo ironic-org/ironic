@@ -66,6 +66,7 @@ impl Default for TelemetryConfig {
 /// # Panics
 ///
 /// Panics if `set_global_default` is called more than once in the process lifetime.
+#[allow(clippy::needless_pass_by_value)]
 pub fn init_tracing(config: TelemetryConfig) -> TracingGuard {
     #[cfg(not(feature = "telemetry"))]
     {
@@ -97,18 +98,15 @@ pub fn init_tracing(config: TelemetryConfig) -> TracingGuard {
 
         let subscriber = tracing_subscriber::registry()
             .with(
-                tracing_subscriber::fmt::layer()
-                    .with_filter(
-                        tracing_subscriber::filter::EnvFilter::try_from_default_env()
-                            .unwrap_or_else(|_| tracing_subscriber::filter::EnvFilter::new("info")),
-                    ),
+                tracing_subscriber::fmt::layer().with_filter(
+                    tracing_subscriber::filter::EnvFilter::try_from_default_env()
+                        .unwrap_or_else(|_| tracing_subscriber::filter::EnvFilter::new("info")),
+                ),
             )
-            .with(
-                otlp_guard.provider.as_ref().map(|p| {
-                    let tracer = p.tracer("ironic");
-                    tracing_opentelemetry::layer().with_tracer(tracer)
-                }),
-            );
+            .with(otlp_guard.provider.as_ref().map(|p| {
+                let tracer = p.tracer("ironic");
+                tracing_opentelemetry::layer().with_tracer(tracer)
+            }));
 
         tracing::subscriber::set_global_default(subscriber)
             .expect("tracing subscriber must be set once");
@@ -126,13 +124,16 @@ pub fn init_tracing(config: TelemetryConfig) -> TracingGuard {
             );
         }
 
-        TracingGuard { otlp: Some(otlp_guard) }
+        TracingGuard {
+            otlp: Some(otlp_guard),
+        }
     }
 }
 
 /// Guard that flushes pending spans on drop.
 pub struct TracingGuard {
     #[cfg(feature = "telemetry")]
+    #[allow(dead_code)]
     otlp: Option<otlp::OtlpGuard>,
     #[cfg(not(feature = "telemetry"))]
     #[allow(dead_code)]
@@ -160,7 +161,7 @@ pub fn inject_trace_context<B>(request: &mut http::Request<B>) {
             let trace_id = span_context.trace_id();
             let span_id = span_context.span_id();
             let trace_flags = span_context.trace_flags().to_u8();
-            let value = format!("00-{:032x}-{:016x}-{:02x}", trace_id, span_id, trace_flags);
+            let value = format!("00-{trace_id:032x}-{span_id:016x}-{trace_flags:02x}");
             if let Ok(val) = http::HeaderValue::from_str(&value) {
                 request.headers_mut().insert("traceparent", val);
             }

@@ -115,6 +115,7 @@ impl<T> ParameterExtractor for MultipartForm<T>
 where
     T: serde::de::DeserializeOwned + Send + Sync + 'static,
 {
+    #[allow(clippy::too_many_lines)]
     fn extract<'a>(&'a self, context: &'a mut RequestContext) -> ExtractFuture<'a> {
         let config = self.config.clone();
         Box::pin(async move {
@@ -138,9 +139,8 @@ where
             })?;
 
             let body = context.request().body().to_vec();
-            let stream = futures_util::stream::once(async move {
-                Ok::<Vec<u8>, std::io::Error>(body)
-            });
+            let stream =
+                futures_util::stream::once(async move { Ok::<Vec<u8>, std::io::Error>(body) });
 
             let max_file = u64::from(u32::try_from(config.max_file_size).unwrap_or(u32::MAX));
             let max_field = u64::from(u32::try_from(config.max_field_size).unwrap_or(u32::MAX));
@@ -151,8 +151,7 @@ where
 
             let constraints = multer::Constraints::new().size_limit(size_limit);
 
-            let mut multipart =
-                multer::Multipart::with_constraints(stream, boundary, constraints);
+            let mut multipart = multer::Multipart::with_constraints(stream, boundary, constraints);
 
             let mut field_map: std::collections::BTreeMap<String, String> =
                 std::collections::BTreeMap::new();
@@ -160,7 +159,10 @@ where
 
             while let Some(field) = multipart.next_field().await.map_err(|e| {
                 let (code, status) = if is_size_limit_error(&e) {
-                    ("RF_MULTIPART_FIELD_TOO_LARGE", HttpStatus::PAYLOAD_TOO_LARGE)
+                    (
+                        "RF_MULTIPART_FIELD_TOO_LARGE",
+                        HttpStatus::PAYLOAD_TOO_LARGE,
+                    )
                 } else {
                     ("RF_MULTIPART_PARSE_ERROR", HttpStatus::BAD_REQUEST)
                 };
@@ -178,11 +180,14 @@ where
 
                 let is_file = field.file_name().is_some();
                 let file_name = field.file_name().map(String::from);
-                let content_type = field.content_type().map(|m| m.to_string());
+                let content_type = field.content_type().map(ToString::to_string);
 
                 let data = field.bytes().await.map_err(|e| {
                     let (code, status) = if is_size_limit_error(&e) {
-                        ("RF_MULTIPART_FIELD_TOO_LARGE", HttpStatus::PAYLOAD_TOO_LARGE)
+                        (
+                            "RF_MULTIPART_FIELD_TOO_LARGE",
+                            HttpStatus::PAYLOAD_TOO_LARGE,
+                        )
                     } else {
                         ("RF_MULTIPART_FIELD_READ_ERROR", HttpStatus::BAD_REQUEST)
                     };

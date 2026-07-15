@@ -8,7 +8,7 @@ use std::{
 
 use ironic_di::{ProviderDefinition, Scope};
 use ironic_http::{
-    handler_fn, ControllerDefinition, FrameworkResponse, HttpMethod, HttpStatus, RouteDefinition,
+    ControllerDefinition, FrameworkResponse, HttpMethod, HttpStatus, RouteDefinition, handler_fn,
 };
 use serde::Serialize;
 
@@ -85,6 +85,7 @@ impl Default for HealthConfig {
 static HEALTH_CONFIG: LazyLock<Mutex<Option<HealthConfig>>> = LazyLock::new(|| Mutex::new(None));
 
 /// Override the default health configuration.
+#[allow(unreachable_pub, dead_code)]
 pub fn configure(config: HealthConfig) {
     if let Ok(mut c) = HEALTH_CONFIG.lock() {
         *c = Some(config);
@@ -191,7 +192,10 @@ async fn run_health_checks() -> HealthResponse {
                 }
                 (
                     "degraded".into(),
-                    Some(format!("health check timed out after {:?}", config.check_timeout)),
+                    Some(format!(
+                        "health check timed out after {:?}",
+                        config.check_timeout
+                    )),
                 )
             }
         };

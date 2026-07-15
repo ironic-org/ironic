@@ -88,7 +88,7 @@ impl InMemoryRateLimiter {
         let windows = self
             .windows
             .lock()
-            .unwrap_or_else(|e| e.into_inner());
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
         let now = Instant::now();
         windows.get(key).map_or(max_requests, |entries| {
             let active = entries
@@ -100,16 +100,11 @@ impl InMemoryRateLimiter {
     }
 
     /// Shared synchronous implementation used by both `check` and `remaining`.
-    fn sync_check(
-        &self,
-        key: &str,
-        max_requests: u64,
-        window_secs: u64,
-    ) -> RateLimitResult {
+    fn sync_check(&self, key: &str, max_requests: u64, window_secs: u64) -> RateLimitResult {
         let mut windows = self
             .windows
             .lock()
-            .unwrap_or_else(|e| e.into_inner());
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
         let now = Instant::now();
         let entries = windows.entry(key.to_owned()).or_default();
 
@@ -119,12 +114,10 @@ impl InMemoryRateLimiter {
         let active = entries.len() as u64;
 
         if active >= max_requests {
-            let reset_after = oldest
-                .map(|t| {
-                    let elapsed = now.duration_since(t).as_secs();
-                    Duration::from_secs(window_secs.saturating_sub(elapsed))
-                })
-                .unwrap_or(Duration::from_secs(window_secs));
+            let reset_after = oldest.map_or(Duration::from_secs(window_secs), |t| {
+                let elapsed = now.duration_since(t).as_secs();
+                Duration::from_secs(window_secs.saturating_sub(elapsed))
+            });
             RateLimitResult {
                 allowed: false,
                 remaining: 0,
@@ -200,7 +193,7 @@ impl RateLimitBackend for RedisRateLimiter {
                 .ignore()
                 .cmd("EXPIRE")
                 .arg(&redis_key)
-                .arg(window_secs as i64)
+                .arg(window_secs)
                 .ignore()
                 .cmd("GET")
                 .arg(&redis_key)
@@ -209,10 +202,11 @@ impl RateLimitBackend for RedisRateLimiter {
             match result {
                 Ok(current) => {
                     if current > max_requests {
-                        let ttl: Result<u64, _> =
-                            ::redis::cmd("TTL").arg(&redis_key).query_async(&mut conn).await;
-                        let reset_after =
-                            Duration::from_secs(ttl.unwrap_or(window_secs));
+                        let ttl: Result<u64, _> = ::redis::cmd("TTL")
+                            .arg(&redis_key)
+                            .query_async(&mut conn)
+                            .await;
+                        let reset_after = Duration::from_secs(ttl.unwrap_or(window_secs));
                         RateLimitResult {
                             allowed: false,
                             remaining: 0,

@@ -1,9 +1,10 @@
 #![doc = "Typed, validated configuration with redacted secret values for Ironic."]
 
-use std::{fmt, path::{Path, PathBuf}};
-use std::collections::HashMap;
-#[cfg(feature = "hot-reload")]
-use std::sync::Arc;
+use std::{
+    collections::HashMap,
+    fmt,
+    path::{Path, PathBuf},
+};
 
 use config::{Config, Environment, File, FileFormat, builder::DefaultState};
 use serde::{Deserialize, Serialize, de::DeserializeOwned};
@@ -81,9 +82,7 @@ impl ConfigurationLoader {
         let path = path.as_ref().to_owned();
         #[cfg(feature = "hot-reload")]
         self.watched_paths.push(path.clone());
-        self.builder = self
-            .builder
-            .add_source(File::from(path).required(true));
+        self.builder = self.builder.add_source(File::from(path).required(true));
         self
     }
 
@@ -137,9 +136,7 @@ impl ConfigurationLoader {
     pub fn profile(self, env: &str) -> Self {
         let path = PathBuf::from(format!("config.{env}.toml"));
         let mut this = self;
-        this.builder = this
-            .builder
-            .add_source(File::from(path).required(false));
+        this.builder = this.builder.add_source(File::from(path).required(false));
         this
     }
 
@@ -228,9 +225,10 @@ impl ConfigurationLoader {
             while let Ok(result) = event_rx.recv() {
                 match result {
                     Ok(event) => {
-                        let is_config_change = event.paths.iter().any(|p| {
-                            watched_paths.iter().any(|wp| p.starts_with(wp) || p == wp)
-                        });
+                        let is_config_change = event
+                            .paths
+                            .iter()
+                            .any(|p| watched_paths.iter().any(|wp| p.starts_with(wp) || p == wp));
                         if !is_config_change {
                             continue;
                         }
@@ -249,8 +247,7 @@ impl ConfigurationLoader {
 
                 let mut builder = Config::builder();
                 for path in &watched_paths {
-                    builder =
-                        builder.add_source(File::from(path.clone()).required(false));
+                    builder = builder.add_source(File::from(path.clone()).required(false));
                 }
                 for prefix in &env_prefixes {
                     builder = builder.add_source(
@@ -261,11 +258,10 @@ impl ConfigurationLoader {
                     );
                 }
                 for json_str in &json_layers {
-                    builder =
-                        builder.add_source(File::from_str(json_str, FileFormat::Json));
+                    builder = builder.add_source(File::from_str(json_str, FileFormat::Json));
                 }
 
-                match builder.build().and_then(|c| c.try_deserialize::<T>()) {
+                match builder.build().and_then(Config::try_deserialize::<T>) {
                     Ok(new_config) => {
                         if let Err(e) = new_config.validate() {
                             tracing::warn!("Config reloaded but failed validation: {e}");
@@ -283,7 +279,7 @@ impl ConfigurationLoader {
 
         ConfigWatcher {
             rx,
-            _handle: Some(handle),
+            handle: Some(handle),
         }
     }
 }
@@ -307,7 +303,8 @@ impl Default for ConfigurationLoader {
 #[cfg(feature = "hot-reload")]
 pub struct ConfigWatcher<T> {
     rx: tokio::sync::watch::Receiver<Option<T>>,
-    _handle: Option<std::thread::JoinHandle<()>>,
+    #[allow(dead_code)]
+    handle: Option<std::thread::JoinHandle<()>>,
 }
 
 #[cfg(feature = "hot-reload")]
@@ -315,7 +312,7 @@ impl<T: fmt::Debug> fmt::Debug for ConfigWatcher<T> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("ConfigWatcher")
             .field("latest", &self.rx.borrow())
-            .field("has_handle", &self._handle.is_some())
+            .field("has_handle", &self.handle.is_some())
             .finish()
     }
 }
@@ -571,7 +568,7 @@ mod tests {
     fn profile_overlay_merges_on_top_of_base() {
         let _ = std::fs::remove_file("base_config.toml");
         let _ = std::fs::remove_file("config.staging.toml");
-        std::fs::write("base_config.toml", r#"port = 8080"#).unwrap();
+        std::fs::write("base_config.toml", r"port = 8080").unwrap();
         std::fs::write(
             "config.staging.toml",
             r#"port = 9090
@@ -607,7 +604,7 @@ db_url = "postgres://staging/db""#,
     #[test]
     fn file_then_profile_then_json_respected_precedence() {
         let _ = std::fs::remove_file("base_config.toml");
-        std::fs::write("base_config.toml", r#"port = 1000"#).unwrap();
+        std::fs::write("base_config.toml", r"port = 1000").unwrap();
         std::fs::write(
             "config.precedence.toml",
             r#"port = 2000
@@ -623,10 +620,7 @@ host = "profile-host""#,
 
         assert_eq!(config.port, 3000, "json should override profile and base");
         assert_eq!(config.host, "json-host", "json should override profile");
-        assert_eq!(
-            config.db_url.expose_secret(),
-            "postgres://json/db"
-        );
+        assert_eq!(config.db_url.expose_secret(), "postgres://json/db");
 
         let _ = std::fs::remove_file("base_config.toml");
         let _ = std::fs::remove_file("config.precedence.toml");

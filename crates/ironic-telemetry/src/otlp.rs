@@ -1,6 +1,6 @@
-use opentelemetry_sdk::trace::{Sampler, SdkTracerProvider};
-use opentelemetry_sdk::Resource;
 use opentelemetry_otlp::WithExportConfig;
+use opentelemetry_sdk::Resource;
+use opentelemetry_sdk::trace::{Sampler, SdkTracerProvider};
 
 use crate::telemetry::TelemetryConfig;
 

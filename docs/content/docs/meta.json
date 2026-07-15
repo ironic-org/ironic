@@ -3,6 +3,7 @@
   "pages": [
     "getting-started",
     "core",
+    "configuration",
     "modules",
     "data-auth",
     "http-api",
@@ -11,6 +12,7 @@
     "testing",
     "observability",
     "releases",
+    "migrations",
     "more"
   ]
 }

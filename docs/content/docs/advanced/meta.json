@@ -1,4 +1,4 @@
 {
   "title": "Advanced",
-  "pages": ["websocket-gateways", "devtools-plugins"]
+  "pages": ["websocket-gateways", "devtools-plugins", "multipart", "static-files", "sessions"]
 }

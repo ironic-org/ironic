@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v0.3.7] - 2026-07-15
+
+### Added
+- add global middleware support for application builder and enhance security features (7113eef)\n
+
 ## [v0.3.6] - 2026-07-15
 
 ### Added

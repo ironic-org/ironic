@@ -10,6 +10,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [v0.3.9] - 2026-07-15
 
 ### Added
+- add release notes for v0.3.9 and enhance release script documentation (08592c9)\n- enhance release script to create blog post and update releases documentation (66b0a0a)\n
+
+## [v0.3.9] - 2026-07-15
+
+### Added
+- add release notes for v0.3.9 and enhance release script documentation (08592c9)\n- enhance release script to create blog post and update releases documentation (66b0a0a)\n
+
+## [v0.3.9] - 2026-07-15
+
+### Added
 - enhance release script to create blog post and update releases documentation (66b0a0a)\n
 
 ## [v0.3.9] - 2026-07-15

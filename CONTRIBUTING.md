@@ -153,6 +153,6 @@ Report security vulnerabilities to **security@ironic.rs** or follow the process 
 
 ## Getting Help
 
-- Open a [discussion](https://github.com/ironic-org/ironic/discussions)
+- Open an [issue](https://github.com/ironic-org/ironic/issues)
 - Join our [Discord](https://discord.gg/ironic-community)
 - Check [docs.rs/ironic](https://docs.rs/ironic)

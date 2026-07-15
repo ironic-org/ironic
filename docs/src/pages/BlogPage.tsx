@@ -128,7 +128,7 @@ export default function BlogPage() {
                         All releases
                     </Link>
                     <a
-                        href="https://github.com/ironic-org/ironic/discussions"
+                        href="https://github.com/ironic-org/ironic/issues"
                         target="_blank"
                         rel="noopener noreferrer"
                         className="inline-flex items-center gap-2 text-sm font-medium text-fd-muted-foreground hover:text-brand transition-colors"

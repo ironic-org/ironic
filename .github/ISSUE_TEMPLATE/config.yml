@@ -1,7 +1,7 @@
 blank_issues_enabled: false
 contact_links:
   - name: Discussions
-    url: https://github.com/ironic-org/ironic/discussions
+    url: https://github.com/ironic-org/ironic/issues
     about: Ask questions and discuss ideas
   - name: Discord
     url: https://discord.gg/ironic-community

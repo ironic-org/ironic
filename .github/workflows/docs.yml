@@ -33,13 +33,16 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: actions/configure-pages@v4
+        id: pages
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version: latest
       - run: bun install --frozen-lockfile
       - run: bun run build
         env:
-          VITE_CDN_URL: ${{ steps.configure-pages.outputs.base_path || '/ironic/' }}
+          VITE_CDN_URL: ${{ steps.pages.outputs.base_path || '/' }}
+      - name: Print base URL for debugging
+        run: echo "Deploying to ${{ steps.pages.outputs.base_path || '/' }}"
       - name: Add .nojekyll and SPA fallback
         run: |
           touch dist/.nojekyll

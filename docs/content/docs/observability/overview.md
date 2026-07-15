@@ -1,5 +1,5 @@
 ---
-title: Observability
+title: Overview
 description: Production monitoring — Prometheus metrics, distributed tracing, and structured logging for your Ironic application.
 ---
 

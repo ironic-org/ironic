@@ -26,6 +26,29 @@ This documentation walks you through every feature step by step:
 | [Advanced](./websocket-gateways) | WebSockets, custom decorators, plugins, and devtools |
 | [Observability](./observability) | Metrics, tracing, and production monitoring |
 
+## How Ironic compares
+
+Ironic combines NestJS's batteries-included philosophy with Rust's performance and zero-cost abstractions:
+
+| Feature | NestJS | Axum | Actix Web | **Ironic** |
+|---------|--------|------|-----------|------------|
+| **Language** | TypeScript | Rust | Rust | **Rust** |
+| **Architecture** | Decorator modules | Handler functions | Actor system | **Module graph + DI** |
+| **Dependency Injection** | ✅ Built-in | — Third-party | — Third-party | **✅ Built-in** |
+| **Scope-aware DI** | ✅ | ❌ | ❌ | **✅** |
+| **Middleware pipeline** | ✅ Nest middleware | Tower layers | Middleware wrap | **✅ + Guards + Interceptors** |
+| **CLI scaffolding** | ✅ | ❌ | ❌ | **✅ `ironic generate`** |
+| **Rate limiting built-in** | ThrottlerModule | ❌ | ❌ | **✅** |
+| **Security headers built-in** | Helmet | ❌ | ❌ | **✅** |
+| **Cron / scheduled tasks** | ✅ | ❌ | ❌ | **✅** |
+| **OpenAPI generation** | ✅ | Utoipa | Utoipa | **✅** |
+| **WebSockets built-in** | ✅ | ✅ | ✅ | **✅** |
+| **Feature flags** | ❌ | ❌ | ❌ | **✅ Compile-time** |
+| **Learning curve** | Moderate | Low | Medium | **Moderate** |
+| **Ecosystem maturity** | Mature (2017) | Growing (2021) | Mature (2017) | **Early (2025)** |
+
+> ✅ = built-in  ·  — = needs third-party crate  ·  ❌ = not available
+
 ## How the docs work
 
 Every page follows the same structure:

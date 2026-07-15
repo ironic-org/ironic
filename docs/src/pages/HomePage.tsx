@@ -1,12 +1,12 @@
 import CTA from './home/components/cta';
 import CodeShowcase from './home/components/code-showcase';
+import ComparisonTable from './home/components/comparison-table';
 import Features from './home/components/features';
 import Footer from './home/components/footer';
 import HeroSection from './home/components/hero-section';
 import Navigation from './home/components/navigation';
 import StatsBar from './home/components/stats-bar';
 import TechStack from './home/components/tech-stack';
-import MarqueeContent from './home/components/marquee-content';
 
 export default function HomePage() {
     return (
@@ -14,10 +14,9 @@ export default function HomePage() {
             <Navigation />
             <main className='relative z-10'>
                 <HeroSection />
-
-
                 <Features />
                 <StatsBar />
+                <ComparisonTable />
                 <CodeShowcase />
                 <TechStack />
                 <CTA />

@@ -62,7 +62,7 @@ const HeroSection = () => {
                     asChild
                     size='lg'
                     className='h-12 px-8 rounded-full bg-brand hover:bg-brand/90 text-white font-semibold text-sm shadow-lg shadow-brand/20 transition-all hover:shadow-brand/30 hover:scale-[1.02]'>
-                    <Link to='/docs/getting-started/getting-started'>
+                    <Link to='/docs/getting-started'>
                         Get started
                         <ArrowRight className='ml-2 w-4 h-4' />
                     </Link>

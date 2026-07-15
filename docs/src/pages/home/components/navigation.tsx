@@ -5,7 +5,7 @@ import { GitHubStatsBadge } from './github-stars';
 
 const navLinks = [
     { label: 'Features', href: '#features' },
-    { label: 'Documentation', href: '/docs/getting-started/getting-started', router: true },
+    { label: 'Documentation', href: '/docs/getting-started', router: true },
     { label: 'Examples', href: '/docs/more/examples', router: true },
 ];
 

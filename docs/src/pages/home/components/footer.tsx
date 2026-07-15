@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 
 const footerLinks = {
     Docs: [
-        { label: 'Getting started', href: '/docs/getting-started/getting-started' },
+        { label: 'Getting started', href: '/docs/getting-started' },
         { label: 'Fundamentals', href: '/docs/core/fundamentals' },
         { label: 'CLI', href: '/docs/getting-started/cli' },
         { label: 'API Reference', href: '/docs' },

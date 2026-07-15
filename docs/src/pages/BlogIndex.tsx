@@ -6,11 +6,19 @@ type Post = {
     title: string;
     description: string;
     date: string;
-    tag: 'release' | 'feature' | 'fix' | 'major';
+    tag: 'release' | 'feature' | 'fix' | 'major' | 'deep-dive';
     readTime: string;
 };
 
 const posts: Post[] = [
+    {
+        slug: 'compile-time-runtime',
+        title: 'How Ironic resolves dependencies at runtime — no decorator magic needed',
+        description: 'A deep dive into conditional providers, scoped instances, and how Ironic\u2019s compile-time wiring leaves runtime flexibility intact. Factories, OnceCell, and the blueprint-vs-construction metaphor.',
+        date: 'Jul 15, 2026',
+        tag: 'deep-dive',
+        readTime: '8 min',
+    },
     {
         slug: 'v0.3.8',
         title: 'Batteries included — security, middleware, and Docker out of the box',
@@ -93,6 +101,10 @@ const tagStyles: Record<Post['tag'], { icon: React.ReactNode; className: string 
     fix: {
         icon: <GitBranch className="size-3" />,
         className: 'bg-sky-100 text-sky-800 dark:bg-sky-900/30 dark:text-sky-300 border-sky-200 dark:border-sky-800',
+    },
+    'deep-dive': {
+        icon: <Sparkles className="size-3" />,
+        className: 'bg-violet-100 text-violet-800 dark:bg-violet-900/30 dark:text-violet-300 border-violet-200 dark:border-violet-800',
     },
 };
 

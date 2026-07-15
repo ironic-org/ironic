@@ -25,7 +25,7 @@ pub use application::{
     ApplicationError, FrameworkApplication, FrameworkApplicationBuilder, MissingPlatform,
     ModuleConfigurationError,
 };
-pub use health::{HealthModule, HealthStatus};
+pub use health::{register as register_health_indicator, HealthConfig, HealthIndicator, HealthModule, HealthStatus};
 pub use lifecycle::{
     LifecycleDefinition, LifecycleDefinitionBuilder, LifecycleError, LifecycleFuture,
     OnApplicationBootstrap, OnApplicationShutdown, OnModuleDestroy, OnModuleInit,

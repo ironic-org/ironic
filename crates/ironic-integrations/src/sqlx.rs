@@ -32,6 +32,17 @@ where
     migrator.run(pool).await
 }
 
+/// Registers this pool as a health indicator under the given name.
+///
+/// The pool is cheap to clone (internally `Arc`-based), so the registered
+/// indicator will remain valid even if the original handle is dropped.
+pub fn register_health<DB>(pool: &::sqlx::Pool<DB>, name: &'static str)
+where
+    DB: ::sqlx::Database,
+{
+    super::register_integration_health(name, pool.clone());
+}
+
 impl<DB> IntegrationHealth for ::sqlx::Pool<DB>
 where
     DB: ::sqlx::Database,

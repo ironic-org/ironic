@@ -90,6 +90,13 @@ pub use ironic_macros::{
 pub use openapi::*;
 pub use platform::*;
 pub use platform_axum::*;
+#[cfg(feature = "multipart")]
+pub use {
+    http_impl::MultipartConfig,
+    http_impl::MultipartForm,
+    http_impl::MultipartFormData,
+    http_impl::UploadedFile,
+};
 pub use testing::*;
 
 #[cfg(all(
@@ -159,10 +166,10 @@ pub mod prelude {
     pub use crate::{
         AxumAdapter, CacheMetadata, CompiledHttpApplication, ConfigurationError,
         ConfigurationLoader, ControllerDefinition, Dependency, ExceptionFilter, FilterContext,
-        FrameworkApplication, FrameworkError, FrameworkResult, Guard, GuardDecision, GuardFuture,
-        HeaderParameter, HealthModule, HealthStatus, HttpError, HttpMethod, HttpPlatformAdapter,
-        HttpPlatformApplication, Injectable, Interceptor, InterceptorNext, Json, JsonBody,
-        LifecycleDefinition, Middleware, Module, ModuleDefinition, ModuleRef,
+        FeatureToggle, FrameworkApplication, FrameworkError, FrameworkResult, Guard, GuardDecision,
+        GuardFuture, HeaderParameter, HealthModule, HealthStatus, HttpError, HttpMethod,
+        HttpPlatformAdapter, HttpPlatformApplication, Injectable, Interceptor, InterceptorNext,
+        Json, JsonBody, LifecycleDefinition, Middleware, Module, ModuleDefinition, ModuleRef,
         OnApplicationBootstrap, OnApplicationShutdown, OnModuleDestroy, OnModuleInit,
         OpenApiSchema, ParameterPipe, PathParameter, PipelineFuture, ProviderDefinition,
         QueryParameters, RequestContext, RequestId, RequestScope, RequestTracing, RouteDefinition,
@@ -172,6 +179,12 @@ pub mod prelude {
         header, interval, options, param, patch, pipe, pipe_fn, post, put, query, routes,
         subscribe_message, timeout, use_guard, use_interceptor, web_socket_gateway,
     };
+    #[cfg(feature = "multipart")]
+    pub use crate::{
+        MultipartConfig, MultipartForm, MultipartFormData, UploadedFile,
+    };
+    #[cfg(feature = "hot-reload")]
+    pub use crate::ConfigWatcher;
     #[cfg(feature = "serialization")]
     pub use crate::{FieldRule, FieldRules, SerializeInterceptor, set_current_roles};
 }

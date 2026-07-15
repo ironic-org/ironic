@@ -18,6 +18,13 @@ pub async fn connect(
     ::sea_orm::Database::connect(options).await
 }
 
+/// Registers this connection as a health indicator under the given name.
+///
+/// The connection is cheap to clone (internally `Arc`-based).
+pub fn register_health(connection: &::sea_orm::DatabaseConnection, name: &'static str) {
+    super::register_integration_health(name, connection.clone());
+}
+
 /// Registers an existing `SeaORM` connection as an Ironic singleton provider.
 #[must_use]
 pub fn provider(connection: ::sea_orm::DatabaseConnection) -> ProviderDefinition {

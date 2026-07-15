@@ -39,6 +39,13 @@ impl MongoDatabase {
     }
 }
 
+/// Registers this `MongoDatabase` as a health indicator under the given name.
+///
+/// `MongoDatabase` is cheap to clone (internally `Arc`-based client).
+pub fn register_health(database: &MongoDatabase, name: &'static str) {
+    super::register_integration_health(name, database.clone());
+}
+
 /// Registers a named `MongoDB` database as an Ironic singleton provider.
 #[must_use]
 pub fn provider(database: MongoDatabase) -> ProviderDefinition {

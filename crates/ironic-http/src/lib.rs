@@ -11,6 +11,8 @@ mod pipes;
 mod request;
 mod response;
 mod route;
+#[cfg(feature = "multipart")]
+mod multipart;
 #[cfg(feature = "serialization")]
 mod serialization;
 
@@ -34,6 +36,8 @@ pub use pipes::{ParseUUIDPipe, parse_uuid};
 #[cfg(feature = "validation")]
 pub use pipes::{ValidationPipe, validate};
 pub use request::{FrameworkRequest, RequestContext};
+#[cfg(feature = "multipart")]
+pub use multipart::{MultipartConfig, MultipartForm, MultipartFormData, UploadedFile};
 pub use response::{FrameworkBody, FrameworkResponse, IntoFrameworkResponse, Json};
 pub use route::{
     CompiledHttpApplication, CompiledRoute, ControllerDefinition, RouteDefinition, RouteError,

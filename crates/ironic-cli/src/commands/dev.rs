@@ -9,6 +9,7 @@ use std::{
     time::Duration,
 };
 
+#[cfg(feature = "hot-reload")]
 use notify::{Event, EventKind, RecursiveMode, Watcher};
 
 use crate::CliError;

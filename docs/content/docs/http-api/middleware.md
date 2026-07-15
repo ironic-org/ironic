@@ -187,7 +187,7 @@ RouteDefinition::new(HttpMethod::GET, "/admin/dashboard", "dashboard", handler)
 | `RequestTracing` | Adds `x-request-id`, creates a `tracing` span with method + URI | `RequestTracing::new()` — auto-registered |
 | `SecurityHeadersMiddleware` | HSTS, CSP, X-Frame-Options: DENY, Referrer-Policy, and more | `SecurityHeadersMiddleware::new(SecurityHeadersConfig::default())` |
 | `CorsMiddleware` | Handles preflight, sets `Access-Control-*` headers | `CorsMiddleware::new(CorsConfig::new().allowed_origins(origins))` |
-| `RateLimitMiddleware` | IP-based sliding window rate limiting, returns 429 | `RateLimitMiddleware::new(max_requests, window_secs)` |
+| `RateLimitMiddleware` | IP-based sliding window rate limiting, returns 429 | `RateLimitMiddleware::new(backend, max_requests, window_secs)` |
 | `CsrfMiddleware` | Sets CSRF cookie, validates `x-csrf-token` header on mutating requests | `CsrfMiddleware::new(CsrfConfig::new())` |
 
 `RequestTracing` is automatically registered as global middleware by the framework. All other security middleware lives in `crate ironic-security` and requires the corresponding feature flag:
@@ -205,7 +205,178 @@ Individual security features if you need granular control:
 | `RateLimitMiddleware` | `security-rate-limit` |
 | `CsrfMiddleware` | `security-csrf` |
 
-The `Middleware` trait itself is in `ironic-http` core — **no feature flag needed** to write your own.
+### Rate limit backends
+
+`RateLimitMiddleware` accepts any backend implementing `RateLimitBackend`:
+
+```rust
+pub trait RateLimitBackend: Send + Sync {
+    /// Returns Ok(()) if the request is allowed, or an error with the
+    /// remaining cooldown if the limit is exceeded.
+    async fn check_rate_limit(
+        &self,
+        key: &str,
+        max_requests: u64,
+        window_secs: u64,
+    ) -> RateLimitResult;
+}
+```
+
+Two built-in backends are provided:
+
+| Backend | Feature | Storage | Use case |
+|---------|---------|---------|----------|
+| `InMemoryRateLimiter` | `security-rate-limit` | In-process `HashMap` | Development, single-replica |
+| `RedisRateLimiter` | `security-rate-limit` + `redis` | Redis INCR + EXPIRE | Production, multi-replica |
+
+**InMemoryRateLimiter** is the default (no Redis needed):
+
+```rust
+use ironic::security::rate_limit::{InMemoryRateLimiter, RateLimitMiddleware};
+
+let backend = Arc::new(InMemoryRateLimiter::new());
+let middleware = RateLimitMiddleware::new(backend, 100, 60);
+```
+
+**RedisRateLimiter** for production deployments with multiple replicas,
+using an atomic INCR + EXPIRE pipeline:
+
+```rust
+use ironic::security::rate_limit::{RedisRateLimiter, RateLimitMiddleware};
+
+let backend = Arc::new(RedisRateLimiter::new(redis_client));
+let middleware = RateLimitMiddleware::new(backend, 100, 60);
+```
+
+### Custom rate limit backend
+
+Implement `RateLimitBackend` for any storage — PostgreSQL, DynamoDB, etc.:
+
+```rust
+use ironic::security::rate_limit::{RateLimitBackend, RateLimitResult};
+use std::collections::HashMap;
+use std::sync::Mutex;
+
+struct SlidingWindowCounter {
+    // (key, window_start) → count
+    counts: Mutex<HashMap<(String, u64), u64>>,
+}
+
+impl SlidingWindowCounter {
+    fn new() -> Self {
+        Self { counts: Mutex::new(HashMap::new()) }
+    }
+}
+
+impl RateLimitBackend for SlidingWindowCounter {
+    async fn check_rate_limit(
+        &self,
+        key: &str,
+        max_requests: u64,
+        window_secs: u64,
+    ) -> RateLimitResult {
+        let now = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_secs();
+        let window_start = now - (now % window_secs);
+
+        let mut counts = self.counts.lock().unwrap();
+
+        // Clean old windows
+        counts.retain(|(_, start), _| *start > now - window_secs);
+
+        let entry = counts.entry((key.to_owned(), window_start)).or_insert(0);
+        *entry += 1;
+
+        if *entry <= max_requests {
+            RateLimitResult::allowed(*entry)
+        } else {
+            let reset_at = window_start + window_secs;
+            RateLimitResult::denied(*entry, reset_at)
+        }
+    }
+}
+```
+
+### Rate limit response headers
+
+When a request is rate-limited, the response includes:
+
+| Header | Description |
+|--------|-------------|
+| `X-RateLimit-Limit` | Max requests in the window |
+| `X-RateLimit-Reset` | Unix timestamp when the window resets |
+
+Example response:
+
+```
+HTTP/1.1 429 Too Many Requests
+X-RateLimit-Limit: 100
+X-RateLimit-Reset: 1734192000
+```
+
+The `X-RateLimit-Reset` value is a Unix epoch timestamp.  Clients can use it
+to implement retry-after logic without additional state.
+
+### Testing rate limiting
+
+```rust
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use axum::http::{Request, StatusCode};
+    use tower::ServiceExt;
+
+    #[tokio::test]
+    async fn test_rate_limit_allows_within_limit() {
+        let app = build_app_with_rate_limit(5, 60);
+        for _ in 0..5 {
+            let response = app
+                .clone()
+                .oneshot(Request::get("/").body(axum::body::Body::empty()).unwrap())
+                .await
+                .unwrap();
+            assert_eq!(response.status(), StatusCode::OK);
+        }
+    }
+
+    #[tokio::test]
+    async fn test_rate_limit_blocks_after_limit() {
+        let app = build_app_with_rate_limit(3, 60);
+        for _ in 0..3 {
+            app.clone()
+                .oneshot(Request::get("/").body(axum::body::Body::empty()).unwrap())
+                .await
+                .unwrap();
+        }
+        let response = app
+            .clone()
+            .oneshot(Request::get("/").body(axum::body::Body::empty()).unwrap())
+            .await
+            .unwrap();
+        assert_eq!(response.status(), StatusCode::TOO_MANY_REQUESTS);
+    }
+
+    #[tokio::test]
+    async fn test_rate_limit_headers() {
+        let app = build_app_with_rate_limit(1, 60);
+        let response = app
+            .oneshot(Request::get("/").body(axum::body::Body::empty()).unwrap())
+            .await
+            .unwrap();
+        assert!(response.headers().contains_key("x-ratelimit-limit"));
+        assert!(response.headers().contains_key("x-ratelimit-reset"));
+    }
+
+    #[tokio::test]
+    async fn test_in_memory_backend() {
+        let backend = InMemoryRateLimiter::new();
+        let result = backend.check_rate_limit("test-key", 5, 60).await;
+        assert!(result.is_allowed());
+    }
+}
+```
 
 ---
 

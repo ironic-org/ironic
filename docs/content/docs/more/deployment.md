@@ -181,28 +181,87 @@ server {
 
 ## Graceful shutdown
 
-Ironic handles Ctrl‑C automatically with `application.listen(&addr).await`. Under the hood, it catches `SIGINT`/`SIGTERM`, stops accepting new connections, drains in‑flight requests, and runs shutdown hooks in reverse module‑initialization order.
+Ironic handles Ctrl‑C automatically with `application.listen(&addr).await`.
+Under the hood, it:
 
-For custom shutdown logic (e.g., health‑check deregistration before drain), use `listen_with_shutdown()`:
+1. Catches `SIGINT` / `SIGTERM`
+2. Stops accepting new connections (TCP backlog is closed)
+3. Enters the **drain phase** — waits for in-flight requests to complete
+4. Runs module lifecycle hooks in reverse initialization order
+5. Exits the process
+
+You can observe each phase in the logs:
+
+```
+INFO  Signal received, starting graceful shutdown...
+INFO  Draining in-flight requests (max 30s)...
+WARN  3 in-flight request(s) timed out and were dropped
+INFO  Running shutdown hooks...
+INFO  Application shutdown complete.
+```
+
+### Drain timeout
+
+By default, the drain phase waits up to 30 seconds for in-flight requests to
+complete.  Requests that exceed this timeout are dropped and a warning is
+logged with the count of dropped requests.
+
+```rust
+use std::time::Duration;
+
+let adapter = AxumAdapter::new()
+    .drain_timeout(Duration::from_secs(60));  // 60 seconds
+```
+
+**Choosing a timeout:**
+
+| Application type | Recommended drain timeout | Rationale |
+|---|---|---|
+| Real-time API (<100ms requests) | `10s` | Requests are fast; a short drain is sufficient |
+| Standard web API | `30s` (default) | Balances safety with fast deploys |
+| File upload / streaming | `60s`–`120s` | Long-running requests need more time |
+| Websocket-heavy | `5s` | WebSocket connections are dropped — reconnecting clients is expected |
+
+### Rolling deployment strategy
+
+When deploying with an orchestrator (Kubernetes, Nomad, ECS):
+
+1. Orchestrator sends `SIGTERM` to the old instance
+2. Ironic stops accepting new connections
+3. Load balancer detects the instance is draining and routes traffic elsewhere
+4. In-flight requests complete (up to `drain_timeout`)
+5. Process exits cleanly
+
+The drain timeout should be shorter than your orchestrator's health check
+failure threshold so the instance is terminated before being declared dead.
+
+### Custom shutdown
+
+For custom pre-shutdown logic (e.g., deregistering from a load balancer,
+flushing buffered events, closing database connections):
 
 ```rust
 use tokio::signal;
 use ironic::ShutdownSignal;
 
-let (tx, rx) = tokio::sync::watch::channel(false);
-
 let shutdown = async move {
-    let _ = signal::ctrl_c().await;
-    // Optional: deregister from load balancer, flush logs, etc.
-    tracing::info!("Draining requests before shutdown...");
-    tx.send(true).ok();
+    signal::ctrl_c().await.ok();
+
+    // Custom pre-drain logic
+    tracing::info!("Deregistering from load balancer...");
+    deregister_from_lb().await;
+
+    tracing::info!("Flushing pending events...");
+    flush_event_buffer().await;
+
     ShutdownSignal::Interrupt
 };
 
 application.listen_with_shutdown(address, shutdown).await?;
 ```
 
-Module lifecycle hooks (`on_application_shutdown`) fire automatically — no extra wiring needed.
+Module lifecycle hooks (`on_application_shutdown`) fire automatically during
+the drain phase — no extra wiring needed.
 
 ## Health checks
 
@@ -237,13 +296,19 @@ HEALTHCHECK --interval=10s --timeout=3s --retries=3 \
 | **RUST_LOG** | Set to `warn` or `error` to reduce noise; `info` for staging |
 | **CORS_ORIGINS** | Restrict to your frontend origin(s) — never `*` in production |
 | **RATE_LIMIT_MAX** | Tune based on expected traffic; default 100/min per IP |
+| **RATE_LIMIT_BACKEND** | `RedisRateLimiter` for multi-replica; `InMemoryRateLimiter` for single |
+| **SESSION_STORE** | `RedisSessionStore` for multi-replica; `InMemorySessionStore` for dev |
 | **DATABASE_URL** | Uses strong password; never committed to source control |
 | **REDIS_URL** | Uses strong password if exposed over network |
 | **TLS** | Terminate at reverse proxy or load balancer; app listens plain HTTP |
-| **.env** | Added to `.gitignore`; never committed |
-| **Distroless** | No shell in runtime image; minimal attack surface |
-| **Health check** | `/health` is reachable; orchestrator monitors it |
-| **Logs** | Structured logging to stdout; captured by Docker/container runtime |
+| **DRAIN_TIMEOUT** | Set to match your max request duration (default 30s) |
+| **HEALTHCHECK** | `/health` returns `200` and orchestration monitors it |
+| **METRICS** | `/metrics` is scraped by Prometheus / VictoriaMetrics |
+| **DISTROLESS** | No shell in runtime image; minimal attack surface |
+| **ENV_FILE** | `.env` added to `.gitignore`; never committed to source |
+| **BACKTRACES** | Set `RUST_BACKTRACE=1` for debugging, omit in production |
+
+## Try it yourself
 
 ## Try it yourself
 
@@ -272,6 +337,7 @@ HEALTHCHECK --interval=10s --timeout=3s --retries=3 \
 - [x] Configure every aspect of the server via `.env` variables
 - [x] Set up nginx for TLS termination and proxying
 - [x] Understand graceful shutdown with `listen()` and `listen_with_shutdown()`
+- [x] Configure drain timeout to control how long in-flight requests have to complete
 - [x] Use the built‑in `/health` endpoint and Docker HEALTHCHECK
 - [x] Run through a production readiness checklist
 

@@ -1,6 +1,12 @@
 //! Optional integrations with database drivers and object-relational mappers.
 
-use std::{future::Future, pin::Pin};
+use std::{
+    future::Future,
+    pin::Pin,
+    sync::Arc,
+};
+
+use ironic_core::{HealthIndicator, HealthStatus};
 
 /// A boxed health-check future returned by an integration.
 pub type IntegrationHealthFuture<'a> =
@@ -35,6 +41,43 @@ impl IntegrationError {
 pub trait IntegrationHealth: Send + Sync {
     /// Checks whether the configured integration can serve work.
     fn check_health(&self) -> IntegrationHealthFuture<'_>;
+}
+
+// ---------------------------------------------------------------------------
+// HealthIndicator wrapper for any IntegrationHealth implementation
+// ---------------------------------------------------------------------------
+
+struct HealthIndicatorWrapper<T: IntegrationHealth> {
+    name: &'static str,
+    inner: T,
+}
+
+impl<T: IntegrationHealth + 'static> HealthIndicator for HealthIndicatorWrapper<T> {
+    fn name(&self) -> &str {
+        self.name
+    }
+
+    fn check(&self) -> Pin<Box<dyn Future<Output = HealthStatus> + Send + '_>> {
+        Box::pin(async move {
+            match self.inner.check_health().await {
+                Ok(()) => HealthStatus::Ok,
+                Err(e) => HealthStatus::Unhealthy {
+                    error: e.to_string(),
+                },
+            }
+        })
+    }
+}
+
+/// Registers an [`IntegrationHealth`] implementor as a [`HealthIndicator`]
+/// so it appears on the `GET /health` composite endpoint.
+///
+/// Call this from each integration module after creating the connection/pool.
+pub fn register_integration_health<T: IntegrationHealth + 'static>(
+    name: &'static str,
+    inner: T,
+) {
+    ironic_core::register_health_indicator(Arc::new(HealthIndicatorWrapper { name, inner }));
 }
 
 #[cfg(feature = "diesel")]

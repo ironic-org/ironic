@@ -1,6 +1,13 @@
 #![doc = "Axum integration for Ironic."]
 
-use std::{collections::HashMap, convert::Infallible, net::SocketAddr, sync::Arc, time::Duration};
+use std::{
+    collections::HashMap,
+    convert::Infallible,
+    net::SocketAddr,
+    path::PathBuf,
+    sync::Arc,
+    time::Duration,
+};
 
 use axum::{
     Router,
@@ -17,7 +24,8 @@ use ironic_http::{
 use ironic_platform::{
     HttpPlatformAdapter, HttpPlatformApplication, PlatformFuture, Shutdown, ShutdownSignal,
 };
-use tower::{Layer, Service};
+use tracing::warn;
+use tower::{Layer, Service, ServiceBuilder, ServiceExt};
 
 /// A failure while converting framework metadata into Axum routes.
 #[derive(Clone, Debug, Eq, PartialEq, thiserror::Error)]
@@ -45,13 +53,24 @@ pub enum AxumPlatformError {
     },
 }
 
+#[cfg(feature = "static-files")]
+struct StaticFileRoute {
+    route_path: String,
+    fs_dir: PathBuf,
+}
+
 /// Builds an Axum router from a compiled Ironic HTTP application.
 pub struct AxumAdapter {
     request_body_limit: usize,
     request_timeout: Duration,
+    drain_timeout: Duration,
     #[cfg(feature = "compression")]
     enable_compression: bool,
     configure_router: Vec<RouterConfigurator>,
+    #[cfg(feature = "static-files")]
+    static_files: Vec<StaticFileRoute>,
+    #[cfg(feature = "resilience-ext")]
+    max_concurrent_requests: Option<u64>,
 }
 
 type RouterConfigurator = Box<dyn FnOnce(Router) -> Router + Send + 'static>;
@@ -60,6 +79,8 @@ type RouterConfigurator = Box<dyn FnOnce(Router) -> Router + Send + 'static>;
 pub const DEFAULT_REQUEST_BODY_LIMIT: usize = 1024 * 1024;
 /// Default end-to-end request timeout: 30 seconds.
 pub const DEFAULT_REQUEST_TIMEOUT: Duration = Duration::from_secs(30);
+/// Default graceful drain timeout during shutdown: 30 seconds.
+pub const DEFAULT_DRAIN_TIMEOUT: Duration = Duration::from_secs(30);
 
 impl AxumAdapter {
     /// Creates an adapter with a 1 MiB request body limit.
@@ -68,9 +89,14 @@ impl AxumAdapter {
         Self {
             request_body_limit: DEFAULT_REQUEST_BODY_LIMIT,
             request_timeout: DEFAULT_REQUEST_TIMEOUT,
+            drain_timeout: DEFAULT_DRAIN_TIMEOUT,
             #[cfg(feature = "compression")]
             enable_compression: false,
             configure_router: Vec::new(),
+            #[cfg(feature = "static-files")]
+            static_files: Vec::new(),
+            #[cfg(feature = "resilience-ext")]
+            max_concurrent_requests: None,
         }
     }
 
@@ -85,6 +111,35 @@ impl AxumAdapter {
     #[must_use]
     pub const fn request_timeout(mut self, timeout: Duration) -> Self {
         self.request_timeout = timeout;
+        self
+    }
+
+    /// Sets the graceful shutdown drain timeout.
+    ///
+    /// When a shutdown signal is received, the server stops accepting new
+    /// connections and waits up to `timeout` for in-flight requests to
+    /// complete before forcing a stop.
+    #[must_use]
+    pub const fn drain_timeout(mut self, timeout: Duration) -> Self {
+        self.drain_timeout = timeout;
+        self
+    }
+
+    /// Mounts a static file directory at the given route prefix.
+    ///
+    /// Files are served with built-in ETag and `If-None-Match`/304 support.
+    /// The default `Cache-Control` is `public, max-age=3600`.
+    ///
+    /// # Feature flag
+    ///
+    /// Requires the `static-files` feature.
+    #[cfg(feature = "static-files")]
+    #[must_use]
+    pub fn static_files(mut self, route_path: &str, fs_dir: impl AsRef<std::path::Path>) -> Self {
+        self.static_files.push(StaticFileRoute {
+            route_path: route_path.to_owned(),
+            fs_dir: fs_dir.as_ref().to_owned(),
+        });
         self
     }
 
@@ -106,6 +161,17 @@ impl AxumAdapter {
     #[must_use]
     pub fn compression(mut self) -> Self {
         self.enable_compression = true;
+        self
+    }
+
+    /// Sets the maximum number of concurrent in-flight requests.
+    ///
+    /// When the limit is reached, subsequent requests receive an HTTP 503
+    /// response immediately.  Requires the `resilience-ext` feature.
+    #[cfg(feature = "resilience-ext")]
+    #[must_use]
+    pub const fn max_concurrent_requests(mut self, max: u64) -> Self {
+        self.max_concurrent_requests = Some(max);
         self
     }
 }
@@ -142,10 +208,42 @@ impl HttpPlatformAdapter for AxumAdapter {
         if self.enable_compression {
             router = router.layer(tower_http::compression::CompressionLayer::new());
         }
+        #[cfg(feature = "static-files")]
+        for sf in self.static_files {
+            let wildcard_path = if sf.route_path.ends_with('/') {
+                format!("{}*path", sf.route_path)
+            } else {
+                format!("{}/*path", sf.route_path)
+            };
+            // ServeDir uses Infallible errors (404s are returned as responses),
+            // so get_service works directly without handle_error.
+            let dir_service = ServiceBuilder::new()
+                .layer(
+                    tower_http::set_header::SetResponseHeaderLayer::overriding(
+                        axum::http::header::CACHE_CONTROL,
+                        axum::http::HeaderValue::from_static("public, max-age=3600"),
+                    ),
+                )
+                .service(
+                    tower_http::services::ServeDir::new(&sf.fs_dir)
+                        .precompressed_gzip(),
+                );
+            router = router.route(
+                &wildcard_path,
+                axum::routing::get_service(dir_service),
+            );
+        }
         for configure in self.configure_router {
             router = configure(router);
         }
-        Ok(AxumApplication { router })
+        #[cfg(feature = "resilience-ext")]
+        if let Some(max) = self.max_concurrent_requests {
+            router = router.layer(crate::resilience::ConcurrencyLimitLayer::new(max));
+        }
+        Ok(AxumApplication {
+            router,
+            drain_timeout: self.drain_timeout,
+        })
     }
 }
 
@@ -153,6 +251,7 @@ impl HttpPlatformAdapter for AxumAdapter {
 #[derive(Clone, Debug)]
 pub struct AxumApplication {
     router: Router,
+    drain_timeout: Duration,
 }
 
 impl AxumApplication {
@@ -186,6 +285,22 @@ impl AxumApplication {
         self.router = configure(self.router);
         self
     }
+
+    /// Waits for graceful shutdown to be triggered, then sleeps for
+    /// `drain_timeout`.  Used by [`listen`] to limit how long in-flight
+    /// requests are allowed to complete.
+    async fn drain_timeout_watch(
+        mut rx: tokio::sync::watch::Receiver<Option<ShutdownSignal>>,
+        drain_timeout: Duration,
+    ) -> ShutdownSignal {
+        // Wait until the graceful future writes the shutdown signal.
+        while rx.borrow().is_none() {
+            rx.changed().await.ok();
+        }
+        // Drain timeout starts now.
+        tokio::time::sleep(drain_timeout).await;
+        rx.borrow().unwrap_or(ShutdownSignal::Custom("drain-timeout"))
+    }
 }
 
 impl HttpPlatformApplication for AxumApplication {
@@ -203,18 +318,39 @@ impl HttpPlatformApplication for AxumApplication {
                     address,
                     message: error.to_string(),
                 })?;
-            let (sender, receiver) = tokio::sync::oneshot::channel();
-            let graceful = async move {
-                let signal = shutdown.wait().await;
-                let _ = sender.send(signal);
+            // Watch channel: graceful writes the signal, drain futures read it.
+            let (drain_tx, drain_rx) =
+                tokio::sync::watch::channel(None::<ShutdownSignal>);
+            let graceful = {
+                async move {
+                    let sig = shutdown.wait().await;
+                    let _ = drain_tx.send(Some(sig));
+                }
             };
-            axum::serve(listener, self.router)
-                .with_graceful_shutdown(graceful)
-                .await
-                .map_err(|error| AxumPlatformError::Serve {
-                    message: error.to_string(),
-                })?;
-            Ok(receiver.await.unwrap_or(ShutdownSignal::Custom("platform")))
+            let serve_fut =
+                axum::serve(listener, self.router).with_graceful_shutdown(graceful);
+
+            let signal = tokio::select! {
+                result = serve_fut => {
+                    // Serve completed — either clean drain or error.
+                    result.map_err(|error| AxumPlatformError::Serve {
+                        message: error.to_string(),
+                    })?;
+                    // Signal should have been delivered by the graceful future.
+                    drain_rx
+                        .borrow()
+                        .unwrap_or(ShutdownSignal::Custom("platform"))
+                }
+                sig = Self::drain_timeout_watch(drain_rx.clone(), self.drain_timeout) => {
+                    warn!(
+                        drain_timeout_ms = %self.drain_timeout.as_millis(),
+                        "Graceful shutdown drain timed out; \
+                         some in-flight requests may have been dropped"
+                    );
+                    sig
+                }
+            };
+            Ok(signal)
         })
     }
 }

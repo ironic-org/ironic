@@ -1,4 +1,5 @@
-//! Production resilience patterns: retry with exponential backoff and circuit breaker.
+//! Production resilience patterns: retry with exponential backoff, circuit breaker,
+//! and backpressure / bulkhead.
 //!
 //! ## Retry
 //!
@@ -31,9 +32,27 @@
 //!     }));
 //! });
 //! ```
+//!
+//! ## Concurrency Limit (Bulkhead)
+//!
+//! ```ignore
+//! use ironic::resilience::ConcurrencyLimitLayer;
+//!
+//! AxumAdapter::new()
+//!     .max_concurrent_requests(100)
+//!     .configure_router(|r| {
+//!         r.layer(ConcurrencyLimitLayer::new(100));
+//!     });
+//! ```
+
+use std::convert::Infallible;
 
 use std::{
-    sync::{Arc, Mutex},
+    sync::{
+        atomic::{AtomicU64, Ordering},
+        Arc, Mutex,
+    },
+    task::{Context, Poll},
     time::{Duration, Instant},
 };
 
@@ -339,6 +358,110 @@ where
                 }
             }
             result.map_err(|e| e.to_string())
+        })
+    }
+}
+
+// ===========================================================================
+// Concurrency Limit (Bulkhead)
+// ===========================================================================
+
+/// Tower layer that enforces a maximum number of concurrent in-flight requests.
+///
+/// When the limit is exceeded, the service responds with HTTP 503
+/// (Service Unavailable). The 503 status is already included in the
+/// default [`CircuitBreakerConfig::failure_statuses`], so composing
+/// this layer with a circuit breaker causes repeated overload to open
+/// the circuit automatically.
+#[cfg(feature = "resilience-ext")]
+#[derive(Debug, Clone)]
+pub struct ConcurrencyLimitLayer {
+    max_concurrent: u64,
+}
+
+#[cfg(feature = "resilience-ext")]
+impl ConcurrencyLimitLayer {
+    /// Creates a concurrency limit layer.
+    ///
+    /// `max_concurrent` is the maximum number of requests that can be
+    /// in-flight simultaneously.  Requests beyond this limit receive a
+    /// 503 response immediately.
+    pub fn new(max_concurrent: u64) -> Self {
+        Self { max_concurrent }
+    }
+}
+
+#[cfg(feature = "resilience-ext")]
+impl<S> tower::Layer<S> for ConcurrencyLimitLayer {
+    type Service = ConcurrencyLimitService<S>;
+
+    fn layer(&self, service: S) -> Self::Service {
+        ConcurrencyLimitService {
+            inner: service,
+            in_flight: Arc::new(AtomicU64::new(0)),
+            max_concurrent: self.max_concurrent,
+        }
+    }
+}
+
+/// Tower `Service` wrapper that rejects requests when in-flight count exceeds
+/// the configured limit.
+#[cfg(feature = "resilience-ext")]
+#[derive(Debug, Clone)]
+pub struct ConcurrencyLimitService<S> {
+    inner: S,
+    in_flight: Arc<AtomicU64>,
+    max_concurrent: u64,
+}
+
+#[cfg(feature = "resilience-ext")]
+impl<S, ReqBody, ResBody> tower::Service<http::Request<ReqBody>>
+    for ConcurrencyLimitService<S>
+where
+    S: tower::Service<http::Request<ReqBody>, Response = http::Response<ResBody>>,
+    S::Future: Send + 'static,
+    S::Error: std::fmt::Display,
+    ResBody: Default + Send + 'static,
+{
+    type Response = http::Response<ResBody>;
+    type Error = Infallible;
+    type Future = std::pin::Pin<
+        Box<dyn std::future::Future<Output = Result<Self::Response, Self::Error>> + Send>,
+    >;
+
+    fn poll_ready(&mut self, cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
+        self.inner.poll_ready(cx).map_err(|_| unreachable!())
+    }
+
+    fn call(&mut self, req: http::Request<ReqBody>) -> Self::Future {
+        let current = self.in_flight.fetch_add(1, Ordering::AcqRel) + 1;
+
+        if current > self.max_concurrent {
+            self.in_flight.fetch_sub(1, Ordering::AcqRel);
+            return Box::pin(async move {
+                Ok(http::Response::builder()
+                    .status(503)
+                    .body(ResBody::default())
+                    .expect("infallible"))
+            });
+        }
+
+        let in_flight = self.in_flight.clone();
+        let fut = self.inner.call(req);
+
+        Box::pin(async move {
+            let result = fut.await;
+            in_flight.fetch_sub(1, Ordering::AcqRel);
+            match result {
+                Ok(response) => Ok(response),
+                Err(error) => {
+                    tracing::warn!(%error, "request failed, converted to 503 by bulkhead");
+                    Ok(http::Response::builder()
+                        .status(503)
+                        .body(ResBody::default())
+                        .expect("infallible"))
+                }
+            }
         })
     }
 }

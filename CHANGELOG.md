@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v0.4.0] - 2026-07-15
+
+### Added
+- Implement production readiness improvements for Ironic (2bf4555)\n- Add ready-resource generator for production-grade authentication module (ea28f4c)\n- Add production readiness improvements across multiple components (948341b)\n- add blog post on lifecycle hooks in axum integration (805a566)\n- add blog posts on OnceCell-based singletons, sagas, scope violations, static plugin system, and two-phase route compilation (de3126e)\n- refactor blog and releases index update logic in release script (8102c9a)\n- update release notes and automate blog post generation for v0.3.9 (cb654ba)\n- update changelog and release notes for v0.3.9 (699a8d6)\n- add release notes for v0.3.9 and enhance release script documentation (08592c9)\n- enhance release script to create blog post and update releases documentation (66b0a0a)\n
+### Fixed
+- update background styles in BlogIndex and BlogPage components (82f3c58)\n
+### Changed
+- Add new blog posts on various Ironic features and improvements (04a9ae9)\n- Add blog posts on handler dispatch, injectable generation, and feature flags (fb37128)\n
+
+## [v0.4.0] - 2026-07-15
+
+### Added
+- Implement production readiness improvements for Ironic (2bf4555)\n- Add ready-resource generator for production-grade authentication module (ea28f4c)\n- Add production readiness improvements across multiple components (948341b)\n- add blog post on lifecycle hooks in axum integration (805a566)\n- add blog posts on OnceCell-based singletons, sagas, scope violations, static plugin system, and two-phase route compilation (de3126e)\n- refactor blog and releases index update logic in release script (8102c9a)\n- update release notes and automate blog post generation for v0.3.9 (cb654ba)\n- update changelog and release notes for v0.3.9 (699a8d6)\n- add release notes for v0.3.9 and enhance release script documentation (08592c9)\n- enhance release script to create blog post and update releases documentation (66b0a0a)\n
+### Fixed
+- update background styles in BlogIndex and BlogPage components (82f3c58)\n
+### Changed
+- Add new blog posts on various Ironic features and improvements (04a9ae9)\n- Add blog posts on handler dispatch, injectable generation, and feature flags (fb37128)\n
+
 ## [v0.3.9] - 2026-07-15
 
 ### Added

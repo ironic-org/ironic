@@ -38,6 +38,13 @@ impl RedisConnection {
     }
 }
 
+/// Registers this `RedisConnection` as a health indicator under the given name.
+///
+/// `RedisConnection` is cheap to clone (internally `Arc`-based connection manager).
+pub fn register_health(connection: &RedisConnection, name: &'static str) {
+    super::register_integration_health(name, connection.clone());
+}
+
 /// Registers a Redis connection manager as an Ironic singleton provider.
 #[must_use]
 pub fn provider(connection: RedisConnection) -> ProviderDefinition {

@@ -28,6 +28,9 @@
 
 use std::time::Duration;
 
+#[cfg(feature = "telemetry")]
+mod otlp;
+
 /// Configuration for OpenTelemetry tracing.
 #[derive(Debug, Clone)]
 pub struct TelemetryConfig {
@@ -64,39 +67,81 @@ impl Default for TelemetryConfig {
 ///
 /// Panics if `set_global_default` is called more than once in the process lifetime.
 pub fn init_tracing(config: TelemetryConfig) -> TracingGuard {
-    let subscriber = tracing_subscriber::fmt()
-        .with_env_filter(
-            tracing_subscriber::filter::EnvFilter::try_from_default_env()
-                .unwrap_or_else(|_| tracing_subscriber::filter::EnvFilter::new("info")),
-        )
-        .finish();
+    #[cfg(not(feature = "telemetry"))]
+    {
+        let _ = &config;
+        let subscriber = tracing_subscriber::fmt()
+            .with_env_filter(
+                tracing_subscriber::filter::EnvFilter::try_from_default_env()
+                    .unwrap_or_else(|_| tracing_subscriber::filter::EnvFilter::new("info")),
+            )
+            .finish();
 
-    tracing::subscriber::set_global_default(subscriber)
-        .expect("tracing subscriber must be set once");
+        tracing::subscriber::set_global_default(subscriber)
+            .expect("tracing subscriber must be set once");
 
-    if config.otlp_endpoint.is_some() {
-        tracing::info!(
-            service = %config.service_name,
-            "OpenTelemetry tracing initialised (OTLP export enabled)"
-        );
-    } else {
         tracing::info!(
             service = %config.service_name,
             "Tracing initialised (local only)"
         );
+
+        return TracingGuard { otlp: None };
     }
 
-    TracingGuard { _config: config }
+    #[cfg(feature = "telemetry")]
+    {
+        use opentelemetry::trace::TracerProvider as _;
+        use tracing_subscriber::prelude::*;
+
+        let otlp_guard = otlp::OtlpGuard::new(&config);
+
+        let subscriber = tracing_subscriber::registry()
+            .with(
+                tracing_subscriber::fmt::layer()
+                    .with_filter(
+                        tracing_subscriber::filter::EnvFilter::try_from_default_env()
+                            .unwrap_or_else(|_| tracing_subscriber::filter::EnvFilter::new("info")),
+                    ),
+            )
+            .with(
+                otlp_guard.provider.as_ref().map(|p| {
+                    let tracer = p.tracer("ironic");
+                    tracing_opentelemetry::layer().with_tracer(tracer)
+                }),
+            );
+
+        tracing::subscriber::set_global_default(subscriber)
+            .expect("tracing subscriber must be set once");
+
+        if config.otlp_endpoint.is_some() {
+            tracing::info!(
+                service = %config.service_name,
+                sample_rate = %config.sample_rate,
+                "OpenTelemetry tracing initialised (OTLP export enabled)"
+            );
+        } else {
+            tracing::info!(
+                service = %config.service_name,
+                "Tracing initialised (local only)"
+            );
+        }
+
+        TracingGuard { otlp: Some(otlp_guard) }
+    }
 }
 
 /// Guard that flushes pending spans on drop.
 pub struct TracingGuard {
-    _config: TelemetryConfig,
+    #[cfg(feature = "telemetry")]
+    otlp: Option<otlp::OtlpGuard>,
+    #[cfg(not(feature = "telemetry"))]
+    #[allow(dead_code)]
+    otlp: Option<()>,
 }
 
 impl Drop for TracingGuard {
     fn drop(&mut self) {
-        // Flush is handled by the tracing subscriber on drop
+        // OtlpGuard's Drop handler calls provider.shutdown() automatically.
     }
 }
 
@@ -105,13 +150,27 @@ impl Drop for TracingGuard {
 /// Called automatically by the `RequestTracing` middleware when
 /// `TelemetryConfig::propagate_context` is `true`.
 pub fn inject_trace_context<B>(request: &mut http::Request<B>) {
-    let span = tracing::Span::current();
-    if span.is_disabled() {
-        return;
+    #[cfg(feature = "telemetry")]
+    {
+        use opentelemetry::trace::TraceContextExt as _;
+        let context = opentelemetry::Context::current();
+        let span = context.span();
+        let span_context = span.span_context();
+        if span_context.is_valid() {
+            let trace_id = span_context.trace_id();
+            let span_id = span_context.span_id();
+            let trace_flags = span_context.trace_flags().to_u8();
+            let value = format!("00-{:032x}-{:016x}-{:02x}", trace_id, span_id, trace_flags);
+            if let Ok(val) = http::HeaderValue::from_str(&value) {
+                request.headers_mut().insert("traceparent", val);
+            }
+        }
     }
 
-    let headers = request.headers_mut();
-    let _ = headers;
+    #[cfg(not(feature = "telemetry"))]
+    {
+        let _ = request;
+    }
 }
 
 // ===========================================================================

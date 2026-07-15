@@ -71,13 +71,16 @@ impl Middleware for RequestTracing {
         let span = tracing::info_span!(
             "ironic.http.request",
             request_id = %request_id,
-            method = %context.request().method(),
-            uri = %context.request().uri(),
+            http.method = %context.request().method(),
+            http.url = %context.request().uri(),
+            http.status_code = tracing::field::Empty,
         );
 
+        let span_clone = span.clone();
         Box::pin(
             async move {
                 let mut response = next.run(context).await?;
+                span_clone.record("http.status_code", response.status().as_u16());
                 if let Ok(value) = HeaderValue::from_str(request_id.as_str()) {
                     response.headers_mut().insert(REQUEST_ID_HEADER, value);
                 }

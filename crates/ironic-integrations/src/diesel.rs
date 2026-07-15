@@ -36,6 +36,17 @@ where
     ProviderDefinition::value(pool)
 }
 
+/// Registers this pool as a health indicator under the given name.
+///
+/// The pool is cheap to clone (internally `Arc`-based), so the registered
+/// indicator will remain valid even if the original handle is dropped.
+pub fn register_health<C>(pool: &DieselPool<C>, name: &'static str)
+where
+    C: ::diesel::r2d2::R2D2Connection + Send + 'static,
+{
+    super::register_integration_health(name, pool.clone());
+}
+
 impl<C> IntegrationHealth for DieselPool<C>
 where
     C: ::diesel::r2d2::R2D2Connection + Send + 'static,

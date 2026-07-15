@@ -1,49 +1,170 @@
 //! Production observability: request metrics with Prometheus-compatible endpoint.
 //!
-//! Tracks request count, latency percentiles (p50/p90/p99), status code breakdown,
+//! Tracks request count, latency histogram buckets, status code breakdown,
 //! and in-flight request gauge. Exposes a `GET /metrics` endpoint for Prometheus scraping.
-//!
-//! ## Quick start
-//!
-//! ```ignore
-//! use ironic::metrics::{MetricsConfig, MetricsLayer, MetricsModule};
-//! use ironic::AxumAdapter;
-//!
-//! let app = ironic::FrameworkApplication::builder()
-//!     .module(MetricsModule::definition())
-//!     .platform(
-//!         AxumAdapter::new()
-//!             .configure_router(|r| r.layer(MetricsLayer::new(MetricsConfig::default())))
-//!     )
-//!     .build().await.unwrap();
-//! ```
 
-use std::{collections::HashMap, fmt::Write, sync::Mutex, time::Instant};
+use std::{
+    collections::{HashMap, VecDeque},
+    fmt::Write,
+    sync::{
+        atomic::{AtomicU64, Ordering},
+        Arc, LazyLock, Mutex, RwLock,
+    },
+    time::Instant,
+};
+
+const DEFAULT_SAMPLE_BUFFER: usize = 1000;
 
 use ironic_core::{Module, ModuleDefinition};
 use ironic_di::{ProviderDefinition, Scope};
 use ironic_http::{ControllerDefinition, HttpError, HttpMethod, Json, RouteDefinition, handler_fn};
 use serde::Serialize;
 
-use std::sync::LazyLock;
-
 // ---------------------------------------------------------------------------
-// Metrics storage (global singleton behind a Mutex)
+// Constants — Prometheus default histogram boundaries
 // ---------------------------------------------------------------------------
 
-#[derive(Debug, Clone, Default)]
-struct MetricsStore {
-    request_count: u64,
-    status_counts: HashMap<u16, u64>,
-    latencies_secs: Vec<f64>,
-    in_flight: u64,
+const BOUNDARIES: [f64; 12] = [
+    0.001, 0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1.0, 2.5, 5.0, 10.0,
+];
+
+const NUM_BUCKETS: usize = 13; // 12 boundaries + +Inf overflow
+
+fn bucket_for(latency: f64) -> usize {
+    for (i, boundary) in BOUNDARIES.iter().enumerate() {
+        if latency <= *boundary {
+            return i;
+        }
+    }
+    NUM_BUCKETS - 1
 }
 
-static METRICS_STORE: LazyLock<Mutex<MetricsStore>> =
-    LazyLock::new(|| Mutex::new(MetricsStore::default()));
+// ---------------------------------------------------------------------------
+// Lock-free metrics storage
+// ---------------------------------------------------------------------------
 
-fn store() -> &'static Mutex<MetricsStore> {
-    &METRICS_STORE
+struct MetricsStore {
+    request_count: AtomicU64,
+    in_flight: AtomicU64,
+    latency_buckets: [AtomicU64; NUM_BUCKETS],
+}
+
+fn new_buckets() -> [AtomicU64; NUM_BUCKETS] {
+    [
+        AtomicU64::new(0),
+        AtomicU64::new(0),
+        AtomicU64::new(0),
+        AtomicU64::new(0),
+        AtomicU64::new(0),
+        AtomicU64::new(0),
+        AtomicU64::new(0),
+        AtomicU64::new(0),
+        AtomicU64::new(0),
+        AtomicU64::new(0),
+        AtomicU64::new(0),
+        AtomicU64::new(0),
+        AtomicU64::new(0),
+    ]
+}
+
+static METRICS: LazyLock<MetricsStore> = LazyLock::new(|| MetricsStore {
+    request_count: AtomicU64::new(0),
+    in_flight: AtomicU64::new(0),
+    latency_buckets: new_buckets(),
+});
+
+static STATUS_COUNTS: LazyLock<Mutex<HashMap<u16, u64>>> =
+    LazyLock::new(|| Mutex::new(HashMap::new()));
+
+// Bounded ring buffer for raw latency percentile computation.
+static LATENCY_BUFFER: LazyLock<Mutex<VecDeque<f64>>> =
+    LazyLock::new(|| Mutex::new(VecDeque::with_capacity(DEFAULT_SAMPLE_BUFFER)));
+
+fn push_latency(latency: f64) {
+    if let Ok(mut buf) = LATENCY_BUFFER.lock() {
+        if buf.len() >= buf.capacity() {
+            buf.pop_front();
+        }
+        buf.push_back(latency);
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Per-endpoint metrics
+// ---------------------------------------------------------------------------
+
+struct PerEndpointMetrics {
+    request_count: AtomicU64,
+    latency_buckets: [AtomicU64; NUM_BUCKETS],
+}
+
+fn new_per_endpoint_buckets() -> [AtomicU64; NUM_BUCKETS] {
+    [
+        AtomicU64::new(0), AtomicU64::new(0), AtomicU64::new(0), AtomicU64::new(0),
+        AtomicU64::new(0), AtomicU64::new(0), AtomicU64::new(0), AtomicU64::new(0),
+        AtomicU64::new(0), AtomicU64::new(0), AtomicU64::new(0), AtomicU64::new(0),
+        AtomicU64::new(0),
+    ]
+}
+
+static PER_ENDPOINT: LazyLock<RwLock<HashMap<String, PerEndpointMetrics>>> =
+    LazyLock::new(|| RwLock::new(HashMap::new()));
+
+const PER_ENDPOINT_CARDINALITY_WARN: usize = 1000;
+
+static PER_ENDPOINT_CARDINALITY_WARNED: std::sync::atomic::AtomicBool =
+    std::sync::atomic::AtomicBool::new(false);
+
+fn ensure_per_endpoint(key: &str) {
+    let map = PER_ENDPOINT
+        .read()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
+    if map.contains_key(key) {
+        return;
+    }
+    let cardinality = map.len() + 1;
+    drop(map);
+    let mut map = PER_ENDPOINT
+        .write()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
+    if cardinality > PER_ENDPOINT_CARDINALITY_WARN
+        && !PER_ENDPOINT_CARDINALITY_WARNED.swap(true, Ordering::Relaxed)
+    {
+        tracing::warn!(
+            cardinality = cardinality,
+            threshold = PER_ENDPOINT_CARDINALITY_WARN,
+            "Per-endpoint metric cardinality exceeds threshold; \
+             consider disabling per-endpoint metrics or increasing the limit"
+        );
+    }
+    map.entry(key.to_string()).or_insert_with(|| PerEndpointMetrics {
+        request_count: AtomicU64::new(0),
+        latency_buckets: new_per_endpoint_buckets(),
+    });
+}
+
+fn record_per_endpoint(key: &str, duration: f64) {
+    let map = PER_ENDPOINT
+        .read()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
+    if let Some(endpoint) = map.get(key) {
+        endpoint.request_count.fetch_add(1, Ordering::Relaxed);
+        endpoint.latency_buckets[bucket_for(duration)].fetch_add(1, Ordering::Relaxed);
+    }
+}
+
+fn compute_percentiles() -> Option<(f64, f64, f64)> {
+    let buf = LATENCY_BUFFER.lock().ok()?;
+    if buf.is_empty() {
+        return None;
+    }
+    let mut samples: Vec<f64> = buf.iter().copied().collect();
+    samples.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
+    let len = samples.len();
+    let p50 = samples[(len as f64 * 0.50).ceil() as usize - 1].min(samples[len - 1]);
+    let p90 = samples[(len as f64 * 0.90).ceil() as usize - 1].min(samples[len - 1]);
+    let p99 = samples[(len as f64 * 0.99).ceil() as usize - 1].min(samples[len - 1]);
+    Some((p50, p90, p99))
 }
 
 // ---------------------------------------------------------------------------
@@ -53,19 +174,21 @@ fn store() -> &'static Mutex<MetricsStore> {
 /// Controls which metrics are recorded and bucket sizes.
 #[derive(Debug, Clone)]
 pub struct MetricsConfig {
-    /// Latency histogram bucket boundaries in seconds.
+    /// Latency histogram bucket boundaries in seconds (fixed at 12 default boundaries).
     pub latency_buckets: Vec<f64>,
     /// When `true`, records per-endpoint metrics (method + path labels).
     pub per_endpoint: bool,
+    /// Number of raw latency samples retained for percentile computation (p50/p90/p99).
+    /// Defaults to 1000. Set to 0 to disable percentile output.
+    pub sample_buffer_size: usize,
 }
 
 impl Default for MetricsConfig {
     fn default() -> Self {
         Self {
-            latency_buckets: vec![
-                0.001, 0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1.0, 2.5, 5.0, 10.0,
-            ],
+            latency_buckets: BOUNDARIES.to_vec(),
             per_endpoint: true,
+            sample_buffer_size: DEFAULT_SAMPLE_BUFFER,
         }
     }
 }
@@ -75,14 +198,6 @@ impl Default for MetricsConfig {
 // ---------------------------------------------------------------------------
 
 /// Tower-compatible middleware that records HTTP request metrics.
-///
-/// Apply to an Axum router via `.layer()`:
-///
-/// ```ignore
-/// AxumAdapter::new().configure_router(|r| {
-///     r.layer(MetricsLayer::new(MetricsConfig::default()));
-/// });
-/// ```
 #[derive(Debug, Clone)]
 pub struct MetricsLayer {
     config: MetricsConfig,
@@ -135,27 +250,28 @@ where
 
     fn call(&mut self, req: http::Request<ReqBody>) -> Self::Future {
         let start = Instant::now();
-        let _method = req.method().to_string();
-        let _path = if self.config.per_endpoint {
+        let method = req.method().to_string();
+        let path = if self.config.per_endpoint {
             req.uri().path().to_string()
         } else {
             "/".into()
         };
+        let key = if self.config.per_endpoint {
+            let k = format!("{}:{}", method, path);
+            ensure_per_endpoint(&k);
+            Some(k)
+        } else {
+            None
+        };
 
-        store()
-            .lock()
-            .unwrap_or_else(std::sync::PoisonError::into_inner)
-            .in_flight += 1;
+        METRICS.in_flight.fetch_add(1, Ordering::Relaxed);
 
         let fut = self.inner.call(req);
         Box::pin(async move {
-            // Scope guard ensures in_flight is always decremented, even if cancelled
             struct DecrementGuard;
             impl Drop for DecrementGuard {
                 fn drop(&mut self) {
-                    if let Ok(mut s) = store().lock() {
-                        s.in_flight = s.in_flight.saturating_sub(1);
-                    }
+                    METRICS.in_flight.fetch_sub(1, Ordering::Relaxed);
                 }
             }
             let _guard = DecrementGuard;
@@ -163,17 +279,21 @@ where
             let result = fut.await;
             let duration = start.elapsed().as_secs_f64();
 
-            let mut s = store()
-                .lock()
-                .unwrap_or_else(std::sync::PoisonError::into_inner);
-            s.request_count += 1;
-            s.latencies_secs.push(duration);
+            METRICS.request_count.fetch_add(1, Ordering::Relaxed);
+            METRICS.latency_buckets[bucket_for(duration)].fetch_add(1, Ordering::Relaxed);
+            push_latency(duration);
+
+            if let Some(ref k) = key {
+                record_per_endpoint(k, duration);
+            }
 
             let status = match &result {
                 Ok(response) => response.status().as_u16(),
                 Err(_) => 500,
             };
-            *s.status_counts.entry(status).or_insert(0) += 1;
+            if let Ok(mut counts) = STATUS_COUNTS.lock() {
+                *counts.entry(status).or_insert(0) += 1;
+            }
 
             result
         })
@@ -184,98 +304,118 @@ where
 // Prometheus text format
 // ---------------------------------------------------------------------------
 
-#[allow(
-    dead_code,
-    clippy::cast_precision_loss,
-    clippy::cast_sign_loss,
-    clippy::cast_possible_truncation
-)]
-fn percentile(mut sorted: Vec<f64>, p: f64) -> f64 {
-    sorted.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
-    if sorted.is_empty() {
-        return 0.0;
-    }
-    let idx = ((sorted.len() - 1) as f64 * p).ceil() as usize;
-    sorted[idx.min(sorted.len() - 1)]
-}
-
 /// Returns the current metrics snapshot in Prometheus text format.
-///
-/// # Panics
-///
-/// Panics if the internal metrics store lock is poisoned.
 pub fn scrape() -> String {
-    let s = store()
-        .lock()
-        .unwrap_or_else(std::sync::PoisonError::into_inner);
     let mut out = String::new();
+
+    let count = METRICS.request_count.load(Ordering::Relaxed);
+    let in_flight = METRICS.in_flight.load(Ordering::Relaxed);
+
+    let mut buckets = [0u64; NUM_BUCKETS];
+    for (i, b) in METRICS.latency_buckets.iter().enumerate() {
+        buckets[i] = b.load(Ordering::Relaxed);
+    }
 
     let _ = writeln!(out, "# HELP ironic_http_requests_total Total HTTP requests");
     let _ = writeln!(out, "# TYPE ironic_http_requests_total counter");
-    let _ = writeln!(out, "ironic_http_requests_total {}", s.request_count);
+    let _ = writeln!(out, "ironic_http_requests_total {count}");
     let _ = writeln!(out);
 
-    let _ = writeln!(
-        out,
-        "# HELP ironic_http_responses_total Responses by status code"
-    );
-    let _ = writeln!(out, "# TYPE ironic_http_responses_total counter");
-    let mut statuses: Vec<_> = s.status_counts.iter().collect();
-    statuses.sort_by_key(|(k, _)| *k);
-    for (code, count) in &statuses {
+    if let Ok(statuses) = STATUS_COUNTS.lock() {
         let _ = writeln!(
             out,
-            "ironic_http_responses_total{{status=\"{code}\"}} {count}"
+            "# HELP ironic_http_responses_total Responses by status code"
         );
+        let _ = writeln!(out, "# TYPE ironic_http_responses_total counter");
+        let mut sorted: Vec<_> = statuses.iter().collect();
+        sorted.sort_by_key(|(k, _)| *k);
+        for (code, count) in &sorted {
+            let _ = writeln!(out, "ironic_http_responses_total{{status=\"{code}\"}} {count}");
+        }
+        let _ = writeln!(out);
     }
-    let _ = writeln!(out);
 
     let _ = writeln!(
         out,
         "# HELP ironic_http_request_duration_seconds Request latency"
     );
     let _ = writeln!(out, "# TYPE ironic_http_request_duration_seconds histogram");
-    let default_buckets: [f64; 12] = [
-        0.001, 0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1.0, 2.5, 5.0, 10.0,
-    ];
-    let mut buckets = [0usize; 12];
-    for lat in &s.latencies_secs {
-        for (i, boundary) in default_buckets.iter().enumerate() {
-            if lat <= boundary {
-                buckets[i] += 1;
-                break;
-            }
-        }
-    }
-    let mut cumulative = 0usize;
-    for (i, boundary) in default_buckets.iter().enumerate() {
+    let mut cumulative: u64 = 0;
+    for (i, boundary) in BOUNDARIES.iter().enumerate() {
         cumulative += buckets[i];
         let _ = writeln!(
             out,
             "ironic_http_request_duration_seconds_bucket{{le=\"{boundary}\"}} {cumulative}"
         );
     }
+    cumulative += buckets[12];
     let _ = writeln!(
         out,
-        "ironic_http_request_duration_seconds_bucket{{le=\"+Inf\"}} {}",
-        s.latencies_secs.len()
+        "ironic_http_request_duration_seconds_bucket{{le=\"+Inf\"}} {cumulative}"
     );
-    let sum: f64 = s.latencies_secs.iter().sum();
-    let _ = writeln!(out, "ironic_http_request_duration_seconds_sum {sum:.6}");
-    let _ = writeln!(
-        out,
-        "ironic_http_request_duration_seconds_count {}",
-        s.latencies_secs.len()
-    );
+    let _ = writeln!(out, "ironic_http_request_duration_seconds_count {cumulative}");
     let _ = writeln!(out);
+
+    if let Some((p50, p90, p99)) = compute_percentiles() {
+        let _ = writeln!(
+            out,
+            "# HELP ironic_http_request_duration_seconds_sum Request latency sum (from raw samples)"
+        );
+        let _ = writeln!(out, "# TYPE ironic_http_request_duration_seconds_sum summary");
+        let _ = writeln!(out, "ironic_http_request_duration_seconds_sum{{quantile=\"0.5\"}} {p50:.6}");
+        let _ = writeln!(out, "ironic_http_request_duration_seconds_sum{{quantile=\"0.9\"}} {p90:.6}");
+        let _ = writeln!(out, "ironic_http_request_duration_seconds_sum{{quantile=\"0.99\"}} {p99:.6}");
+        let _ = writeln!(out);
+    }
 
     let _ = writeln!(
         out,
         "# HELP ironic_http_requests_in_flight Currently in-flight requests"
     );
     let _ = writeln!(out, "# TYPE ironic_http_requests_in_flight gauge");
-    let _ = writeln!(out, "ironic_http_requests_in_flight {}", s.in_flight);
+    let _ = writeln!(out, "ironic_http_requests_in_flight {in_flight}");
     let _ = writeln!(out);
+
+    // Per-endpoint metrics
+    {
+        let ep_map = PER_ENDPOINT
+            .read()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        if !ep_map.is_empty() {
+            let _ = writeln!(out, "# HELP ironic_http_request_duration_seconds_per_endpoint Per-endpoint request latency histogram");
+            let _ = writeln!(out, "# TYPE ironic_http_request_duration_seconds_per_endpoint histogram");
+            let mut keys: Vec<&String> = ep_map.keys().collect();
+            keys.sort();
+            for key in &keys {
+                if let Some(ep) = ep_map.get(*key) {
+                    let ep_count = ep.request_count.load(Ordering::Relaxed);
+                    let mut ep_total: u64 = 0;
+                    for (i, boundary) in BOUNDARIES.iter().enumerate() {
+                        ep_total += ep.latency_buckets[i].load(Ordering::Relaxed);
+                        let _ = writeln!(
+                            out,
+                            "ironic_http_request_duration_seconds_per_endpoint_bucket{{endpoint=\"{}\",le=\"{boundary}\"}} {ep_total}",
+                            key
+                        );
+                    }
+                    ep_total += ep.latency_buckets[12].load(Ordering::Relaxed);
+                    let _ = writeln!(
+                        out,
+                        "ironic_http_request_duration_seconds_per_endpoint_bucket{{endpoint=\"{}\",le=\"+Inf\"}} {ep_total}",
+                        key
+                    );
+                    let _ = writeln!(
+                        out,
+                        "ironic_http_request_duration_seconds_per_endpoint_count{{endpoint=\"{}\"}} {ep_count}",
+                        key
+                    );
+                }
+            }
+            let _ = writeln!(out);
+        }
+    }
+
+    scrape_custom(&mut out);
 
     let _ = writeln!(out, "# HELP ironic_info Framework version");
     let _ = writeln!(out, "# TYPE ironic_info gauge");
@@ -289,6 +429,193 @@ pub fn scrape() -> String {
 }
 
 // ---------------------------------------------------------------------------
+// Public API — user-defined metrics
+// ---------------------------------------------------------------------------
+
+/// A counter that can only be incremented.
+pub struct Counter {
+    name: String,
+    help: String,
+    value: AtomicU64,
+}
+
+impl Counter {
+    fn new(name: impl Into<String>, help: impl Into<String>) -> Self {
+        Self {
+            name: name.into(),
+            help: help.into(),
+            value: AtomicU64::new(0),
+        }
+    }
+
+    /// Increment the counter by 1.
+    pub fn inc(&self) {
+        self.value.fetch_add(1, Ordering::Relaxed);
+    }
+
+    /// Increment the counter by `n`.
+    pub fn inc_by(&self, n: u64) {
+        self.value.fetch_add(n, Ordering::Relaxed);
+    }
+
+    /// Returns the current value.
+    pub fn value(&self) -> u64 {
+        self.value.load(Ordering::Relaxed)
+    }
+}
+
+/// A gauge that can be set, incremented, or decremented.
+pub struct Gauge {
+    name: String,
+    help: String,
+    value: AtomicU64,
+}
+
+impl Gauge {
+    fn new(name: impl Into<String>, help: impl Into<String>) -> Self {
+        Self {
+            name: name.into(),
+            help: help.into(),
+            value: AtomicU64::new(0),
+        }
+    }
+
+    /// Overwrite the gauge value.
+    pub fn set(&self, value: u64) {
+        self.value.store(value, Ordering::Relaxed);
+    }
+
+    /// Increment the gauge by 1.
+    pub fn inc(&self) {
+        self.value.fetch_add(1, Ordering::Relaxed);
+    }
+
+    /// Decrement the gauge by 1.
+    pub fn dec(&self) {
+        self.value.fetch_sub(1, Ordering::Relaxed);
+    }
+
+    /// Returns the current value.
+    pub fn value(&self) -> u64 {
+        self.value.load(Ordering::Relaxed)
+    }
+}
+
+/// A histogram with fixed Prometheus default bucket boundaries.
+pub struct Histogram {
+    name: String,
+    help: String,
+    buckets: [AtomicU64; NUM_BUCKETS],
+}
+
+impl Histogram {
+    fn new(name: impl Into<String>, help: impl Into<String>) -> Self {
+        Self {
+            name: name.into(),
+            help: help.into(),
+            buckets: new_per_endpoint_buckets(),
+        }
+    }
+
+    /// Record a latency value in seconds.
+    pub fn record(&self, latency: f64) {
+        self.buckets[bucket_for(latency)].fetch_add(1, Ordering::Relaxed);
+    }
+}
+
+// Global storage for user-registered custom metrics.
+static CUSTOM_COUNTERS: LazyLock<Mutex<Vec<Arc<Counter>>>> =
+    LazyLock::new(|| Mutex::new(Vec::new()));
+static CUSTOM_GAUGES: LazyLock<Mutex<Vec<Arc<Gauge>>>> =
+    LazyLock::new(|| Mutex::new(Vec::new()));
+static CUSTOM_HISTOGRAMS: LazyLock<Mutex<Vec<Arc<Histogram>>>> =
+    LazyLock::new(|| Mutex::new(Vec::new()));
+
+/// Registry for user-defined Prometheus metrics.
+///
+/// Create counters, gauges, and histograms via the `register_*` methods.
+/// Registered metrics automatically appear in the `/metrics` scrape output.
+///
+/// ## Example
+///
+/// ```ignore
+/// use ironic::metrics::MetricsRegistry;
+/// use std::sync::Arc;
+///
+/// let registry: Arc<MetricsRegistry> = resolver.resolve().await.unwrap();
+/// let hits = registry.counter("api_hits_total", "Total API hits");
+/// hits.inc();
+/// ```
+pub struct MetricsRegistry;
+
+impl MetricsRegistry {
+    /// Register a new counter.
+    pub fn counter(&self, name: &str, help: &str) -> Arc<Counter> {
+        let c = Arc::new(Counter::new(name, help));
+        if let Ok(mut list) = CUSTOM_COUNTERS.lock() {
+            list.push(c.clone());
+        }
+        c
+    }
+
+    /// Register a new gauge.
+    pub fn gauge(&self, name: &str, help: &str) -> Arc<Gauge> {
+        let g = Arc::new(Gauge::new(name, help));
+        if let Ok(mut list) = CUSTOM_GAUGES.lock() {
+            list.push(g.clone());
+        }
+        g
+    }
+
+    /// Register a new histogram with Prometheus default bucket boundaries.
+    pub fn histogram(&self, name: &str, help: &str) -> Arc<Histogram> {
+        let h = Arc::new(Histogram::new(name, help));
+        if let Ok(mut list) = CUSTOM_HISTOGRAMS.lock() {
+            list.push(h.clone());
+        }
+        h
+    }
+}
+
+fn scrape_custom(out: &mut String) {
+    if let Ok(counters) = CUSTOM_COUNTERS.lock() {
+        for c in counters.iter() {
+            let _ = writeln!(out, "# HELP {} {}", c.name, c.help);
+            let _ = writeln!(out, "# TYPE {} counter", c.name);
+            let _ = writeln!(out, "{} {}", c.name, c.value.load(Ordering::Relaxed));
+            let _ = writeln!(out);
+        }
+    }
+    if let Ok(gauges) = CUSTOM_GAUGES.lock() {
+        for g in gauges.iter() {
+            let _ = writeln!(out, "# HELP {} {}", g.name, g.help);
+            let _ = writeln!(out, "# TYPE {} gauge", g.name);
+            let _ = writeln!(out, "{} {}", g.name, g.value.load(Ordering::Relaxed));
+            let _ = writeln!(out);
+        }
+    }
+    if let Ok(histograms) = CUSTOM_HISTOGRAMS.lock() {
+        for h in histograms.iter() {
+            let _ = writeln!(out, "# HELP {} {}", h.name, h.help);
+            let _ = writeln!(out, "# TYPE {} histogram", h.name);
+            let mut cumulative: u64 = 0;
+            for (i, boundary) in BOUNDARIES.iter().enumerate() {
+                cumulative += h.buckets[i].load(Ordering::Relaxed);
+                let _ = writeln!(
+                    out,
+                    "{}_bucket{{le=\"{boundary}\"}} {cumulative}",
+                    h.name
+                );
+            }
+            cumulative += h.buckets[12].load(Ordering::Relaxed);
+            let _ = writeln!(out, "{}_bucket{{le=\"+Inf\"}} {cumulative}", h.name);
+            let _ = writeln!(out, "{}_count {cumulative}", h.name);
+            let _ = writeln!(out);
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
 // Metrics module (exposes GET /metrics)
 // ---------------------------------------------------------------------------
 
@@ -297,9 +624,10 @@ pub struct MetricsModule;
 
 impl Module for MetricsModule {
     fn definition() -> ModuleDefinition {
-        let provider = ProviderDefinition::constructor(Scope::Singleton, Vec::new(), |_resolver| {
-            Ok(MetricsController)
-        });
+        let controller_provider =
+            ProviderDefinition::constructor(Scope::Singleton, Vec::new(), |_resolver| {
+                Ok(MetricsController)
+            });
         let route = RouteDefinition::new(
             HttpMethod::GET,
             "/",
@@ -312,10 +640,18 @@ impl Module for MetricsModule {
             ),
         )
         .expect("the built-in metrics route is valid");
-        let controller = ControllerDefinition::new::<MetricsController>("/metrics", provider)
-            .expect("the built-in metrics controller path is valid")
-            .route(route);
+        let controller = ControllerDefinition::new::<MetricsController>(
+            "/metrics",
+            controller_provider,
+        )
+        .expect("the built-in metrics controller path is valid")
+        .route(route);
+        let registry_provider =
+            ProviderDefinition::constructor(Scope::Singleton, Vec::new(), |_resolver| {
+                Ok(MetricsRegistry)
+            });
         ModuleDefinition::builder::<Self>()
+            .provider(registry_provider)
             .controller(controller)
             .build()
     }
@@ -344,10 +680,32 @@ mod tests {
     }
 
     #[test]
-    fn percentiles_work() {
-        let data = vec![0.1, 0.2, 0.3, 0.4, 0.5];
-        assert!((percentile(data.clone(), 0.5) - 0.3).abs() < 0.01);
-        assert!((percentile(data.clone(), 0.9) - 0.5).abs() < 0.01);
+    fn bucket_for_correct_range() {
+        let cases = [
+            (0.0005, 0),
+            (0.001, 0),
+            (0.002, 1),
+            (0.005, 1),
+            (0.01, 2),
+            (0.05, 4),
+            (0.1, 5),
+            (0.3, 7),
+            (1.0, 8),
+            (5.0, 10),
+            (10.0, 11),
+            (100.0, 12),
+        ];
+        for (latency, expected) in &cases {
+            assert_eq!(bucket_for(*latency), *expected, "latency={latency}");
+        }
+    }
+
+    #[test]
+    fn atomic_counts_accumulate() {
+        METRICS.request_count.store(0, Ordering::Relaxed);
+        METRICS.request_count.fetch_add(1, Ordering::Relaxed);
+        METRICS.request_count.fetch_add(1, Ordering::Relaxed);
+        assert_eq!(METRICS.request_count.load(Ordering::Relaxed), 2);
     }
 
     #[test]

@@ -12,7 +12,12 @@ pub mod csrf;
 #[cfg(feature = "security-rate-limit")]
 pub mod rate_limit;
 #[cfg(feature = "security-rate-limit")]
-pub use rate_limit::RateLimitMiddleware;
+pub use rate_limit::{
+    InMemoryRateLimiter, RateLimitBackend, RateLimitMiddleware, RateLimitResult,
+};
+#[cfg(feature = "security-rate-limit")]
+#[cfg(feature = "redis")]
+pub use rate_limit::RedisRateLimiter;
 #[cfg(feature = "security-headers")]
 pub mod security_headers;
 #[cfg(feature = "security-headers")]
@@ -21,42 +26,42 @@ pub use security_headers::{SecurityHeadersConfig, SecurityHeadersMiddleware};
 #[cfg(test)]
 #[cfg(feature = "security")]
 mod tests {
-    use super::rate_limit::InMemoryRateLimiter;
+    use super::rate_limit::{InMemoryRateLimiter, RateLimitBackend};
 
     #[test]
     fn rate_limiter_allows_within_limit() {
-        let limiter = InMemoryRateLimiter::new(3, 60);
-        assert!(limiter.check("client-1"));
-        assert!(limiter.check("client-1"));
-        assert!(limiter.check("client-1"));
+        let limiter = InMemoryRateLimiter::new();
+        assert!(limiter.check("client-1", 3, 60));
+        assert!(limiter.check("client-1", 3, 60));
+        assert!(limiter.check("client-1", 3, 60));
     }
 
     #[test]
     fn rate_limiter_blocks_excess_requests() {
-        let limiter = InMemoryRateLimiter::new(2, 60);
-        assert!(limiter.check("client-2"));
-        assert!(limiter.check("client-2"));
-        assert!(!limiter.check("client-2"));
+        let limiter = InMemoryRateLimiter::new();
+        assert!(limiter.check("client-2", 2, 60));
+        assert!(limiter.check("client-2", 2, 60));
+        assert!(!limiter.check("client-2", 2, 60));
     }
 
     #[test]
     fn rate_limiter_reports_remaining() {
-        let limiter = InMemoryRateLimiter::new(5, 60);
-        assert_eq!(limiter.remaining("client-3"), 5);
-        limiter.check("client-3");
-        assert_eq!(limiter.remaining("client-3"), 4);
-        limiter.check("client-3");
-        assert_eq!(limiter.remaining("client-3"), 3);
+        let limiter = InMemoryRateLimiter::new();
+        assert_eq!(limiter.remaining("client-3", 5, 60), 5);
+        let _ = limiter.check("client-3", 5, 60);
+        assert_eq!(limiter.remaining("client-3", 5, 60), 4);
+        let _ = limiter.check("client-3", 5, 60);
+        assert_eq!(limiter.remaining("client-3", 5, 60), 3);
     }
 
     #[test]
     fn rate_limiter_isolates_clients() {
-        let limiter = InMemoryRateLimiter::new(2, 60);
-        assert!(limiter.check("alice"));
-        assert!(limiter.check("alice"));
-        assert!(!limiter.check("alice"));
-        assert!(limiter.check("bob"));
-        assert!(limiter.check("bob"));
+        let limiter = InMemoryRateLimiter::new();
+        assert!(limiter.check("alice", 2, 60));
+        assert!(limiter.check("alice", 2, 60));
+        assert!(!limiter.check("alice", 2, 60));
+        assert!(limiter.check("bob", 2, 60));
+        assert!(limiter.check("bob", 2, 60));
     }
 
     #[cfg(feature = "security-cors")]

@@ -10,6 +10,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [v0.3.9] - 2026-07-15
 
 ### Added
+- enhance release script to create blog post and update releases documentation (66b0a0a)\n
+
+## [v0.3.9] - 2026-07-15
+
+### Added
 - add Navigation and Footer components to BlogPage for improved layout and navigation (ea2b585)\n- add 'deep-dive' tag to Post type and include new blog post on Ironic's runtime dependency resolution (6c9e0e7)\n- add blog post for the pre-release journey detailing iterations and features (7190b84)\n- enhance blog pages with improved layout, navigation, and metadata display (ae68243)\n- add blog feature with release notes and blog post pages (ebce9ea)\n- update comparison table to include 'Loco' framework and adjust ecosystem maturity year (664698c)\n- enhance GitHub stats display with formatted counts and improved components (5561e2a)\n- add GitHub stars and forks display in navigation and hero section (1fe75b8)\n- improve styling for 'ironic' feature in comparison table (a59ed90)\n
 ### Fixed
 - update links from discussions to issues for better issue reporting (77fbb9b)\n- replace anchor tags with Link components for internal navigation in BlogIndex (109185c)\n- update VITE_CDN_URL to use correct output from configure-pages step and add debugging information (e17a10a)\n- update CI and Docs workflows to ignore unnecessary paths and refine deployment conditions (943c772)\n- update build script to copy 404.html and replace anchor tags with Link components in BlogPage (4ea8886)\n- update Discord link to point to the community server (c13bed0)\n- update 'Getting started' links to remove redundant path segments (87967a1)\n- update ecosystem maturity year for Ironic in documentation and comparison table (871ef78)\n

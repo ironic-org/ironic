@@ -607,6 +607,13 @@ impl CompiledHttpApplication {
         self
     }
 
+    /// Appends pre-erased global middleware from the application builder.
+    #[must_use]
+    pub fn extend_middleware(mut self, middlewares: Vec<Arc<dyn Middleware>>) -> Self {
+        self.pipeline.middleware.extend(middlewares);
+        self
+    }
+
     /// Registers a global guard before controller and route guards.
     #[must_use]
     pub fn guard(mut self, guard: impl Guard) -> Self {

@@ -5,12 +5,18 @@
 
 #[cfg(feature = "security-cors")]
 pub mod cors;
+#[cfg(feature = "security-cors")]
+pub use cors::{CorsConfig, CorsMiddleware};
 #[cfg(feature = "security-csrf")]
 pub mod csrf;
 #[cfg(feature = "security-rate-limit")]
 pub mod rate_limit;
+#[cfg(feature = "security-rate-limit")]
+pub use rate_limit::RateLimitMiddleware;
 #[cfg(feature = "security-headers")]
 pub mod security_headers;
+#[cfg(feature = "security-headers")]
+pub use security_headers::{SecurityHeadersConfig, SecurityHeadersMiddleware};
 
 #[cfg(test)]
 #[cfg(feature = "security")]

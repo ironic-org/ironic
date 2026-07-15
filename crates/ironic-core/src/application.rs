@@ -1,6 +1,7 @@
 use std::{future::Future, net::SocketAddr, pin::Pin, sync::Arc};
 
 use ironic_di::{Container, ProviderDefinition, ProviderKey, ProviderValue, ResolveError};
+use ironic_http::Middleware;
 use ironic_platform::{HttpPlatformAdapter, HttpPlatformApplication, Shutdown, ShutdownSignal};
 
 use crate::{
@@ -74,6 +75,7 @@ impl From<ModuleError> for ApplicationError {
 pub struct FrameworkApplicationBuilder<A = MissingPlatform> {
     root: Option<RootModule>,
     overrides: Vec<ironic_di::ProviderDefinition>,
+    middlewares: Vec<Arc<dyn Middleware>>,
     adapter: A,
 }
 
@@ -107,6 +109,7 @@ impl Default for FrameworkApplicationBuilder<MissingPlatform> {
         Self {
             root: None,
             overrides: Vec::new(),
+            middlewares: Vec::new(),
             adapter: MissingPlatform,
         }
     }
@@ -142,12 +145,23 @@ impl<A> FrameworkApplicationBuilder<A> {
         self
     }
 
+    /// Registers global middleware that runs before all controllers and routes.
+    ///
+    /// Middleware is registered in the order it is added and wraps the entire
+    /// request pipeline (global → controller → route → handler).
+    #[must_use]
+    pub fn middleware(mut self, middleware: impl Middleware) -> Self {
+        self.middlewares.push(Arc::new(middleware));
+        self
+    }
+
     /// Selects a concrete HTTP platform adapter.
     #[must_use]
     pub fn platform<B>(self, adapter: B) -> FrameworkApplicationBuilder<B> {
         FrameworkApplicationBuilder {
             root: self.root,
             overrides: self.overrides,
+            middlewares: self.middlewares,
             adapter,
         }
     }
@@ -182,7 +196,8 @@ where
             &graph,
             [module_ref_provider],
             self.overrides,
-        )?;
+        )?
+        .extend_middleware(self.middlewares);
         let container = http.container().clone();
         module_ref.set_container(container.clone());
 

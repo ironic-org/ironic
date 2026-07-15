@@ -67,9 +67,10 @@ impl FileLogStorage {
     fn write_line(&self, date: &str, line: &str) -> Result<(), StorageError> {
         use std::io::Write;
 
-        let mut guard = self.writer.lock().map_err(|e| {
-            StorageError::Backend(format!("writer lock poisoned: {e}"))
-        })?;
+        let mut guard = self
+            .writer
+            .lock()
+            .map_err(|e| StorageError::Backend(format!("writer lock poisoned: {e}")))?;
 
         if guard.as_ref().is_none_or(|w| w.date != date) {
             std::fs::create_dir_all(&self.directory)?;
@@ -124,8 +125,8 @@ impl LogStorage for FileLogStorage {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use super::super::entry::LogEntry;
+    use super::*;
     use chrono::Utc;
     use std::collections::BTreeMap;
     use tempfile::TempDir;

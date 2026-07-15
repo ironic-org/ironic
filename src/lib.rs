@@ -58,12 +58,12 @@ pub mod ecosystem;
 mod http_impl;
 #[path = "../crates/ironic-integrations/src/lib.rs"]
 pub mod integrations;
-#[cfg(feature = "openapi")]
-#[path = "../crates/ironic-openapi/src/lib.rs"]
-mod openapi;
 #[cfg(feature = "logging")]
 #[path = "../crates/ironic-logging/src/lib.rs"]
 pub mod logging;
+#[cfg(feature = "openapi")]
+#[path = "../crates/ironic-openapi/src/lib.rs"]
+mod openapi;
 #[path = "../crates/ironic-platform/src/lib.rs"]
 mod platform;
 #[path = "../crates/ironic-platform-axum/src/lib.rs"]
@@ -166,6 +166,8 @@ macro_rules! create_param_decorator {
 pub mod prelude {
     #[cfg(feature = "hot-reload")]
     pub use crate::ConfigWatcher;
+    #[cfg(feature = "openapi")]
+    pub use crate::OpenApiSchema;
     #[cfg(feature = "validation")]
     pub use crate::ValidationPipe;
     #[cfg(all(
@@ -173,6 +175,10 @@ pub mod prelude {
         any(feature = "redis", feature = "application-services")
     ))]
     pub use crate::cache_interceptor::CacheInterceptor;
+    #[cfg(feature = "logging")]
+    pub use crate::logging::{
+        LogEntry, LogStorage, StorageError, TimeSeriesConfig, TimeSeriesModule,
+    };
     pub use crate::{
         AxumAdapter, CacheMetadata, CompiledHttpApplication, ConfigurationError,
         ConfigurationLoader, ControllerDefinition, Dependency, ExceptionFilter, FeatureToggle,
@@ -181,20 +187,16 @@ pub mod prelude {
         HttpPlatformAdapter, HttpPlatformApplication, Injectable, Interceptor, InterceptorNext,
         Json, JsonBody, LifecycleDefinition, Middleware, Module, ModuleDefinition, ModuleRef,
         OnApplicationBootstrap, OnApplicationShutdown, OnModuleDestroy, OnModuleInit,
-        ParameterPipe, PathParameter, PipelineFuture, ProviderDefinition,
-        QueryParameters, RequestContext, RequestId, RequestScope, RequestTracing, RouteDefinition,
-        RouteMetadata, Scope, Secret, SecretString, Serializable, ShutdownSignal,
-        ValidateConfiguration, VersionMetadata, VersioningStrategy, WsGatewayDefinition, body,
-        cache, controller, create_param_decorator, cron, custom, delete, get, handler_fn, head,
-        header, interval, options, param, patch, pipe, pipe_fn, post, put, query, routes,
-        subscribe_message, timeout, use_guard, use_interceptor, web_socket_gateway,
+        ParameterPipe, PathParameter, PipelineFuture, ProviderDefinition, QueryParameters,
+        RequestContext, RequestId, RequestScope, RequestTracing, RouteDefinition, RouteMetadata,
+        Scope, Secret, SecretString, Serializable, ShutdownSignal, ValidateConfiguration,
+        VersionMetadata, VersioningStrategy, WsGatewayDefinition, body, cache, controller,
+        create_param_decorator, cron, custom, delete, get, handler_fn, head, header, interval,
+        options, param, patch, pipe, pipe_fn, post, put, query, routes, subscribe_message, timeout,
+        use_guard, use_interceptor, web_socket_gateway,
     };
-    #[cfg(feature = "openapi")]
-    pub use crate::OpenApiSchema;
     #[cfg(feature = "serialization")]
     pub use crate::{FieldRule, FieldRules, SerializeInterceptor, set_current_roles};
     #[cfg(feature = "multipart")]
     pub use crate::{MultipartConfig, MultipartForm, MultipartFormData, UploadedFile};
-    #[cfg(feature = "logging")]
-    pub use crate::logging::{LogStorage, LogEntry, StorageError, TimeSeriesConfig, TimeSeriesModule};
 }

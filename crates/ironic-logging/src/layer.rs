@@ -53,10 +53,7 @@ impl tracing::field::Visit for JsonVisitor {
     }
 
     fn record_debug(&mut self, field: &tracing::field::Field, value: &dyn std::fmt::Debug) {
-        self.record_value(
-            field,
-            serde_json::Value::String(format!("{value:?}")),
-        );
+        self.record_value(field, serde_json::Value::String(format!("{value:?}")));
     }
 
     fn record_u64(&mut self, field: &tracing::field::Field, value: u64) {
@@ -68,8 +65,7 @@ impl tracing::field::Visit for JsonVisitor {
     }
 
     fn record_f64(&mut self, field: &tracing::field::Field, value: f64) {
-        let n = serde_json::Number::from_f64(value)
-            .unwrap_or_else(|| serde_json::Number::from(0));
+        let n = serde_json::Number::from_f64(value).unwrap_or_else(|| serde_json::Number::from(0));
         self.record_value(field, serde_json::Value::Number(n));
     }
 
@@ -82,10 +78,7 @@ impl tracing::field::Visit for JsonVisitor {
         field: &tracing::field::Field,
         value: &(dyn std::error::Error + 'static),
     ) {
-        self.record_value(
-            field,
-            serde_json::Value::String(format!("{value}")),
-        );
+        self.record_value(field, serde_json::Value::String(format!("{value}")));
     }
 }
 

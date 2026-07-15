@@ -114,11 +114,10 @@ impl TimeSeriesConfig {
         let layer = TimeSeriesLayer::new(self.storage);
         let subscriber = tracing_subscriber::registry()
             .with(
-                tracing_subscriber::fmt::layer()
-                    .with_filter(
-                        tracing_subscriber::filter::EnvFilter::try_from_default_env()
-                            .unwrap_or_else(|_| tracing_subscriber::filter::EnvFilter::new("info")),
-                    ),
+                tracing_subscriber::fmt::layer().with_filter(
+                    tracing_subscriber::filter::EnvFilter::try_from_default_env()
+                        .unwrap_or_else(|_| tracing_subscriber::filter::EnvFilter::new("info")),
+                ),
             )
             .with(layer);
 
@@ -152,11 +151,10 @@ impl ironic_core::Module for TimeSeriesModule {
         let layer = TimeSeriesLayer::new(config.storage);
         let subscriber = tracing_subscriber::registry()
             .with(
-                tracing_subscriber::fmt::layer()
-                    .with_filter(
-                        tracing_subscriber::filter::EnvFilter::try_from_default_env()
-                            .unwrap_or_else(|_| tracing_subscriber::filter::EnvFilter::new("info")),
-                    ),
+                tracing_subscriber::fmt::layer().with_filter(
+                    tracing_subscriber::filter::EnvFilter::try_from_default_env()
+                        .unwrap_or_else(|_| tracing_subscriber::filter::EnvFilter::new("info")),
+                ),
             )
             .with(layer);
 
@@ -173,9 +171,7 @@ impl ironic_core::Module for TimeSeriesModule {
 /// can also use `tracing::info!()` directly.
 pub mod log {
     #[doc(hidden)]
-    pub use tracing::{
-        debug, error, info, trace, warn,
-    };
+    pub use tracing::{debug, error, info, trace, warn};
 }
 
 #[cfg(test)]

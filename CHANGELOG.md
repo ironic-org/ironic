@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v0.4.5] - 2026-07-16
+
+### Added
+
+- `openapi` feature flag — OpenAPI/Swagger module is now feature-gated (was always compiled) and included in default features
+- `logging` feature — structured time-series logging with `FileLogStorage` (`.logs/YYYY-MM-DD.jsonl`), `LogStorage` trait for pluggable backends, `TimeSeriesLayer` capturing all `tracing` events, and `ironic::log::{info, warn, error, debug, trace}` re-exports
+- `logging` feature included in generated project template
+
+### Fixed
+
+- Generated project template now calls `.configure_router()` before `.with_openapi()` (method exists on `AxumAdapter`, not `OpenApiAxumAdapter`)
+- Generated project now includes `sqlx` and `tracing` as direct dependencies for the database module
+- `extern crate` aliases annotated with `#[allow(unused_extern_crates)]` to fix builds without default features
+- Various code formatting fixes
+
 ## [v0.4.4] - 2026-07-16
 
 ### Added

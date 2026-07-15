@@ -57,7 +57,10 @@ pub fn create(
             destination.join("ironic.toml"),
             project_config(&names.kebab),
         ),
-        (destination.join(".env.example"), dotenv_example(&names.kebab)),
+        (
+            destination.join(".env.example"),
+            dotenv_example(&names.kebab),
+        ),
         (destination.join(".gitignore"), gitignore()),
         (destination.join("Dockerfile"), dockerfile(&names.kebab)),
         (
@@ -312,7 +315,9 @@ fn example_repository() -> String {
 // ── Infrastructure templates ──────────────────────────────────────────
 
 fn dotenv_example(name: &str) -> String {
-    format!("# Server\nSERVER_HOST=0.0.0.0\nSERVER_PORT=8080\n\n# Logging\nRUST_LOG=info\n\n# Security ──────────────────────────────────────────────\n# Security headers (HSTS, CSP, X-Frame-Options, etc.) are always on with\n# secure defaults. You can customise them in src/main.rs.\n#\n# JSON array of allowed origins; leave empty to deny all cross-origin requests\n# Example: CORS_ORIGINS=[\"https://app.com\",\"https://admin.com\"]\nCORS_ORIGINS=[]\n# Maximum requests per IP per 60-second window\nRATE_LIMIT_MAX=100\n\n# Database\nDATABASE_URL=postgres://user:CHANGE_ME@localhost:5432/{name}\n\n# Redis (uncomment to use)\n# REDIS_URL=redis://localhost:6379\n")
+    format!(
+        "# Server\nSERVER_HOST=0.0.0.0\nSERVER_PORT=8080\n\n# Logging\nRUST_LOG=info\n\n# Security ──────────────────────────────────────────────\n# Security headers (HSTS, CSP, X-Frame-Options, etc.) are always on with\n# secure defaults. You can customise them in src/main.rs.\n#\n# JSON array of allowed origins; leave empty to deny all cross-origin requests\n# Example: CORS_ORIGINS=[\"https://app.com\",\"https://admin.com\"]\nCORS_ORIGINS=[]\n# Maximum requests per IP per 60-second window\nRATE_LIMIT_MAX=100\n\n# Database\nDATABASE_URL=postgres://user:CHANGE_ME@localhost:5432/{name}\n\n# Redis (uncomment to use)\n# REDIS_URL=redis://localhost:6379\n"
+    )
 }
 
 fn gitignore() -> String {

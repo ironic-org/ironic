@@ -133,9 +133,9 @@ fn register_module(root: &Path, name: &str, report: &mut GenerationReport) {
         }
         if added {
             std::fs::write(&manifest, content).ok();
-            report
-                .manual_instructions
-                .push("Dependencies auto-added to Cargo.toml. Run `cargo build` to fetch them.".into());
+            report.manual_instructions.push(
+                "Dependencies auto-added to Cargo.toml. Run `cargo build` to fetch them.".into(),
+            );
         }
     }
 }

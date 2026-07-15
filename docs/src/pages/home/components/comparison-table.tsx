@@ -2,12 +2,13 @@ import { Check, Minus, X } from 'lucide-react';
 import FadeUp from './fade-up';
 
 const rows = [
-    { feature: 'Language', nestjs: 'TypeScript / Node.js', axum: 'Rust', actix: 'Rust', ironic: 'Rust' },
+    { feature: 'Language', nestjs: 'TypeScript / Node.js', axum: 'Rust', actix: 'Rust', loco: 'Rust', ironic: 'Rust' },
     {
         feature: 'Architecture',
         nestjs: 'Decorator-based modules',
         axum: 'Handler functions',
         actix: 'Actor system',
+        loco: 'MVC (Rails-inspired)',
         ironic: 'Module graph + DI',
     },
     {
@@ -15,6 +16,7 @@ const rows = [
         nestjs: (<Check className='w-4 h-4 text-green-500' />),
         axum: (<Minus className='w-4 h-4 text-fd-muted-foreground/40' />),
         actix: (<Minus className='w-4 h-4 text-fd-muted-foreground/40' />),
+        loco: (<X className='w-4 h-4 text-red-500/50' />),
         ironic: (<Check className='w-4 h-4 text-green-500' />),
     },
     {
@@ -22,6 +24,7 @@ const rows = [
         nestjs: (<Check className='w-4 h-4 text-green-500' />),
         axum: (<X className='w-4 h-4 text-red-500/50' />),
         actix: (<X className='w-4 h-4 text-red-500/50' />),
+        loco: (<X className='w-4 h-4 text-red-500/50' />),
         ironic: (<Check className='w-4 h-4 text-green-500' />),
     },
     {
@@ -29,6 +32,7 @@ const rows = [
         nestjs: (<Check className='w-4 h-4 text-green-500' />),
         axum: 'Tower layers',
         actix: 'Middleware wrap',
+        loco: 'Tower layers',
         ironic: 'Middleware + Guards + Interceptors',
     },
     {
@@ -36,6 +40,7 @@ const rows = [
         nestjs: (<Check className='w-4 h-4 text-green-500' />),
         axum: (<Check className='w-4 h-4 text-green-500' />),
         actix: (<Check className='w-4 h-4 text-green-500' />),
+        loco: (<Check className='w-4 h-4 text-green-500' />),
         ironic: (<Check className='w-4 h-4 text-green-500' />),
     },
     {
@@ -43,6 +48,7 @@ const rows = [
         nestjs: (<Check className='w-4 h-4 text-green-500' />),
         axum: 'Utoipa',
         actix: 'Utoipa',
+        loco: 'Utoipa',
         ironic: (<Check className='w-4 h-4 text-green-500' />),
     },
     {
@@ -50,6 +56,7 @@ const rows = [
         nestjs: (<Check className='w-4 h-4 text-green-500' />),
         axum: (<X className='w-4 h-4 text-red-500/50' />),
         actix: (<X className='w-4 h-4 text-red-500/50' />),
+        loco: (<Check className='w-4 h-4 text-green-500' />),
         ironic: (<Check className='w-4 h-4 text-green-500' />),
     },
     {
@@ -57,6 +64,7 @@ const rows = [
         nestjs: (<Check className='w-4 h-4 text-green-500' />),
         axum: (<Check className='w-4 h-4 text-green-500' />),
         actix: (<Check className='w-4 h-4 text-green-500' />),
+        loco: (<Check className='w-4 h-4 text-green-500' />),
         ironic: (<Check className='w-4 h-4 text-green-500' />),
     },
     {
@@ -64,6 +72,7 @@ const rows = [
         nestjs: 'ThrottlerModule',
         axum: (<X className='w-4 h-4 text-red-500/50' />),
         actix: (<X className='w-4 h-4 text-red-500/50' />),
+        loco: (<X className='w-4 h-4 text-red-500/50' />),
         ironic: (<Check className='w-4 h-4 text-green-500' />),
     },
     {
@@ -71,6 +80,7 @@ const rows = [
         nestjs: (<Check className='w-4 h-4 text-green-500' />),
         axum: (<X className='w-4 h-4 text-red-500/50' />),
         actix: (<X className='w-4 h-4 text-red-500/50' />),
+        loco: (<Check className='w-4 h-4 text-green-500' />),
         ironic: (<Check className='w-4 h-4 text-green-500' />),
     },
     {
@@ -78,6 +88,7 @@ const rows = [
         nestjs: 'Helmet',
         axum: (<X className='w-4 h-4 text-red-500/50' />),
         actix: (<X className='w-4 h-4 text-red-500/50' />),
+        loco: (<Minus className='w-4 h-4 text-fd-muted-foreground/40' />),
         ironic: (<Check className='w-4 h-4 text-green-500' />),
     },
     {
@@ -85,6 +96,7 @@ const rows = [
         nestjs: (<X className='w-4 h-4 text-red-500/50' />),
         axum: (<X className='w-4 h-4 text-red-500/50' />),
         actix: (<X className='w-4 h-4 text-red-500/50' />),
+        loco: (<X className='w-4 h-4 text-red-500/50' />),
         ironic: (<Check className='w-4 h-4 text-green-500' />),
     },
     {
@@ -92,6 +104,7 @@ const rows = [
         nestjs: 'Moderate',
         axum: 'Low',
         actix: 'Medium',
+        loco: 'Low',
         ironic: 'Moderate',
     },
     {
@@ -99,15 +112,17 @@ const rows = [
         nestjs: 'Mature (2017)',
         axum: 'Growing (2021)',
         actix: 'Mature (2017)',
+        loco: 'Growing (2023)',
         ironic: 'Early (2026)',
     },
 ];
 
 const columns = [
-    { key: 'feature' as const, label: '', className: 'text-left font-semibold text-fd-foreground min-w-[180px]' },
+    { key: 'feature' as const, label: '', className: 'text-left font-semibold text-fd-foreground min-w-[160px]' },
     { key: 'nestjs' as const, label: 'NestJS', className: 'text-center font-semibold text-fd-foreground' },
     { key: 'axum' as const, label: 'Axum', className: 'text-center font-semibold text-fd-foreground' },
     { key: 'actix' as const, label: 'Actix Web', className: 'text-center font-semibold text-fd-foreground' },
+    { key: 'loco' as const, label: 'Loco', className: 'text-center font-semibold text-fd-foreground' },
     { key: 'ironic' as const, label: 'Ironic', className: 'text-center font-semibold text-brand' },
 ];
 
@@ -135,7 +150,7 @@ const ComparisonTable = () => {
                             {columns.map((col) => (
                                 <th
                                     key={col.key}
-                                    className={`px-4 py-3.5 text-sm whitespace-nowrap ${col.className}`}
+                                    className={`px-3 py-3.5 text-sm whitespace-nowrap ${col.className}`}
                                 >
                                     {col.label}
                                 </th>
@@ -146,18 +161,20 @@ const ComparisonTable = () => {
                         {rows.map((row, i) => (
                             <tr
                                 key={row.feature}
-                                className={`border-b border-fd-border/50 transition-colors hover:bg-fd-muted/20 ${i === rows.length - 1 ? 'border-b-0' : ''
-                                    }`}
+                                className={`border-b border-fd-border/50 transition-colors hover:bg-fd-muted/20 ${
+                                    i === rows.length - 1 ? 'border-b-0' : ''
+                                }`}
                             >
                                 {columns.map((col) => (
                                     <td
                                         key={col.key}
-                                        className={`px-4 py-3 text-fd-muted-foreground leading-relaxed ${col.key === 'feature'
+                                        className={`px-3 py-3 text-fd-muted-foreground leading-relaxed ${
+                                            col.key === 'feature'
                                                 ? 'font-medium text-fd-foreground text-xs tracking-wide'
                                                 : col.key === 'ironic'
                                                     ? 'text-center text-xs bg-brand/[0.04] font-semibold text-brand'
                                                     : 'text-center text-xs'
-                                            }`}
+                                        }`}
                                     >
                                         {row[col.key]}
                                     </td>

@@ -30,22 +30,22 @@ This documentation walks you through every feature step by step:
 
 Ironic combines NestJS's batteries-included philosophy with Rust's performance and zero-cost abstractions:
 
-| Feature | NestJS | Axum | Actix Web | **Ironic** |
-|---------|--------|------|-----------|------------|
-| **Language** | TypeScript | Rust | Rust | **Rust** |
-| **Architecture** | Decorator modules | Handler functions | Actor system | **Module graph + DI** |
-| **Dependency Injection** | ✅ Built-in | — Third-party | — Third-party | **✅ Built-in** |
-| **Scope-aware DI** | ✅ | ❌ | ❌ | **✅** |
-| **Middleware pipeline** | ✅ Nest middleware | Tower layers | Middleware wrap | **✅ + Guards + Interceptors** |
-| **CLI scaffolding** | ✅ | ❌ | ❌ | **✅ `ironic generate`** |
-| **Rate limiting built-in** | ThrottlerModule | ❌ | ❌ | **✅** |
-| **Security headers built-in** | Helmet | ❌ | ❌ | **✅** |
-| **Cron / scheduled tasks** | ✅ | ❌ | ❌ | **✅** |
-| **OpenAPI generation** | ✅ | Utoipa | Utoipa | **✅** |
-| **WebSockets built-in** | ✅ | ✅ | ✅ | **✅** |
-| **Feature flags** | ❌ | ❌ | ❌ | **✅ Compile-time** |
-| **Learning curve** | Moderate | Low | Medium | **Moderate** |
-| **Ecosystem maturity** | Mature (2017) | Growing (2021) | Mature (2017) | **Early (2026)** |
+| Feature | NestJS | Axum | Actix Web | Loco | **Ironic** |
+|---------|--------|------|-----------|------|------------|
+| **Language** | TypeScript | Rust | Rust | Rust | **Rust** |
+| **Architecture** | Decorator modules | Handler functions | Actor system | MVC (Rails) | **Module graph + DI** |
+| **Dependency Injection** | ✅ Built-in | — Third-party | — Third-party | ❌ | **✅ Built-in** |
+| **Scope-aware DI** | ✅ | ❌ | ❌ | ❌ | **✅** |
+| **Middleware pipeline** | ✅ Nest middleware | Tower layers | Middleware wrap | Tower layers | **✅ + Guards + Interceptors** |
+| **CLI scaffolding** | ✅ | ❌ | ❌ | ✅ | **✅ `ironic generate`** |
+| **Rate limiting built-in** | ThrottlerModule | ❌ | ❌ | ❌ | **✅** |
+| **Security headers built-in** | Helmet | ❌ | ❌ | — | **✅** |
+| **Cron / scheduled tasks** | ✅ | ❌ | ❌ | ✅ | **✅** |
+| **OpenAPI generation** | ✅ | Utoipa | Utoipa | Utoipa | **✅** |
+| **WebSockets built-in** | ✅ | ✅ | ✅ | ✅ | **✅** |
+| **Feature flags** | ❌ | ❌ | ❌ | ❌ | **✅ Compile-time** |
+| **Learning curve** | Moderate | Low | Medium | Low | **Moderate** |
+| **Ecosystem maturity** | Mature (2017) | Growing (2021) | Mature (2017) | Growing (2023) | **Early (2026)** |
 
 > ✅ = built-in  ·  — = needs third-party crate  ·  ❌ = not available
 

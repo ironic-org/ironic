@@ -20,6 +20,14 @@ const posts: Post[] = [
         readTime: '8 min',
     },
     {
+        slug: 'v0.3.9',
+        title: 'Release automation — blog posts, comparison table, and GitHub badges',
+        description: 'Every release now auto-generates a blog post and updates the releases pages. Added framework comparison table and live GitHub star/fork counts.',
+        date: 'Jul 15, 2026',
+        tag: 'release',
+        readTime: '2 min',
+    },
+    {
         slug: 'v0.3.8',
         title: 'Batteries included — security, middleware, and Docker out of the box',
         description: 'Every new project now ships with SecurityHeaders, RateLimit, and CORS middleware. The Dockerfile is production-ready with proper binary naming and SERVER_HOST=0.0.0.0.',

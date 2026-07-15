@@ -9,6 +9,27 @@ All versions in the v0.3.x series. Visit the [Blog](/blog) for detailed release 
 
 ---
 
+## v0.3.9 — July 15, 2026
+
+### Added
+- Blog section with release notes, deep-dive articles, and version changelog
+- Docs comparison table (NestJS, Axum, Actix Web, Loco, Ironic)
+- Release releases page with full version history
+- Navigation and footer on blog pages
+- GitHub stars and forks badge in nav header
+
+### Fixed
+- Release script path: `getting-started.md` → `getting-started/getting-started.md`
+- Blog links use React Router `Link` for proper base path on GitHub Pages
+- SPA 404 fallback for blog direct URL access
+
+### Changed
+- Release script now auto-creates blog post, updates BlogIndex and releases on each version
+- Docs CI skips full Rust build for docs-only changes
+- GitHub Discussions links → Issues (Discussions not yet enabled)
+
+---
+
 ## v0.3.8 — July 15, 2026
 
 ### Added

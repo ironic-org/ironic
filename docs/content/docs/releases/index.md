@@ -11,6 +11,7 @@ All notable changes to Ironic are documented here. The project follows [Semantic
 
 | Version | Date | Highlights |
 |---------|------|-----------|
+| [v0.3.9](/blog/v0.3.9) | 2026-07-15 | Blog section, comparison table, GitHub badges, release automation |
 | [v0.3.8](/blog/v0.3.8) | 2026-07-15 | Global middleware, security headers, rate limiting, CORS by default |
 | [v0.3.7](/blog/v0.3.7) | 2026-07-15 | `.middleware()` on FrameworkApplicationBuilder |
 | [v0.3.6](/blog/v0.3.6) | 2026-07-15 | Validation pipes docs, API examples, expanded project templates |

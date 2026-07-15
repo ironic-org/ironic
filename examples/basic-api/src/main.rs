@@ -14,7 +14,7 @@ use app::AppModule;
 #[ironic::main]
 async fn main() {
     dotenvy::dotenv().ok();
-    let host = env::var("SERVER_HOST").unwrap_or_else(|_| "127.0.0.1".into());
+    let host = env::var("SERVER_HOST").unwrap_or_else(|_| "0.0.0.0".into());
     let port = env::var("SERVER_PORT").unwrap_or_else(|_| "3000".into());
     let addr = format!("{}:{}", host, port);
 

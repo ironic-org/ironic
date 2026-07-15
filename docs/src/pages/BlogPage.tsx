@@ -66,7 +66,7 @@ export default function BlogPage() {
             {/* Article header */}
             <div className="relative overflow-hidden border-b border-fd-border">
                 <div className="absolute inset-0 pointer-events-none">
-                    <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[300px] bg-brand/[0.03] rounded-full blur-[100px]" />
+                    <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-150 h-75 bg-brand/3 rounded-full blur-[100px]" />
                 </div>
                 <div className="max-w-3xl mx-auto px-6 py-16 md:py-20 relative">
                     <Link

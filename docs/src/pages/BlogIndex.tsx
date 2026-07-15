@@ -397,8 +397,8 @@ export default function BlogIndex() {
             {/* Hero */}
             <section className="relative overflow-hidden border-b border-fd-border">
                 <div className="absolute inset-0 pointer-events-none">
-                    <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-brand/[0.03] rounded-full blur-[100px] translate-x-1/4 -translate-y-1/4" />
-                    <div className="absolute bottom-0 left-0 w-[400px] h-[400px] bg-amber-500/[0.03] rounded-full blur-[80px] -translate-x-1/4 translate-y-1/4" />
+                    <div className="absolute top-0 right-0 w-125 h-125 bg-brand/3 rounded-full blur-[100px] translate-x-1/4 -translate-y-1/4" />
+                    <div className="absolute bottom-0 left-0 w-100 h-100 bg-amber-500/3 rounded-full blur-[80px] -translate-x-1/4 translate-y-1/4" />
                 </div>
                 <div className="max-w-7xl mx-auto px-6 py-20 md:py-28 relative">
                     <div className="max-w-2xl">
@@ -430,7 +430,7 @@ export default function BlogIndex() {
                         to={`/blog/${featured.slug}`}
                         className="group block relative overflow-hidden rounded-2xl border border-fd-border bg-fd-card/50 hover:border-brand/30 transition-all duration-300"
                     >
-                        <div className="absolute inset-0 bg-gradient-to-br from-brand/[0.04] via-transparent to-amber-500/[0.03] group-hover:opacity-100 transition-opacity" />
+                        <div className="absolute inset-0 bg-linear-to-br from-brand/4 via-transparent to-amber-500/3 group-hover:opacity-100 transition-opacity" />
                         <div className="relative p-8 md:p-10 md:flex md:gap-10 md:items-center">
                             <div className="flex-1">
                                 <div className="flex items-center gap-3 mb-4">
@@ -506,7 +506,7 @@ export default function BlogIndex() {
             <section className="border-t border-fd-border">
                 <div className="max-w-7xl mx-auto px-6 py-16">
                     <div className="relative rounded-2xl border border-fd-border bg-fd-card/40 p-10 md:p-14 text-center overflow-hidden">
-                        <div className="absolute inset-0 bg-gradient-to-br from-brand/[0.05] via-transparent to-amber-500/[0.03] pointer-events-none" />
+                        <div className="absolute inset-0 bg-linear-to-br from-brand/5 via-transparent to-amber-500/3 pointer-events-none" />
                         <div className="relative max-w-md mx-auto">
                             <div className="inline-flex items-center justify-center w-12 h-12 rounded-xl bg-brand/10 text-brand mb-5">
                                 <Sparkles className="size-6" />

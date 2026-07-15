@@ -1,4 +1,5 @@
 import { ArrowRight, Calendar, Clock, GitBranch, Layers, Sparkles, Star } from 'lucide-react';
+import { Link } from 'react-router-dom';
 
 type Post = {
     slug: string;
@@ -125,8 +126,8 @@ export default function BlogIndex() {
                 {/* Featured post */}
                 <div className="mb-16">
                     <p className="text-xs font-semibold text-fd-muted-foreground uppercase tracking-widest mb-4">Latest release</p>
-                    <a
-                        href={`/blog/${featured.slug}`}
+                    <Link
+                        to={`/blog/${featured.slug}`}
                         className="group block relative overflow-hidden rounded-2xl border border-fd-border bg-fd-card/50 hover:border-brand/30 transition-all duration-300"
                     >
                         <div className="absolute inset-0 bg-gradient-to-br from-brand/[0.04] via-transparent to-amber-500/[0.03] group-hover:opacity-100 transition-opacity" />
@@ -157,16 +158,16 @@ export default function BlogIndex() {
                                 <ArrowRight className="size-5" />
                             </div>
                         </div>
-                    </a>
+                    </Link>
                 </div>
 
                 {/* Post grid */}
                 <p className="text-xs font-semibold text-fd-muted-foreground uppercase tracking-widest mb-6">Previous releases</p>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
                     {rest.map((post) => (
-                        <a
+                        <Link
                             key={post.slug}
-                            href={`/blog/${post.slug}`}
+                            to={`/blog/${post.slug}`}
                             className="group flex flex-col rounded-xl border border-fd-border bg-fd-card/30 hover:border-brand/30 hover:bg-fd-card/60 transition-all duration-300"
                         >
                             <div className="p-6 flex flex-col flex-1">
@@ -196,7 +197,7 @@ export default function BlogIndex() {
                                     <ArrowRight className="size-4 text-fd-muted-foreground group-hover:text-brand group-hover:translate-x-0.5 transition-all" />
                                 </div>
                             </div>
-                        </a>
+                        </Link>
                     ))}
                 </div>
             </div>

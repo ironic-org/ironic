@@ -3,7 +3,7 @@ import { ArrowRight, Copy, Github, Terminal } from 'lucide-react';
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import FadeUp from './fade-up';
-import { StarCount } from './github-stars';
+import { GitHubStarButton } from './github-stars';
 
 const HeroSection = () => {
     const [copied, setCopied] = useState(false);
@@ -72,10 +72,10 @@ const HeroSection = () => {
                     variant='outline'
                     size='lg'
                     className='h-12 px-8 rounded-full border-fd-border hover:bg-fd-accent hover:text-fd-accent-foreground font-semibold text-sm transition-all'>
-                    <a href='https://github.com/ironic-org/ironic' target='_blank' rel='noopener noreferrer'>
+                    <a href='https://github.com/ironic-org/ironic' target='_blank' rel='noopener noreferrer' className='inline-flex items-center'>
                         <Github className='mr-2 w-4 h-4' />
                         View on GitHub
-                        <StarCount className='ml-1.5 text-xs text-fd-muted-foreground' />
+                        <GitHubStarButton />
                     </a>
                 </Button>
             </FadeUp>

@@ -1,7 +1,7 @@
-import { useEffect, useState } from 'react';
-import { Github, Layers, Menu, Star, GitFork, X } from 'lucide-react';
+import { useState } from 'react';
+import { Github, Layers, Menu, X } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { useGitHubStars } from './github-stars';
+import { GitHubStatsBadge } from './github-stars';
 
 const navLinks = [
     { label: 'Features', href: '#features' },
@@ -9,38 +9,16 @@ const navLinks = [
     { label: 'Examples', href: '/docs/more/examples', router: true },
 ];
 
-function formatCount(n: number): string {
-    if (n >= 1000) {
-        return `${(n / 1000).toFixed(1)}k`;
-    }
-    return n.toString();
-}
-
 function GitHubBadge() {
-    const { stars, forks } = useGitHubStars();
-
     return (
         <a
             href='https://github.com/ironic-org/ironic'
             target='_blank'
             rel='noopener noreferrer'
-            className='inline-flex items-center gap-2 text-fd-muted-foreground hover:text-fd-foreground transition-colors group'
+            className='inline-flex items-center gap-1.5 text-fd-muted-foreground hover:text-fd-foreground transition-colors group'
         >
-            <Github className='h-5 w-5' />
-            <span className='hidden sm:inline-flex items-center gap-3 text-xs font-medium'>
-                {stars !== null && (
-                    <span className='inline-flex items-center gap-1'>
-                        <Star className='h-3.5 w-3.5' />
-                        {formatCount(stars)}
-                    </span>
-                )}
-                {forks !== null && (
-                    <span className='inline-flex items-center gap-1'>
-                        <GitFork className='h-3.5 w-3.5' />
-                        {formatCount(forks)}
-                    </span>
-                )}
-            </span>
+            <Github className='h-5 w-5 group-hover:scale-110 transition-transform' />
+            <GitHubStatsBadge />
         </a>
     );
 }

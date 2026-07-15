@@ -13,27 +13,11 @@ type Post = {
 const posts: Post[] = [
     {
         slug: 'v0.4.0',
-        title: 'v0.4.0 — Release v0.4.0',
-        description: 'Release v0.4.0',
+        title: 'v0.4.0 — Production Readiness & Enterprise Features',
+        description: 'Multipart uploads, Redis sessions, OAuth2 callback handler, backpressure, config hot-reload, error backtraces, and 15+ documentation pages',
         date: '2026-07-15',
-        tag: 'release',
-        readTime: '2 min',
-    },
-    {
-        slug: 'v0.4.0',
-        title: 'v0.4.0 — Release v0.4.0',
-        description: 'Release v0.4.0',
-        date: '2026-07-15',
-        tag: 'release',
-        readTime: '2 min',
-    },
-    {
-        slug: 'v0.4.0',
-        title: 'v0.4.0 — Release v0.4.0',
-        description: 'Release v0.4.0',
-        date: '2026-07-15',
-        tag: 'release',
-        readTime: '2 min',
+        tag: 'major',
+        readTime: '5 min',
     },
     {
         slug: 'compile-time-runtime',

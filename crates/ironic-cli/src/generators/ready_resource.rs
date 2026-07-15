@@ -114,13 +114,29 @@ fn register_module(root: &Path, name: &str, report: &mut GenerationReport) {
         ));
     }
 
-    // Add dependencies to Cargo.toml
+    // Auto-add required dependencies to Cargo.toml
     let manifest = root.join("Cargo.toml");
     if manifest.is_file() {
-        report.manual_instructions.push(
-            "Add these dependencies to Cargo.toml:\n  jsonwebtoken = \"9\"\n  argon2 = \"0.5\"\n  oauth2 = \"5.0\"\n  getrandom = \"0.4\""
-                .to_owned(),
-        );
+        let mut content = std::fs::read_to_string(&manifest).unwrap_or_default();
+        let deps = [
+            ("jsonwebtoken", "jsonwebtoken = \"9\""),
+            ("argon2", "argon2 = \"0.5\""),
+            ("oauth2", "oauth2 = \"5.0\""),
+            ("getrandom", "getrandom = \"0.4\""),
+        ];
+        let mut added = false;
+        for (name, dep) in &deps {
+            if !content.contains(name) {
+                content = content.replace("[dependencies]\n", &format!("[dependencies]\n{dep}\n"));
+                added = true;
+            }
+        }
+        if added {
+            std::fs::write(&manifest, content).ok();
+            report
+                .manual_instructions
+                .push("Dependencies auto-added to Cargo.toml. Run `cargo build` to fetch them.".into());
+        }
     }
 }
 

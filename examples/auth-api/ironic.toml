@@ -1,0 +1,7 @@
+[project]
+name = "auth-api"
+source_root = "src"
+default_module = "src/app.rs"
+
+[generate]
+module_path = "src/modules"

@@ -1,0 +1,7 @@
+[project]
+name = "basic-api"
+source_root = "src"
+default_module = "src/app.rs"
+
+[generate]
+module_path = "src/modules"

@@ -365,7 +365,7 @@ use crate::modules::auth::entities::role::Role;
 
 #[derive(Injectable)]
 pub struct AuthService {
-    password: Arc<PasswordService>,
+    pub password: Arc<PasswordService>,
 }
 
 static USERS: std::sync::LazyLock<Mutex<HashMap<u64, User>>> = std::sync::LazyLock::new(|| Mutex::new(HashMap::new()));
@@ -447,7 +447,7 @@ use crate::modules::auth::entities::role::Role;
 
 #[derive(Injectable)]
 pub struct AuthService {
-    password: Arc<PasswordService>,
+    pub password: Arc<PasswordService>,
 }
 
 static USERS: std::sync::LazyLock<Mutex<HashMap<u64, User>>> = std::sync::LazyLock::new(|| Mutex::new(HashMap::new()));
@@ -521,10 +521,10 @@ fn dto_mod_jwt() -> &'static str {
 }
 
 fn register_dto() -> &'static str {
-    "use serde::{Deserialize, Serialize};\n\n#[derive(Debug, Clone, Serialize, Deserialize)]\npub struct RegisterDto {\n    pub email: String,\n    pub password: String,\n    pub name: String,\n}\n"
+    "use garde::Validate;\nuse serde::{Deserialize, Serialize};\n\n#[derive(Debug, Clone, Serialize, Deserialize, Validate)]\npub struct RegisterDto {\n    #[garde(length(min = 5, max = 254))]\n    pub email: String,\n    #[garde(length(min = 8, max = 128))]\n    pub password: String,\n    #[garde(length(min = 1, max = 256))]\n    pub name: String,\n}\n"
 }
 fn login_dto() -> &'static str {
-    "use serde::{Deserialize, Serialize};\n\n#[derive(Debug, Clone, Serialize, Deserialize)]\npub struct LoginDto {\n    pub email: String,\n    pub password: String,\n}\n"
+    "use garde::Validate;\nuse serde::{Deserialize, Serialize};\n\n#[derive(Debug, Clone, Serialize, Deserialize, Validate)]\npub struct LoginDto {\n    #[garde(length(min = 1))]\n    pub email: String,\n    #[garde(length(min = 1))]\n    pub password: String,\n}\n"
 }
 fn refresh_dto() -> &'static str {
     "use serde::{Deserialize, Serialize};\n\n#[derive(Debug, Clone, Serialize, Deserialize)]\npub struct RefreshDto {\n    pub refresh_token: String,\n}\n"
@@ -799,12 +799,7 @@ fn unit_guard_test() -> &'static str {
 }
 
 fn unit_tests_full() -> String {
-    format!(
-        "{}\n\n{}\n\n{}",
-        unit_password_test(),
-        unit_auth_test(),
-        unit_guard_test()
-    )
+    "//! Unit tests for the auth module.\n\nuse std::sync::Arc;\nuse crate::modules::auth::dto::{LoginDto, RegisterDto};\nuse crate::modules::auth::services::auth_service::AuthService;\nuse crate::modules::auth::services::password_service::PasswordService;\nuse crate::modules::auth::guards::auth_guard::AuthGuard;\nuse crate::modules::auth::guards::role_guard::RoleGuard;\nuse ironic::{Guard, GuardDecision, FrameworkRequest, RequestContext};\n\n// ── PasswordService ──────────────────────────────────────────────\n\n#[test]\nfn hash_and_verify() {\n    let svc = PasswordService;\n    let hash = svc.hash(\"password123\").unwrap();\n    assert!(svc.verify(\"password123\", &hash).unwrap());\n    assert!(!svc.verify(\"wrong\", &hash).unwrap());\n}\n\n#[test]\nfn unique_salts() {\n    let svc = PasswordService;\n    let h1 = svc.hash(\"password123\").unwrap();\n    let h2 = svc.hash(\"password123\").unwrap();\n    assert_ne!(h1, h2);\n}\n\n// ── AuthService ───────────────────────────────────────────────────\n\n#[test]\nfn register_and_login() {\n    let svc = AuthService { password: Arc::new(PasswordService) };\n    let user = svc.register(RegisterDto { email: \"test@test.com\".into(), password: \"pass123\".into(), name: \"Test\".into() }).unwrap();\n    assert_eq!(user.email, \"test@test.com\");\n    let tokens = svc.login(LoginDto { email: \"test@test.com\".into(), password: \"pass123\".into() }).unwrap();\n    assert!(!tokens.access_token.is_empty());\n}\n\n#[test]\nfn duplicate_email_rejected() {\n    let svc = AuthService { password: Arc::new(PasswordService) };\n    svc.register(RegisterDto { email: \"dup@test.com\".into(), password: \"pass\".into(), name: \"A\".into() }).unwrap();\n    assert!(svc.register(RegisterDto { email: \"dup@test.com\".into(), password: \"pass\".into(), name: \"B\".into() }).is_err());\n}\n\n#[test]\nfn wrong_password_rejected() {\n    let svc = AuthService { password: Arc::new(PasswordService) };\n    svc.register(RegisterDto { email: \"x@test.com\".into(), password: \"correct\".into(), name: \"X\".into() }).unwrap();\n    assert!(svc.login(LoginDto { email: \"x@test.com\".into(), password: \"wrong\".into() }).is_err());\n}\n\n// ── Guards ────────────────────────────────────────────────────────\n\n#[tokio::test]\nasync fn auth_guard_denies_missing_header() {\n    let mut ctx = RequestContext::new(FrameworkRequest::new(ironic::HttpMethod::GET, \"/\".parse().unwrap(), ironic::HeaderMap::new(), vec![]));\n    let decision = AuthGuard.can_activate(&mut ctx).await.unwrap();\n    assert!(matches!(decision, GuardDecision::Deny));\n}\n\n#[tokio::test]\nasync fn role_guard_denies_wrong_role() {\n    let mut ctx = RequestContext::new(FrameworkRequest::new(ironic::HttpMethod::GET, \"/\".parse().unwrap(), ironic::HeaderMap::new(), vec![]));\n    ctx.insert_extension(\"user\".to_string());\n    let guard = RoleGuard::new(&[\"admin\"]);\n    let decision = guard.can_activate(&mut ctx).await.unwrap();\n    assert!(matches!(decision, GuardDecision::Deny));\n}\n".to_string()
 }
 
 fn unit_tests_basic() -> String {
@@ -812,7 +807,7 @@ fn unit_tests_basic() -> String {
 }
 
 fn unit_tests_jwt() -> String {
-    format!("{}\n\n{}", unit_auth_test(), unit_guard_test())
+    "//! Unit tests for the auth module (JWT).\n\nuse std::sync::Arc;\nuse crate::modules::auth::dto::{LoginDto, RegisterDto};\nuse crate::modules::auth::services::auth_service::AuthService;\nuse crate::modules::auth::services::password_service::PasswordService;\nuse crate::modules::auth::guards::auth_guard::AuthGuard;\nuse crate::modules::auth::guards::role_guard::RoleGuard;\nuse ironic::{Guard, GuardDecision, FrameworkRequest, RequestContext};\n\n#[test]\nfn register_and_login() {\n    let svc = AuthService { password: Arc::new(PasswordService) };\n    let user = svc.register(RegisterDto { email: \"test@test.com\".into(), password: \"pass123\".into(), name: \"Test\".into() }).unwrap();\n    assert_eq!(user.email, \"test@test.com\");\n    let tokens = svc.login(LoginDto { email: \"test@test.com\".into(), password: \"pass123\".into() }).unwrap();\n    assert!(!tokens.access_token.is_empty());\n}\n\n#[test]\nfn duplicate_email_rejected() {\n    let svc = AuthService { password: Arc::new(PasswordService) };\n    svc.register(RegisterDto { email: \"dup@test.com\".into(), password: \"pass\".into(), name: \"A\".into() }).unwrap();\n    assert!(svc.register(RegisterDto { email: \"dup@test.com\".into(), password: \"pass\".into(), name: \"B\".into() }).is_err());\n}\n\n#[test]\nfn wrong_password_rejected() {\n    let svc = AuthService { password: Arc::new(PasswordService) };\n    svc.register(RegisterDto { email: \"x@test.com\".into(), password: \"correct\".into(), name: \"X\".into() }).unwrap();\n    assert!(svc.login(LoginDto { email: \"x@test.com\".into(), password: \"wrong\".into() }).is_err());\n}\n\n#[tokio::test]\nasync fn auth_guard_denies_missing_header() {\n    let mut ctx = RequestContext::new(FrameworkRequest::new(ironic::HttpMethod::GET, \"/\".parse().unwrap(), ironic::HeaderMap::new(), vec![]));\n    let decision = AuthGuard.can_activate(&mut ctx).await.unwrap();\n    assert!(matches!(decision, GuardDecision::Deny));\n}\n\n#[tokio::test]\nasync fn role_guard_denies_wrong_role() {\n    let mut ctx = RequestContext::new(FrameworkRequest::new(ironic::HttpMethod::GET, \"/\".parse().unwrap(), ironic::HeaderMap::new(), vec![]));\n    ctx.insert_extension(\"user\".to_string());\n    let guard = RoleGuard::new(&[\"admin\"]);\n    let decision = guard.can_activate(&mut ctx).await.unwrap();\n    assert!(matches!(decision, GuardDecision::Deny));\n}\n".to_string()
 }
 
 fn integration_auth_test() -> &'static str {

@@ -191,8 +191,8 @@ resolver = "3"
 members = [
     ".",
     "crates/ironic-macros",
-    "examples/hello-world",
-    "examples/rest-api",
+    "examples/basic-api",
+    "examples/auth-api",
 ]
 
 

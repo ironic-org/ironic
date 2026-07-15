@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v0.4.3] - 2026-07-16
+
+### Fixed
+- update default server host to 0.0.0.0 in multiple examples (435807c)\n- update latest version in BlogIndex to v0.4.2 (2ca67ef)\n
+
 ## [v0.4.2] - 2026-07-16
 
 ### Fixed

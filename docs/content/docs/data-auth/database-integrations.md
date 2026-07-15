@@ -11,8 +11,158 @@ description: Connect Ironic to PostgreSQL, MySQL, SQLite, MongoDB, and Redis —
 - Set up connection pools that Ironic manages for you
 - Use SQLx, SeaORM, Diesel, MongoDB, or Redis with proper patterns
 - Run migrations, handle transactions, and test with real databases
+- Add database support to a newly generated `ironic new` project
 
 ---
+
+## Setting up a database in a generated project
+
+When you run `ironic new my-project`, the scaffold uses in-memory storage by default with no database dependencies. Here's how to add one.
+
+### 1. Add database features to `Cargo.toml`
+
+```toml
+# Before (generated defaults)
+ironic = { features = ["security", "compression", "metrics", "validation"] }
+
+# After — PostgreSQL via SQLx
+ironic = { features = ["security", "compression", "metrics", "validation", "sqlx-postgres"] }
+sqlx = { version = "0.8", features = ["runtime-tokio", "tls-rustls", "postgres", "uuid", "chrono"] }
+```
+
+Other options:
+
+| Database | `ironic` feature | Additional crate |
+|---|---|---|
+| MySQL (SQLx) | `sqlx-mysql` | `sqlx = { features = ["runtime-tokio", "mysql"] }` |
+| SQLite (SQLx) | `sqlx-sqlite` | `sqlx = { features = ["runtime-tokio", "sqlite"] }` |
+| SeaORM | `seaorm-postgres` | `sea-orm = { features = ["sqlx-postgres", "runtime-tokio"] }` |
+| Diesel | `diesel` | `diesel = { features = ["postgres"] }` + `diesel-async = { features = ["bb8"] }` |
+| MongoDB | `mongodb` | `mongodb = { version = "3", features = ["tokio-runtime"] }` |
+| Redis | `redis` | `redis = { features = ["tokio-comp", "connection-manager"] }` |
+
+### 2. Set `DATABASE_URL` in `.env`
+
+```env
+# Uncomment and set your connection string
+DATABASE_URL=postgres://user:password@localhost:5432/my_database
+```
+
+The Docker Compose file in your generated project already includes Postgres and Redis containers — just make sure the credentials match.
+
+### 3. Create a provider for the connection pool
+
+Add this to `src/main.rs` or a new `src/database.rs`:
+
+```rust
+use std::sync::Arc;
+use sqlx::postgres::{PgPool, PgPoolOptions};
+use ironic::prelude::*;
+
+#[provider]
+async fn provide_pool() -> Result<Arc<PgPool>, HttpError> {
+    let url = dotenvy::var("DATABASE_URL")
+        .map_err(|_| HttpError::internal("CONFIG", "DATABASE_URL must be set"))?;
+
+    let pool = PgPoolOptions::new()
+        .max_connections(
+            dotenvy::var("DB_POOL_SIZE")
+                .ok()
+                .and_then(|v| v.parse().ok())
+                .unwrap_or(10),
+        )
+        .connect(&url)
+        .await
+        .map_err(|e| HttpError::internal("DB_CONNECT", e.to_string()))?;
+
+    // Run migrations
+    sqlx::migrate!()
+        .run(&pool)
+        .await
+        .map_err(|e| HttpError::internal("MIGRATION", e.to_string()))?;
+
+    Ok(Arc::new(pool))
+}
+```
+
+### 4. Register the provider in your module
+
+```rust
+// src/app.rs
+#[derive(Module)]
+#[module(providers = [provide_pool, /* ... other providers */])]
+struct AppModule;
+```
+
+### 5. Replace in-memory storage with database calls
+
+The generated `ExampleService` uses `Mutex<HashMap<u64, Example>>`. Change it to inject the pool:
+
+```rust
+use sqlx::PgPool;
+
+#[derive(Injectable)]
+pub struct ExampleRepository {
+    pool: Arc<PgPool>,
+}
+
+impl ExampleRepository {
+    pub async fn list(&self) -> Result<Vec<Example>, HttpError> {
+        sqlx::query_as::<_, Example>("SELECT * FROM examples ORDER BY id")
+            .fetch_all(&*self.pool)
+            .await
+            .map_err(|e| HttpError::internal("DB_ERROR", e.to_string()))
+    }
+
+    pub async fn create(&self, data: CreateExampleDto) -> Result<Example, HttpError> {
+        sqlx::query_as::<_, Example>(
+            "INSERT INTO examples (name, description) VALUES ($1, $2) RETURNING *",
+        )
+        .bind(&data.name)
+        .bind(&data.description)
+        .fetch_one(&*self.pool)
+        .await
+        .map_err(|e| HttpError::internal("DB_ERROR", e.to_string()))
+    }
+}
+```
+
+### 6. Create your first migration
+
+```bash
+# Install sqlx-cli
+cargo install sqlx-cli
+
+# Create the migrations directory
+sqlx migrate add create_examples_table
+```
+
+Edit the generated file in `migrations/`:
+
+```sql
+CREATE TABLE examples (
+    id BIGSERIAL PRIMARY KEY,
+    name VARCHAR(255) NOT NULL,
+    description TEXT,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+```
+
+### 7. Start the database and run
+
+```bash
+# Start Postgres via Docker Compose (included in generated project)
+docker compose up -d postgres
+
+# Start your app
+ironic start
+```
+
+The pool is auto-injected into any service or controller that declares `Arc<PgPool>`.
+
+---
+
+## Available integrations
 
 ## Available integrations
 

@@ -8,7 +8,7 @@ pub(crate) fn module(pascal: &str) -> String {
 
 pub(crate) fn service(names: &Names) -> String {
     format!(
-        "use ironic::prelude::*;\n\n#[derive(Injectable)]\npub struct {0}Service;\n\nimpl {0}Service {{\n    #[must_use]\n    pub const fn name(&self) -> &'static str {{\n        \"{1}\"\n    }}\n}}\n",
+        "use ironic::prelude::*;\n\n#[derive(Injectable)]\npub struct {0}Service;\n\nimpl {0}Service {{\n    #[must_use]\n    #[allow(dead_code)]\n    pub const fn name(&self) -> &'static str {{\n        \"{1}\"\n    }}\n}}\n",
         names.pascal, names.kebab
     )
 }
@@ -140,7 +140,7 @@ pub(crate) fn pipe(names: &Names) -> String {
 
 pub(crate) fn provider(names: &Names) -> String {
     format!(
-        "use ironic::prelude::*;\n\n#[derive(Injectable)]\npub struct {0}Provider;\n\nimpl {0}Provider {{\n    #[must_use]\n    pub const fn name(&self) -> &'static str {{\n        \"{1}\"\n    }}\n}}\n",
+        "use ironic::prelude::*;\n\n#[derive(Injectable)]\npub struct {0}Provider;\n\nimpl {0}Provider {{\n    #[must_use]\n    #[allow(dead_code)]\n    pub const fn name(&self) -> &'static str {{\n        \"{1}\"\n    }}\n}}\n",
         names.pascal, names.kebab
     )
 }
@@ -154,7 +154,7 @@ pub(crate) fn repository_mod(names: &Names) -> String {
 
 pub(crate) fn repository(names: &Names) -> String {
     format!(
-        "use ironic::prelude::*;\n\n#[derive(Injectable)]\npub struct {0}Repository;\n\nimpl {0}Repository {{\n    #[must_use]\n    pub const fn name(&self) -> &'static str {{\n        \"{1}\"\n    }}\n}}\n",
+        "use ironic::prelude::*;\n\n#[derive(Injectable)]\npub struct {0}Repository;\n\nimpl {0}Repository {{\n    #[must_use]\n    #[allow(dead_code)]\n    pub const fn name(&self) -> &'static str {{\n        \"{1}\"\n    }}\n}}\n",
         names.pascal, names.kebab
     )
 }

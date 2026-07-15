@@ -287,7 +287,8 @@ fn platform_mod() -> String {
 }
 
 fn platform_config() -> String {
-    "use std::env;\n\npub fn env(key: &str) -> Option<String> {\n    env::var(key).ok()\n}\n\npub fn env_parsed<T: std::str::FromStr>(key: &str, default: T) -> T {\n    env::var(key).ok()\n        .and_then(|v| v.parse().ok())\n        .unwrap_or(default)\n}\n\npub fn env_json_array(key: &str) -> Vec<String> {\n    env::var(key)\n        .ok()\n        .and_then(|v| serde_json::from_str(&v).ok())\n        .unwrap_or_default()\n}\n\npub fn server_address() -> String {\n    let host = env(\"SERVER_HOST\").unwrap_or_else(|| \"127.0.0.1\".into());\n    let port = env(\"SERVER_PORT\").unwrap_or_else(|| \"3000\".into());\n    format!(\"{host}:{port}\")\n}\n".to_owned()
+    "use std::env;\n\npub fn env(key: &str) -> Option<String> {\n    env::var(key).ok()\n}\n\npub fn env_parsed<T: std::str::FromStr>(key: &str, default: T) -> T {\n    env::var(key).ok()\n        .and_then(|v| v.parse().ok())\n        .unwrap_or(default)\n}\n\npub fn env_json_array(key: &str) -> Vec<String> {\n    env::var(key)\n        .ok()\n        .and_then(|v| serde_json::from_str(&v).ok())\n        .unwrap_or_default()\n}\n\n#[allow(dead_code)]
+pub fn server_address() -> String {\n    let host = env(\"SERVER_HOST\").unwrap_or_else(|| \"127.0.0.1\".into());\n    let port = env(\"SERVER_PORT\").unwrap_or_else(|| \"3000\".into());\n    format!(\"{host}:{port}\")\n}\n".to_owned()
 }
 
 fn platform_database() -> String {

@@ -12,6 +12,7 @@ pub fn env_json_array(key: &str) -> Vec<String> {
         .unwrap_or_default()
 }
 
+#[allow(dead_code)]
 pub fn server_address() -> String {
     let host = env("SERVER_HOST").unwrap_or_else(|| "127.0.0.1".into());
     let port = env("SERVER_PORT").unwrap_or_else(|| "3000".into());

@@ -9,14 +9,15 @@ set -euo pipefail
 #   ./scripts/release.sh major        → bump major (0.1.8 → 1.0.0)
 #
 # Automatically:
-#   1. Bumps version in Cargo.toml (workspace + internal deps)
-#   2. Syncs all hardcoded version strings in docs/
-#   3. Generates CHANGELOG.md from git commits since last tag
-#   4. Creates blog post + updates releases pages
-#   5. Builds + runs full test suite + clippy
-#   6. Creates git commit + tag
-#   7. Pushes to GitHub (triggering CI)
-#   8. Publishes to crates.io
+#   1. Checks if version already published on crates.io — aborts if so
+#   2. Bumps version in Cargo.toml (workspace + internal deps)
+#   3. Syncs all hardcoded version strings in docs/
+#   4. Generates CHANGELOG.md from git commits since last tag
+#   5. Creates blog post + updates releases pages
+#   6. Builds + runs full test suite + clippy
+#   7. Publishes to crates.io
+#   8. Creates git commit + tag
+#   9. Pushes to GitHub (triggering CI)
 # ──────────────────────────────────────────────────────────────────────
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
@@ -25,6 +26,7 @@ CARGO_TOML="$ROOT/Cargo.toml"
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 CYAN='\033[0;36m'
+YELLOW='\033[0;33m'
 NC='\033[0m'
 
 # ── helpers ──────────────────────────────────────────────────────────
@@ -58,7 +60,25 @@ sync_file() {
     fi
 }
 
-# ── step 1: determine version ────────────────────────────────────────
+# Check if a version is already published on crates.io
+is_version_published() {
+    local ver="$1"
+    local body
+    body=$(curl -sf "https://crates.io/api/v1/crates/ironic" 2>/dev/null) || return 1
+    echo "$body" | python3 -c "
+import sys, json
+try:
+    data = json.load(sys.stdin)
+    max_ver = data.get('crate', {}).get('max_version', '')
+    print(max_ver)
+except Exception:
+    print('')
+" 2>/dev/null | grep -qF "$ver"
+}
+
+# ── step 0: check if version already published ───────────────────────
+
+echo "→ Checking crates.io for current version..."
 
 CURRENT=$(workspace_version)
 BUMP="${1:-}"
@@ -71,7 +91,14 @@ else
     echo -e "→ Releasing ${CYAN}v$NEW${NC}"
 fi
 
-# ── step 2: bump Cargo.toml if needed ────────────────────────────────
+if is_version_published "$NEW"; then
+    echo -e "  ${RED}✗${NC} v$NEW is already published on crates.io — aborting"
+    echo "  Run with 'patch'/'minor'/'major' to bump first."
+    exit 1
+fi
+echo -e "  ${GREEN}✓${NC} v$NEW is not yet published — proceeding"
+
+# ── step 1: bump Cargo.toml if needed ────────────────────────────────
 
 if [[ "$CURRENT" != "$NEW" ]]; then
     if [[ "$(uname)" == "Darwin" ]]; then
@@ -82,7 +109,7 @@ if [[ "$CURRENT" != "$NEW" ]]; then
     echo -e "  ${GREEN}✓${NC} $CARGO_TOML"
 fi
 
-# ── step 3: sync internal deps to workspace version ──────────────────
+# ── step 2: sync internal deps to workspace version ──────────────────
 
 CURRENT_DEP=$(grep 'ironic = { path = "."' "$CARGO_TOML" | sed 's/.*version = "\(.*\)".*/\1/')
 if [[ -n "$CURRENT_DEP" ]] && [[ "$CURRENT_DEP" != "$NEW" ]]; then
@@ -96,7 +123,7 @@ if [[ -n "$CURRENT_DEP" ]] && [[ "$CURRENT_DEP" != "$NEW" ]]; then
     echo -e "  ${GREEN}✓${NC} internal deps synced ($CURRENT_DEP → $NEW)"
 fi
 
-# ── step 4: generate changelog ────────────────────────────────────
+# ── step 3: generate changelog ────────────────────────────────────
 
 echo "→ Generating changelog for v$NEW"
 
@@ -117,7 +144,6 @@ changed=""
 security=""
 
 strip_prefix() {
-    # Removes "type: " or "type(scope): " prefix from conventional commits
     sed -E 's/^[a-z]+(\([^)]*\))?:[[:space:]]*//' <<< "$1"
 }
 
@@ -195,7 +221,7 @@ else
     fi
 fi
 
-# ── step 5: sync all docs to workspace version ───────────────────────
+# ── step 4: sync all docs to workspace version ───────────────────────
 
 echo "→ Syncing docs to v$NEW"
 
@@ -208,13 +234,13 @@ DOC_FILES=(
 
 for f in "${DOC_FILES[@]}"; do
     # extract the first version-like string from the file
-    DOC_VER=$(grep -oE '[0-9]+\.[0-9]+\.[0-9]+' "$f" | head -1)
+    DOC_VER=$(grep -oE '[0-9]+\.[0-9]+\.[0-9]+' "$f" | head -1 || true)
     if [[ -n "$DOC_VER" ]] && [[ "$DOC_VER" != "$NEW" ]]; then
         sync_file "$DOC_VER" "$NEW" "$f"
     fi
 done
 
-# ── step 5.5: create blog post and update releases ────────────────────
+# ── step 5: create blog post and update releases ────────────────────
 
 echo "→ Creating blog post for v$NEW"
 
@@ -264,7 +290,7 @@ BLOGEOF
 fi
 
 # Update BlogIndex.tsx — insert new post after the opening array bracket, skip if exists
-if grep -q "const posts: Post\[\] = \[" "$BLOG_INDEX"; then
+if grep -q "const posts: Post\[\] = \[" "$BLOG_INDEX" 2>/dev/null; then
     if grep -q "slug: 'v$NEW'" "$BLOG_INDEX" 2>/dev/null; then
         echo -e "  ${CYAN}!${NC} BlogIndex.tsx already has v$NEW — skipping"
     else
@@ -276,13 +302,15 @@ if grep -q "const posts: Post\[\] = \[" "$BLOG_INDEX"; then
         tag: 'release',
         readTime: '2 min',
     },"
-        POSTS_LINE=$(grep -n "const posts: Post\[\] = \[" "$BLOG_INDEX" | head -1 | cut -d: -f1)
-        {
-            head -n "$POSTS_LINE" "$BLOG_INDEX"
-            echo "$NEW_POST_ENTRY"
-            tail -n +$((POSTS_LINE + 1)) "$BLOG_INDEX"
-        } > "$BLOG_INDEX.tmp" && mv "$BLOG_INDEX.tmp" "$BLOG_INDEX"
-        echo -e "  ${GREEN}✓${NC} BlogIndex.tsx updated"
+        POSTS_LINE=$(grep -n "const posts: Post\[\] = \[" "$BLOG_INDEX" | head -1 | cut -d: -f1 || true)
+        if [[ -n "$POSTS_LINE" ]]; then
+            {
+                head -n "$POSTS_LINE" "$BLOG_INDEX"
+                echo "$NEW_POST_ENTRY"
+                tail -n +$((POSTS_LINE + 1)) "$BLOG_INDEX"
+            } > "$BLOG_INDEX.tmp" && mv "$BLOG_INDEX.tmp" "$BLOG_INDEX"
+            echo -e "  ${GREEN}✓${NC} BlogIndex.tsx updated"
+        fi
     fi
 else
     echo "  ! BlogIndex.tsx pattern not found — add manually"
@@ -302,7 +330,7 @@ else
     fi
     # Add row to version table
     TABLE_INSERT="| [v$NEW](/blog/v$NEW) | $TODAY | $SUMMARY |"
-    RELEASES_TABLE_LINE=$(grep -n "| v0.3.0" "$RELEASES_INDEX" | head -1 | cut -d: -f1)
+    RELEASES_TABLE_LINE=$(grep -n "| v0.3.0" "$RELEASES_INDEX" | head -1 | cut -d: -f1 || true)
     if [[ -n "$RELEASES_TABLE_LINE" ]]; then
         {
             head -n "$((RELEASES_TABLE_LINE - 1))" "$RELEASES_INDEX"
@@ -335,7 +363,7 @@ $BLOG_BODY
 ---
 
 "
-    RELEASES_V_HEADER=$(grep -n "^## v0.3.8" "$RELEASES_V" | head -1 | cut -d: -f1)
+    RELEASES_V_HEADER=$(grep -n "^## v0.3.8" "$RELEASES_V" | head -1 | cut -d: -f1 || true)
     if [[ -n "$RELEASES_V_HEADER" ]]; then
         {
             head -n "$((RELEASES_V_HEADER - 1))" "$RELEASES_V"
@@ -362,7 +390,7 @@ cargo test --all-features
 echo "  • npm run build (docs)"
 npm --prefix "$ROOT/docs" run build
 
-# ── step 7: publish to crates.io (before git push) ──────────────────
+# ── step 7: publish to crates.io ────────────────────────────────────
 
 echo "→ Publishing to crates.io..."
 

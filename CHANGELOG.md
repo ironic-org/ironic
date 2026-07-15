@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v0.4.2] - 2026-07-16
+
+### Fixed
+- enable hot-reload feature in Cargo.toml (a87a424)\n- remove redundant command for cleaning stale test cache artifacts (e560244)\n- update release script to check if version is published on crates.io before proceeding (d188dfc)\n
+### Changed
+- enhance getting started guide with project structure details (eb6ebeb)\n
+
 ## [v0.4.1] - 2026-07-15
 
 ### Added

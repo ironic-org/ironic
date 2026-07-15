@@ -12,6 +12,14 @@ type Post = {
 
 const posts: Post[] = [
     {
+        slug: 'v0.4.2',
+        title: 'v0.4.2 — Release v0.4.2',
+        description: 'Release v0.4.2',
+        date: '2026-07-16',
+        tag: 'release',
+        readTime: '2 min',
+    },
+    {
         slug: 'v0.4.1',
         title: 'v0.4.1 — Release v0.4.1',
         description: 'Release v0.4.1',

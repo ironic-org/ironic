@@ -262,7 +262,7 @@ fn example_test_integration() -> String {
 // ── Infrastructure templates ──────────────────────────────────────────
 
 fn dotenv_example() -> String {
-    "# Server\nSERVER_HOST=127.0.0.1\nSERVER_PORT=3000\n\n# Logging\nRUST_LOG=info\n\n# Security ──────────────────────────────────────────────\n# Security headers (HSTS, CSP, X-Frame-Options, etc.) are always on with\n# secure defaults. You can customise them in src/main.rs.\n#\n# JSON array of allowed origins; leave empty to deny all cross-origin requests\n# Example: CORS_ORIGINS=[\"https://app.com\",\"https://admin.com\"]\nCORS_ORIGINS=[]\n# Maximum requests per IP per 60-second window\nRATE_LIMIT_MAX=100\n\n# Database (uncomment to use)\n# DATABASE_URL=postgres://user:CHANGE_ME@localhost:5432/mydb\n\n# Redis (uncomment to use)\n# REDIS_URL=redis://localhost:6379\n".to_owned()
+    "# Server\nSERVER_HOST=0.0.0.0\nSERVER_PORT=3000\n\n# Logging\nRUST_LOG=info\n\n# Security ──────────────────────────────────────────────\n# Security headers (HSTS, CSP, X-Frame-Options, etc.) are always on with\n# secure defaults. You can customise them in src/main.rs.\n#\n# JSON array of allowed origins; leave empty to deny all cross-origin requests\n# Example: CORS_ORIGINS=[\"https://app.com\",\"https://admin.com\"]\nCORS_ORIGINS=[]\n# Maximum requests per IP per 60-second window\nRATE_LIMIT_MAX=100\n\n# Database (uncomment to use)\n# DATABASE_URL=postgres://user:CHANGE_ME@localhost:5432/mydb\n\n# Redis (uncomment to use)\n# REDIS_URL=redis://localhost:6379\n".to_owned()
 }
 
 fn gitignore() -> String {
@@ -272,7 +272,7 @@ fn gitignore() -> String {
 fn dockerfile(name: &str) -> String {
     let binary = name.replace('-', "_");
     format!(
-        "# Stage 1: Build\nFROM rust:1.97-slim-bookworm AS builder\nWORKDIR /app\nCOPY Cargo.toml Cargo.lock* ./\nCOPY src ./src\nRUN cargo build --release --locked\n\n# Stage 2: Distroless runtime\nFROM gcr.io/distroless/cc-debian12\nWORKDIR /app\nCOPY --from=builder /app/target/release/{binary} /app/{binary}\nEXPOSE 3000\nCMD [\"./{binary}\"]\n"
+        "# Stage 1: Build\nFROM rust:1.97-slim-bookworm AS builder\nWORKDIR /app\nCOPY Cargo.toml Cargo.lock* ./\nCOPY src ./src\nRUN cargo build --release\n\n# Stage 2: Distroless runtime\nFROM gcr.io/distroless/cc-debian12\nWORKDIR /app\nCOPY --from=builder /app/target/release/{binary} /app/{binary}\nENV SERVER_HOST=0.0.0.0\nENV SERVER_PORT=3000\nEXPOSE 3000\nCMD [\"./{binary}\"]\n"
     )
 }
 

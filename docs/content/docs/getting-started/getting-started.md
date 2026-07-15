@@ -278,6 +278,8 @@ Here's the cycle you'll use every day:
 
 ## Next steps
 
-Now that you have a working API, learn the **4 building blocks** of Ironic:
+Now that you have a working API, learn how everything fits together:
+
+→ [Project Structure & Organization](./project-structure) — every file and folder explained
 
 → [Fundamentals: Modules, Controllers, Services & DI](./fundamentals)

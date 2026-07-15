@@ -16,6 +16,7 @@ This documentation walks you through every feature step by step:
 | Section | What you'll build |
 |---------|-------------------|
 | [Getting Started](./getting-started) | Install the CLI, create your first project, and see it running in 60 seconds |
+| [Project Structure](./project-structure) | Every file and folder explained — how modules, controllers, services, and repositories connect |
 | [Core Concepts](./fundamentals) | Understand Modules, Controllers, Services, and Dependency Injection — the 4 building blocks |
 | [CLI Reference](./cli) | Master the command-line tools for scaffolding, generating code, and inspecting your app |
 | [Configuration](./configuration) | Load settings from files, environment variables, and keep secrets safe |

@@ -566,9 +566,9 @@ mod tests {
 
     #[test]
     fn profile_overlay_merges_on_top_of_base() {
-        let _ = std::fs::remove_file("base_config.toml");
+        let _ = std::fs::remove_file("ovl_base_config.toml");
         let _ = std::fs::remove_file("config.staging.toml");
-        std::fs::write("base_config.toml", r"port = 8080").unwrap();
+        std::fs::write("ovl_base_config.toml", r"port = 8080").unwrap();
         std::fs::write(
             "config.staging.toml",
             r#"port = 9090
@@ -577,7 +577,7 @@ db_url = "postgres://staging/db""#,
         )
         .unwrap();
         let config = ConfigurationLoader::new()
-            .file("base_config.toml")
+            .file("ovl_base_config.toml")
             .profile("staging")
             .load::<ProfileAwareConfig>()
             .unwrap();
@@ -586,7 +586,7 @@ db_url = "postgres://staging/db""#,
         assert_eq!(config.host, "staging.example.com");
         assert_eq!(config.db_url.expose_secret(), "postgres://staging/db");
 
-        let _ = std::fs::remove_file("base_config.toml");
+        let _ = std::fs::remove_file("ovl_base_config.toml");
         let _ = std::fs::remove_file("config.staging.toml");
     }
 
@@ -603,8 +603,8 @@ db_url = "postgres://staging/db""#,
 
     #[test]
     fn file_then_profile_then_json_respected_precedence() {
-        let _ = std::fs::remove_file("base_config.toml");
-        std::fs::write("base_config.toml", r"port = 1000").unwrap();
+        let _ = std::fs::remove_file("prec_base_config.toml");
+        std::fs::write("prec_base_config.toml", r"port = 1000").unwrap();
         std::fs::write(
             "config.precedence.toml",
             r#"port = 2000
@@ -612,7 +612,7 @@ host = "profile-host""#,
         )
         .unwrap();
         let config = ConfigurationLoader::new()
-            .file("base_config.toml")
+            .file("prec_base_config.toml")
             .profile("precedence")
             .json(r#"{"port":3000,"host":"json-host","db_url":"postgres://json/db"}"#)
             .load::<ProfileAwareConfig>()
@@ -622,7 +622,7 @@ host = "profile-host""#,
         assert_eq!(config.host, "json-host", "json should override profile");
         assert_eq!(config.db_url.expose_secret(), "postgres://json/db");
 
-        let _ = std::fs::remove_file("base_config.toml");
+        let _ = std::fs::remove_file("prec_base_config.toml");
         let _ = std::fs::remove_file("config.precedence.toml");
     }
 }

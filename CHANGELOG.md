@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v0.3.4] - 2026-07-15
+
+### Fixed
+- remove unused integration module from tests (61aa525)\n- update integration test file paths for auth modules (db79152)\n- docs pages deployment with .nojekyll and SPA fallback (310efb2)\n
+
 ## [v0.3.3] - 2026-07-15
 
 ### Added

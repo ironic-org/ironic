@@ -284,6 +284,14 @@ const posts: Post[] = [
         readTime: '8 min',
     },
     {
+        slug: 'lifecycle-axum-wiring',
+        title: 'Lifecycle hooks under the hood — how OnModuleInit connects to axum::serve',
+        description: 'A full trace of how lifecycle hooks run OUTSIDE Axum\u2019s stack. Init before the listener binds. Shutdown after serve returns. The initialized Vec as the bridge between build and destroy.',
+        date: 'Jul 15, 2026',
+        tag: 'deep-dive',
+        readTime: '10 min',
+    },
+    {
         slug: 'v0.3.9',
         title: 'Release automation — blog posts, comparison table, and GitHub badges',
         description: 'Every release now auto-generates a blog post and updates the releases pages. Added framework comparison table and live GitHub star/fork counts.',

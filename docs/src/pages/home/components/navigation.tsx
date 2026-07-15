@@ -4,9 +4,10 @@ import { Link } from 'react-router-dom';
 import { GitHubStatsBadge } from './github-stars';
 
 const navLinks = [
-    { label: 'Features', href: '#features' },
-    { label: 'Documentation', href: '/docs/getting-started', router: true },
+    { label: 'Docs', href: '/docs/getting-started/getting-started', router: true },
+    { label: 'Blog', href: '/blog', router: true },
     { label: 'Examples', href: '/docs/more/examples', router: true },
+    { label: 'Releases', href: '/docs/releases', router: true },
 ];
 
 function GitHubBadge() {

@@ -1,4 +1,4 @@
 {
   "title": "Advanced",
-  "pages": ["websocket-gateways", "devtools-plugins", "multipart", "static-files", "sessions"]
+  "pages": ["websocket-gateways", "devtools-plugins", "multipart", "s3-upload", "static-files", "sessions"]
 }

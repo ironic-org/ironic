@@ -12,7 +12,7 @@
     "tailwind-css"
   ],
   "scripts": {
-    "build": "tsc -p tsconfig.app.json && vite build",
+    "build": "tsc -p tsconfig.app.json && vite build && cp dist/index.html dist/404.html",
     "dev": "vite --port 3002 --strictPort",
     "preview": "vite preview",
     "check-types": "tsc -p tsconfig.app.json --noEmit",

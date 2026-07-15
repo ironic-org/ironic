@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { useLocation } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { getMDXComponents } from '@/mdx-components';
 import { blogSource } from '@/lib/source';
 import BlogIndex from './BlogIndex';
@@ -34,9 +34,9 @@ export default function BlogPage() {
                 <p className="mt-2 text-fd-muted-foreground">
                     The blog post you're looking for doesn't exist.
                 </p>
-                <a href="/blog" className="inline-block mt-6 text-sm font-medium text-brand hover:underline">
+                <Link to="/blog" className="inline-block mt-6 text-sm font-medium text-brand hover:underline">
                     ← Back to blog
-                </a>
+                </Link>
             </div>
         );
     }
@@ -44,9 +44,9 @@ export default function BlogPage() {
     return (
         <div className="min-h-screen bg-fd-background">
             <div className="max-w-3xl mx-auto px-6 py-16">
-                <a href="/blog" className="inline-flex items-center gap-1 text-sm font-medium text-fd-muted-foreground hover:text-brand mb-8 transition-colors">
+                <Link to="/blog" className="inline-flex items-center gap-1 text-sm font-medium text-fd-muted-foreground hover:text-brand mb-8 transition-colors">
                     ← Back to blog
-                </a>
+                </Link>
                 <article className="prose prose-neutral dark:prose-invert max-w-none">
                     {body}
                 </article>

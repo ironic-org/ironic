@@ -353,7 +353,14 @@ cargo test --all-features
 echo "  • npm run build (docs)"
 npm --prefix "$ROOT/docs" run build
 
-# ── step 6: git tag & push ───────────────────────────────────────────
+# ── step 7: publish to crates.io (before git push) ──────────────────
+
+echo "→ Publishing to crates.io..."
+
+cargo publish -p ironic-macros --allow-dirty 2>&1 || echo "  ! ironic-macros publish skipped"
+cargo publish -p ironic --allow-dirty
+
+# ── step 8: git tag & push ───────────────────────────────────────────
 
 echo "→ Creating git tag v$NEW"
 
@@ -396,13 +403,6 @@ else
     git push --force origin "v$NEW"
     echo -e "  ${GREEN}✓${NC} tag force-pushed"
 fi
-
-# ── step 7: publish to crates.io ─────────────────────────────────────
-
-echo "→ Publishing to crates.io..."
-
-cargo publish -p ironic-macros --allow-dirty 2>&1 || echo "  ! ironic-macros publish skipped"
-cargo publish -p ironic --allow-dirty
 
 echo ""
 echo -e "${GREEN}╔══════════════════════════════════════════════════════════════════╗${NC}"

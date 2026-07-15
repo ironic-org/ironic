@@ -1,4 +1,5 @@
 use std::io::Write;
+use std::process::Command;
 
 use crate::CliError;
 
@@ -16,12 +17,21 @@ pub(crate) fn execute(output: &mut impl Write) -> Result<(), CliError> {
         Ok(Some(latest)) if latest != current => {
             writeln!(output, "A new version of ironic is available: {latest}").map_err(&map)?;
             writeln!(output, "  installed: {current}{installed}").map_err(&map)?;
-            writeln!(output, "Run `cargo install ironic` to update.").map_err(&map)?;
-            writeln!(
-                output,
-                "Changelog: https://github.com/ironic-org/ironic/releases/tag/v{latest}"
-            )
-            .map_err(&map)?;
+            writeln!(output, "Upgrading to v{latest}...").map_err(&map)?;
+            let status = Command::new("cargo")
+                .args(["install", "ironic"])
+                .status()
+                .map_err(|e| CliError::io("run cargo install", "cargo", e))?;
+            if status.success() {
+                writeln!(output, "  ✓ Updated to ironic v{latest}").map_err(&map)?;
+            } else {
+                writeln!(output, "  ✗ `cargo install ironic` failed").map_err(&map)?;
+                writeln!(
+                    output,
+                    "  Run manually: cargo install ironic"
+                )
+                .map_err(&map)?;
+            }
         }
         Ok(Some(_)) => {
             writeln!(output, "ironic {current} is the latest version.").map_err(&map)?;

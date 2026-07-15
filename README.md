@@ -5,7 +5,7 @@
 [![Docs.rs](https://img.shields.io/docsrs/ironic)](https://docs.rs/ironic)
 [![License](https://img.shields.io/badge/license-MIT%2FApache--2.0-blue)](LICENSE-MIT)
 [![Rust](https://img.shields.io/badge/rust-1.97+-orange)](rust-toolchain.toml)
-[![Discord](https://img.shields.io/discord/ironic?label=discord&logo=discord)](https://discord.gg/ironic)
+[![Discord](https://img.shields.io/discord/ironic?label=discord&logo=discord)](https://discord.gg/ironic-community)
 
 A batteries-included, type-safe application framework for building structured Rust APIs on top of Axum. Inspired by NestJS's modular architecture, grounded in Rust's type system.
 

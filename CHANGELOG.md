@@ -16,52 +16,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - Add new blog posts on various Ironic features and improvements (04a9ae9)\n- Add blog posts on handler dispatch, injectable generation, and feature flags (fb37128)\n
 
-## [v0.4.0] - 2026-07-15
-
-### Added
-- Implement production readiness improvements for Ironic (2bf4555)\n- Add ready-resource generator for production-grade authentication module (ea28f4c)\n- Add production readiness improvements across multiple components (948341b)\n- add blog post on lifecycle hooks in axum integration (805a566)\n- add blog posts on OnceCell-based singletons, sagas, scope violations, static plugin system, and two-phase route compilation (de3126e)\n- refactor blog and releases index update logic in release script (8102c9a)\n- update release notes and automate blog post generation for v0.3.9 (cb654ba)\n- update changelog and release notes for v0.3.9 (699a8d6)\n- add release notes for v0.3.9 and enhance release script documentation (08592c9)\n- enhance release script to create blog post and update releases documentation (66b0a0a)\n
-### Fixed
-- update background styles in BlogIndex and BlogPage components (82f3c58)\n
-### Changed
-- Add new blog posts on various Ironic features and improvements (04a9ae9)\n- Add blog posts on handler dispatch, injectable generation, and feature flags (fb37128)\n
-
 ## [v0.3.9] - 2026-07-15
 
 ### Added
 - add release notes for v0.3.9 and enhance release script documentation (08592c9)\n- enhance release script to create blog post and update releases documentation (66b0a0a)\n
-
-## [v0.3.9] - 2026-07-15
-
-### Added
-- add release notes for v0.3.9 and enhance release script documentation (08592c9)\n- enhance release script to create blog post and update releases documentation (66b0a0a)\n
-
-## [v0.3.9] - 2026-07-15
-
-### Added
-- enhance release script to create blog post and update releases documentation (66b0a0a)\n
-
-## [v0.3.9] - 2026-07-15
-
-### Added
-- add Navigation and Footer components to BlogPage for improved layout and navigation (ea2b585)\n- add 'deep-dive' tag to Post type and include new blog post on Ironic's runtime dependency resolution (6c9e0e7)\n- add blog post for the pre-release journey detailing iterations and features (7190b84)\n- enhance blog pages with improved layout, navigation, and metadata display (ae68243)\n- add blog feature with release notes and blog post pages (ebce9ea)\n- update comparison table to include 'Loco' framework and adjust ecosystem maturity year (664698c)\n- enhance GitHub stats display with formatted counts and improved components (5561e2a)\n- add GitHub stars and forks display in navigation and hero section (1fe75b8)\n- improve styling for 'ironic' feature in comparison table (a59ed90)\n
-### Fixed
-- update links from discussions to issues for better issue reporting (77fbb9b)\n- replace anchor tags with Link components for internal navigation in BlogIndex (109185c)\n- update VITE_CDN_URL to use correct output from configure-pages step and add debugging information (e17a10a)\n- update CI and Docs workflows to ignore unnecessary paths and refine deployment conditions (943c772)\n- update build script to copy 404.html and replace anchor tags with Link components in BlogPage (4ea8886)\n- update Discord link to point to the community server (c13bed0)\n- update 'Getting started' links to remove redundant path segments (87967a1)\n- update ecosystem maturity year for Ironic in documentation and comparison table (871ef78)\n
-### Changed
-- update release notes for v0.3.x series with detailed changelog and enhancements (d031bbf)\n
-
-## [v0.3.9] - 2026-07-15
-
-### Added
-- add Navigation and Footer components to BlogPage for improved layout and navigation (ea2b585)\n- add 'deep-dive' tag to Post type and include new blog post on Ironic's runtime dependency resolution (6c9e0e7)\n- add blog post for the pre-release journey detailing iterations and features (7190b84)\n- enhance blog pages with improved layout, navigation, and metadata display (ae68243)\n- add blog feature with release notes and blog post pages (ebce9ea)\n- update comparison table to include 'Loco' framework and adjust ecosystem maturity year (664698c)\n- enhance GitHub stats display with formatted counts and improved components (5561e2a)\n- add GitHub stars and forks display in navigation and hero section (1fe75b8)\n- improve styling for 'ironic' feature in comparison table (a59ed90)\n
-### Fixed
-- update links from discussions to issues for better issue reporting (77fbb9b)\n- replace anchor tags with Link components for internal navigation in BlogIndex (109185c)\n- update VITE_CDN_URL to use correct output from configure-pages step and add debugging information (e17a10a)\n- update CI and Docs workflows to ignore unnecessary paths and refine deployment conditions (943c772)\n- update build script to copy 404.html and replace anchor tags with Link components in BlogPage (4ea8886)\n- update Discord link to point to the community server (c13bed0)\n- update 'Getting started' links to remove redundant path segments (87967a1)\n- update ecosystem maturity year for Ironic in documentation and comparison table (871ef78)\n
-### Changed
-- update release notes for v0.3.x series with detailed changelog and enhancements (d031bbf)\n
-
-## [v0.3.8] - 2026-07-15
-
-### Added
-- enhance observability section with health checks, metrics, and tracing documentation (cf2cc42)\n- update server host in dotenv example and Dockerfile for better accessibility (381f0eb)\n- update Dockerfile generation to use kebab-case project name (137202a)\n
 
 ## [v0.3.8] - 2026-07-15
 
@@ -81,11 +39,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - allow dead code warnings for unit tests in authentication module (77c5c02)\n
 ### Changed
 - update version to 0.3.6 and remove unused API examples from workspace (914a74d)\n
-
-## [v0.3.5] - 2026-07-15
-
-### Fixed
-- refactor authentication test file structure and update module imports (97720ac)\n
 
 ## [v0.3.5] - 2026-07-15
 
@@ -130,18 +83,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - simplify register_module function signature (5733b4f)\n
 
-## [v0.2.9] - 2026-07-15
-
-### Added
-- add file upload and email modules with respective generators (3bc21f8)\n- add comprehensive authentication module with various strategies (8dc08b2)\n- add ready-resource generator for complete authentication module with variants (81e9e9f)\n
-### Fixed
-- update error code reference in rate limit middleware (603fcae)\n- update permissions and restructure GitHub Actions workflow for documentation deployment (f63caf3)\n- add permissions section for GitHub Actions workflow to enable content writing (0800ae6)\n- adjust formatting of router creation in main.tsx for improved readability (e76ab60)\n- simplify GitHub Actions workflow for deploying documentation to GitHub Pages (5841216)\n- restructure GitHub Actions workflow for deploying documentation to GitHub Pages (1856566)\n- update link in HeroSection to point to the getting started page (0890f33)\n
-
-## [v0.2.9] - 2026-07-14
-
-### Fixed
-- ensure stale local tags are deleted before creating new ones and improve push error handling (da47b2a)\n
-
 ## [v0.2.8] - 2026-07-14
 
 ### Added
@@ -150,16 +91,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - handle poisoned mutex locks in metrics, resilience, security modules (399821a)\n
 ### Changed
 - streamline CorsConfig initialization in tests (9517f27)\n- update CORS configuration tests to reflect default deny behavior and explicit origin allowance (90e16ad)\n
-
-## [v0.2.8] - 2026-07-14
-
-### Added
-- add workspace command to print project information (f4edadd)\n
-
-## [v0.2.8] - 2026-07-14
-
-### Added
-- add workspace command to print project information (f4edadd)\n
 
 ## [v0.2.7] - 2026-07-14
 

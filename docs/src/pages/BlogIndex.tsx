@@ -28,6 +28,14 @@ const posts: Post[] = [
         readTime: '2 min',
     },
     {
+        slug: 'v0.4.0',
+        title: 'v0.4.0 — Release v0.4.0',
+        description: 'Release v0.4.0',
+        date: '2026-07-15',
+        tag: 'release',
+        readTime: '2 min',
+    },
+    {
         slug: 'compile-time-runtime',
         title: 'How Ironic resolves dependencies at runtime — no decorator magic needed',
         description: 'A deep dive into conditional providers, scoped instances, and how Ironic\u2019s compile-time wiring leaves runtime flexibility intact. Factories, OnceCell, and the blueprint-vs-construction metaphor.',

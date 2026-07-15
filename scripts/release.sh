@@ -175,19 +175,24 @@ if [[ -z "$added" && -z "$fixed" && -z "$changed" && -z "$security" ]]; then
 "
 fi
 
-# Insert after the [Unreleased] section header using temp file
-if grep -q "## \[Unreleased\]" "$CHANGELOG" 2>/dev/null; then
-    head_line=$(grep -n "## \[Unreleased\]" "$CHANGELOG" | head -1 | cut -d: -f1)
-    {
-        head -n "$head_line" "$CHANGELOG"
-        echo ""
-        echo "$ENTRY"
-        tail -n +$((head_line + 1)) "$CHANGELOG"
-    } > "${CHANGELOG}.tmp"
-    mv "${CHANGELOG}.tmp" "$CHANGELOG"
-    echo -e "  ${GREEN}✓${NC} CHANGELOG.md updated"
+# Check for duplicate entry before inserting
+if grep -q "^## \[v$NEW\] - " "$CHANGELOG" 2>/dev/null; then
+    echo -e "  ${CYAN}!${NC} v$NEW entry already exists — skipping changelog insert"
 else
-    echo "  ! CHANGELOG.md not found or missing [Unreleased] section"
+    # Insert after the [Unreleased] section header using temp file
+    if grep -q "## \[Unreleased\]" "$CHANGELOG" 2>/dev/null; then
+        head_line=$(grep -n "## \[Unreleased\]" "$CHANGELOG" | head -1 | cut -d: -f1)
+        {
+            head -n "$head_line" "$CHANGELOG"
+            echo ""
+            echo "$ENTRY"
+            tail -n +$((head_line + 1)) "$CHANGELOG"
+        } > "${CHANGELOG}.tmp"
+        mv "${CHANGELOG}.tmp" "$CHANGELOG"
+        echo -e "  ${GREEN}✓${NC} CHANGELOG.md updated"
+    else
+        echo "  ! CHANGELOG.md not found or missing [Unreleased] section"
+    fi
 fi
 
 # ── step 5: sync all docs to workspace version ───────────────────────
@@ -239,7 +244,11 @@ BLOG_BODY="${BLOG_BODY}$(format_blog_section "Security" "$security")"
 FIRST_LINE=$(grep -oE '^- .+' <<< "$COMMITS" | head -1 | sed 's/^- //' | sed 's/ (.*//' || echo "Release v$NEW")
 SUMMARY="${FIRST_LINE:0:120}"
 
-cat > "$BLOG_FILE" << BLOGEOF
+# Create blog post only if it doesn't already exist
+if [[ -f "$BLOG_FILE" ]]; then
+    echo -e "  ${CYAN}!${NC} blog post already exists — skipping"
+else
+    cat > "$BLOG_FILE" << BLOGEOF
 ---
 title: "v$NEW — $SUMMARY"
 description: "$SUMMARY"
@@ -251,11 +260,15 @@ author: "Ironic Team"
 $BLOG_BODY
 BLOGEOF
 
-echo -e "  ${GREEN}✓${NC} blog post created: $BLOG_FILE"
+    echo -e "  ${GREEN}✓${NC} blog post created: $BLOG_FILE"
+fi
 
-# Update BlogIndex.tsx — insert new post after the opening array bracket
+# Update BlogIndex.tsx — insert new post after the opening array bracket, skip if exists
 if grep -q "const posts: Post\[\] = \[" "$BLOG_INDEX"; then
-    NEW_POST_ENTRY="    {
+    if grep -q "slug: 'v$NEW'" "$BLOG_INDEX" 2>/dev/null; then
+        echo -e "  ${CYAN}!${NC} BlogIndex.tsx already has v$NEW — skipping"
+    else
+        NEW_POST_ENTRY="    {
         slug: 'v$NEW',
         title: 'v$NEW — $SUMMARY',
         description: '$SUMMARY',
@@ -263,27 +276,32 @@ if grep -q "const posts: Post\[\] = \[" "$BLOG_INDEX"; then
         tag: 'release',
         readTime: '2 min',
     },"
-    POSTS_LINE=$(grep -n "const posts: Post\[\] = \[" "$BLOG_INDEX" | head -1 | cut -d: -f1)
-    {
-        head -n "$POSTS_LINE" "$BLOG_INDEX"
-        echo "$NEW_POST_ENTRY"
-        tail -n +$((POSTS_LINE + 1)) "$BLOG_INDEX"
-    } > "$BLOG_INDEX.tmp" && mv "$BLOG_INDEX.tmp" "$BLOG_INDEX"
-    echo -e "  ${GREEN}✓${NC} BlogIndex.tsx updated"
+        POSTS_LINE=$(grep -n "const posts: Post\[\] = \[" "$BLOG_INDEX" | head -1 | cut -d: -f1)
+        {
+            head -n "$POSTS_LINE" "$BLOG_INDEX"
+            echo "$NEW_POST_ENTRY"
+            tail -n +$((POSTS_LINE + 1)) "$BLOG_INDEX"
+        } > "$BLOG_INDEX.tmp" && mv "$BLOG_INDEX.tmp" "$BLOG_INDEX"
+        echo -e "  ${GREEN}✓${NC} BlogIndex.tsx updated"
+    fi
 else
     echo "  ! BlogIndex.tsx pattern not found — add manually"
 fi
 
-# Update releases/index.md — add row to the version table
-TABLE_INSERT="| [v$NEW](/blog/v$NEW) | $TODAY | $SUMMARY |"
-RELEASES_TABLE_LINE=$(grep -n "| v0.3.0" "$RELEASES_INDEX" | head -1 | cut -d: -f1)
-if [[ -n "$RELEASES_TABLE_LINE" ]]; then
-    {
-        head -n "$((RELEASES_TABLE_LINE - 1))" "$RELEASES_INDEX"
-        echo "$TABLE_INSERT"
-        tail -n +"$RELEASES_TABLE_LINE" "$RELEASES_INDEX"
-    } > "$RELEASES_INDEX.tmp" && mv "$RELEASES_INDEX.tmp" "$RELEASES_INDEX"
-    echo -e "  ${GREEN}✓${NC} releases/index.md updated"
+# Update releases/index.md — add row to the version table, skip if exists
+if grep -q "| \[v$NEW\]" "$RELEASES_INDEX" 2>/dev/null; then
+    echo -e "  ${CYAN}!${NC} releases/index.md already has v$NEW — skipping"
+else
+    TABLE_INSERT="| [v$NEW](/blog/v$NEW) | $TODAY | $SUMMARY |"
+    RELEASES_TABLE_LINE=$(grep -n "| v0.3.0" "$RELEASES_INDEX" | head -1 | cut -d: -f1)
+    if [[ -n "$RELEASES_TABLE_LINE" ]]; then
+        {
+            head -n "$((RELEASES_TABLE_LINE - 1))" "$RELEASES_INDEX"
+            echo "$TABLE_INSERT"
+            tail -n +"$RELEASES_TABLE_LINE" "$RELEASES_INDEX"
+        } > "$RELEASES_INDEX.tmp" && mv "$RELEASES_INDEX.tmp" "$RELEASES_INDEX"
+        echo -e "  ${GREEN}✓${NC} releases/index.md updated"
+    fi
 fi
 
 # Format date for human-readable release section headers
@@ -298,21 +316,25 @@ format_date() {
 
 RELEASE_DATE=$(format_date "$TODAY")
 
-# Update releases/v0.3.x/index.md — prepend new version section
-RELEASES_V_INSERT="## v$NEW — $RELEASE_DATE
+# Update releases/v0.3.x/index.md — prepend new version section, skip if exists
+if grep -q "^## v$NEW — " "$RELEASES_V" 2>/dev/null; then
+    echo -e "  ${CYAN}!${NC} releases/v0.3.x/index.md already has v$NEW — skipping"
+else
+    RELEASES_V_INSERT="## v$NEW — $RELEASE_DATE
 $BLOG_BODY
 
 ---
 
 "
-RELEASES_V_HEADER=$(grep -n "^## v0.3.8" "$RELEASES_V" | head -1 | cut -d: -f1)
-if [[ -n "$RELEASES_V_HEADER" ]]; then
-    {
-        head -n "$((RELEASES_V_HEADER - 1))" "$RELEASES_V"
-        echo "$RELEASES_V_INSERT"
-        tail -n +"$RELEASES_V_HEADER" "$RELEASES_V"
-    } > "$RELEASES_V.tmp" && mv "$RELEASES_V.tmp" "$RELEASES_V"
-    echo -e "  ${GREEN}✓${NC} releases/v0.3.x/index.md updated"
+    RELEASES_V_HEADER=$(grep -n "^## v0.3.8" "$RELEASES_V" | head -1 | cut -d: -f1)
+    if [[ -n "$RELEASES_V_HEADER" ]]; then
+        {
+            head -n "$((RELEASES_V_HEADER - 1))" "$RELEASES_V"
+            echo "$RELEASES_V_INSERT"
+            tail -n +"$RELEASES_V_HEADER" "$RELEASES_V"
+        } > "$RELEASES_V.tmp" && mv "$RELEASES_V.tmp" "$RELEASES_V"
+        echo -e "  ${GREEN}✓${NC} releases/v0.3.x/index.md updated"
+    fi
 fi
 
 # ── step 6: pre-flight checks ───────────────────────────────────────

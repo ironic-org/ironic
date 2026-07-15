@@ -1,39 +1,27 @@
 ---
 title: Validation & Pipes
-description: Validate request data automatically with garde — catch bad input before it reaches your business logic.
+description: Complete guide to request validation with garde — DTO rules, custom validators, macro-based controllers, and error handling.
 ---
 
 # Validation & Pipes
 
 ## What you'll learn
 
-- Add `#[garde]` validation rules to your DTOs
-- Use `ValidationPipe` to enforce rules automatically
-- Return helpful error messages when validation fails
-- Validate numbers, strings, and custom rules
+- Add validation rules to DTOs using `#[garde]` attributes
+- Apply `ValidationPipe` in both macro-based and builder-based controllers
+- Write custom validation rules
+- Handle validation errors with proper HTTP responses
+- Validate path params, query params, and headers too
 
-## The big picture
+---
 
-Bad data should never reach your business logic. Validation catches it **at the door**:
-
-```
-Request ──► ValidationPipe ──► ❌ "title is too short" (400 Bad Request)
-                  │
-                  ▼ (valid)
-              Controller → Service → ✅ Success
-```
-
-## Step 1: Enable validation
+## Quick Reference
 
 ```toml
 # Cargo.toml
 ironic = { features = ["validation"] }
-garde = "0.22"
+garde = "0.23"
 ```
-
-## Step 2: Add validation rules
-
-Use `#[derive(Validate)]` and `#[garde(...)]` attributes:
 
 ```rust
 use garde::Validate;
@@ -42,86 +30,385 @@ use serde::Deserialize;
 #[derive(Debug, Deserialize, Validate)]
 pub struct CreateUserDto {
     #[garde(length(min = 2, max = 100))]
-    pub name: String,                    // ← Must be 2-100 characters
-
+    pub name: String,
     #[garde(email)]
-    pub email: String,                   // ← Must be a valid email
-
+    pub email: String,
     #[garde(range(min = 13, max = 150))]
-    pub age: u8,                         // ← Must be 13-150
-
-    #[garde(skip)]                       // ← Don't validate this field
-    pub notes: Option<String>,
+    pub age: u8,
+    #[garde(skip)]
+    pub bio: Option<String>,
 }
 ```
 
-## Step 3: Apply ValidationPipe
+---
+
+## All garde Validation Rules
+
+### String Rules
+
+| Rule | Example | What it checks |
+|------|---------|---------------|
+| `length(min, max)` | `#[garde(length(min = 1, max = 256))]` | String character count |
+| `email` | `#[garde(email)]` | Valid email format |
+| `url` | `#[garde(url)]` | Valid URL format |
+| `pattern(regex)` | `#[garde(pattern("^[a-z0-9_]+$"))]` | Regex match |
+| `contains(substring)` | `#[garde(contains("@"))]` | Substring present |
+| `prefix(prefix)` | `#[garde(prefix("https://"))]` | Starts with |
+| `suffix(suffix)` | `#[garde(suffix(".com"))]` | Ends with |
+| `ascii` | `#[garde(ascii)]` | Only ASCII characters |
+| `alphanumeric` | `#[garde(alphanumeric)]` | Only letters and digits |
+
+### Number Rules
+
+| Rule | Example | What it checks |
+|------|---------|---------------|
+| `range(min, max)` | `#[garde(range(min = 0, max = 150))]` | Integer/float bounds |
+| `greater_than(val)` | `#[garde(greater_than(0))]` | Must exceed value |
+| `less_than(val)` | `#[garde(less_than(100))]` | Must be below value |
+| `positive` | `#[garde(positive)]` | Must be > 0 |
+
+### General Rules
+
+| Rule | When to use |
+|------|------------|
+| `required` | Ensure `Option<T>` is `Some` |
+| `skip` | Skip validation for this field |
+| `dive` | Validate nested structs |
+| `custom(fn)` | Custom validation function |
+
+---
+
+## Approach 1: Macro-Based Controllers
+
+The simplest approach — just derive `Validate` and the framework handles it.
+
+### Step 1: Define your DTO
 
 ```rust
-use ironic::{ValidationPipe, JsonBody};
+use garde::Validate;
+use serde::Deserialize;
+
+#[derive(Debug, Deserialize, Validate)]
+pub struct CreateProductDto {
+    #[garde(length(min = 1, max = 256))]
+    pub title: String,
+    #[garde(range(min = 0.01))]
+    pub price: f64,
+    #[garde(range(min = 0))]
+    pub stock: u32,
+    #[garde(skip)]
+    pub tags: Option<Vec<String>>,
+}
+```
+
+### Step 2: Use in your controller
+
+```rust
+#[controller("/products")]
+#[derive(Injectable)]
+pub struct ProductsController {
+    service: Arc<ProductsService>,
+}
+
+#[routes]
+impl ProductsController {
+    #[post]
+    async fn create(
+        &self,
+        #[body] dto: CreateProductDto,  // ← validated automatically
+    ) -> Result<Json<Product>, HttpError> {
+        Ok(Json(self.service.create(dto)))
+    }
+}
+```
+
+> The `#[body]` extractor auto-applies `ValidationPipe` when the `validation` feature is enabled and the DTO derives `Validate`.
+
+### Step 3: Test validation
+
+```bash
+curl -X POST http://localhost:3000/products \
+  -H "Content-Type: application/json" \
+  -d '{"title": "", "price": -1}'
+
+# → 400 Bad Request
+# { "error": "VALIDATION_FAILED", "message": "title: length must be at least 1. price: must be at least 0.01" }
+```
+
+---
+
+## Approach 2: Builder-Based Controllers
+
+For full control over the validation pipeline:
+
+```rust
+use ironic::{ValidationPipe, JsonBody, RouteDefinition, handler_fn};
 use std::sync::Arc;
 
-// In your controller's route definition:
 let route = RouteDefinition::new(
-    HttpMethod::POST, "/", "create_user",
-    handler_fn(|_c: Arc<UserController>, mut args| async move {
-        let input = args.take::<CreateUserDto>(0)?;
-        // input is guaranteed valid here!
-        Ok(Json(format!("Created user {}", input.name)))
+    HttpMethod::POST, "/", "create_product",
+    handler_fn(|_c: Arc<ProductsController>, mut args| async move {
+        let input = args.take::<CreateProductDto>(0)?;
+        Ok(Json(create_product(input)))
     }),
 )
 .unwrap()
 .parameter_with_pipe(
-    JsonBody::<CreateUserDto>::new(),
-    Arc::new(ValidationPipe),   // ← Validates before handler runs
+    JsonBody::<CreateProductDto>::new(),
+    Arc::new(ValidationPipe),
 );
 ```
 
-## Built-in validation rules
+## Approach 3: Controller-Level Pipe
 
-| Rule | What it checks | Example |
-|------|---------------|---------|
-| `#[garde(length(min = 1, max = 100))]` | String length | Title must be 1-100 chars |
-| `#[garde(range(min = 0, max = 100))]` | Number range | Score must be 0-100 |
-| `#[garde(email)]` | Valid email format | `user@domain.com` |
-| `#[garde(url)]` | Valid URL format | `https://example.com` |
-| `#[garde(pattern("^[a-z]+$"))]` | Regex match | Only lowercase letters |
-| `#[garde(required)]` | Option must be Some | Field cannot be None |
-| `#[garde(skip)]` | Don't validate | Skip this field |
+Apply `ValidationPipe` to every route in a controller:
 
-## What happens when validation fails?
+```rust
+let controller = ControllerDefinition::new::<ProductsController>("/products", provider)
+    .unwrap()
+    .pipe(Arc::new(ValidationPipe));
+```
 
-The client gets a clear error response:
+## Approach 4: Application-Level Pipe
 
-```json
-// POST /users with { "name": "A", "age": 200 }
-{
-  "error": "VALIDATION_FAILED",
-  "message": "Validation failed: name: length must be at least 2. age: must be between 13 and 150"
+Apply to ALL routes everywhere:
+
+```rust
+use ironic::CompiledHttpApplication;
+
+let app = CompiledHttpApplication::new(container, routes)
+    .pipe(Arc::new(ValidationPipe));
+```
+
+---
+
+## Custom Validation Functions
+
+For business-logic validation beyond struct-level rules:
+
+```rust
+use garde::Validate;
+use ironic::HttpError;
+
+#[derive(Debug, Deserialize, Validate)]
+#[garde(context(PasswordContext))]
+pub struct CreateUserDto {
+    #[garde(length(min = 2, max = 100))]
+    pub name: String,
+    #[garde(custom(validate_password))]
+    pub password: String,
+    #[garde(custom(validate_password_confirmation))]
+    pub password_confirmation: String,
+}
+
+// Context for custom validation
+struct PasswordContext {
+    min_length: usize,
+}
+
+fn validate_password(value: &str, ctx: &PasswordContext) -> garde::Result {
+    if value.len() < ctx.min_length {
+        return Err(garde::Error::new("password too short"));
+    }
+    if !value.chars().any(|c| c.is_uppercase()) {
+        return Err(garde::Error::new("password must contain an uppercase letter"));
+    }
+    if !value.chars().any(|c| c.is_numeric()) {
+        return Err(garde::Error::new("password must contain a number"));
+    }
+    Ok(())
+}
+
+fn validate_password_confirmation(
+    value: &str,
+    ctx: &PasswordContext,
+) -> garde::Result {
+    // Compare with password field — see garde docs for field comparison
+    Ok(())
 }
 ```
 
-HTTP status code: **400 Bad Request**
+---
 
-## Try it yourself
+## Validating Path Params & Query Params
 
-1. Create a `CreateProductDto` with title (1-256 chars) and price (0.01-99999.99)
-2. Apply `ValidationPipe` to a POST route
-3. Test with invalid data: empty title, negative price
-4. Verify you get 400 errors with clear messages
+Validation works everywhere — not just bodies:
 
-## Common mistakes
+```rust
+use ironic::ParseIntPipe;
+
+#[routes]
+impl Controller {
+    #[get("/:id")]
+    async fn get(
+        &self,
+        #[param] #[pipe(ParseIntPipe)] id: u64,  // ← validates and converts
+    ) -> Result<Json<User>, HttpError> {
+        // id is guaranteed to be a valid u64
+    }
+
+    #[get("/search")]
+    async fn search(
+        &self,
+        #[query] #[pipe(ParseIntPipe)] page: u64,
+        #[query] limit: Option<u64>,
+    ) -> Result<Json<Vec<User>>, HttpError> {
+        // page is guaranteed valid
+    }
+}
+```
+
+### Built-in Parsing Pipes
+
+| Pipe | Converts | Example |
+|------|----------|---------|
+| `ParseIntPipe` | String → `i64` | `/items/42` |
+| `ParseFloatPipe` | String → `f64` | `?price=9.99` |
+| `ParseBoolPipe` | String → `bool` | `?active=true` |
+| `ParseUUIDPipe` | String → `Uuid` | `/users/uuid-value` |
+
+---
+
+## Nested Object Validation
+
+Validate deep structures with `#[garde(dive)]`:
+
+```rust
+#[derive(Debug, Deserialize, Validate)]
+pub struct CreateOrderDto {
+    #[garde(dive)]
+    pub customer: CustomerDto,
+    #[garde(length(min = 1))]
+    #[garde(dive)]
+    pub items: Vec<OrderItemDto>,
+}
+
+#[derive(Debug, Deserialize, Validate)]
+pub struct CustomerDto {
+    #[garde(length(min = 2))]
+    pub name: String,
+    #[garde(email)]
+    pub email: String,
+}
+
+#[derive(Debug, Deserialize, Validate)]
+pub struct OrderItemDto {
+    #[garde(range(min = 1))]
+    pub product_id: u64,
+    #[garde(range(min = 1, max = 999))]
+    pub quantity: u32,
+}
+```
+
+---
+
+## Validation Error Format
+
+Every validation failure returns:
+
+```json
+{
+  "error": "VALIDATION_FAILED",
+  "message": "Validation failed: title: length must be at least 1. price: must be at least 0.01"
+}
+```
+
+**Status code:** `400 Bad Request`
+
+### Custom Error Mapping
+
+Transform validation errors into structured field errors:
+
+```rust
+struct ValidationErrorFilter;
+
+impl ExceptionFilter for ValidationErrorFilter {
+    fn catch(
+        &self,
+        error: &HttpError,
+        _ctx: &FilterContext,
+    ) -> Result<FrameworkResponse, HttpError> {
+        if error.code() == "VALIDATION_FAILED" {
+            Ok(FrameworkResponse::json(
+                HttpStatus::BAD_REQUEST,
+                &serde_json::json!({
+                    "error": "VALIDATION_FAILED",
+                    "fields": {
+                        "title": ["length must be at least 1"],
+                        "price": ["must be at least 0.01"]
+                    }
+                }),
+            )
+            .unwrap())
+        } else {
+            Err(error.clone())
+        }
+    }
+}
+```
+
+---
+
+## Complete Example
+
+```rust
+// dto/create_user_dto.rs
+use garde::Validate;
+use serde::Deserialize;
+
+#[derive(Debug, Deserialize, Validate)]
+pub struct CreateUserDto {
+    #[garde(length(min = 2, max = 100))]
+    pub name: String,
+    #[garde(email)]
+    pub email: String,
+    #[garde(length(min = 8, max = 128))]
+    pub password: String,
+    #[garde(range(min = 13, max = 150))]
+    pub age: u8,
+    #[garde(skip)]
+    pub bio: Option<String>,
+}
+
+// controller/user_controller.rs
+#[controller("/users")]
+#[derive(Injectable)]
+pub struct UserController {
+    service: Arc<UserService>,
+}
+
+#[routes]
+impl UserController {
+    #[post]
+    async fn create(
+        &self,
+        #[body] dto: CreateUserDto,  // ← validated automatically
+    ) -> Result<Json<UserView>, HttpError> {
+        Ok(Json(self.service.create(dto)?.into()))
+    }
+}
+```
+
+---
+
+## Common Mistakes
 
 | Mistake | Fix |
 |---------|-----|
-| Forgot `#[garde(...)]` on a field | The field won't be validated! Every field needs a rule or `#[garde(skip)]` |
-| `garde` not in Cargo.toml | Add both `ironic = { features = ["validation"] }` AND `garde = "0.22"` |
-| Wrong type for range | `#[garde(range(min = 0))]` works on numbers, not strings |
-| Validation not applied | Make sure `ValidationPipe` is added to the route with `.parameter_with_pipe()` |
+| DTO doesn't derive `Validate` | Add `#[derive(Validate)]` |
+| Missing `#[garde]` on every field | Add a rule or `#[garde(skip)]` to every field |
+| `garde` crate not in Cargo.toml | `cargo add garde` |
+| `validation` feature not enabled | `ironic = { features = ["validation"] }` |
+| Wrong type for `range` | `range` works on numbers; `length` works on strings |
+| Forgot `#[garde(dive)]` on nested structs | Nested structs need `dive` to recurse |
 
 ## What you learned
 
-- [x] Add validation rules with `#[derive(Validate)]` and `#[garde(...)]`
-- [x] Apply `ValidationPipe` to enforce rules
-- [x] Return 400 errors with helpful messages
-- [x] Skip optional fields with `#[garde(skip)]`
+- [x] Add `#[garde]` rules to any DTO with `#[derive(Validate)]`
+- [x] Macro-based controllers auto-validate `#[body]` parameters
+- [x] Builder-based controllers use `.parameter_with_pipe()` for explicit control
+- [x] Custom validators for business logic beyond struct rules
+- [x] Parse pipes for path/query params: `ParseIntPipe`, `ParseFloatPipe`, `ParseBoolPipe`
+- [x] Nested validation with `#[garde(dive)]`
+- [x] Consistent `VALIDATION_FAILED` error at 400
+- [x] Custom error mapping via `ExceptionFilter`

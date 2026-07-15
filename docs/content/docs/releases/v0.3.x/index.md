@@ -139,4 +139,6 @@ First stable release of the Ironic framework.
 | Version | Status | Notes |
 |---------|--------|-------|
 | v0.2.x | Deprecated | Pre-release with ready-resource generators, auth modules, file upload, email |
-| v0.1.0 | Preview | First public preview with core framework contracts |
+| v0.1.x | Deprecated | First public release with full architecture foundation |
+
+Read the full pre-release story: [The pre-release journey](/blog/v0.1.x-v0.2.x)

@@ -20,6 +20,7 @@ All notable changes to Ironic are documented here. The project follows [Semantic
 | [v0.3.2](/blog/v0.3.0) | 2026-07-15 | Documentation nav fixes |
 | [v0.3.1](/blog/v0.3.0) | 2026-07-15 | Ready-resource generator fixes |
 | [v0.3.0](/blog/v0.3.0) | 2026-07-15 | First stable release — full framework foundation |
+| [v0.1.x–v0.2.x](/blog/v0.1.x-v0.2.x) | 2026-07-14 | Pre-release journey — 19 iterations, auth, file upload, email modules |
 
 Full changelog: [CHANGELOG.md](https://github.com/ironic-org/ironic/blob/main/CHANGELOG.md)
 

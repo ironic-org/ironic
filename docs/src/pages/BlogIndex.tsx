@@ -67,6 +67,14 @@ const posts: Post[] = [
         tag: 'major',
         readTime: '5 min',
     },
+    {
+        slug: 'v0.1.x-v0.2.x',
+        title: 'The pre-release journey — from 9-crate workspace to full framework',
+        description: 'How Ironic evolved from the first public release through 19 iterations: authentication modules, file upload, email, ready-resource generators, and NestJS feature parity.',
+        date: 'Jul 14, 2026',
+        tag: 'major',
+        readTime: '4 min',
+    },
 ];
 
 const tagStyles: Record<Post['tag'], { icon: React.ReactNode; className: string }> = {

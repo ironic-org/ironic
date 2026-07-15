@@ -150,7 +150,7 @@ fn auth_full_files(module_dir: &Path, name: &str) -> Vec<(PathBuf, String)> {
         (d.join("guards/mod.rs"), "pub mod auth_guard;\npub mod role_guard;\npub use auth_guard::AuthGuard;\npub use role_guard::RoleGuard;\n".into()),
         (d.join("guards/auth_guard.rs"), auth_guard().into()),
         (d.join("guards/role_guard.rs"), role_guard().into()),
-        (d.join("decorators/mod.rs"), "pub mod current_user;\npub mod roles;\npub use current_user::CurrentUser as CurrentUser;\npub use roles::Roles as Roles;\n".into()),
+        (d.join("decorators/mod.rs"), "pub mod current_user;\npub mod roles;\n".into()),
         (d.join("decorators/current_user.rs"), current_user_decorator().into()),
         (d.join("decorators/roles.rs"), roles_decorator().into()),
         (d.join("tests/mod.rs"), tests_mod().into()),
@@ -247,7 +247,7 @@ fn auth_jwt_files(module_dir: &Path) -> Vec<(PathBuf, String)> {
         (d.join("guards/auth_guard.rs"), auth_guard().into()),
         (
             d.join("decorators/mod.rs"),
-            "pub mod current_user;\npub use current_user::CurrentUser as CurrentUser;\n".into(),
+            "pub mod current_user;\n".into(),
         ),
         (
             d.join("decorators/current_user.rs"),
@@ -299,7 +299,7 @@ fn auth_oauth_files(module_dir: &Path) -> Vec<(PathBuf, String)> {
         (d.join("guards/auth_guard.rs"), auth_guard_oauth().into()),
         (
             d.join("decorators/mod.rs"),
-            "pub mod current_user;\npub use current_user::CurrentUser as CurrentUser;\n".into(),
+            "pub mod current_user;\n".into(),
         ),
         (
             d.join("decorators/current_user.rs"),
@@ -364,7 +364,7 @@ static USERS: std::sync::LazyLock<Mutex<HashMap<u64, User>>> = std::sync::LazyLo
 static NEXT_ID: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(1);
 
 #[derive(Debug, Serialize, Deserialize)]
-struct Claims { pub sub: String, pub role: String, pub exp: usize, pub iat: usize }
+pub struct Claims { pub sub: String, pub role: String, pub exp: usize, pub iat: usize }
 
 fn jwt_secret() -> String {
     std::env::var("JWT_SECRET").unwrap_or_else(|_| "dev-secret-change-in-production".into())
@@ -535,7 +535,7 @@ use crate::modules::auth::dto::{LoginDto, RefreshDto, RegisterDto, TokenResponse
 use crate::modules::auth::entities::user::PublicUser;
 
 use super::super::guards::AuthGuard;
-use super::super::decorators::current_user::CurrentUser;
+use super::super::decorators::current_user::current_user;
 
 #[controller("/auth")]
 #[derive(Injectable)]
@@ -560,7 +560,7 @@ impl AuthController {
 
      #[get("/me")]
      #[use_guard(AuthGuard)]
-     async fn me(&self, #[custom(CurrentUser)] user_id: u64) -> Result<Json<PublicUser>, HttpError> {
+     async fn me(&self, #[custom(current_user)] user_id: u64) -> Result<Json<PublicUser>, HttpError> {
          Ok(Json(self.service.me(user_id)?.public_view()))
      }
  }
@@ -634,8 +634,7 @@ impl AuthController {
 // ── Guards ────────────────────────────────────────────────────────────
 
 fn auth_guard() -> &'static str {
-    r#"use std::sync::Arc;
-use ironic::{Guard, GuardDecision, GuardFuture, HttpError, RequestContext};
+    r#"use ironic::{Guard, GuardDecision, GuardFuture, RequestContext};
 use super::super::services::AuthService;
 
 pub struct AuthGuard;
@@ -696,19 +695,21 @@ fn auth_guard_oauth() -> &'static str {
 fn role_guard() -> &'static str {
     r#"use ironic::{Guard, GuardDecision, GuardFuture, RequestContext};
 
+#[allow(dead_code)]
 pub struct RoleGuard {
-    required_Roles: Vec<String>,
+    #[allow(dead_code)]
+    required_roles: Vec<String>,
 }
 
 impl RoleGuard {
-    pub fn new(Roles: &[&str]) -> Self { Self { required_Roles: Roles.iter().map(|s| s.to_string()).collect() } }
+    pub fn new(Roles: &[&str]) -> Self { Self { required_roles: Roles.iter().map(|s| s.to_string()).collect() } }
 }
 
 impl Guard for RoleGuard {
     fn can_activate<'a>(&'a self, context: &'a mut RequestContext) -> GuardFuture<'a> {
         Box::pin(async move {
             let user_role = context.extension::<String>().cloned().unwrap_or_default();
-            if self.required_Roles.iter().any(|r| r == &user_role) {
+            if self.required_roles.iter().any(|r| r == &user_role) {
                 Ok(GuardDecision::Allow)
             } else {
                 Ok(GuardDecision::Deny)
@@ -724,38 +725,50 @@ impl Guard for RoleGuard {
 fn current_user_decorator() -> &'static str {
     r#"use ironic::{ExtractFuture, ParameterExtractor, RequestContext, create_param_decorator};
 
-struct CurrentUserExtractor;
+pub struct CurrentUser;
 
-impl ParameterExtractor for CurrentUserExtractor {
+impl CurrentUser {
+    #[must_use]
+    pub fn new() -> Self { Self }
+}
+
+impl ParameterExtractor for CurrentUser {
     fn extract<'a>(&'a self, context: &'a mut RequestContext) -> ExtractFuture<'a> {
         Box::pin(async move {
-            let user_id = context.extension::<u64>().copied();
-            Ok(Box::new(user_id))
+            let value: Box<dyn std::any::Any + Send> = Box::new(context.extension::<u64>().copied());
+            Ok(value)
         })
     }
     fn description(&self) -> &'static str { "current_user" }
 }
 
-create_param_decorator!(CurrentUser, CurrentUserExtractor);
+#[allow(non_camel_case_types)]
+create_param_decorator!(current_user, CurrentUser);
 "#
 }
 
 fn roles_decorator() -> &'static str {
     r#"use ironic::{ExtractFuture, ParameterExtractor, RequestContext, create_param_decorator};
 
-struct RolesExtractor;
+pub struct Roles;
 
-impl ParameterExtractor for RolesExtractor {
+impl Roles {
+    #[must_use]
+    pub fn new() -> Self { Self }
+}
+
+impl ParameterExtractor for Roles {
     fn extract<'a>(&'a self, context: &'a mut RequestContext) -> ExtractFuture<'a> {
         Box::pin(async move {
-            let role = context.extension::<String>().cloned();
-            Ok(Box::new(role))
+            let value: Box<dyn std::any::Any + Send> = Box::new(context.extension::<String>().cloned());
+            Ok(value)
         })
     }
     fn description(&self) -> &'static str { "roles" }
 }
 
-create_param_decorator!(Roles, RolesExtractor);
+#[allow(non_camel_case_types)]
+create_param_decorator!(roles, Roles);
 "#
 }
 

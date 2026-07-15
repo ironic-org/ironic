@@ -65,7 +65,6 @@ jobs:
       - name: Clean stale cache artifacts
         if: runner.os != 'Windows'
         run: |
-          rm -rf target/tests/target 2>/dev/null || true
           find target -type l ! -exec test -e {} \; -delete 2>/dev/null || true
       - run: cargo test --all-features
 

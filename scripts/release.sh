@@ -288,10 +288,19 @@ else
     echo "  ! BlogIndex.tsx pattern not found — add manually"
 fi
 
-# Update releases/index.md — add row to the version table, skip if exists
+# Update releases/index.md — add row to the version table & bump current version, skip if exists
 if grep -q "| \[v$NEW\]" "$RELEASES_INDEX" 2>/dev/null; then
     echo -e "  ${CYAN}!${NC} releases/index.md already has v$NEW — skipping"
 else
+    # Bump the "Current version:" line
+    if grep -q "^## Current version: " "$RELEASES_INDEX" 2>/dev/null; then
+        if [[ "$(uname)" == "Darwin" ]]; then
+            sed -i '' "s/^## Current version: v[0-9.]*$/## Current version: v$NEW/" "$RELEASES_INDEX"
+        else
+            sed -i "s/^## Current version: v[0-9.]*$/## Current version: v$NEW/" "$RELEASES_INDEX"
+        fi
+    fi
+    # Add row to version table
     TABLE_INSERT="| [v$NEW](/blog/v$NEW) | $TODAY | $SUMMARY |"
     RELEASES_TABLE_LINE=$(grep -n "| v0.3.0" "$RELEASES_INDEX" | head -1 | cut -d: -f1)
     if [[ -n "$RELEASES_TABLE_LINE" ]]; then

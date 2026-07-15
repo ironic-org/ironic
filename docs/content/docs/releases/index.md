@@ -5,12 +5,13 @@ description: Version history and release notes for the Ironic framework.
 
 # Releases
 
-## Current version: v0.3.8
+## Current version: v0.4.0
 
 All notable changes to Ironic are documented here. The project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 | Version | Date | Highlights |
 |---------|------|-----------|
+| [v0.4.0](/blog/v0.4.0) | 2026-07-15 | Production readiness — multipart, Redis sessions, OAuth2, backpressure, hot-reload |
 | [v0.3.9](/blog/v0.3.9) | 2026-07-15 | Blog section, comparison table, GitHub badges, release automation |
 | [v0.3.8](/blog/v0.3.8) | 2026-07-15 | Global middleware, security headers, rate limiting, CORS by default |
 | [v0.3.7](/blog/v0.3.7) | 2026-07-15 | `.middleware()` on FrameworkApplicationBuilder |

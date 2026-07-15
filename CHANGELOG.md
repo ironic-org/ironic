@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v0.3.1] - 2026-07-15
+
+### Fixed
+- allow needless raw string hashes and restore GenerationReport import in ready_resource.rs (583ba86)\n
+### Changed
+- bump version to 0.3.1 in Cargo.toml and Cargo.lock (d4d7b20)\n- reorder module imports for consistency in ready_resource.rs (7fd6159)\n- update module imports and improve code readability in ready_resource.rs (d7d944f)\n
+
 ## [v0.3.0] - 2026-07-15
 
 - Initial release

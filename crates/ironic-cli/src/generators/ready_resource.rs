@@ -794,10 +794,6 @@ fn tests_mod() -> &'static str {
     "/// Unit tests — service and guard logic in isolation (no HTTP).\n#[cfg(test)]\nmod unit;\n/// Integration tests — full HTTP request/response through the framework.\n#[cfg(test)]\nmod integration;\n"
 }
 
-fn integration_mod() -> &'static str {
-    "pub mod auth_flow_test;\npub use auth_flow_test::*;\n"
-}
-
 fn unit_password_test() -> &'static str {
     "//! Unit tests for PasswordService.\n\nuse crate::modules::auth::services::password_service::PasswordService;\n\n#[test]\nfn hash_and_verify() {\n    let svc = PasswordService;\n    let hash = svc.hash(\"password123\").unwrap();\n    assert!(svc.verify(\"password123\", &hash).unwrap());\n    assert!(!svc.verify(\"wrong\", &hash).unwrap());\n}\n\n#[test]\nfn unique_salts() {\n    let svc = PasswordService;\n    let h1 = svc.hash(\"password123\").unwrap();\n    let h2 = svc.hash(\"password123\").unwrap();\n    assert_ne!(h1, h2, \"same password should produce different hashes\");\n}\n"
 }

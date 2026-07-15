@@ -131,7 +131,7 @@ To reduce cardinality:
 
 ## Prometheus output format
 
-```prometheus
+```text
 # HELP ironic_http_requests_total Total HTTP requests
 # TYPE ironic_http_requests_total counter
 ironic_http_requests_total{method="GET",path="/users",status="200"} 1547

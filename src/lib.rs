@@ -2,10 +2,15 @@
 
 // Keep the source modules independent internally while presenting one public crate.
 // These aliases also keep generated and hand-written framework internals on stable paths.
+#[allow(unused_extern_crates)]
 extern crate self as ironic_core;
+#[allow(unused_extern_crates)]
 extern crate self as ironic_di;
+#[allow(unused_extern_crates)]
 extern crate self as ironic_http;
+#[allow(unused_extern_crates)]
 extern crate self as ironic_platform;
+#[allow(unused_extern_crates)]
 extern crate self as ironic_platform_axum;
 
 #[cfg(feature = "auth")]
@@ -53,8 +58,12 @@ pub mod ecosystem;
 mod http_impl;
 #[path = "../crates/ironic-integrations/src/lib.rs"]
 pub mod integrations;
+#[cfg(feature = "openapi")]
 #[path = "../crates/ironic-openapi/src/lib.rs"]
 mod openapi;
+#[cfg(feature = "logging")]
+#[path = "../crates/ironic-logging/src/lib.rs"]
+pub mod logging;
 #[path = "../crates/ironic-platform/src/lib.rs"]
 mod platform;
 #[path = "../crates/ironic-platform-axum/src/lib.rs"]
@@ -87,6 +96,7 @@ pub use ironic_macros::{
     get, head, header, interval, main, options, param, patch, pipe, post, put, query, routes,
     subscribe_message, timeout, use_guard, use_interceptor, web_socket_gateway,
 };
+#[cfg(feature = "openapi")]
 pub use openapi::*;
 pub use platform::*;
 pub use platform_axum::*;
@@ -171,7 +181,7 @@ pub mod prelude {
         HttpPlatformAdapter, HttpPlatformApplication, Injectable, Interceptor, InterceptorNext,
         Json, JsonBody, LifecycleDefinition, Middleware, Module, ModuleDefinition, ModuleRef,
         OnApplicationBootstrap, OnApplicationShutdown, OnModuleDestroy, OnModuleInit,
-        OpenApiSchema, ParameterPipe, PathParameter, PipelineFuture, ProviderDefinition,
+        ParameterPipe, PathParameter, PipelineFuture, ProviderDefinition,
         QueryParameters, RequestContext, RequestId, RequestScope, RequestTracing, RouteDefinition,
         RouteMetadata, Scope, Secret, SecretString, Serializable, ShutdownSignal,
         ValidateConfiguration, VersionMetadata, VersioningStrategy, WsGatewayDefinition, body,
@@ -179,8 +189,12 @@ pub mod prelude {
         header, interval, options, param, patch, pipe, pipe_fn, post, put, query, routes,
         subscribe_message, timeout, use_guard, use_interceptor, web_socket_gateway,
     };
+    #[cfg(feature = "openapi")]
+    pub use crate::OpenApiSchema;
     #[cfg(feature = "serialization")]
     pub use crate::{FieldRule, FieldRules, SerializeInterceptor, set_current_roles};
     #[cfg(feature = "multipart")]
     pub use crate::{MultipartConfig, MultipartForm, MultipartFormData, UploadedFile};
+    #[cfg(feature = "logging")]
+    pub use crate::logging::{LogStorage, LogEntry, StorageError, TimeSeriesConfig, TimeSeriesModule};
 }

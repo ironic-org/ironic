@@ -24,6 +24,7 @@ Implement production-readiness improvements: multipart upload, Redis session per
 ## Progress
 
 ### Done
+- **17. Time-Series Logging**: Structured JSON logging via `logging` feature. `LogStorage` trait with `FileLogStorage` (writes `.logs/YYYY-MM-DD.jsonl`). `TimeSeriesLayer` captures all `tracing` events. `TimeSeriesModule` + `TimeSeriesConfig`. Pluggable backend for databases. `ironic::log::{info, warn, error, debug, trace}` re-exports from `tracing`. Feature: `logging`. 90 lib tests. New crate: `crates/ironic-logging/`.
 - **9. Multipart Upload**: `MultipartForm<T>`, `UploadedFile`, `MultipartConfig` (5 MiB files, 256 KiB fields). 413/400 responses. Gate: `multipart`.
 - **10. Redis Session Persistence**: `RedisSessionStore` via `SETEX`/`GET`/`DEL`. JSON under `ironic:session:{id}`. Default 24h TTL. Gate: `redis` + `sessions`.
 - **11. Error Backtraces**: `HttpError.backtrace: Option<Arc<Backtrace>>` behind `backtrace`. `internal()` auto-captures; debug-only serialization. Manual `PartialEq`/`Eq`.
@@ -50,7 +51,7 @@ Implement production-readiness improvements: multipart upload, Redis session per
 - `ironic-config`: `ConfigWatcher<T>` requires `T: Clone`. `FeatureToggle::from_root_config()` uses `Config::get("features")`. `watch()` panics without file sources.
 
 ## Relevant Files
-- `Cargo.toml`: features `multipart`, `backtrace`, `resilience-ext`, `hot-reload`; `notify` optional
+- `Cargo.toml`: features `multipart`, `backtrace`, `resilience-ext`, `hot-reload`, `logging`; `notify` optional
 - `crates/ironic-http/src/multipart.rs`
 - `crates/ironic-http/src/error.rs`
 - `crates/ironic-auth/src/sessions.rs`

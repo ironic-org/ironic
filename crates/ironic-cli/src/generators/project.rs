@@ -57,7 +57,7 @@ pub fn create(
             destination.join("ironic.toml"),
             project_config(&names.kebab),
         ),
-        (destination.join(".env.example"), dotenv_example()),
+        (destination.join(".env.example"), dotenv_example(&names.kebab)),
         (destination.join(".gitignore"), gitignore()),
         (destination.join("Dockerfile"), dockerfile(&names.kebab)),
         (
@@ -194,14 +194,14 @@ fn manifest(name: &str, workspace: Option<&Path>) -> String {
         },
     );
     format!(
-        "[package]\nname = \"{name}\"\nversion = \"0.1.0\"\nedition = \"2024\"\nrust-version = \"1.97\"\npublish = false\n\n[dependencies]\nironic = {{ features = [\"security\", \"compression\", \"metrics\", \"validation\"], {dep_spec} }}\nserde = {{ version = \"1\", features = [\"derive\"] }}\nserde_json = \"1\"\ngarde = \"0.23\"\ndotenvy = \"0.15\"\ntracing-subscriber = {{ version = \"0.3\", features = [\"env-filter\"] }}\n\n[dev-dependencies]\ntokio = {{ version = \"1\", features = [\"macros\", \"rt\"] }}\n\n# Available features (uncomment to enable):\n# versioning      — URI, header, and media-type API versioning\n# serialization   — role-based field exposure\n# cache           — CacheInterceptor with InMemoryCache\n# scheduling      — Fixed-interval and cron background tasks\n# cron            — Cron expression scheduling\n# realtime        — WebSocket gateways with rooms/broadcasting\n# resilience      — Retry with backoff + circuit breaker\n# telemetry       — Distributed tracing (OTLP)\n# database        — SQLx, SeaORM, Diesel (postgres/mysql/sqlite)\n# auth            — Password hashing, JWT, OAuth2, sessions\n# distributed     — Queues, microservices, CQRS, sagas, gRPC, GraphQL\n# openapi         — Auto-generate OpenAPI schemas + Swagger UI\n",
+        "[package]\nname = \"{name}\"\nversion = \"0.1.0\"\nedition = \"2024\"\nrust-version = \"1.97\"\npublish = false\n\n[dependencies]\nironic = {{ features = [\"security\", \"compression\", \"metrics\", \"validation\", \"versioning\", \"openapi\", \"logging\", \"sqlx-postgres\"], {dep_spec} }}\nserde = {{ version = \"1\", features = [\"derive\"] }}\nserde_json = \"1\"\ngarde = \"0.23\"\nsqlx = {{ version = \"0.9\", features = [\"runtime-tokio\", \"postgres\"] }}\ntracing = {{ version = \"0.1\", features = [\"attributes\"] }}\ndotenvy = \"0.15\"\ntracing-subscriber = {{ version = \"0.3\", features = [\"env-filter\"] }}\n\n[dev-dependencies]\ntokio = {{ version = \"1\", features = [\"macros\", \"rt\"] }}\n\n# Available features (uncomment to enable):\n# serialization   — role-based field exposure\n# cache           — CacheInterceptor with InMemoryCache\n# scheduling      — Fixed-interval and cron background tasks\n# cron            — Cron expression scheduling\n# realtime        — WebSocket gateways with rooms/broadcasting\n# resilience      — Retry with backoff + circuit breaker\n# telemetry       — Distributed tracing (OTLP)\n# auth            — Password hashing, JWT, OAuth2, sessions\n# distributed     — Queues, microservices, CQRS, sagas, gRPC, GraphQL\n",
     )
 }
 
 fn main_source(name: &str) -> String {
     let version = env!("CARGO_PKG_VERSION");
     format!(
-        "mod app;\nmod modules;\nmod platform;\nmod welcome;\n\nuse std::time::Duration;\n\nuse ironic::AxumAdapter;\nuse ironic::metrics::{{MetricsLayer, MetricsConfig}};\nuse ironic::prelude::*;\nuse ironic::security::{{\n    CorsConfig, CorsMiddleware,\n    RateLimitMiddleware,\n    SecurityHeadersConfig, SecurityHeadersMiddleware,\n}};\n\nuse app::AppModule;\n\n#[ironic::main]\nasync fn main() {{\n    dotenvy::dotenv().ok();\n    platform::telemetry::init_tracing();\n\n    let addr = format!(\n        \"{{}}:{{}}\",\n        platform::config::env(\"SERVER_HOST\").unwrap_or_else(|| \"0.0.0.0\".into()),\n        platform::config::env(\"SERVER_PORT\").unwrap_or_else(|| \"3000\".into()),\n    );\n    let cors_origins = platform::config::env_json_array(\"CORS_ORIGINS\");\n    let rate_limit_max: u64 = platform::config::env_parsed(\"RATE_LIMIT_MAX\", 100u64);\n\n    let application = FrameworkApplication::builder()\n        .module(AppModule::definition())\n        .middleware(SecurityHeadersMiddleware::new(SecurityHeadersConfig::default()))\n        .middleware(RateLimitMiddleware::new(rate_limit_max, 60))\n        .middleware(CorsMiddleware::new(CorsConfig::new().allowed_origins(cors_origins)))\n        .platform(\n            AxumAdapter::new()\n                .compression()\n                .request_body_limit(5 * 1024 * 1024)\n                .request_timeout(Duration::from_secs(30))\n                .configure_router(|r| {{\n                    r.layer(MetricsLayer::new(MetricsConfig::default()))\n                }}),\n        )\n        .build()\n        .await\n        .expect(\"application must initialise\");\n\n    println!(\"🚀 {name} → http://{{}} (ironic v{version})\", addr);\n\n    application\n        .listen(&addr)\n        .await\n        .expect(\"application server failed\");\n}}\n",
+        "mod app;\nmod modules;\nmod platform;\nmod welcome;\n\nuse std::time::Duration;\n\nuse ironic::{{AxumAdapter, OpenApiConfig, OpenApiAxumExt}};\nuse ironic::metrics::{{MetricsLayer, MetricsConfig}};\nuse ironic::prelude::*;\nuse ironic::security::{{\n    CorsConfig, CorsMiddleware,\n    RateLimitMiddleware,\n    SecurityHeadersConfig, SecurityHeadersMiddleware,\n}};\n\nuse app::AppModule;\n\n#[ironic::main]\nasync fn main() {{\n    dotenvy::dotenv().ok();\n    platform::telemetry::init_tracing();\n\n    let addr = format!(\n        \"{{}}:{{}}\",\n        platform::config::env(\"SERVER_HOST\").unwrap_or_else(|| \"0.0.0.0\".into()),\n        platform::config::env(\"SERVER_PORT\").unwrap_or_else(|| \"8080\".into()),\n    );\n    let cors_origins = platform::config::env_json_array(\"CORS_ORIGINS\");\n    let rate_limit_max: u64 = platform::config::env_parsed(\"RATE_LIMIT_MAX\", 100u64);\n\n    let application = FrameworkApplication::builder()\n        .module(AppModule::definition())\n        .middleware(SecurityHeadersMiddleware::new(SecurityHeadersConfig::default()))\n        .middleware(RateLimitMiddleware::new(rate_limit_max, 60))\n        .middleware(CorsMiddleware::new(CorsConfig::new().allowed_origins(cors_origins)))\n        .platform(\n            AxumAdapter::new()\n                .compression()\n                .request_body_limit(5 * 1024 * 1024)\n                .request_timeout(Duration::from_secs(30))\n                .configure_router(|r| {{\n                    r.layer(MetricsLayer::new(MetricsConfig::default()))\n                }})\n                .with_openapi(OpenApiConfig::new(\"{name}\", \"0.1.0\"))\n                .swagger_ui(\"/docs\"),\n        )\n        .build()\n        .await\n        .expect(\"application must initialise\");\n\n    println!(\"🚀 {name} → http://{{}} (ironic v{version})\", addr);\n\n    application\n        .listen(&addr)\n        .await\n        .expect(\"application server failed\");\n}}\n",
     )
 }
 
@@ -283,12 +283,12 @@ fn example_test_integration() -> String {
 // ── Platform templates ────────────────────────────────────────────────
 
 fn platform_mod() -> String {
-    "pub mod config;\npub mod telemetry;\n// pub mod database;  // uncomment when using the `database` feature\n".to_owned()
+    "pub mod config;\npub mod telemetry;\npub mod database;\n".to_owned()
 }
 
 fn platform_config() -> String {
     "use std::env;\n\npub fn env(key: &str) -> Option<String> {\n    env::var(key).ok()\n}\n\npub fn env_parsed<T: std::str::FromStr>(key: &str, default: T) -> T {\n    env::var(key).ok()\n        .and_then(|v| v.parse().ok())\n        .unwrap_or(default)\n}\n\npub fn env_json_array(key: &str) -> Vec<String> {\n    env::var(key)\n        .ok()\n        .and_then(|v| serde_json::from_str(&v).ok())\n        .unwrap_or_default()\n}\n\n#[allow(dead_code)]
-pub fn server_address() -> String {\n    let host = env(\"SERVER_HOST\").unwrap_or_else(|| \"0.0.0.0\".into());\n    let port = env(\"SERVER_PORT\").unwrap_or_else(|| \"3000\".into());\n    format!(\"{host}:{port}\")\n}\n".to_owned()
+pub fn server_address() -> String {\n    let host = env(\"SERVER_HOST\").unwrap_or_else(|| \"0.0.0.0\".into());\n    let port = env(\"SERVER_PORT\").unwrap_or_else(|| \"8080\".into());\n    format!(\"{host}:{port}\")\n}\n".to_owned()
 }
 
 fn platform_database() -> String {
@@ -311,8 +311,8 @@ fn example_repository() -> String {
 
 // ── Infrastructure templates ──────────────────────────────────────────
 
-fn dotenv_example() -> String {
-    "# Server\nSERVER_HOST=0.0.0.0\nSERVER_PORT=3000\n\n# Logging\nRUST_LOG=info\n\n# Security ──────────────────────────────────────────────\n# Security headers (HSTS, CSP, X-Frame-Options, etc.) are always on with\n# secure defaults. You can customise them in src/main.rs.\n#\n# JSON array of allowed origins; leave empty to deny all cross-origin requests\n# Example: CORS_ORIGINS=[\"https://app.com\",\"https://admin.com\"]\nCORS_ORIGINS=[]\n# Maximum requests per IP per 60-second window\nRATE_LIMIT_MAX=100\n\n# Database (uncomment to use)\n# DATABASE_URL=postgres://user:CHANGE_ME@localhost:5432/mydb\n\n# Redis (uncomment to use)\n# REDIS_URL=redis://localhost:6379\n".to_owned()
+fn dotenv_example(name: &str) -> String {
+    format!("# Server\nSERVER_HOST=0.0.0.0\nSERVER_PORT=8080\n\n# Logging\nRUST_LOG=info\n\n# Security ──────────────────────────────────────────────\n# Security headers (HSTS, CSP, X-Frame-Options, etc.) are always on with\n# secure defaults. You can customise them in src/main.rs.\n#\n# JSON array of allowed origins; leave empty to deny all cross-origin requests\n# Example: CORS_ORIGINS=[\"https://app.com\",\"https://admin.com\"]\nCORS_ORIGINS=[]\n# Maximum requests per IP per 60-second window\nRATE_LIMIT_MAX=100\n\n# Database\nDATABASE_URL=postgres://user:CHANGE_ME@localhost:5432/{name}\n\n# Redis (uncomment to use)\n# REDIS_URL=redis://localhost:6379\n")
 }
 
 fn gitignore() -> String {
@@ -322,13 +322,13 @@ fn gitignore() -> String {
 fn dockerfile(name: &str) -> String {
     let binary = name.replace('-', "_");
     format!(
-        "# Stage 1: Build\nFROM rust:1.97-slim-bookworm AS builder\nWORKDIR /app\nCOPY Cargo.toml Cargo.lock* ./\nCOPY src ./src\nRUN cargo build --release\n\n# Stage 2: Distroless runtime\nFROM gcr.io/distroless/cc-debian12\nWORKDIR /app\nCOPY --from=builder /app/target/release/{binary} /app/{binary}\nENV SERVER_HOST=0.0.0.0\nENV SERVER_PORT=3000\nEXPOSE 3000\nCMD [\"./{binary}\"]\n"
+        "# Stage 1: Build\nFROM rust:1.97-slim-bookworm AS builder\nWORKDIR /app\nCOPY Cargo.toml Cargo.lock* ./\nCOPY src ./src\nRUN cargo build --release\n\n# Stage 2: Distroless runtime\nFROM gcr.io/distroless/cc-debian12\nWORKDIR /app\nCOPY --from=builder /app/target/release/{binary} /app/{binary}\nENV SERVER_HOST=0.0.0.0\nENV SERVER_PORT=8080\nEXPOSE 8080\nCMD [\"./{binary}\"]\n"
     )
 }
 
 fn docker_compose(name: &str) -> String {
     format!(
-        "services:\n  app:\n    build: .\n    ports:\n      - 3000:3000\n    env_file: .env\n    restart: unless-stopped\n    depends_on:\n      postgres:\n        condition: service_healthy\n      redis:\n        condition: service_healthy\n\n  postgres:\n    image: postgres:16-alpine\n    environment:\n      POSTGRES_USER: user\n      POSTGRES_PASSWORD: CHANGE_ME\n      POSTGRES_DB: {name}\n    ports:\n      - 5432:5432\n    volumes:\n      - pgdata:/var/lib/postgresql/data\n    healthcheck:\n      test: [\"CMD-SHELL\", \"pg_isready -U user -d {name}\"]\n      interval: 5s\n      timeout: 5s\n      retries: 5\n\n  redis:\n    image: redis:7-alpine\n    ports:\n      - 6379:6379\n    healthcheck:\n      test: [\"CMD\", \"redis-cli\", \"ping\"]\n      interval: 5s\n      timeout: 3s\n      retries: 5\n\nvolumes:\n  pgdata:\n"
+        "services:\n  app:\n    build: .\n    ports:\n      - 8080:8080\n    env_file: .env\n    restart: unless-stopped\n    depends_on:\n      postgres:\n        condition: service_healthy\n      redis:\n        condition: service_healthy\n\n  postgres:\n    image: postgres:16-alpine\n    environment:\n      POSTGRES_USER: user\n      POSTGRES_PASSWORD: CHANGE_ME\n      POSTGRES_DB: {name}\n    ports:\n      - 5432:5432\n    volumes:\n      - pgdata:/var/lib/postgresql/data\n    healthcheck:\n      test: [\"CMD-SHELL\", \"pg_isready -U user -d {name}\"]\n      interval: 5s\n      timeout: 5s\n      retries: 5\n\n  redis:\n    image: redis:7-alpine\n    ports:\n      - 6379:6379\n    healthcheck:\n      test: [\"CMD\", \"redis-cli\", \"ping\"]\n      interval: 5s\n      timeout: 3s\n      retries: 5\n\nvolumes:\n  pgdata:\n"
     )
 }
 
@@ -347,7 +347,7 @@ fn rust_toolchain() -> String {
 fn readme(name: &str) -> String {
     let version = env!("CARGO_PKG_VERSION");
     format!(
-        "# {name}\n\nBuilt with [Ironic](https://github.com/ironic-org/ironic) v{version}.\n\n## Quick start\n\n```bash\n# Install Ironic CLI\ncargo install ironic\n\n# Run with hot reload\nironic dev\n\n# Or run directly\ncargo run\n```\n\nOpen http://localhost:3000 in your browser.\n\n## Commands\n\n| Task | Command |\n|------|--------|\n| Start dev server | `make dev` |\n| Run tests | `make test` |\n| Build | `make build` |\n| Format | `make fmt` |\n| Lint | `make clippy` |\n\n## Docker\n\n```bash\nmake docker-up    # Start app + postgres + redis\nmake docker-down  # Stop everything\nmake docker-build # Build image only\n```\n\n## Endpoints\n\n| Path | Description |\n|------|-------------|\n| `GET /` | Welcome JSON |\n| `GET /health` | Health check |\n| `GET /example` | Example CRUD |\n\n## Environment\n\nCopy `.env.example` to `.env` and adjust values.\n"
+        "# {name}\n\nBuilt with [Ironic](https://github.com/ironic-org/ironic) v{version}.\n\n## Quick start\n\n```bash\n# Install Ironic CLI\ncargo install ironic\n\n# Run with hot reload\nironic dev\n\n# Or run directly\ncargo run\n```\n\nOpen http://localhost:8080 in your browser.\n\n## Commands\n\n| Task | Command |\n|------|--------|\n| Start dev server | `make dev` |\n| Run tests | `make test` |\n| Build | `make build` |\n| Format | `make fmt` |\n| Lint | `make clippy` |\n\n## Docker\n\n```bash\nmake docker-up    # Start app + postgres + redis\nmake docker-down  # Stop everything\nmake docker-build # Build image only\n```\n\n## Endpoints\n\n| Path | Description |\n|------|-------------|\n| `GET /` | Welcome JSON |\n| `GET /health` | Health check |\n| `GET /docs` | Swagger UI |\n| `GET /example` | Example CRUD |\n\n## Environment\n\nCopy `.env.example` to `.env` and adjust values.\n"
     )
 }
 

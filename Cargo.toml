@@ -39,7 +39,7 @@ include = [
 ]
 
 [features]
-default = ["hot-reload"]
+default = ["hot-reload", "openapi", "logging"]
 database = ["sqlx", "seaorm", "diesel", "mongodb", "redis"]
 sqlx = ["dep:sqlx"]
 sqlx-postgres = ["sqlx", "sqlx/postgres"]
@@ -96,6 +96,8 @@ validation = ["dep:garde"]
 cron = ["dep:cron", "dep:chrono"]
 custom-decorators = []
 backtrace = []
+openapi = []
+logging = ["dep:chrono", "dep:tracing-subscriber"]
 hot-reload = ["dep:notify"]
 transport-redis = ["dep:redis"]
 transport-rabbitmq = ["dep:lapin"]
@@ -124,6 +126,7 @@ path = "crates/ironic-cli/tests/cli.rs"
 [[test]]
 name = "openapi"
 path = "crates/ironic-openapi/tests/openapi.rs"
+required-features = ["openapi"]
 
 [[test]]
 name = "testing"

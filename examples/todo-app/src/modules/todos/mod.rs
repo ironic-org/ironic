@@ -1,10 +1,10 @@
 use ironic::prelude::*;
 
 pub mod controller;
-pub mod repositories;
-pub mod services;
 pub mod dto;
 pub mod entities;
+pub mod repositories;
+pub mod services;
 
 #[cfg(test)]
 mod tests;

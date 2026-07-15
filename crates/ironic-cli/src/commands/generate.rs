@@ -13,9 +13,7 @@ pub(crate) fn execute(arguments: GenerateArgs, output: &mut impl Write) -> Resul
         Generator::Module(arguments) => generators::generate_module(&root, &arguments.name),
         Generator::Controller(arguments) => generators::generate_controller(&root, &arguments.name),
         Generator::Service(arguments) => generators::generate_service(&root, &arguments.name),
-        Generator::Repository(arguments) => {
-            generators::generate_repository(&root, &arguments.name)
-        }
+        Generator::Repository(arguments) => generators::generate_repository(&root, &arguments.name),
         Generator::Resource(arguments) => generators::generate_resource(&root, &arguments.name),
         Generator::Decorator(arguments) => generators::generate_decorator(&root, &arguments.name),
         Generator::Filter(arguments) => generators::generate_filter(&root, &arguments.name),

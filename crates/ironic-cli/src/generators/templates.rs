@@ -23,7 +23,13 @@ pub(crate) fn controller(names: &Names) -> String {
 pub(crate) fn resource_module(names: &Names) -> String {
     format!(
         "use ironic::prelude::*;\n\npub mod controller;\npub mod repositories;\npub mod services;\npub mod dto;\npub mod entities;\n\n#[cfg(test)]\nmod tests;\n\npub use controller::{}Controller;\npub use repositories::{}Repository;\npub use services::{}Service;\n\n#[derive(Module)]\n#[module(\n    providers = [{}Repository, {}Service],\n    controllers = [{}Controller],\n)]\npub struct {}Module;\n",
-        names.pascal, names.pascal, names.pascal, names.pascal, names.pascal, names.pascal, names.pascal
+        names.pascal,
+        names.pascal,
+        names.pascal,
+        names.pascal,
+        names.pascal,
+        names.pascal,
+        names.pascal
     )
 }
 

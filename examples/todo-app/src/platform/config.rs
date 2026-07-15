@@ -3,9 +3,7 @@ pub fn env(key: &str) -> Option<String> {
 }
 
 pub fn env_parsed<T: std::str::FromStr>(key: &str, default: T) -> T {
-    env(key)
-        .and_then(|v| v.parse().ok())
-        .unwrap_or(default)
+    env(key).and_then(|v| v.parse().ok()).unwrap_or(default)
 }
 
 pub fn env_json_array(key: &str) -> Vec<String> {

@@ -7,7 +7,10 @@ fn create_todo_dto_validates_title() {
         title: "".into(),
         description: None,
     };
-    assert!(dto.validate().is_err(), "empty title should fail validation");
+    assert!(
+        dto.validate().is_err(),
+        "empty title should fail validation"
+    );
 }
 
 #[test]

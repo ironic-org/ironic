@@ -1,9 +1,9 @@
-use std::sync::Arc;
-use uuid::Uuid;
-use ironic::prelude::*;
 use super::super::services::TodoService;
 use crate::modules::todos::dto::{CreateTodoDto, UpdateTodoDto};
 use crate::modules::todos::entities::Todo;
+use ironic::prelude::*;
+use std::sync::Arc;
+use uuid::Uuid;
 
 #[controller("/api/todos")]
 #[derive(Injectable)]
@@ -18,7 +18,10 @@ impl TodosController {
         &self,
         #[query] include_completed: Option<bool>,
     ) -> Result<Json<Vec<Todo>>, HttpError> {
-        let todos = self.service.list(include_completed.unwrap_or(false)).await?;
+        let todos = self
+            .service
+            .list(include_completed.unwrap_or(false))
+            .await?;
         Ok(Json(todos))
     }
 

@@ -1,10 +1,10 @@
-use std::sync::Arc;
-use uuid::Uuid;
-use ironic::prelude::*;
-use tracing::instrument;
 use crate::modules::todos::dto::{CreateTodoDto, UpdateTodoDto};
 use crate::modules::todos::entities::Todo;
 use crate::modules::todos::repositories::TodoRepository;
+use ironic::prelude::*;
+use std::sync::Arc;
+use tracing::instrument;
+use uuid::Uuid;
 
 #[derive(Injectable)]
 pub struct TodoService {
@@ -36,7 +36,9 @@ impl TodoService {
         let title = dto.title.unwrap_or(current.title);
         let description = dto.description.or(current.description);
         let completed = dto.completed.unwrap_or(current.completed);
-        self.repository.update(id, &title, &description, completed).await
+        self.repository
+            .update(id, &title, &description, completed)
+            .await
     }
 
     #[instrument(skip(self))]
@@ -46,7 +48,10 @@ impl TodoService {
             tracing::info!(todo_id = %id, "todo deleted");
             Ok(())
         } else {
-            Err(HttpError::not_found("TODO_NOT_FOUND", format!("Todo {id} not found")))
+            Err(HttpError::not_found(
+                "TODO_NOT_FOUND",
+                format!("Todo {id} not found"),
+            ))
         }
     }
 

@@ -78,7 +78,7 @@ async fn lifecycle_create_update_toggle_delete() {
     assert_eq!(created["completed"], false);
 
     let updated = a
-        .put(&format!("/api/todos/{id}"))
+        .put(format!("/api/todos/{id}"))
         .json(&json!({"title": "Master Ironic"}))
         .send()
         .await
@@ -87,14 +87,14 @@ async fn lifecycle_create_update_toggle_delete() {
     assert_eq!(updated["title"], "Master Ironic");
 
     let toggled = a
-        .post(&format!("/api/todos/{id}/toggle"))
+        .post(format!("/api/todos/{id}/toggle"))
         .send()
         .await
         .json::<serde_json::Value>()
         .unwrap();
     assert_eq!(toggled["completed"], true);
 
-    let del_resp = a.delete(&format!("/api/todos/{id}")).send().await;
+    let del_resp = a.delete(format!("/api/todos/{id}")).send().await;
     assert_eq!(del_resp.status(), HttpStatus::OK);
 
     a.shutdown().await.unwrap();

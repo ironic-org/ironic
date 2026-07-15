@@ -1,6 +1,6 @@
-use uuid::Uuid;
-use ironic::prelude::*;
 use crate::modules::todos::entities::Todo;
+use ironic::prelude::*;
+use uuid::Uuid;
 
 fn db() -> &'static sqlx::PgPool {
     crate::platform::database::db()
@@ -40,7 +40,11 @@ impl TodoRepository {
             })
     }
 
-    pub async fn create(&self, title: &str, description: &Option<String>) -> Result<Todo, HttpError> {
+    pub async fn create(
+        &self,
+        title: &str,
+        description: &Option<String>,
+    ) -> Result<Todo, HttpError> {
         sqlx::query_as::<_, Todo>(
             "INSERT INTO todos (title, description) VALUES ($1, $2) RETURNING *",
         )

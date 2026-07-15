@@ -43,7 +43,7 @@ Other options:
 
 ### 2. Set `DATABASE_URL` in `.env`
 
-```env
+```bash
 # Uncomment and set your connection string
 DATABASE_URL=postgres://user:password@localhost:5432/my_database
 ```

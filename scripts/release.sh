@@ -248,7 +248,10 @@ BLOG_DIR="$ROOT/docs/content/blog"
 BLOG_FILE="$BLOG_DIR/v$NEW.md"
 BLOG_INDEX="$ROOT/docs/src/pages/BlogIndex.tsx"
 RELEASES_INDEX="$ROOT/docs/content/docs/releases/index.md"
-RELEASES_V="$ROOT/docs/content/docs/releases/v0.3.x/index.md"
+# Derive the major.minor series directory (e.g. v0.4.x from 0.4.1)
+MAJOR_MINOR=$(echo "$NEW" | sed -E 's/^([0-9]+\.[0-9]+)\..*/\1/')
+RELEASES_SERIES_DIR="$ROOT/docs/content/docs/releases/v${MAJOR_MINOR}.x"
+RELEASES_V="$RELEASES_SERIES_DIR/index.md"
 
 # Format the changelog sections for the blog post
 format_blog_section() {
@@ -328,9 +331,9 @@ else
             sed -i "s/^## Current version: v[0-9.]*$/## Current version: v$NEW/" "$RELEASES_INDEX"
         fi
     fi
-    # Add row to version table
+    # Add row to version table (insert before first existing version row)
     TABLE_INSERT="| [v$NEW](/blog/v$NEW) | $TODAY | $SUMMARY |"
-    RELEASES_TABLE_LINE=$(grep -n "| v0.3.0" "$RELEASES_INDEX" | head -1 | cut -d: -f1 || true)
+    RELEASES_TABLE_LINE=$(grep -n "| v" "$RELEASES_INDEX" | head -1 | cut -d: -f1 || true)
     if [[ -n "$RELEASES_TABLE_LINE" ]]; then
         {
             head -n "$((RELEASES_TABLE_LINE - 1))" "$RELEASES_INDEX"
@@ -353,9 +356,63 @@ format_date() {
 
 RELEASE_DATE=$(format_date "$TODAY")
 
-# Update releases/v0.3.x/index.md — prepend new version section, skip if exists
+# Create releases series directory if it doesn't exist (e.g. v0.4.x/)
+# When a major/minor bump occurs, create the new series file from a template
+if [[ ! -f "$RELEASES_V" ]]; then
+    mkdir -p "$RELEASES_SERIES_DIR"
+    # Find the previous series directory
+    PREV_SERIES=$(find "$ROOT/docs/content/docs/releases" -maxdepth 1 -type d -name 'v*.x' \
+        | sed 's/.*\/v\([0-9.]*\).x/\1/' | sort -t. -k1,1n -k2,2n | tail -1)
+    # Mark the previous series as no longer current (e.g. "Current Stable Series" → "Stable Series")
+    if [[ -n "$PREV_SERIES" ]]; then
+        PREV_FILE="$ROOT/docs/content/docs/releases/v${PREV_SERIES}.x/index.md"
+        if [[ -f "$PREV_FILE" ]]; then
+            if [[ "$(uname)" == "Darwin" ]]; then
+                sed -i '' 's/— Current Stable Series$/— Stable Series (Legacy)/' "$PREV_FILE"
+                sed -i '' 's/stable series\.$/stable series (legacy)./' "$PREV_FILE"
+            else
+                sed -i 's/— Current Stable Series$/— Stable Series (Legacy)/' "$PREV_FILE"
+                sed -i 's/stable series\.$/stable series (legacy)./' "$PREV_FILE"
+            fi
+            echo -e "  ${GREEN}✓${NC} v${PREV_SERIES}.x marked as legacy"
+        fi
+    fi
+    {
+        echo "---"
+        echo "title: v${MAJOR_MINOR}.x"
+        echo "description: Complete changelog and release notes for the Ironic v${MAJOR_MINOR}.x stable series."
+        echo "---"
+        echo ""
+        echo "# v${MAJOR_MINOR}.x — Current Stable Series"
+        echo ""
+        echo "All versions in the v${MAJOR_MINOR}.x series. Visit the [Blog](/blog) for detailed release announcements."
+        echo ""
+        echo "---"
+        echo ""
+    } > "$RELEASES_V"
+    echo -e "  ${GREEN}✓${NC} created $RELEASES_V with new series"
+    # Append the last entry from the previous series as a reference point
+    if [[ -n "$PREV_SERIES" ]]; then
+        PREV_FILE="$ROOT/docs/content/docs/releases/v${PREV_SERIES}.x/index.md"
+        PREV_FIRST_VER=$(grep -E "^## v" "$PREV_FILE" | head -1 | sed 's/^## //; s/ —.*//' || true)
+        if [[ -n "$PREV_FIRST_VER" ]]; then
+            {
+                echo ""
+                echo "## v$PREV_FIRST_VER — Legacy"
+                echo ""
+                echo "---"
+                echo ""
+            } >> "$RELEASES_V"
+        fi
+    fi
+fi
+
+# Find the first existing version entry to use as the insertion anchor
+RELEASES_V_ANCHOR=$(grep -E "^## v" "$RELEASES_V" | head -1 | sed 's/^## //; s/ —.*//' || true)
+
+# Update releases series index — prepend new version section, skip if exists
 if grep -q "^## v$NEW — " "$RELEASES_V" 2>/dev/null; then
-    echo -e "  ${CYAN}!${NC} releases/v0.3.x/index.md already has v$NEW — skipping"
+    echo -e "  ${CYAN}!${NC} $(basename "$RELEASES_V") already has v$NEW — skipping"
 else
     RELEASES_V_INSERT="## v$NEW — $RELEASE_DATE
 $BLOG_BODY
@@ -363,14 +420,24 @@ $BLOG_BODY
 ---
 
 "
-    RELEASES_V_HEADER=$(grep -n "^## v0.3.8" "$RELEASES_V" | head -1 | cut -d: -f1 || true)
-    if [[ -n "$RELEASES_V_HEADER" ]]; then
+    if [[ -n "$RELEASES_V_ANCHOR" ]]; then
+        ANCHOR_LINE=$(grep -n "^## v$RELEASES_V_ANCHOR" "$RELEASES_V" | head -1 | cut -d: -f1 || true)
+    else
+        # No version entries yet — anchor after the first --- separator
+        ANCHOR_LINE=$(grep -n "^---$" "$RELEASES_V" | head -1 | cut -d: -f1 || true)
+        if [[ -n "$ANCHOR_LINE" ]]; then
+            ANCHOR_LINE=$((ANCHOR_LINE + 1))
+        else
+            ANCHOR_LINE=1
+        fi
+    fi
+    if [[ -n "$ANCHOR_LINE" ]]; then
         {
-            head -n "$((RELEASES_V_HEADER - 1))" "$RELEASES_V"
+            head -n "$((ANCHOR_LINE - 1))" "$RELEASES_V"
             echo "$RELEASES_V_INSERT"
-            tail -n +"$RELEASES_V_HEADER" "$RELEASES_V"
+            tail -n +"$ANCHOR_LINE" "$RELEASES_V"
         } > "$RELEASES_V.tmp" && mv "$RELEASES_V.tmp" "$RELEASES_V"
-        echo -e "  ${GREEN}✓${NC} releases/v0.3.x/index.md updated"
+        echo -e "  ${GREEN}✓${NC} releases/v${MAJOR_MINOR}.x/index.md updated"
     fi
 fi
 
@@ -411,7 +478,7 @@ git add Cargo.toml Cargo.lock CHANGELOG.md \
     docs/content/blog/v$NEW.md \
     docs/src/pages/BlogIndex.tsx \
     docs/content/docs/releases/index.md \
-    docs/content/docs/releases/v0.3.x/index.md 2>/dev/null || true
+    "$RELEASES_V" 2>/dev/null || true
 
 if ! git diff --cached --quiet; then
     git commit -m "chore: release v$NEW"

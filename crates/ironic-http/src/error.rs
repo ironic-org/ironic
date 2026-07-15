@@ -1,3 +1,4 @@
+#[cfg(feature = "backtrace")]
 use std::sync::Arc;
 use std::{error::Error, fmt};
 

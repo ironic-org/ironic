@@ -22,14 +22,14 @@ pub(crate) fn controller(names: &Names) -> String {
 
 pub(crate) fn resource_module(names: &Names) -> String {
     format!(
-        "use ironic::prelude::*;\n\npub mod controller;\npub mod services;\npub mod dto;\npub mod entities;\n\n#[cfg(test)]\nmod tests;\n\npub use controller::{}Controller;\npub use services::{}Service;\n\n#[derive(Module)]\n#[module(\n    providers = [{}Service],\n    controllers = [{}Controller],\n)]\npub struct {}Module;\n",
-        names.pascal, names.pascal, names.pascal, names.pascal, names.pascal
+        "use ironic::prelude::*;\n\npub mod controller;\npub mod repositories;\npub mod services;\npub mod dto;\npub mod entities;\n\n#[cfg(test)]\nmod tests;\n\npub use controller::{}Controller;\npub use repositories::{}Repository;\npub use services::{}Service;\n\n#[derive(Module)]\n#[module(\n    providers = [{}Repository, {}Service],\n    controllers = [{}Controller],\n)]\npub struct {}Module;\n",
+        names.pascal, names.pascal, names.pascal, names.pascal, names.pascal, names.pascal, names.pascal
     )
 }
 
 pub(crate) fn resource_controller(names: &Names) -> String {
     format!(
-        "use std::sync::Arc;\n\nuse ironic::prelude::*;\n\nuse super::super::services::{}Service;\n\n#[controller(\"/{}\")]\n#[derive(Injectable)]\npub struct {}Controller {{\n    service: Arc<{}Service>,\n}}\n\n#[routes]\nimpl {}Controller {{\n    #[get(\"/\")]\n    #[allow(clippy::unused_async)]\n    async fn list(&self) -> Result<String, HttpError> {{\n        Ok(self.service.name().to_owned())\n    }}\n}}\n",
+        "use std::sync::Arc;\n\nuse ironic::prelude::*;\n\nuse super::super::services::{}Service;\n\n#[controller(\"/{}\")]\n#[derive(Injectable)]\npub struct {}Controller {{\n    service: Arc<{}Service>,\n}}\n\n#[routes]\nimpl {}Controller {{\n    #[get(\"/\")]\n    async fn list(&self) -> Result<String, HttpError> {{\n        Ok(self.service.name().to_owned())\n    }}\n}}\n",
         names.pascal, names.kebab, names.pascal, names.pascal, names.pascal
     )
 }
@@ -135,6 +135,20 @@ pub(crate) fn pipe(names: &Names) -> String {
 pub(crate) fn provider(names: &Names) -> String {
     format!(
         "use ironic::prelude::*;\n\n#[derive(Injectable)]\npub struct {0}Provider;\n\nimpl {0}Provider {{\n    #[must_use]\n    pub const fn name(&self) -> &'static str {{\n        \"{1}\"\n    }}\n}}\n",
+        names.pascal, names.kebab
+    )
+}
+
+pub(crate) fn repository_mod(names: &Names) -> String {
+    format!(
+        "pub mod {0}_repository;\npub use {0}_repository::{1}Repository;\n",
+        names.snake, names.pascal
+    )
+}
+
+pub(crate) fn repository(names: &Names) -> String {
+    format!(
+        "use ironic::prelude::*;\n\n#[derive(Injectable)]\npub struct {0}Repository;\n\nimpl {0}Repository {{\n    #[must_use]\n    pub const fn name(&self) -> &'static str {{\n        \"{1}\"\n    }}\n}}\n",
         names.pascal, names.kebab
     )
 }

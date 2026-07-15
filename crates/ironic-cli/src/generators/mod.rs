@@ -93,6 +93,40 @@ pub fn generate_controller(root: &Path, name: &str) -> Result<GenerationReport, 
     Ok(report)
 }
 
+/// Generates a repository inside a same-named module.
+///
+/// # Errors
+///
+/// Returns [`CliError`] for invalid names, conflicts, or unsafe owned-module edits.
+pub fn generate_repository(root: &Path, name: &str) -> Result<GenerationReport, CliError> {
+    let names = Names::parse(name)?;
+    let mut report = generate_module(root, name)?;
+    let module_dir = root.join("src/modules").join(&names.snake);
+    let repos_dir = module_dir.join("repositories");
+    let path = repos_dir.join(format!("{}_repository.rs", names.snake));
+    record(
+        &mut report,
+        &path,
+        write_generated(&path, &templates::repository(&names))?,
+    );
+    write_generated(
+        &repos_dir.join("mod.rs"),
+        &templates::repository_mod(&names),
+    )?;
+    ensure_items(
+        &module_dir.join("mod.rs"),
+        &[
+            "pub mod repositories;",
+            &format!("pub use repositories::{}Repository;", names.pascal),
+        ],
+    )?;
+    report.manual_instructions.push(format!(
+        "add `{}Repository` to `providers = [...]` on `{}Module`",
+        names.pascal, names.pascal
+    ));
+    Ok(report)
+}
+
 /// Generates a dependency-injectable service inside a same-named module.
 ///
 /// # Errors
@@ -140,6 +174,9 @@ pub fn generate_service(root: &Path, name: &str) -> Result<GenerationReport, Cli
 /// controller/
 ///   mod.rs
 ///   {name}_controller.rs
+/// repositories/
+///   mod.rs
+///   {name}_repository.rs
 /// services/
 ///   mod.rs
 ///   {name}_service.rs
@@ -159,6 +196,7 @@ pub fn generate_resource(root: &Path, name: &str) -> Result<GenerationReport, Cl
     let names = Names::parse(name)?;
     let module_dir = root.join("src/modules").join(&names.snake);
     let controller_dir = module_dir.join("controller");
+    let repositories_dir = module_dir.join("repositories");
     let services_dir = module_dir.join("services");
     let dto_dir = module_dir.join("dto");
     let entities_dir = module_dir.join("entities");
@@ -182,6 +220,14 @@ pub fn generate_resource(root: &Path, name: &str) -> Result<GenerationReport, Cl
         (
             controller_dir.join(format!("{}_controller.rs", names.snake)),
             templates::resource_controller(&names),
+        ),
+        (
+            repositories_dir.join("mod.rs"),
+            templates::repository_mod(&names),
+        ),
+        (
+            repositories_dir.join(format!("{}_repository.rs", names.snake)),
+            templates::repository(&names),
         ),
         (services_dir.join("mod.rs"), templates::services_mod(&names)),
         (

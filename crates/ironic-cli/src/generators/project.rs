@@ -74,6 +74,19 @@ pub fn create(
             destination.join("src/welcome.rs"),
             welcome_source(&names.kebab),
         ),
+        (destination.join("src/platform/mod.rs"), platform_mod()),
+        (
+            destination.join("src/platform/config.rs"),
+            platform_config(),
+        ),
+        (
+            destination.join("src/platform/database.rs"),
+            platform_database(),
+        ),
+        (
+            destination.join("src/platform/telemetry.rs"),
+            platform_telemetry(),
+        ),
         (destination.join("src/modules/mod.rs"), modules_mod()),
         (
             destination.join("src/modules/example/mod.rs"),
@@ -94,6 +107,14 @@ pub fn create(
         (
             destination.join("src/modules/example/services/example_service.rs"),
             example_service(),
+        ),
+        (
+            destination.join("src/modules/example/repositories/mod.rs"),
+            example_repository_mod(),
+        ),
+        (
+            destination.join("src/modules/example/repositories/example_repository.rs"),
+            example_repository(),
         ),
         (
             destination.join("src/modules/example/dto/mod.rs"),
@@ -173,14 +194,14 @@ fn manifest(name: &str, workspace: Option<&Path>) -> String {
         },
     );
     format!(
-        "[package]\nname = \"{name}\"\nversion = \"0.1.0\"\nedition = \"2024\"\nrust-version = \"1.97\"\npublish = false\n\n[dependencies]\nironic = {{ features = [\"security\", \"compression\", \"metrics\", \"validation\"], {dep_spec} }}\nserde = {{ version = \"1\", features = [\"derive\"] }}\nserde_json = \"1\"\ngarde = \"0.23\"\ndotenvy = \"0.15\"\n\n[dev-dependencies]\ntokio = {{ version = \"1\", features = [\"macros\", \"rt\"] }}\n\n# Available features (uncomment to enable):\n# versioning      — URI, header, and media-type API versioning\n# serialization   — role-based field exposure\n# cache           — CacheInterceptor with InMemoryCache\n# scheduling      — Fixed-interval and cron background tasks\n# cron            — Cron expression scheduling\n# realtime        — WebSocket gateways with rooms/broadcasting\n# resilience      — Retry with backoff + circuit breaker\n# telemetry       — Distributed tracing (OTLP)\n# database        — SQLx, SeaORM, Diesel (postgres/mysql/sqlite)\n# auth            — Password hashing, JWT, OAuth2, sessions\n# distributed     — Queues, microservices, CQRS, sagas, gRPC, GraphQL\n# openapi         — Auto-generate OpenAPI schemas + Swagger UI\n",
+        "[package]\nname = \"{name}\"\nversion = \"0.1.0\"\nedition = \"2024\"\nrust-version = \"1.97\"\npublish = false\n\n[dependencies]\nironic = {{ features = [\"security\", \"compression\", \"metrics\", \"validation\"], {dep_spec} }}\nserde = {{ version = \"1\", features = [\"derive\"] }}\nserde_json = \"1\"\ngarde = \"0.23\"\ndotenvy = \"0.15\"\ntracing-subscriber = {{ version = \"0.3\", features = [\"env-filter\"] }}\n\n[dev-dependencies]\ntokio = {{ version = \"1\", features = [\"macros\", \"rt\"] }}\n\n# Available features (uncomment to enable):\n# versioning      — URI, header, and media-type API versioning\n# serialization   — role-based field exposure\n# cache           — CacheInterceptor with InMemoryCache\n# scheduling      — Fixed-interval and cron background tasks\n# cron            — Cron expression scheduling\n# realtime        — WebSocket gateways with rooms/broadcasting\n# resilience      — Retry with backoff + circuit breaker\n# telemetry       — Distributed tracing (OTLP)\n# database        — SQLx, SeaORM, Diesel (postgres/mysql/sqlite)\n# auth            — Password hashing, JWT, OAuth2, sessions\n# distributed     — Queues, microservices, CQRS, sagas, gRPC, GraphQL\n# openapi         — Auto-generate OpenAPI schemas + Swagger UI\n",
     )
 }
 
 fn main_source(name: &str) -> String {
     let version = env!("CARGO_PKG_VERSION");
     format!(
-        "mod app;\nmod modules;\nmod welcome;\n\nuse std::env;\nuse std::time::Duration;\n\nuse ironic::AxumAdapter;\nuse ironic::metrics::{{MetricsLayer, MetricsConfig}};\nuse ironic::prelude::*;\nuse ironic::security::{{\n    CorsConfig, CorsMiddleware,\n    RateLimitMiddleware,\n    SecurityHeadersConfig, SecurityHeadersMiddleware,\n}};\n\nuse app::AppModule;\n\n#[ironic::main]\nasync fn main() {{\n    dotenvy::dotenv().ok();\n    let host = env::var(\"SERVER_HOST\").unwrap_or_else(|_| \"127.0.0.1\".into());\n    let port = env::var(\"SERVER_PORT\").unwrap_or_else(|_| \"3000\".into());\n    let addr = format!(\"{{}}:{{}}\", host, port);\n\n    let cors_origins: Vec<String> = env::var(\"CORS_ORIGINS\")\n        .ok()\n        .and_then(|v| serde_json::from_str(&v).ok())\n        .unwrap_or_default();\n    let rate_limit_max: u64 = env::var(\"RATE_LIMIT_MAX\")\n        .ok()\n        .and_then(|v| v.parse().ok())\n        .unwrap_or(100);\n\n    // Production middleware stack:\n    // SecurityHeaders → RateLimit → CORS → Metrics → Compression → Body Limit → Timeout\n\n    let application = FrameworkApplication::builder()\n        .module(AppModule::definition())\n        .middleware(SecurityHeadersMiddleware::new(SecurityHeadersConfig::default()))\n        .middleware(RateLimitMiddleware::new(rate_limit_max, 60))\n        .middleware(CorsMiddleware::new(CorsConfig::new().allowed_origins(cors_origins)))\n        .platform(\n            AxumAdapter::new()\n                .compression()\n                .request_body_limit(5 * 1024 * 1024)  // 5MB\n                .request_timeout(Duration::from_secs(30))\n                .configure_router(|r| {{\n                    r.layer(MetricsLayer::new(MetricsConfig::default()))\n                }}),\n        )\n        .build()\n        .await\n        .expect(\"application must initialise\");\n\n    println!(\"🚀 {name} → http://{{}} (ironic v{version})\", addr);\n\n    application\n        .listen(&addr)\n        .await\n        .expect(\"application server failed\");\n}}\n"
+        "mod app;\nmod modules;\nmod platform;\nmod welcome;\n\nuse std::time::Duration;\n\nuse ironic::AxumAdapter;\nuse ironic::metrics::{{MetricsLayer, MetricsConfig}};\nuse ironic::prelude::*;\nuse ironic::security::{{\n    CorsConfig, CorsMiddleware,\n    RateLimitMiddleware,\n    SecurityHeadersConfig, SecurityHeadersMiddleware,\n}};\n\nuse app::AppModule;\n\n#[ironic::main]\nasync fn main() {{\n    dotenvy::dotenv().ok();\n    platform::telemetry::init_tracing();\n\n    let addr = format!(\n        \"{{}}:{{}}\",\n        platform::config::env(\"SERVER_HOST\").unwrap_or_else(|| \"127.0.0.1\".into()),\n        platform::config::env(\"SERVER_PORT\").unwrap_or_else(|| \"3000\".into()),\n    );\n    let cors_origins = platform::config::env_json_array(\"CORS_ORIGINS\");\n    let rate_limit_max: u64 = platform::config::env_parsed(\"RATE_LIMIT_MAX\", 100u64);\n\n    let application = FrameworkApplication::builder()\n        .module(AppModule::definition())\n        .middleware(SecurityHeadersMiddleware::new(SecurityHeadersConfig::default()))\n        .middleware(RateLimitMiddleware::new(rate_limit_max, 60))\n        .middleware(CorsMiddleware::new(CorsConfig::new().allowed_origins(cors_origins)))\n        .platform(\n            AxumAdapter::new()\n                .compression()\n                .request_body_limit(5 * 1024 * 1024)\n                .request_timeout(Duration::from_secs(30))\n                .configure_router(|r| {{\n                    r.layer(MetricsLayer::new(MetricsConfig::default()))\n                }}),\n        )\n        .build()\n        .await\n        .expect(\"application must initialise\");\n\n    println!(\"🚀 {name} → http://{{}} (ironic v{version})\", addr);\n\n    application\n        .listen(&addr)\n        .await\n        .expect(\"application server failed\");\n}}\n",
     )
 }
 
@@ -208,7 +229,7 @@ fn project_config(name: &str) -> String {
 // ── Example CRUD module ───────────────────────────────────────────────
 
 fn example_module() -> String {
-    "use ironic::prelude::*;\n\npub mod controller;\npub mod services;\npub mod dto;\npub mod entities;\n\n#[cfg(test)]\nmod tests;\n\npub use controller::ExampleController;\npub use services::ExampleService;\n\n#[derive(Module)]\n#[module(providers = [ExampleService], controllers = [ExampleController])]\npub struct ExampleModule;\n".to_owned()
+    "use ironic::prelude::*;\n\npub mod controller;\npub mod repositories;\npub mod services;\npub mod dto;\npub mod entities;\n\n#[cfg(test)]\nmod tests;\n\npub use controller::ExampleController;\npub use repositories::ExampleRepository;\npub use services::ExampleService;\n\n#[derive(Module)]\n#[module(providers = [ExampleRepository, ExampleService], controllers = [ExampleController])]\npub struct ExampleModule;\n".to_owned()
 }
 
 fn example_controller_mod() -> String {
@@ -224,7 +245,7 @@ fn example_service_mod() -> String {
 }
 
 fn example_service() -> String {
-    "use std::collections::HashMap;\nuse std::sync::Mutex;\nuse ironic::prelude::*;\nuse crate::modules::example::dto::{CreateExampleDto, UpdateExampleDto};\nuse crate::modules::example::entities::Example;\n\n#[derive(Injectable)]\npub struct ExampleService;\n\nstatic STORE: std::sync::LazyLock<Mutex<Store>> = std::sync::LazyLock::new(|| Mutex::new(Store { items: HashMap::new(), next_id: 1 }));\n\nstruct Store { items: HashMap<u64, Example>, next_id: u64 }\n\nimpl ExampleService {\n    pub fn list(&self) -> Vec<Example> { STORE.lock().unwrap().items.values().cloned().collect() }\n\n    pub fn find(&self, id: u64) -> Result<Example, HttpError> {\n        STORE.lock().unwrap().items.get(&id).cloned()\n            .ok_or_else(|| HttpError::not_found(\"EXAMPLE_NOT_FOUND\", format!(\"Item {id} not found\")))\n    }\n\n    pub fn create(&self, dto: CreateExampleDto) -> Example {\n        let mut store = STORE.lock().unwrap();\n        let id = store.next_id;\n        store.next_id += 1;\n        let item = Example { id, name: dto.name, description: dto.description.unwrap_or_default() };\n        store.items.insert(id, item.clone());\n        item\n    }\n\n    pub fn update(&self, id: u64, dto: UpdateExampleDto) -> Result<Example, HttpError> {\n        let mut store = STORE.lock().unwrap();\n        let item = store.items.get_mut(&id)\n            .ok_or_else(|| HttpError::not_found(\"EXAMPLE_NOT_FOUND\", format!(\"Item {id} not found\")))?;\n        if let Some(name) = dto.name { item.name = name; }\n        if let Some(desc) = dto.description { item.description = desc; }\n        Ok(item.clone())\n    }\n\n    pub fn delete(&self, id: u64) -> Result<(), HttpError> {\n        STORE.lock().unwrap().items.remove(&id)\n            .map(|_| ())\n            .ok_or_else(|| HttpError::not_found(\"EXAMPLE_NOT_FOUND\", format!(\"Item {id} not found\")))\n    }\n}\n".to_owned()
+    "use std::sync::Arc;\nuse ironic::prelude::*;\nuse crate::modules::example::dto::{CreateExampleDto, UpdateExampleDto};\nuse crate::modules::example::entities::Example;\nuse crate::modules::example::repositories::ExampleRepository;\n\n#[derive(Injectable)]\npub struct ExampleService {\n    pub repository: Arc<ExampleRepository>,\n}\n\nimpl ExampleService {\n    pub fn list(&self) -> Vec<Example> {\n        self.repository.list()\n    }\n\n    pub fn find(&self, id: u64) -> Result<Example, HttpError> {\n        self.repository.find(id)\n    }\n\n    pub fn create(&self, dto: CreateExampleDto) -> Example {\n        self.repository.create(dto.name, dto.description)\n    }\n\n    pub fn update(&self, id: u64, dto: UpdateExampleDto) -> Result<Example, HttpError> {\n        self.repository.update(id, dto.name, dto.description)\n    }\n\n    pub fn delete(&self, id: u64) -> Result<(), HttpError> {\n        self.repository.delete(id)\n    }\n}\n".to_owned()
 }
 
 fn example_dto_mod() -> String {
@@ -252,11 +273,39 @@ fn example_test_mod() -> String {
 }
 
 fn example_test_unit() -> String {
-    "//! Unit tests for `ExampleService`.\n\nuse crate::modules::example::dto::{CreateExampleDto, UpdateExampleDto};\nuse crate::modules::example::services::ExampleService;\n\n#[test]\nfn create_and_find() {\n    let svc = ExampleService;\n    let item = svc.create(CreateExampleDto { name: \"Test\".into(), description: None });\n    assert_eq!(item.name, \"Test\");\n    let found = svc.find(item.id).unwrap();\n    assert_eq!(found.name, \"Test\");\n}\n\n#[test]\nfn update_works() {\n    let svc = ExampleService;\n    let item = svc.create(CreateExampleDto { name: \"Old\".into(), description: None });\n    let updated = svc.update(item.id, UpdateExampleDto { name: Some(\"New\".into()), description: None }).unwrap();\n    assert_eq!(updated.name, \"New\");\n}\n\n#[test]\nfn delete_works() {\n    let svc = ExampleService;\n    let item = svc.create(CreateExampleDto { name: \"Del\".into(), description: None });\n    assert!(svc.delete(item.id).is_ok());\n    assert!(svc.find(item.id).is_err());\n}\n\n#[test]\nfn not_found_error() {\n    let svc = ExampleService;\n    let err = svc.find(999).unwrap_err();\n    assert_eq!(err.status(), ironic::HttpStatus::NOT_FOUND);\n}\n\n#[test]\nfn list_works() {\n    let svc = ExampleService;\n    svc.create(CreateExampleDto { name: \"A\".into(), description: None });\n    svc.create(CreateExampleDto { name: \"B\".into(), description: None });\n    assert!(svc.list().len() >= 2);\n}\n".to_owned()
+    "//! Unit tests for `ExampleService`.\n\nuse std::sync::Arc;\nuse crate::modules::example::dto::{CreateExampleDto, UpdateExampleDto};\nuse crate::modules::example::repositories::ExampleRepository;\nuse crate::modules::example::services::ExampleService;\n\nfn service() -> ExampleService {\n    ExampleService { repository: Arc::new(ExampleRepository) }\n}\n\n#[test]\nfn create_and_find() {\n    let svc = service();\n    let item = svc.create(CreateExampleDto { name: \"Test\".into(), description: None });\n    assert_eq!(item.name, \"Test\");\n    let found = svc.find(item.id).unwrap();\n    assert_eq!(found.name, \"Test\");\n}\n\n#[test]\nfn update_works() {\n    let svc = service();\n    let item = svc.create(CreateExampleDto { name: \"Old\".into(), description: None });\n    let updated = svc.update(item.id, UpdateExampleDto { name: Some(\"New\".into()), description: None }).unwrap();\n    assert_eq!(updated.name, \"New\");\n}\n\n#[test]\nfn delete_works() {\n    let svc = service();\n    let item = svc.create(CreateExampleDto { name: \"Del\".into(), description: None });\n    assert!(svc.delete(item.id).is_ok());\n    assert!(svc.find(item.id).is_err());\n}\n\n#[test]\nfn not_found_error() {\n    let svc = service();\n    let err = svc.find(999).unwrap_err();\n    assert_eq!(err.status(), ironic::HttpStatus::NOT_FOUND);\n}\n\n#[test]\nfn list_works() {\n    let svc = service();\n    svc.create(CreateExampleDto { name: \"A\".into(), description: None });\n    svc.create(CreateExampleDto { name: \"B\".into(), description: None });\n    assert!(svc.list().len() >= 2);\n}\n".to_owned()
 }
 
 fn example_test_integration() -> String {
     "//! Integration tests for Example — full HTTP request/response cycles.\n\nuse ironic::{HttpStatus, TestApplication};\nuse serde_json::json;\n\nuse super::super::*;\n\nasync fn app() -> TestApplication {\n    TestApplication::new::<ExampleModule>().await.expect(\"test app must initialise\")\n}\n\n#[tokio::test]\nasync fn list_returns_ok() {\n    let a = app().await;\n    assert_eq!(a.get(\"/example\").send().await.status(), HttpStatus::OK);\n    a.shutdown().await.unwrap();\n}\n\n#[tokio::test]\nasync fn create_and_get() {\n    let a = app().await;\n    let resp = a.post(\"/example\").json(&json!({\"name\": \"Test\", \"description\": null})).send().await;\n    assert_eq!(resp.status(), HttpStatus::OK);\n    let id = resp.json::<serde_json::Value>().unwrap()[\"id\"].as_u64().unwrap();\n    assert_eq!(a.get(&format!(\"/example/{id}\")).send().await.status(), HttpStatus::OK);\n    a.shutdown().await.unwrap();\n}\n\n#[tokio::test]\nasync fn update_works() {\n    let a = app().await;\n    let id = a.post(\"/example\").json(&json!({\"name\": \"Old\"})).send().await\n        .json::<serde_json::Value>().unwrap()[\"id\"].as_u64().unwrap();\n    let resp = a.put(&format!(\"/example/{id}\")).json(&json!({\"name\": \"New\"})).send().await;\n    assert_eq!(resp.json::<serde_json::Value>().unwrap()[\"name\"], \"New\");\n    a.shutdown().await.unwrap();\n}\n\n#[tokio::test]\nasync fn delete_works() {\n    let a = app().await;\n    let id = a.post(\"/example\").json(&json!({\"name\": \"Del\"})).send().await\n        .json::<serde_json::Value>().unwrap()[\"id\"].as_u64().unwrap();\n    a.delete(&format!(\"/example/{id}\")).send().await;\n    assert_eq!(a.get(&format!(\"/example/{id}\")).send().await.status(), HttpStatus::NOT_FOUND);\n    a.shutdown().await.unwrap();\n}\n\n#[tokio::test]\nasync fn not_found_returns_404() {\n    let a = app().await;\n    a.get(\"/example/999\").send().await.assert_status(404);\n    a.shutdown().await.unwrap();\n}\n\n// To enable request body validation, wire ValidationPipe in your controller:\n//   #[controller(\"/example\")]\n//   #[pipe(ValidationPipe)]\n// The CreateExampleDto already has garde validation rules defined.\n".to_owned()
+}
+
+// ── Platform templates ────────────────────────────────────────────────
+
+fn platform_mod() -> String {
+    "pub mod config;\npub mod telemetry;\n// pub mod database;  // uncomment when using the `database` feature\n".to_owned()
+}
+
+fn platform_config() -> String {
+    "use std::env;\n\npub fn env(key: &str) -> Option<String> {\n    env::var(key).ok()\n}\n\npub fn env_parsed<T: std::str::FromStr>(key: &str, default: T) -> T {\n    env::var(key).ok()\n        .and_then(|v| v.parse().ok())\n        .unwrap_or(default)\n}\n\npub fn env_json_array(key: &str) -> Vec<String> {\n    env::var(key)\n        .ok()\n        .and_then(|v| serde_json::from_str(&v).ok())\n        .unwrap_or_default()\n}\n\npub fn server_address() -> String {\n    let host = env(\"SERVER_HOST\").unwrap_or_else(|| \"127.0.0.1\".into());\n    let port = env(\"SERVER_PORT\").unwrap_or_else(|| \"3000\".into());\n    format!(\"{host}:{port}\")\n}\n".to_owned()
+}
+
+fn platform_database() -> String {
+    "use std::sync::OnceLock;\n\npub static DB_POOL: OnceLock<sqlx::PgPool> = OnceLock::new();\n\npub fn db() -> &'static sqlx::PgPool {\n    DB_POOL\n        .get()\n        .expect(\"DATABASE_URL must be set and pool initialized\")\n}\n\n#[allow(dead_code)]\npub async fn build_pool() -> sqlx::PgPool {\n    let url = dotenvy::var(\"DATABASE_URL\").expect(\"DATABASE_URL must be set\");\n\n    let pool = sqlx::postgres::PgPoolOptions::new()\n        .max_connections(super::config::env(\"DB_POOL_SIZE\")\n            .and_then(|v| v.parse().ok())\n            .unwrap_or(10))\n        .connect(&url)\n        .await\n        .expect(\"failed to connect to database\");\n\n    sqlx::migrate::Migrator::new(std::path::Path::new(\"./migrations\"))\n        .await\n        .expect(\"invalid migrations directory\")\n        .run(&pool)\n        .await\n        .expect(\"failed to run migrations\");\n\n    tracing::info!(\"database pool ready (max: {})\", pool.size());\n    pool\n}\n".to_owned()
+}
+
+fn platform_telemetry() -> String {
+    "use tracing_subscriber::EnvFilter;\n\npub fn init_tracing() {\n    tracing_subscriber::fmt()\n        .with_env_filter(\n            EnvFilter::try_from_default_env()\n                .unwrap_or_else(|_| EnvFilter::new(\"info\")),\n        )\n        .with_target(true)\n        .with_thread_ids(true)\n        .with_file(true)\n        .with_line_number(true)\n        .compact()\n        .init();\n}\n".to_owned()
+}
+
+// ── Repository templates ──────────────────────────────────────────────
+
+fn example_repository_mod() -> String {
+    "pub mod example_repository;\npub use example_repository::ExampleRepository;\n".to_owned()
+}
+
+fn example_repository() -> String {
+    "use std::collections::HashMap;\nuse std::sync::Mutex;\nuse ironic::prelude::*;\nuse crate::modules::example::entities::Example;\n\nstatic STORE: std::sync::LazyLock<Mutex<Store>> = std::sync::LazyLock::new(|| Mutex::new(Store { items: HashMap::new(), next_id: 1 }));\n\nstruct Store { items: HashMap<u64, Example>, next_id: u64 }\n\n#[derive(Injectable)]\npub struct ExampleRepository;\n\nimpl ExampleRepository {\n    pub fn list(&self) -> Vec<Example> {\n        STORE.lock().unwrap().items.values().cloned().collect()\n    }\n\n    pub fn find(&self, id: u64) -> Result<Example, HttpError> {\n        STORE.lock().unwrap().items.get(&id).cloned()\n            .ok_or_else(|| HttpError::not_found(\"EXAMPLE_NOT_FOUND\", format!(\"Item {id} not found\")))\n    }\n\n    pub fn create(&self, name: String, description: Option<String>) -> Example {\n        let mut store = STORE.lock().unwrap();\n        let id = store.next_id;\n        store.next_id += 1;\n        let item = Example { id, name, description: description.unwrap_or_default() };\n        store.items.insert(id, item.clone());\n        item\n    }\n\n    pub fn update(&self, id: u64, name: Option<String>, description: Option<String>) -> Result<Example, HttpError> {\n        let mut store = STORE.lock().unwrap();\n        let item = store.items.get_mut(&id)\n            .ok_or_else(|| HttpError::not_found(\"EXAMPLE_NOT_FOUND\", format!(\"Item {id} not found\")))?;\n        if let Some(name) = name { item.name = name; }\n        if let Some(desc) = description { item.description = desc; }\n        Ok(item.clone())\n    }\n\n    pub fn delete(&self, id: u64) -> Result<(), HttpError> {\n        STORE.lock().unwrap().items.remove(&id)\n            .map(|_| ())\n            .ok_or_else(|| HttpError::not_found(\"EXAMPLE_NOT_FOUND\", format!(\"Item {id} not found\")))\n    }\n}\n".to_owned()
 }
 
 // ── Infrastructure templates ──────────────────────────────────────────

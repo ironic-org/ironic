@@ -86,6 +86,9 @@ pub enum Generator {
     /// Generates a service.
     #[command(alias = "s")]
     Service(NameArgs),
+    /// Generates a repository.
+    #[command(alias = "r")]
+    Repository(NameArgs),
     /// Generates a module, service, and controller vertical slice.
     #[command(alias = "res")]
     Resource(NameArgs),

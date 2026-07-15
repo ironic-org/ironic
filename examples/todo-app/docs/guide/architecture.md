@@ -18,6 +18,9 @@ src/
         ├── controller/
         │   ├── mod.rs
         │   └── todos_controller.rs   # HTTP handlers
+        ├── repositories/
+        │   ├── mod.rs
+        │   └── todo_repository.rs   # Data access (SQL)
         ├── services/
         │   ├── mod.rs
         │   └── todo_service.rs       # Business logic
@@ -60,6 +63,9 @@ TodosController
 TodoService (business logic)
     │
     ▼
+TodoRepository (data access)
+    │
+    ▼
 SQLx → PostgreSQL
     │
     ▼
@@ -68,8 +74,9 @@ JSON Response
 
 ## Module system
 
-Modules declare providers (services) and controllers. The DI container auto-wires dependencies:
+Modules declare providers (repositories + services) and controllers. The DI container auto-wires dependencies:
 
-- `TodosModule` registers `TodoService` and `TodosController`
-- `Arc<TodoService>` is injected into `TodosController` by the DI container
+- `TodosModule` registers `TodoRepository`, `TodoService`, and `TodosController`
+- `Arc<TodoRepository>` is injected into `TodoService`
+- `Arc<TodoService>` is injected into `TodosController`
 - The database pool is accessed globally via `OnceLock` (no DI registration needed)

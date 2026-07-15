@@ -170,7 +170,7 @@ fn auth_full_files(module_dir: &Path, name: &str) -> Vec<(PathBuf, String)> {
         (d.join("decorators/current_user.rs"), current_user_decorator().into()),
         (d.join("decorators/roles.rs"), roles_decorator().into()),
         (d.join("tests/mod.rs"), tests_mod().into()),
-        (d.join("tests/unit.rs"), unit_tests_full().into()),
+        (d.join("tests/unit.rs"), unit_tests_full()),
         (d.join("tests/integration.rs"), integration_auth_test().into()),
     ]
 }
@@ -211,7 +211,7 @@ fn auth_basic_files(module_dir: &Path) -> Vec<(PathBuf, String)> {
         ),
         (d.join("guards/auth_guard.rs"), auth_guard_basic().into()),
         (d.join("tests/mod.rs"), tests_mod().into()),
-        (d.join("tests/unit.rs"), unit_tests_basic().into()),
+        (d.join("tests/unit.rs"), unit_tests_basic()),
         (
             d.join("tests/integration.rs"),
             integration_auth_basic_test().into(),
@@ -265,7 +265,7 @@ fn auth_jwt_files(module_dir: &Path) -> Vec<(PathBuf, String)> {
             current_user_decorator().into(),
         ),
         (d.join("tests/mod.rs"), tests_mod().into()),
-        (d.join("tests/unit.rs"), unit_tests_jwt().into()),
+        (d.join("tests/unit.rs"), unit_tests_jwt()),
         (
             d.join("tests/integration.rs"),
             integration_auth_jwt_test().into(),

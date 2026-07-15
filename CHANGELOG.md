@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v0.3.5] - 2026-07-15
+
+### Fixed
+- refactor authentication test file structure and update module imports (97720ac)\n
+
+## [v0.3.5] - 2026-07-15
+
+### Fixed
+- refactor authentication test file structure and update module imports (97720ac)\n
+
 ## [v0.3.4] - 2026-07-15
 
 ### Fixed

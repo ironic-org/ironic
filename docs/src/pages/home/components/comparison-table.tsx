@@ -156,8 +156,10 @@ const ComparisonTable = () => {
                                         className={`px-4 py-3 text-fd-muted-foreground leading-relaxed ${
                                             col.key === 'feature'
                                                 ? 'font-medium text-fd-foreground text-xs tracking-wide'
-                                                : 'text-center text-xs'
-                                        } ${col.key === 'ironic' && col.key !== 'feature' ? 'bg-brand/[0.04] font-semibold text-brand' : ''}`}
+                                                : col.key === 'ironic'
+                                                    ? 'text-center text-xs bg-brand/[0.04] font-semibold text-brand'
+                                                    : 'text-center text-xs'
+                                        }`}
                                     >
                                         {row[col.key]}
                                     </td>

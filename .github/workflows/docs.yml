@@ -5,6 +5,14 @@ on:
     branches: [main]
     paths:
       - 'docs/**'
+      - 'README.md'
+      - 'CHANGELOG.md'
+      - '.github/workflows/docs.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'docs/**'
+      - '.github/workflows/docs.yml'
   workflow_dispatch:
 
 permissions:
@@ -40,3 +48,4 @@ jobs:
         with:
           path: docs/dist
       - uses: actions/deploy-pages@v4
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'

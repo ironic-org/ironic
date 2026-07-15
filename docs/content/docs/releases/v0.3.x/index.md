@@ -42,6 +42,18 @@ All versions in the v0.3.x series. Visit the [Blog](/blog) for detailed release 
 ---
 
 
+## v0.4.1 — July 15, 2026
+
+### Added
+- Enhance production readiness with telemetry, metrics, health checks, and more (3feff61)\n- add repository generation support in CLI and refactor todo app (09f74f4)\n- Add comprehensive documentation for Todo API, database migrations, schema, architecture, deployment, and development setup (5034e24)\n- initialize todo application with Ironic framework (4b19726)\n- Enhance database integration documentation with setup instructions and examples (afea150)\n- Add S3 upload documentation and update meta.json to include new page (630047e)\n- Add configuration and migrations metadata, update advanced pages (16d2473)\n- Update blog post for v0.4.0 with production readiness and enterprise features (b5790de)\n- Update release notes for v0.4.0 with detailed features and improvements (336c954)\n- Refactor imports in error and lib modules for better organization (199bc4f)\n
+### Fixed
+- update path for ironic dependency in todo app example (18d76f0)\n- Update configuration file names in tests for consistency (cc98918)\n- Ensure stale cache artifacts are cleaned on non-Windows runners (4840653)\n- Update actions/checkout version to v5 in CI workflow (e4c9e5d)\n- Clean stale cache artifacts in CI workflow (56a9b2c)\n- Remove redundant import and reorganize imports for clarity (1a4349d)\n
+### Changed
+- remove unused dependencies and example from Cargo configuration (5a2dcf0)\n- release v0.4.1 with new features, improvements, and documentation updates (4784cdb)\n- streamline code structure and improve readability across multiple files (3b7b0a2)\n
+
+---
+
+
 ## v0.3.8 — July 15, 2026
 
 ### Added

@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v0.3.2] - 2026-07-15
+
+### Fixed
+- update documentation link in navigation component for clarity (d9eafaf)\n- update parameter names for consistency in auth module decorators and guards (18009e6)\n
+
 ## [v0.3.1] - 2026-07-15
 
 ### Fixed

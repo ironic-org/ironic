@@ -32,7 +32,7 @@ const HeroSection = () => {
                         <span className='absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-500 opacity-75' />
                         <span className='relative inline-flex h-2 w-2 rounded-full bg-emerald-500' />
                     </span>
-                    v0.4.3 — available on GitHub
+                    v0.4.4 — available on GitHub
                     <ArrowRight className='w-3 h-3 group-hover:translate-x-0.5 transition-transform' />
                 </a>
             </FadeUp>

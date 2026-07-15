@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v0.4.4] - 2026-07-16
+
+### Added
+- enhance update command to automatically upgrade to the latest version (24228b6)\n
+
 ## [v0.4.3] - 2026-07-16
 
 ### Fixed

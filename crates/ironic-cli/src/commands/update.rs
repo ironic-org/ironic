@@ -26,11 +26,7 @@ pub(crate) fn execute(output: &mut impl Write) -> Result<(), CliError> {
                 writeln!(output, "  ✓ Updated to ironic v{latest}").map_err(&map)?;
             } else {
                 writeln!(output, "  ✗ `cargo install ironic` failed").map_err(&map)?;
-                writeln!(
-                    output,
-                    "  Run manually: cargo install ironic"
-                )
-                .map_err(&map)?;
+                writeln!(output, "  Run manually: cargo install ironic").map_err(&map)?;
             }
         }
         Ok(Some(_)) => {

@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v0.3.6] - 2026-07-15
+
+### Added
+- update validation pipes documentation with comprehensive examples and improved descriptions (c56dc5b)\n- add basic and auth API examples with CRUD functionality (b10e11e)\n- enhance project manifest with additional dependencies and security features (613d478)\n
+### Fixed
+- allow dead code warnings for unit tests in authentication module (77c5c02)\n
+### Changed
+- update version to 0.3.6 and remove unused API examples from workspace (914a74d)\n
+
 ## [v0.3.5] - 2026-07-15
 
 ### Fixed

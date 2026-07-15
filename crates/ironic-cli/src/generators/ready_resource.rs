@@ -173,7 +173,7 @@ fn auth_full_files(module_dir: &Path, name: &str) -> Vec<(PathBuf, String)> {
         (d.join("tests/unit/password_service_test.rs"), unit_password_test().into()),
         (d.join("tests/unit/auth_service_test.rs"), unit_auth_test().into()),
         (d.join("tests/unit/guard_test.rs"), unit_guard_test().into()),
-        (d.join("tests/integration/auth_flow_test.rs"), integration_auth_test().into()),
+        (d.join("tests/integration.rs"), integration_auth_test().into()),
     ]
 }
 
@@ -218,7 +218,7 @@ fn auth_basic_files(module_dir: &Path) -> Vec<(PathBuf, String)> {
             unit_password_test().into(),
         ),
         (
-            d.join("tests/integration/auth_flow_test.rs"),
+            d.join("tests/integration.rs"),
             integration_auth_basic_test().into(),
         ),
     ]
@@ -275,7 +275,7 @@ fn auth_jwt_files(module_dir: &Path) -> Vec<(PathBuf, String)> {
             unit_auth_test().into(),
         ),
         (
-            d.join("tests/integration/auth_flow_test.rs"),
+            d.join("tests/integration.rs"),
             integration_auth_jwt_test().into(),
         ),
     ]
@@ -323,7 +323,7 @@ fn auth_oauth_files(module_dir: &Path) -> Vec<(PathBuf, String)> {
         ),
         (d.join("tests/mod.rs"), tests_mod().into()),
         (
-            d.join("tests/integration/auth_flow_test.rs"),
+            d.join("tests/integration.rs"),
             integration_auth_oauth_test().into(),
         ),
     ]
@@ -792,6 +792,10 @@ create_param_decorator!(roles, Roles);
 
 fn tests_mod() -> &'static str {
     "/// Unit tests — service and guard logic in isolation (no HTTP).\n#[cfg(test)]\nmod unit;\n/// Integration tests — full HTTP request/response through the framework.\n#[cfg(test)]\nmod integration;\n"
+}
+
+fn integration_mod() -> &'static str {
+    "pub mod auth_flow_test;\npub use auth_flow_test::*;\n"
 }
 
 fn unit_password_test() -> &'static str {

@@ -286,7 +286,7 @@ fn example_test_integration() -> String {
 // ── Platform templates ────────────────────────────────────────────────
 
 fn platform_mod() -> String {
-    "pub mod config;\npub mod telemetry;\npub mod database;\n".to_owned()
+    "pub mod config;\npub mod telemetry;\n// pub mod database;\n".to_owned()
 }
 
 fn platform_config() -> String {
@@ -295,7 +295,70 @@ pub fn server_address() -> String {\n    let host = env(\"SERVER_HOST\").unwrap_
 }
 
 fn platform_database() -> String {
-    "use std::sync::OnceLock;\n\npub static DB_POOL: OnceLock<sqlx::PgPool> = OnceLock::new();\n\npub fn db() -> &'static sqlx::PgPool {\n    DB_POOL\n        .get()\n        .expect(\"DATABASE_URL must be set and pool initialized\")\n}\n\n#[allow(dead_code)]\npub async fn build_pool() -> sqlx::PgPool {\n    let url = dotenvy::var(\"DATABASE_URL\").expect(\"DATABASE_URL must be set\");\n\n    let pool = sqlx::postgres::PgPoolOptions::new()\n        .max_connections(super::config::env(\"DB_POOL_SIZE\")\n            .and_then(|v| v.parse().ok())\n            .unwrap_or(10))\n        .connect(&url)\n        .await\n        .expect(\"failed to connect to database\");\n\n    sqlx::migrate::Migrator::new(std::path::Path::new(\"./migrations\"))\n        .await\n        .expect(\"invalid migrations directory\")\n        .run(&pool)\n        .await\n        .expect(\"failed to run migrations\");\n\n    tracing::info!(\"database pool ready (max: {})\", pool.size());\n    pool\n}\n".to_owned()
+    "//! Database connection pool (PostgreSQL via SQLx).
+//!
+//! # Setup
+//!
+//! 1. Set `DATABASE_URL` in your `.env` file:
+//!
+//!    ```env
+//!    DATABASE_URL=postgres://user:password@localhost:5432/my_app
+//!    ```
+//!
+//! 2. Uncomment `pub mod database;` in `src/platform/mod.rs`.
+//!
+//! 3. Initialize the pool at application startup (e.g. in `main.rs`):
+//!
+//!    ```rust
+//!    use platform::database::build_pool;
+//!    let pool = build_pool().await;
+//!    ```
+//!
+//! 4. Access the pool anywhere in your app:
+//!
+//!    ```rust
+//!    use platform::database::db;
+//!    let row = sqlx::query(\"SELECT ...\").fetch_one(db()).await?;
+//!    ```
+//!
+//! # Migrations
+//!
+//! Create a `migrations/` directory with SQL migration files named using the
+//! standard SQLx convention: `YYYYMMDD_HHMMSS_description.sql`.
+//! Migrations are run automatically when `build_pool()` is called.
+
+use std::sync::OnceLock;
+
+pub static DB_POOL: OnceLock<sqlx::PgPool> = OnceLock::new();
+
+pub fn db() -> &'static sqlx::PgPool {
+    DB_POOL
+        .get()
+        .expect(\"DATABASE_URL must be set and pool initialized\")
+}
+
+#[allow(dead_code)]
+pub async fn build_pool() -> sqlx::PgPool {
+    let url = dotenvy::var(\"DATABASE_URL\").expect(\"DATABASE_URL must be set\");
+
+    let pool = sqlx::postgres::PgPoolOptions::new()
+        .max_connections(super::config::env(\"DB_POOL_SIZE\")
+            .and_then(|v| v.parse().ok())
+            .unwrap_or(10))
+        .connect(&url)
+        .await
+        .expect(\"failed to connect to database\");
+
+    sqlx::migrate::Migrator::new(std::path::Path::new(\"./migrations\"))
+        .await
+        .expect(\"invalid migrations directory\")
+        .run(&pool)
+        .await
+        .expect(\"failed to run migrations\");
+
+    tracing::info!(\"database pool ready (max: {})\", pool.size());
+    pool
+}\n".to_owned()
 }
 
 fn platform_telemetry() -> String {

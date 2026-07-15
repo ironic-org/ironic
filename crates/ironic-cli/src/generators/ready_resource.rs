@@ -170,9 +170,7 @@ fn auth_full_files(module_dir: &Path, name: &str) -> Vec<(PathBuf, String)> {
         (d.join("decorators/current_user.rs"), current_user_decorator().into()),
         (d.join("decorators/roles.rs"), roles_decorator().into()),
         (d.join("tests/mod.rs"), tests_mod().into()),
-        (d.join("tests/unit/password_service_test.rs"), unit_password_test().into()),
-        (d.join("tests/unit/auth_service_test.rs"), unit_auth_test().into()),
-        (d.join("tests/unit/guard_test.rs"), unit_guard_test().into()),
+        (d.join("tests/unit.rs"), unit_tests_full().into()),
         (d.join("tests/integration.rs"), integration_auth_test().into()),
     ]
 }
@@ -213,10 +211,7 @@ fn auth_basic_files(module_dir: &Path) -> Vec<(PathBuf, String)> {
         ),
         (d.join("guards/auth_guard.rs"), auth_guard_basic().into()),
         (d.join("tests/mod.rs"), tests_mod().into()),
-        (
-            d.join("tests/unit/password_service_test.rs"),
-            unit_password_test().into(),
-        ),
+        (d.join("tests/unit.rs"), unit_tests_basic().into()),
         (
             d.join("tests/integration.rs"),
             integration_auth_basic_test().into(),
@@ -270,10 +265,7 @@ fn auth_jwt_files(module_dir: &Path) -> Vec<(PathBuf, String)> {
             current_user_decorator().into(),
         ),
         (d.join("tests/mod.rs"), tests_mod().into()),
-        (
-            d.join("tests/unit/auth_service_test.rs"),
-            unit_auth_test().into(),
-        ),
+        (d.join("tests/unit.rs"), unit_tests_jwt().into()),
         (
             d.join("tests/integration.rs"),
             integration_auth_jwt_test().into(),
@@ -332,7 +324,7 @@ fn auth_oauth_files(module_dir: &Path) -> Vec<(PathBuf, String)> {
 // ── Module ────────────────────────────────────────────────────────────
 
 fn auth_module_body(_name: &str) -> String {
-    "pub use controller::AuthController;\npub use services::auth_service::AuthService;\npub use services::password_service::PasswordService;\npub use guards::AuthGuard;\n\n#[derive(Module)]\n#[module(\n    providers = [AuthService, PasswordService],\n    controllers = [AuthController],\n    exports = [AuthService],\n)]\npub struct AuthModule;\n".to_string()
+    "pub use controller::AuthController;\npub use services::auth_service::AuthService;\npub use services::password_service::PasswordService;\n#[allow(unused_imports)]\npub use guards::AuthGuard;\n\n#[derive(Module)]\n#[module(\n    providers = [AuthService, PasswordService],\n    controllers = [AuthController],\n    exports = [AuthService],\n)]\npub struct AuthModule;\n".to_string()
 }
 
 // ── Entity ────────────────────────────────────────────────────────────
@@ -640,7 +632,7 @@ impl AuthController {
 
     #[get("/me")]
     #[use_guard(AuthGuard)]
-    async fn me(&self, #[custom(CurrentUser)] user_id: u64) -> Result<Json<PublicUser>, HttpError> {
+    async fn me(&self, #[custom(current_user)] user_id: u64) -> Result<Json<PublicUser>, HttpError> {
         Ok(Json(PublicUser { id: user_id, email: "oauth@user.com".into(), name: "OAuth User".into(), role: crate::modules::auth::entities::role::Role::User, provider: "oauth".into() }))
     }
 }
@@ -718,7 +710,7 @@ pub struct RoleGuard {
 }
 
 impl RoleGuard {
-    pub fn new(Roles: &[&str]) -> Self { Self { required_roles: Roles.iter().map(|s| s.to_string()).collect() } }
+    pub fn new(roles: &[&str]) -> Self { Self { required_roles: roles.iter().map(|s| s.to_string()).collect() } }
 }
 
 impl Guard for RoleGuard {
@@ -804,6 +796,23 @@ fn unit_auth_test() -> &'static str {
 
 fn unit_guard_test() -> &'static str {
     "//! Unit tests for AuthGuard and RoleGuard.\n\nuse std::sync::Arc;\nuse crate::modules::auth::guards::auth_guard::AuthGuard;\nuse crate::modules::auth::guards::role_guard::RoleGuard;\nuse ironic::{Guard, GuardDecision, FrameworkRequest, GuardFuture, RequestContext};\n\n#[tokio::test]\nasync fn auth_guard_denies_missing_header() {\n    let mut ctx = RequestContext::new(FrameworkRequest::new(ironic::HttpMethod::GET, \"/\".parse().unwrap(), ironic::HeaderMap::new(), vec![]));\n    let decision = AuthGuard.can_activate(&mut ctx).await.unwrap();\n    assert!(matches!(decision, GuardDecision::Deny(_)));\n}\n\n#[tokio::test]\nasync fn role_guard_denies_wrong_role() {\n    let mut ctx = RequestContext::new(FrameworkRequest::new(ironic::HttpMethod::GET, \"/\".parse().unwrap(), ironic::HeaderMap::new(), vec![]));\n    ctx.insert_extension(\"user\".to_string());\n    let guard = RoleGuard::new(&[\"admin\"]);\n    let decision = guard.can_activate(&mut ctx).await.unwrap();\n    assert!(matches!(decision, GuardDecision::Deny(_)));\n}\n"
+}
+
+fn unit_tests_full() -> String {
+    format!(
+        "{}\n\n{}\n\n{}",
+        unit_password_test(),
+        unit_auth_test(),
+        unit_guard_test()
+    )
+}
+
+fn unit_tests_basic() -> String {
+    unit_password_test().to_string()
+}
+
+fn unit_tests_jwt() -> String {
+    format!("{}\n\n{}", unit_auth_test(), unit_guard_test())
 }
 
 fn integration_auth_test() -> &'static str {

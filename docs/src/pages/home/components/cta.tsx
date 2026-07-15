@@ -7,8 +7,8 @@ import { GitHubStarButton } from './github-stars';
 const CTA = () => {
     return (
         <section className='w-full relative py-24 overflow-hidden border-t border-fd-border'>
-            <div className='absolute inset-0 bg-linear-to-b from-brand/[0.04] via-transparent to-transparent pointer-events-none' />
-            <div className='absolute -top-40 left-1/2 -translate-x-1/2 w-[700px] h-[400px] bg-brand/[0.04] rounded-full blur-[120px] pointer-events-none' />
+            <div className='absolute inset-0 bg-linear-to-b from-brand/4 via-transparent to-transparent pointer-events-none' />
+            <div className='absolute -top-40 left-1/2 -translate-x-1/2 w-175 h-100 bg-brand/4 rounded-full blur-[120px] pointer-events-none' />
 
             <FadeUp className='relative max-w-2xl mx-auto px-6 flex flex-col items-center text-center z-10'>
                 <h2 className='text-3xl md:text-4xl font-bold text-fd-foreground tracking-tight mb-4'>

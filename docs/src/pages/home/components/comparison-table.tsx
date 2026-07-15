@@ -130,7 +130,7 @@ const ComparisonTable = () => {
     return (
         <section className='relative py-24 px-6 max-w-7xl mx-auto border-t border-fd-border'>
             <div className='absolute inset-0 pointer-events-none overflow-hidden'>
-                <div className='absolute top-1/3 right-0 w-[600px] h-[600px] bg-brand/[0.02] rounded-full blur-[120px]' />
+                <div className='absolute top-1/3 right-0 w-150 h-150 bg-brand/2 rounded-full blur-[120px]' />
             </div>
 
             <FadeUp className='text-center max-w-2xl mx-auto mb-16 relative'>
@@ -161,20 +161,18 @@ const ComparisonTable = () => {
                         {rows.map((row, i) => (
                             <tr
                                 key={row.feature}
-                                className={`border-b border-fd-border/50 transition-colors hover:bg-fd-muted/20 ${
-                                    i === rows.length - 1 ? 'border-b-0' : ''
-                                }`}
+                                className={`border-b border-fd-border/50 transition-colors hover:bg-fd-muted/20 ${i === rows.length - 1 ? 'border-b-0' : ''
+                                    }`}
                             >
                                 {columns.map((col) => (
                                     <td
                                         key={col.key}
-                                        className={`px-3 py-3 text-fd-muted-foreground leading-relaxed ${
-                                            col.key === 'feature'
-                                                ? 'font-medium text-fd-foreground text-xs tracking-wide'
-                                                : col.key === 'ironic'
-                                                    ? 'text-center text-xs bg-brand/[0.04] font-semibold text-brand'
-                                                    : 'text-center text-xs'
-                                        }`}
+                                        className={`px-3 py-3 text-fd-muted-foreground leading-relaxed ${col.key === 'feature'
+                                            ? 'font-medium text-fd-foreground text-xs tracking-wide'
+                                            : col.key === 'ironic'
+                                                ? 'text-center text-xs bg-brand/4 font-semibold text-brand'
+                                                : 'text-center text-xs'
+                                            }`}
                                     >
                                         {row[col.key]}
                                     </td>

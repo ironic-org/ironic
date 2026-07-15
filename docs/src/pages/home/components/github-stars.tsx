@@ -19,7 +19,7 @@ export function useGitHubStars() {
                 setStars(data.stargazers_count ?? null);
                 setForks(data.forks_count ?? null);
             })
-            .catch(() => {});
+            .catch(() => { });
     }, []);
 
     return { stars, forks };
@@ -30,13 +30,13 @@ export function GitHubStatsBadge({ className }: { className?: string }) {
 
     return (
         <div className={`inline-flex items-center gap-0.5 rounded-full border border-fd-border bg-fd-card/60 px-0.5 py-0.5 text-xs font-medium ${className ?? ''}`}>
-            <div className='inline-flex items-center gap-1 rounded-full bg-gradient-to-br from-amber-400/15 to-yellow-500/10 px-2 py-1'>
+            <div className='inline-flex items-center gap-1 rounded-full bg-linear-to-br from-amber-400/15 to-yellow-500/10 px-2 py-1'>
                 <Star className='size-3 fill-amber-400 stroke-amber-500' />
                 <span className='text-amber-900 dark:text-amber-200 tabular-nums'>
                     {stars !== null ? formatCount(stars) : '—'}
                 </span>
             </div>
-            <div className='inline-flex items-center gap-1 rounded-full bg-gradient-to-br from-sky-400/10 to-blue-500/10 px-2 py-1'>
+            <div className='inline-flex items-center gap-1 rounded-full bg-linear-to-br from-sky-400/10 to-blue-500/10 px-2 py-1'>
                 <GitFork className='size-3 stroke-sky-500' />
                 <span className='text-sky-700 dark:text-sky-300 tabular-nums'>
                     {forks !== null ? formatCount(forks) : '—'}

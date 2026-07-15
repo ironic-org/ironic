@@ -196,7 +196,7 @@ echo "→ Syncing docs to v$NEW"
 DOC_FILES=(
     "$ROOT/docs/src/pages/home/components/hero-section.tsx"
     "$ROOT/docs/src/pages/home/components/stats-bar.tsx"
-    "$ROOT/docs/content/docs/getting-started.md"
+    "$ROOT/docs/content/docs/getting-started/getting-started.md"
     "$ROOT/docs/content/docs/getting-started/cli.md"
 )
 
@@ -233,7 +233,7 @@ cd "$ROOT"
 git add Cargo.toml Cargo.lock CHANGELOG.md \
     docs/src/pages/home/components/hero-section.tsx \
     docs/src/pages/home/components/stats-bar.tsx \
-    docs/content/docs/getting-started.md \
+    docs/content/docs/getting-started/getting-started.md \
     docs/content/docs/getting-started/cli.md 2>/dev/null || true
 
 if ! git diff --cached --quiet; then

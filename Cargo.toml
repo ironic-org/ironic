@@ -1,5 +1,5 @@
 [workspace.package]
-version = "0.3.8"
+version = "0.3.9"
 edition = "2024"
 rust-version = "1.97"
 license = "MIT OR Apache-2.0"
@@ -223,8 +223,8 @@ lapin = { version = "4.10.0", default-features = false, features = ["rustls"] }
 kafka = { version = "0.10.0", default-features = false, features = ["snappy"] }
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 
-ironic = { path = ".", version = "0.3.8" }
-ironic-macros = { path = "crates/ironic-macros", version = "0.3.8" }
+ironic = { path = ".", version = "0.3.9" }
+ironic-macros = { path = "crates/ironic-macros", version = "0.3.9" }
 
 [workspace.lints.rust]
 unsafe_code = "forbid"

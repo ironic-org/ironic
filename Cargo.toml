@@ -39,7 +39,7 @@ include = [
 ]
 
 [features]
-default = []
+default = ["hot-reload"]
 database = ["sqlx", "seaorm", "diesel", "mongodb", "redis"]
 sqlx = ["dep:sqlx"]
 sqlx-postgres = ["sqlx", "sqlx/postgres"]

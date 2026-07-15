@@ -30,6 +30,18 @@ All versions in the v0.3.x series. Visit the [Blog](/blog) for detailed release 
 
 ---
 
+## v0.4.0 — July 15, 2026
+
+### Added
+- Update release script to bump current version and add new release to index (481aa56)\n- Update release script to publish to crates.io before git push (7e1ad7a)\n- Update changelog and add blog post for v0.4.0 release (dbd6837)\n- Update telemetry and tracing documentation (fc34232)\n- Implement production readiness improvements for Ironic (2bf4555)\n- Add ready-resource generator for production-grade authentication module (ea28f4c)\n- Add production readiness improvements across multiple components (948341b)\n- add blog post on lifecycle hooks in axum integration (805a566)\n- add blog posts on OnceCell-based singletons, sagas, scope violations, static plugin system, and two-phase route compilation (de3126e)\n- refactor blog and releases index update logic in release script (8102c9a)\n- update release notes and automate blog post generation for v0.3.9 (cb654ba)\n- update changelog and release notes for v0.3.9 (699a8d6)\n- add release notes for v0.3.9 and enhance release script documentation (08592c9)\n- enhance release script to create blog post and update releases documentation (66b0a0a)\n
+### Fixed
+- Correct Prometheus output format code block in metrics documentation (1475744)\n- update background styles in BlogIndex and BlogPage components (82f3c58)\n
+### Changed
+- Add new blog posts on various Ironic features and improvements (04a9ae9)\n- Add blog posts on handler dispatch, injectable generation, and feature flags (fb37128)\n
+
+---
+
+
 ## v0.3.8 — July 15, 2026
 
 ### Added

@@ -100,6 +100,7 @@ impl Default for TimeSeriesConfig {
 
 impl TimeSeriesConfig {
     /// Override the default storage backend.
+    #[must_use]
     pub fn with_storage(mut self, storage: Arc<dyn LogStorage>) -> Self {
         self.storage = storage;
         self
@@ -196,7 +197,7 @@ mod tests {
         use std::collections::BTreeMap;
         let entry = LogEntry::new(
             chrono::Utc::now(),
-            &tracing::Level::ERROR,
+            tracing::Level::ERROR,
             "my_app::service",
             "something broke".into(),
             Some("my_app::service"),

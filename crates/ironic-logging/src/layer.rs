@@ -89,7 +89,7 @@ impl<S: tracing::Subscriber> Layer<S> for TimeSeriesLayer<S> {
         _ctx: tracing_subscriber::layer::Context<'_, S>,
     ) {
         let timestamp = Utc::now();
-        let level = event.metadata().level();
+        let level = *event.metadata().level();
         let target = event.metadata().target();
         let module_path = event.metadata().module_path();
         let file = event.metadata().file();

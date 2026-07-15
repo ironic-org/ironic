@@ -28,9 +28,9 @@ pub enum StorageError {
 /// All methods are `Send + Sync` so backends can be shared across tasks.
 pub trait LogStorage: Send + Sync {
     /// Persist a single log entry.
-    fn store<'a>(&'a self, entry: LogEntry) -> StorageFuture<'a>;
+    fn store(&self, entry: LogEntry) -> StorageFuture<'_>;
     /// Flush any pending writes.
-    fn flush<'a>(&'a self) -> StorageFuture<'a>;
+    fn flush(&self) -> StorageFuture<'_>;
 }
 
 /// Writes logging log entries to `.logs/` as JSON Lines files.
@@ -101,7 +101,7 @@ impl Default for FileLogStorage {
 }
 
 impl LogStorage for FileLogStorage {
-    fn store<'a>(&'a self, entry: LogEntry) -> StorageFuture<'a> {
+    fn store(&self, entry: LogEntry) -> StorageFuture<'_> {
         Box::pin(async move {
             let date = entry.timestamp.format("%Y-%m-%d").to_string();
             let line = serde_json::to_string(&entry)?;
@@ -109,7 +109,7 @@ impl LogStorage for FileLogStorage {
         })
     }
 
-    fn flush<'a>(&'a self) -> StorageFuture<'a> {
+    fn flush(&self) -> StorageFuture<'_> {
         Box::pin(async move {
             #[allow(clippy::collapsible_if)]
             if let Ok(mut guard) = self.writer.lock() {
@@ -138,7 +138,7 @@ mod tests {
 
         let entry = LogEntry::new(
             Utc::now(),
-            &tracing::Level::INFO,
+            tracing::Level::INFO,
             "test",
             "hello".into(),
             None,
@@ -162,7 +162,7 @@ mod tests {
 
         let e1 = LogEntry::new(
             Utc::now(),
-            &tracing::Level::INFO,
+            tracing::Level::INFO,
             "t1",
             "msg1".into(),
             None,
@@ -172,7 +172,7 @@ mod tests {
         );
         let e2 = LogEntry::new(
             Utc::now(),
-            &tracing::Level::WARN,
+            tracing::Level::WARN,
             "t2",
             "msg2".into(),
             None,

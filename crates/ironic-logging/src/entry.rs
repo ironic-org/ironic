@@ -11,7 +11,7 @@ pub struct LogEntry {
     pub timestamp: DateTime<Utc>,
     /// Log level.
     pub level: String,
-    /// Target module (e.g. "my_app::service").
+    /// Target module (e.g. "`my_app::service`").
     pub target: String,
     /// The log message.
     pub message: String,
@@ -33,7 +33,7 @@ impl LogEntry {
     #[allow(clippy::too_many_arguments)]
     pub(crate) fn new(
         timestamp: DateTime<Utc>,
-        level: &Level,
+        level: Level,
         target: &str,
         message: String,
         module_path: Option<&str>,
@@ -54,8 +54,8 @@ impl LogEntry {
     }
 }
 
-fn level_to_str(level: &Level) -> String {
-    match *level {
+fn level_to_str(level: Level) -> String {
+    match level {
         Level::TRACE => "TRACE".into(),
         Level::DEBUG => "DEBUG".into(),
         Level::INFO => "INFO".into(),

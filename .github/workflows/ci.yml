@@ -59,6 +59,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
+      - name: Clean stale cache artifacts
+        run: |
+          rm -rf target/tests/target 2>/dev/null || true
+          find target -type l ! -exec test -e {} \; -delete 2>/dev/null || true
       - uses: swatinem/rust-cache@v2
         with:
           save-if: ${{ github.ref == 'refs/heads/main' && matrix.os == 'ubuntu-latest' }}

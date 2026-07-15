@@ -99,7 +99,7 @@ const rows = [
         nestjs: 'Mature (2017)',
         axum: 'Growing (2021)',
         actix: 'Mature (2017)',
-        ironic: 'Early (2025)',
+        ironic: 'Early (2026)',
     },
 ];
 
@@ -146,20 +146,18 @@ const ComparisonTable = () => {
                         {rows.map((row, i) => (
                             <tr
                                 key={row.feature}
-                                className={`border-b border-fd-border/50 transition-colors hover:bg-fd-muted/20 ${
-                                    i === rows.length - 1 ? 'border-b-0' : ''
-                                }`}
+                                className={`border-b border-fd-border/50 transition-colors hover:bg-fd-muted/20 ${i === rows.length - 1 ? 'border-b-0' : ''
+                                    }`}
                             >
                                 {columns.map((col) => (
                                     <td
                                         key={col.key}
-                                        className={`px-4 py-3 text-fd-muted-foreground leading-relaxed ${
-                                            col.key === 'feature'
+                                        className={`px-4 py-3 text-fd-muted-foreground leading-relaxed ${col.key === 'feature'
                                                 ? 'font-medium text-fd-foreground text-xs tracking-wide'
                                                 : col.key === 'ironic'
                                                     ? 'text-center text-xs bg-brand/[0.04] font-semibold text-brand'
                                                     : 'text-center text-xs'
-                                        }`}
+                                            }`}
                                     >
                                         {row[col.key]}
                                     </td>

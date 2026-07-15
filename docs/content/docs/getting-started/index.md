@@ -45,7 +45,7 @@ Ironic combines NestJS's batteries-included philosophy with Rust's performance a
 | **WebSockets built-in** | ✅ | ✅ | ✅ | **✅** |
 | **Feature flags** | ❌ | ❌ | ❌ | **✅ Compile-time** |
 | **Learning curve** | Moderate | Low | Medium | **Moderate** |
-| **Ecosystem maturity** | Mature (2017) | Growing (2021) | Mature (2017) | **Early (2025)** |
+| **Ecosystem maturity** | Mature (2017) | Growing (2021) | Mature (2017) | **Early (2026)** |
 
 > ✅ = built-in  ·  — = needs third-party crate  ·  ❌ = not available
 

@@ -1,11 +1,10 @@
 #![doc = "Axum integration for Ironic."]
+#![cfg_attr(not(feature = "static-files"), allow(unused_imports, dead_code))]
 
 use std::{
-    collections::HashMap, convert::Infallible, net::SocketAddr, sync::Arc,
+    collections::HashMap, convert::Infallible, net::SocketAddr, path::PathBuf, sync::Arc,
     time::Duration,
 };
-#[cfg(feature = "static-files")]
-use std::path::PathBuf;
 
 use axum::{
     Router,
@@ -22,9 +21,7 @@ use ironic_http::{
 use ironic_platform::{
     HttpPlatformAdapter, HttpPlatformApplication, PlatformFuture, Shutdown, ShutdownSignal,
 };
-use tower::{Layer, Service};
-#[cfg(feature = "static-files")]
-use tower::ServiceBuilder;
+use tower::{Layer, Service, ServiceBuilder};
 use tracing::warn;
 
 /// A failure while converting framework metadata into Axum routes.

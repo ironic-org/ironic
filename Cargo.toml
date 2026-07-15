@@ -207,7 +207,6 @@ resolver = "3"
 members = [
     ".",
     "crates/ironic-macros",
-    "examples/todo-app",
 ]
 
 

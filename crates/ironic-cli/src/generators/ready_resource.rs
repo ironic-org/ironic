@@ -1,10 +1,12 @@
+#![allow(clippy::needless_raw_string_hashes)]
+
 use std::path::{Path, PathBuf};
 
 use crate::CliError;
 
 use super::{
-    GenerationReport,
     source::{ensure_items, ensure_module_import, write_generated},
+    GenerationReport,
 };
 
 /// Generates a full authentication module with passwords, JWT, OAuth, sessions, and RBAC.

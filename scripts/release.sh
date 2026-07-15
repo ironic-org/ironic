@@ -12,10 +12,11 @@ set -euo pipefail
 #   1. Bumps version in Cargo.toml (workspace + internal deps)
 #   2. Syncs all hardcoded version strings in docs/
 #   3. Generates CHANGELOG.md from git commits since last tag
-#   4. Builds + runs full test suite + clippy
-#   4. Creates git commit + tag
-#   5. Pushes to GitHub (triggering CI)
-#   6. Publishes to crates.io
+#   4. Creates blog post + updates releases pages
+#   5. Builds + runs full test suite + clippy
+#   6. Creates git commit + tag
+#   7. Pushes to GitHub (triggering CI)
+#   8. Publishes to crates.io
 # ──────────────────────────────────────────────────────────────────────
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
@@ -208,7 +209,117 @@ for f in "${DOC_FILES[@]}"; do
     fi
 done
 
-# ── step 5: pre-flight checks ───────────────────────────────────────
+# ── step 5.5: create blog post and update releases ────────────────────
+
+echo "→ Creating blog post for v$NEW"
+
+BLOG_DIR="$ROOT/docs/content/blog"
+BLOG_FILE="$BLOG_DIR/v$NEW.md"
+BLOG_INDEX="$ROOT/docs/src/pages/BlogIndex.tsx"
+RELEASES_INDEX="$ROOT/docs/content/docs/releases/index.md"
+RELEASES_V="$ROOT/docs/content/docs/releases/v0.3.x/index.md"
+
+# Format the changelog sections for the blog post
+format_blog_section() {
+    local title="$1" items="$2"
+    if [[ -n "$items" ]]; then
+        echo ""
+        echo "### $title"
+        echo "$items"
+    fi
+}
+
+BLOG_BODY=""
+BLOG_BODY="${BLOG_BODY}$(format_blog_section "Added" "$added")"
+BLOG_BODY="${BLOG_BODY}$(format_blog_section "Fixed" "$fixed")"
+BLOG_BODY="${BLOG_BODY}$(format_blog_section "Changed" "$changed")"
+BLOG_BODY="${BLOG_BODY}$(format_blog_section "Security" "$security")"
+
+# Generate a summary from the first change entry
+FIRST_LINE=$(grep -oE '^- .+' <<< "$COMMITS" | head -1 | sed 's/^- //' | sed 's/ (.*//' || echo "Release v$NEW")
+SUMMARY="${FIRST_LINE:0:120}"
+
+cat > "$BLOG_FILE" << BLOGEOF
+---
+title: "v$NEW — $SUMMARY"
+description: "$SUMMARY"
+date: "$TODAY"
+author: "Ironic Team"
+---
+
+# v$NEW
+$BLOG_BODY
+BLOGEOF
+
+echo -e "  ${GREEN}✓${NC} blog post created: $BLOG_FILE"
+
+# Update BlogIndex.tsx — insert new post after the opening array bracket
+if grep -q "const posts: Post\[\] = \[" "$BLOG_INDEX"; then
+    NEW_POST_ENTRY="    {
+        slug: 'v$NEW',
+        title: 'v$NEW — $SUMMARY',
+        description: '$SUMMARY',
+        date: '$TODAY',
+        tag: 'release',
+        readTime: '2 min',
+    },"
+    # Insert after the opening array line
+    POSTS_LINE=$(grep -n "const posts: Post\[\] = \[" "$BLOG_INDEX" | head -1 | cut -d: -f1)
+    if [[ "$(uname)" == "Darwin" ]]; then
+        sed -i '' "$((POSTS_LINE + 1))i\\
+$NEW_POST_ENTRY" "$BLOG_INDEX"
+    else
+        sed -i "$((POSTS_LINE + 1))i $NEW_POST_ENTRY" "$BLOG_INDEX"
+    fi
+    echo -e "  ${GREEN}✓${NC} BlogIndex.tsx updated"
+else
+    echo "  ! BlogIndex.tsx pattern not found — add manually"
+fi
+
+# Update releases/index.md — add row to the version table
+TABLE_INSERT="| [v$NEW](/blog/v$NEW) | $TODAY | $SUMMARY |"
+RELEASES_TABLE_LINE=$(grep -n "| v0.3.0" "$RELEASES_INDEX" | head -1 | cut -d: -f1)
+if [[ -n "$RELEASES_TABLE_LINE" ]]; then
+    if [[ "$(uname)" == "Darwin" ]]; then
+        sed -i '' "$((RELEASES_TABLE_LINE))i\\
+$TABLE_INSERT" "$RELEASES_INDEX"
+    else
+        sed -i "$((RELEASES_TABLE_LINE))i $TABLE_INSERT" "$RELEASES_INDEX"
+    fi
+    echo -e "  ${GREEN}✓${NC} releases/index.md updated"
+fi
+
+# Format date for human-readable release section headers
+format_date() {
+    local d="$1"
+    if [[ "$(uname)" == "Darwin" ]]; then
+        date -j -f "%Y-%m-%d" "$d" "+%B %d, %Y" 2>/dev/null || echo "$d"
+    else
+        date -d "$d" "+%B %d, %Y" 2>/dev/null || echo "$d"
+    fi
+}
+
+RELEASE_DATE=$(format_date "$TODAY")
+
+# Update releases/v0.3.x/index.md — prepend new version section
+RELEASES_V_INSERT="## v$NEW — $RELEASE_DATE
+$BLOG_BODY
+
+---
+
+"
+RELEASES_V_HEADER=$(grep -n "^## v0.3.8" "$RELEASES_V" | head -1 | cut -d: -f1)
+if [[ -n "$RELEASES_V_HEADER" ]]; then
+    if [[ "$(uname)" == "Darwin" ]]; then
+        sed -i '' "${RELEASES_V_HEADER}i\\
+${RELEASES_V_INSERT}" "$RELEASES_V"
+    else
+        sed -i "${RELEASES_V_HEADER}i ${RELEASES_V_INSERT}" "$RELEASES_V"
+    fi
+    echo -e "  ${GREEN}✓${NC} releases/v0.3.x/index.md updated"
+fi
+
+# ── step 6: pre-flight checks ───────────────────────────────────────
 
 echo "→ Running pre-flight checks..."
 
@@ -234,7 +345,11 @@ git add Cargo.toml Cargo.lock CHANGELOG.md \
     docs/src/pages/home/components/hero-section.tsx \
     docs/src/pages/home/components/stats-bar.tsx \
     docs/content/docs/getting-started/getting-started.md \
-    docs/content/docs/getting-started/cli.md 2>/dev/null || true
+    docs/content/docs/getting-started/cli.md \
+    docs/content/blog/v$NEW.md \
+    docs/src/pages/BlogIndex.tsx \
+    docs/content/docs/releases/index.md \
+    docs/content/docs/releases/v0.3.x/index.md 2>/dev/null || true
 
 if ! git diff --cached --quiet; then
     git commit -m "chore: release v$NEW"

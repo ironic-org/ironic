@@ -59,7 +59,7 @@ pub fn create(
         ),
         (destination.join(".env.example"), dotenv_example()),
         (destination.join(".gitignore"), gitignore()),
-        (destination.join("Dockerfile"), dockerfile()),
+        (destination.join("Dockerfile"), dockerfile(&names.kebab)),
         (
             destination.join("docker-compose.yml"),
             docker_compose(&names.kebab),
@@ -269,8 +269,11 @@ fn gitignore() -> String {
     "/target\n**/*.rs.bk\n.env\n*.log\n.DS_Store\n*.pdb\n".to_owned()
 }
 
-fn dockerfile() -> String {
-    "# Stage 1: Build\nFROM rust:1.97-slim-bookworm AS builder\nWORKDIR /app\nCOPY Cargo.toml Cargo.lock* ./\nCOPY src ./src\nRUN cargo build --release --locked\n\n# Stage 2: Distroless runtime\nFROM gcr.io/distroless/cc-debian12\nCOPY --from=builder /app/target/release/* /app/\nEXPOSE 3000\nCMD [\"./app\"]\n".to_owned()
+fn dockerfile(name: &str) -> String {
+    let binary = name.replace('-', "_");
+    format!(
+        "# Stage 1: Build\nFROM rust:1.97-slim-bookworm AS builder\nWORKDIR /app\nCOPY Cargo.toml Cargo.lock* ./\nCOPY src ./src\nRUN cargo build --release --locked\n\n# Stage 2: Distroless runtime\nFROM gcr.io/distroless/cc-debian12\nWORKDIR /app\nCOPY --from=builder /app/target/release/{binary} /app/{binary}\nEXPOSE 3000\nCMD [\"./{binary}\"]\n"
+    )
 }
 
 fn docker_compose(name: &str) -> String {

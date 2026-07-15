@@ -263,14 +263,12 @@ if grep -q "const posts: Post\[\] = \[" "$BLOG_INDEX"; then
         tag: 'release',
         readTime: '2 min',
     },"
-    # Insert after the opening array line
     POSTS_LINE=$(grep -n "const posts: Post\[\] = \[" "$BLOG_INDEX" | head -1 | cut -d: -f1)
-    if [[ "$(uname)" == "Darwin" ]]; then
-        sed -i '' "$((POSTS_LINE + 1))i\\
-$NEW_POST_ENTRY" "$BLOG_INDEX"
-    else
-        sed -i "$((POSTS_LINE + 1))i $NEW_POST_ENTRY" "$BLOG_INDEX"
-    fi
+    {
+        head -n "$POSTS_LINE" "$BLOG_INDEX"
+        echo "$NEW_POST_ENTRY"
+        tail -n +$((POSTS_LINE + 1)) "$BLOG_INDEX"
+    } > "$BLOG_INDEX.tmp" && mv "$BLOG_INDEX.tmp" "$BLOG_INDEX"
     echo -e "  ${GREEN}✓${NC} BlogIndex.tsx updated"
 else
     echo "  ! BlogIndex.tsx pattern not found — add manually"
@@ -280,12 +278,11 @@ fi
 TABLE_INSERT="| [v$NEW](/blog/v$NEW) | $TODAY | $SUMMARY |"
 RELEASES_TABLE_LINE=$(grep -n "| v0.3.0" "$RELEASES_INDEX" | head -1 | cut -d: -f1)
 if [[ -n "$RELEASES_TABLE_LINE" ]]; then
-    if [[ "$(uname)" == "Darwin" ]]; then
-        sed -i '' "$((RELEASES_TABLE_LINE))i\\
-$TABLE_INSERT" "$RELEASES_INDEX"
-    else
-        sed -i "$((RELEASES_TABLE_LINE))i $TABLE_INSERT" "$RELEASES_INDEX"
-    fi
+    {
+        head -n "$((RELEASES_TABLE_LINE - 1))" "$RELEASES_INDEX"
+        echo "$TABLE_INSERT"
+        tail -n +"$RELEASES_TABLE_LINE" "$RELEASES_INDEX"
+    } > "$RELEASES_INDEX.tmp" && mv "$RELEASES_INDEX.tmp" "$RELEASES_INDEX"
     echo -e "  ${GREEN}✓${NC} releases/index.md updated"
 fi
 
@@ -310,12 +307,11 @@ $BLOG_BODY
 "
 RELEASES_V_HEADER=$(grep -n "^## v0.3.8" "$RELEASES_V" | head -1 | cut -d: -f1)
 if [[ -n "$RELEASES_V_HEADER" ]]; then
-    if [[ "$(uname)" == "Darwin" ]]; then
-        sed -i '' "${RELEASES_V_HEADER}i\\
-${RELEASES_V_INSERT}" "$RELEASES_V"
-    else
-        sed -i "${RELEASES_V_HEADER}i ${RELEASES_V_INSERT}" "$RELEASES_V"
-    fi
+    {
+        head -n "$((RELEASES_V_HEADER - 1))" "$RELEASES_V"
+        echo "$RELEASES_V_INSERT"
+        tail -n +"$RELEASES_V_HEADER" "$RELEASES_V"
+    } > "$RELEASES_V.tmp" && mv "$RELEASES_V.tmp" "$RELEASES_V"
     echo -e "  ${GREEN}✓${NC} releases/v0.3.x/index.md updated"
 fi
 

@@ -5,8 +5,8 @@ use std::path::{Path, PathBuf};
 use crate::CliError;
 
 use super::{
-    source::{ensure_items, ensure_module_import, write_generated},
     GenerationReport,
+    source::{ensure_items, ensure_module_import, write_generated},
 };
 
 /// Generates a full authentication module with passwords, JWT, OAuth, sessions, and RBAC.

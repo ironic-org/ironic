@@ -191,24 +191,26 @@ else
     fi
 fi
 
-# ── step 4: sync all docs to workspace version ───────────────────────
+# ── step 4: sync current-version references in docs ───────────────────
 
 echo "→ Syncing docs to v$NEW"
 
-DOC_FILES=(
-    "$ROOT/docs/src/pages/home/components/hero-section.tsx"
-    "$ROOT/docs/src/pages/home/components/stats-bar.tsx"
-    "$ROOT/docs/content/docs/getting-started/getting-started.md"
-    "$ROOT/docs/content/docs/getting-started/cli.md"
-)
-
-for f in "${DOC_FILES[@]}"; do
-    # extract the first version-like string from the file
-    DOC_VER=$(grep -oE '[0-9]+\.[0-9]+\.[0-9]+' "$f" | head -1 || true)
-    if [[ -n "$DOC_VER" ]] && [[ "$DOC_VER" != "$NEW" ]]; then
-        sync_file "$DOC_VER" "$NEW" "$f"
+# Only update files that display the CURRENT version (not historical release notes/blogs)
+while IFS= read -r -d '' f; do
+    OLD_VER=$(grep -oE '[0-9]+\.[0-9]+\.[0-9]+' "$f" | head -1 || true)
+    if [[ -n "$OLD_VER" ]] && [[ "$OLD_VER" != "$NEW" ]] && [[ "$OLD_VER" == "$CURRENT" ]]; then
+        sync_file "$OLD_VER" "$NEW" "$f"
     fi
-done
+done < <(
+    grep -rlE '[0-9]+\.[0-9]+\.[0-9]+' "$ROOT/docs" \
+        --include='*.md' --include='*.tsx' --include='*.mdx' \
+        --exclude-dir='blog' --exclude-dir='releases' 2>/dev/null || true
+    # Also pick up the home page components (tsx not always in docs/)
+    for f in "$ROOT/docs/src/pages/home/components/hero-section.tsx" \
+             "$ROOT/docs/src/pages/home/components/stats-bar.tsx"; do
+        if [[ -f "$f" ]]; then echo "$f"; fi
+    done
+) | sort -u | tr '\n' '\0'
 
 # ── step 5: create blog post and update releases ────────────────────
 
@@ -239,9 +241,13 @@ BLOG_BODY="${BLOG_BODY}$(format_blog_section "Fixed" "$fixed")"
 BLOG_BODY="${BLOG_BODY}$(format_blog_section "Changed" "$changed")"
 BLOG_BODY="${BLOG_BODY}$(format_blog_section "Security" "$security")"
 
-# Generate a summary from the first change entry
-FIRST_LINE=$(grep -oE '^- .+' <<< "$COMMITS" | head -1 | sed 's/^- //' | sed 's/ (.*//' || echo "Release v$NEW")
-SUMMARY="${FIRST_LINE:0:120}"
+# Generate a summary from the first meaningful changelog entry
+FIRST_ENTRY=$( (echo -e "${added}${fixed}${changed}") | grep -oE '^- .+' | head -1 | sed 's/^- //' | sed 's/ ([a-f0-9]\{7\})$//' || true)
+if [[ -z "$FIRST_ENTRY" ]]; then
+    SUMMARY="Release v$NEW"
+else
+    SUMMARY="${FIRST_ENTRY:0:120}"
+fi
 
 # Create blog post only if it doesn't already exist
 if [[ -f "$BLOG_FILE" ]]; then
@@ -260,6 +266,16 @@ $BLOG_BODY
 BLOGEOF
 
     echo -e "  ${GREEN}✓${NC} blog post created: $BLOG_FILE"
+fi
+
+# Update BlogIndex.tsx — bump "Latest: vX.Y.Z" badge
+if grep -q "Latest: v[0-9]" "$BLOG_INDEX" 2>/dev/null; then
+    if [[ "$(uname)" == "Darwin" ]]; then
+        sed -i '' "s/Latest: v[0-9.]*/Latest: v$NEW/" "$BLOG_INDEX"
+    else
+        sed -i "s/Latest: v[0-9.]*/Latest: v$NEW/" "$BLOG_INDEX"
+    fi
+    echo -e "  ${GREEN}✓${NC} BlogIndex.tsx latest badge updated"
 fi
 
 # Update BlogIndex.tsx — insert new post after the opening array bracket, skip if exists

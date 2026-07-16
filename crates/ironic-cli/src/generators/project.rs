@@ -187,8 +187,13 @@ pub fn create(
 }
 
 fn manifest(name: &str, workspace: Option<&Path>) -> String {
+    // Use a MAJOR.MINOR semver range (e.g. "0.4") so generated projects resolve
+    // to the latest published 0.4.x version on crates.io, regardless of the CLI
+    // tool's own version (which may be a locally-bumped unpublished version).
+    let version = env!("CARGO_PKG_VERSION");
+    let range = version.splitn(3, '.').take(2).collect::<Vec<_>>().join(".");
     let dep_spec = workspace.map_or_else(
-        || format!("version = \"{}\"", env!("CARGO_PKG_VERSION")),
+        || format!("version = \"{range}\""),
         |workspace| {
             format!(
                 "path = \"{}\", default-features = false",
@@ -240,7 +245,7 @@ fn example_controller_mod() -> String {
 }
 
 fn example_controller() -> String {
-    "use std::sync::Arc;\nuse ironic::prelude::*;\nuse super::super::services::ExampleService;\nuse crate::modules::example::dto::{CreateExampleDto, UpdateExampleDto};\nuse crate::modules::example::entities::Example;\n\n#[controller(\"/example\")]\n#[derive(Injectable)]\npub struct ExampleController { service: Arc<ExampleService> }\n\n#[routes]\nimpl ExampleController {\n    #[get]\n    #[api(summary = \"List all examples\", tag = \"Examples\")]\n    #[resp(200, \"A list of examples\", json = Vec<Example>)]\n    async fn list(&self) -> Result<Json<Vec<Example>>, HttpError> {\n        Ok(Json(self.service.list()))\n    }\n\n    #[get(\"/:id\")]\n    #[api(summary = \"Get an example by ID\", tag = \"Examples\")]\n    #[resp(200, \"The requested example\", json = Example)]\n    #[resp(404, \"Example not found\")]\n    async fn get(&self, #[param] id: u64) -> Result<Json<Example>, HttpError> {\n        self.service.find(id).map(Json)\n    }\n\n    #[post]\n    #[api(summary = \"Create a new example\", tag = \"Examples\")]\n    #[req_body(json = CreateExampleDto)]\n    #[resp(201, \"Example created\", json = Example)]\n    #[resp(400, \"Validation error\")]\n    async fn create(&self, #[body] dto: CreateExampleDto) -> Result<Json<Example>, HttpError> {\n        Ok(Json(self.service.create(dto)))\n    }\n\n    #[put(\"/:id\")]\n    #[api(summary = \"Update an existing example\", tag = \"Examples\")]\n    #[req_body(json = UpdateExampleDto)]\n    #[resp(200, \"Example updated\", json = Example)]\n    #[resp(404, \"Example not found\")]\n    async fn update(&self, #[param] id: u64, #[body] dto: UpdateExampleDto) -> Result<Json<Example>, HttpError> {\n        self.service.update(id, dto).map(Json)\n    }\n\n    #[delete(\"/:id\")]\n    #[api(summary = \"Delete an example\", tag = \"Examples\")]\n    #[resp(204, \"Example deleted\")]\n    #[resp(404, \"Example not found\")]\n    async fn delete(&self, #[param] id: u64) -> Result<(), HttpError> {\n        self.service.delete(id)\n    }\n}\n".to_owned()
+    "use std::sync::Arc;\nuse ironic::prelude::*;\nuse super::super::services::ExampleService;\nuse crate::modules::example::dto::{CreateExampleDto, UpdateExampleDto};\nuse crate::modules::example::entities::Example;\n\n#[controller(\"/example\")]\n#[derive(Injectable)]\npub struct ExampleController { service: Arc<ExampleService> }\n\n#[routes]\nimpl ExampleController {\n    #[get]\n    async fn list(&self) -> Result<Json<Vec<Example>>, HttpError> {\n        Ok(Json(self.service.list()))\n    }\n\n    #[get(\"/:id\")]\n    async fn get(&self, #[param] id: u64) -> Result<Json<Example>, HttpError> {\n        self.service.find(id).map(Json)\n    }\n\n    #[post]\n    async fn create(&self, #[body] dto: CreateExampleDto) -> Result<Json<Example>, HttpError> {\n        Ok(Json(self.service.create(dto)))\n    }\n\n    #[put(\"/:id\")]\n    async fn update(&self, #[param] id: u64, #[body] dto: UpdateExampleDto) -> Result<Json<Example>, HttpError> {\n        self.service.update(id, dto).map(Json)\n    }\n\n    #[delete(\"/:id\")]\n    async fn delete(&self, #[param] id: u64) -> Result<(), HttpError> {\n        self.service.delete(id)\n    }\n}\n".to_owned()
 }
 
 fn example_service_mod() -> String {

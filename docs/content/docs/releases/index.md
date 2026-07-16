@@ -5,12 +5,13 @@ description: Version history and release notes for the Ironic framework.
 
 # Releases
 
-## Current version: v0.4.8
+## Current version: v0.4.9
 
 All notable changes to Ironic are documented here. The project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 | Version | Date | Highlights |
 |---------|------|-----------|
+| [v0.4.9](/blog/v0.4.9) | 2026-07-16 | implement CI/CD pipeline, security auditing, and operational endpoints |
 | [v0.4.8](/blog/v0.4.8) | 2026-07-16 | add database migration commands and update documentation |
 | [v0.4.7](/blog/v0.4.7) | 2026-07-16 | enhance release script and project generator for better version handling and documentation sync |
 | [v0.4.6](/blog/v0.4.6) | 2026-07-16 | Release v0.4.6 |

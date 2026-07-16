@@ -12,6 +12,14 @@ type Post = {
 
 const posts: Post[] = [
     {
+        slug: 'v0.4.9',
+        title: 'v0.4.9 — implement CI/CD pipeline, security auditing, and operational endpoints',
+        description: 'implement CI/CD pipeline, security auditing, and operational endpoints',
+        date: '2026-07-16',
+        tag: 'release',
+        readTime: '2 min',
+    },
+    {
         slug: 'production-hardening-operational-endpoints',
         title: 'Production-hardening 2: Health probes, version endpoint, and build metadata',
         description: 'Liveness and readiness probe endpoints for Kubernetes (GET /health/live, GET /health/ready). Build metadata endpoint (GET /version) with git SHA, build timestamp, Rust version, and active features. HealthIndicator trait split for liveness vs readiness distinction.',
@@ -495,7 +503,7 @@ export default function BlogIndex() {
                                 <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-500 opacity-75" />
                                 <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-500" />
                             </span>
-                            Latest: v0.4.8
+                            Latest: v0.4.9
                         </div>
                         <h1 className="text-4xl md:text-5xl lg:text-6xl font-extrabold text-fd-foreground tracking-tight leading-[1.1] mb-6">
                             The Ironic

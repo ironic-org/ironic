@@ -13,13 +13,15 @@ env:
 jobs:
   check:
     runs-on: ubuntu-latest
+
     steps:
       - uses: actions/checkout@v4
 
       - name: Install Rust toolchain
         run: |
           rustup show
-          rustc --version && cargo --version
+          rustc --version
+          cargo --version
 
       - name: Cache cargo registry and build
         uses: actions/cache@v4
@@ -35,28 +37,38 @@ jobs:
       - name: Check formatting
         run: cargo fmt --all -- --check
 
-      - name: Clippy (all features)
+      - name: Clippy
         run: cargo clippy --workspace --all-targets --all-features -- -D warnings
 
-      - name: Test (all features)
-        run: cargo test --all-features
+      - name: Test
+        run: cargo test --workspace --all-features
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install docs dependencies
+        working-directory: docs
+        run: bun install --frozen-lockfile
 
       - name: Build docs
-        run: npm --prefix docs install && npm --prefix docs run build
+        working-directory: docs
+        run: bun run build
 
-      - name: cargo audit (advisory check)
+      - name: cargo audit
         if: success() || failure()
         run: |
           cargo install cargo-audit --locked 2>/dev/null || true
           cargo audit 2>&1 || echo "::warning::cargo audit found advisories"
 
-      - name: cargo deny (license & duplicate check)
+      - name: cargo deny
         if: success() || failure()
         run: |
           cargo install cargo-deny --locked 2>/dev/null || true
           cargo deny check 2>&1 || echo "::warning::cargo deny check failed"
 
-      - name: Fuzz test (60s smoke check)
+      - name: Fuzz test
         if: success() || failure()
         run: |
           rustup toolchain install nightly --allow-downgrade -c rust-src 2>/dev/null || true

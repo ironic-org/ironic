@@ -1,5 +1,18 @@
-#![allow(missing_docs)]
+//! Build script for Ironic — injects compile-time build metadata.
+//!
+//! Captures git SHA, build timestamp, and Rust compiler version from
+//! environment variables (set by CI) or local git/rustc invocations.
+//! Exposes them as `IRONIC_GIT_SHA`, `IRONIC_BUILD_TIMESTAMP`, and
+//! `IRONIC_RUST_VERSION` for consumption by the `BuildInfo::capture` method
+//! in the `ironic-core` crate.
 
+/// Injects build metadata as cargo rustc-env variables.
+///
+/// Reads `GIT_SHA`, `BUILD_TIMESTAMP`, and `RUSTC_VERSION` environment variables
+/// (set by CI) and falls back to running `git` / `rustc` locally when those
+/// variables are absent.  Values are exposed as `IRONIC_GIT_SHA`,
+/// `IRONIC_BUILD_TIMESTAMP`, and `IRONIC_RUST_VERSION` env vars consumed by
+/// [`BuildInfo::capture`](crate::core::health::BuildInfo::capture).
 fn main() {
     let git_sha = std::env::var("GIT_SHA")
         .ok()
@@ -11,7 +24,9 @@ fn main() {
                 .ok()
                 .and_then(|o| {
                     if o.status.success() {
-                        String::from_utf8(o.stdout).ok().map(|s| s.trim().to_string())
+                        String::from_utf8(o.stdout)
+                            .ok()
+                            .map(|s| s.trim().to_string())
                     } else {
                         None
                     }
@@ -40,6 +55,7 @@ fn main() {
     println!("cargo::rustc-env=IRONIC_RUST_VERSION={rust_version}");
 }
 
+/// Returns the output of `rustc --version`, or `None` when the command fails.
 fn rustc_version() -> Option<String> {
     let output = std::process::Command::new("rustc")
         .arg("--version")

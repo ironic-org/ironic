@@ -222,11 +222,26 @@ async fn version_endpoint_returns_build_info() {
     response.assert_status(200);
 
     let info: serde_json::Value = response.json().unwrap();
-    assert!(info.get("git_sha").is_some(), "version response must include git_sha");
-    assert!(info.get("build_timestamp").is_some(), "version response must include build_timestamp");
-    assert!(info.get("rust_version").is_some(), "version response must include rust_version");
-    assert!(info.get("features").is_some(), "version response must include features");
-    assert!(info.get("version").is_some(), "version response must include version");
+    assert!(
+        info.get("git_sha").is_some(),
+        "version response must include git_sha"
+    );
+    assert!(
+        info.get("build_timestamp").is_some(),
+        "version response must include build_timestamp"
+    );
+    assert!(
+        info.get("rust_version").is_some(),
+        "version response must include rust_version"
+    );
+    assert!(
+        info.get("features").is_some(),
+        "version response must include features"
+    );
+    assert!(
+        info.get("version").is_some(),
+        "version response must include version"
+    );
 
     application.shutdown().await.unwrap();
 }

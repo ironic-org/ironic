@@ -392,8 +392,7 @@ async fn run_readiness_checks() -> HealthResponse {
         .unwrap_or_default();
 
     for indicator in &indicators {
-        let result =
-            tokio::time::timeout(config.check_timeout, indicator.check_readiness()).await;
+        let result = tokio::time::timeout(config.check_timeout, indicator.check_readiness()).await;
         let (status, message): (String, Option<String>) = match result {
             Ok(HealthStatus::Ok) => ("ok".into(), None),
             Ok(HealthStatus::Degraded { message: msg }) => {

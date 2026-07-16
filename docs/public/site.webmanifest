@@ -1,0 +1,16 @@
+{
+  "name": "Ironic Framework",
+  "short_name": "Ironic",
+  "description": "A batteries-included, type-safe application framework for Rust",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#f59e0b",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    }
+  ]
+}

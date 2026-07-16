@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v0.4.8] - 2026-07-16
+
+### Added
+- add database migration commands and update documentation (1e3db79)\n
+### Fixed
+- improve formatting and readability in migration and project generation code (37a696c)\n- enhance API documentation for authentication endpoints (acdf3d1)\n- enhance OpenAPI attributes and improve controller documentation (e27518d)\n
+### Changed
+- Add robots.txt and site.webmanifest for SEO and PWA support (d21bb8f)\n- Implement code changes to enhance functionality and improve performance (57a33f2)\n
+
 ## [v0.4.7] - 2026-07-16
 
 ### Fixed

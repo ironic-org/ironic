@@ -41,6 +41,11 @@ export default function DocsPage() {
     setMeta('og:title', pageData.title ?? 'Untitled', 'property');
     setMeta('og:description', description, 'property');
     setMeta('og:image', image, 'property');
+    setMeta('twitter:title', pageData.title ?? 'Untitled', 'name');
+    setMeta('twitter:description', description, 'name');
+    if (image) {
+      setMeta('twitter:image', image, 'name');
+    }
   }, [page, pageData]);
 
   return (

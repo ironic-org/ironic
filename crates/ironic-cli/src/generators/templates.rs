@@ -15,8 +15,8 @@ pub(crate) fn service(names: &Names) -> String {
 
 pub(crate) fn controller(names: &Names) -> String {
     format!(
-        "use ironic::prelude::*;\n\n#[controller(\"/{}\")]\n#[derive(Injectable)]\npub struct {}Controller;\n\n#[routes]\nimpl {}Controller {{\n    #[get(\"/\")]\n    #[allow(clippy::unused_async)]\n    async fn list(&self) -> Result<&'static str, HttpError> {{\n        Ok(\"{} controller\")\n    }}\n}}\n",
-        names.kebab, names.pascal, names.pascal, names.kebab
+        "use ironic::prelude::*;\n\n#[controller(\"/{}\")]\n#[derive(Injectable)]\npub struct {}Controller;\n\n#[routes]\nimpl {}Controller {{\n    #[get(\"/\")]\n    #[api(summary = \"List {}\", tag = \"{}\")]\n    #[resp(200, \"OK\")]\n    #[allow(clippy::unused_async)]\n    async fn list(&self) -> Result<&'static str, HttpError> {{\n        Ok(\"{} controller\")\n    }}\n}}\n",
+        names.kebab, names.pascal, names.pascal, names.kebab, names.pascal, names.kebab
     )
 }
 
@@ -35,8 +35,14 @@ pub(crate) fn resource_module(names: &Names) -> String {
 
 pub(crate) fn resource_controller(names: &Names) -> String {
     format!(
-        "use std::sync::Arc;\n\nuse ironic::prelude::*;\n\nuse super::super::services::{}Service;\n\n#[controller(\"/{}\")]\n#[derive(Injectable)]\npub struct {}Controller {{\n    service: Arc<{}Service>,\n}}\n\n#[routes]\nimpl {}Controller {{\n    #[get(\"/\")]\n    async fn list(&self) -> Result<String, HttpError> {{\n        Ok(self.service.name().to_owned())\n    }}\n}}\n",
-        names.pascal, names.kebab, names.pascal, names.pascal, names.pascal
+        "use std::sync::Arc;\n\nuse ironic::prelude::*;\n\nuse super::super::services::{}Service;\n\n#[controller(\"/{}\")]\n#[derive(Injectable)]\npub struct {}Controller {{\n    service: Arc<{}Service>,\n}}\n\n#[routes]\nimpl {}Controller {{\n    #[get(\"/\")]\n    #[api(summary = \"List all {}\", tag = \"{}\")]\n    #[resp(200, \"OK\")]\n    async fn list(&self) -> Result<String, HttpError> {{\n        Ok(self.service.name().to_owned())\n    }}\n}}\n",
+        names.pascal,
+        names.kebab,
+        names.pascal,
+        names.pascal,
+        names.pascal,
+        names.kebab,
+        names.pascal
     )
 }
 

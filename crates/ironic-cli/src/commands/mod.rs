@@ -4,6 +4,7 @@ mod dev;
 mod doctor;
 mod generate;
 mod inspect;
+mod migrate;
 mod new;
 mod update;
 
@@ -33,5 +34,6 @@ pub(crate) fn execute(command: Cli, output: &mut impl Write) -> Result<(), CliEr
         Command::Workspace(arguments) => inspect::workspace(&arguments.path, output),
         Command::Routes(arguments) => inspect::routes(&arguments.path, output),
         Command::Graph(arguments) => inspect::graph(&arguments.path, output),
+        Command::Migrate(arguments) => migrate::execute(arguments.action, output),
     }
 }

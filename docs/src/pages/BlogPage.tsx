@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useEffect, useMemo } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { getMDXComponents } from '@/mdx-components';
 import { blogSource } from '@/lib/source';
@@ -18,6 +18,28 @@ export default function BlogPage() {
     const slug = useMemo(() => getBlogSlug(location.pathname), [location.pathname]);
     const page = slug ? blogSource.getPage(slug) : undefined;
     const pageData = page?.data;
+
+    useEffect(() => {
+        if (pageData) {
+            document.title = `${pageData.title ?? 'Blog'} | Ironic`;
+            const setMeta = (name: string, content: string, attribute: 'name' | 'property' = 'name') => {
+                let element = document.head.querySelector<HTMLMetaElement>(`meta[${attribute}="${name}"]`);
+                if (!element) {
+                    element = document.createElement('meta');
+                    element.setAttribute(attribute, name);
+                    document.head.appendChild(element);
+                }
+                element.content = content;
+            };
+            setMeta('description', pageData.description ?? '');
+            setMeta('og:title', pageData.title ?? 'Blog', 'property');
+            setMeta('og:description', pageData.description ?? '', 'property');
+            setMeta('twitter:title', pageData.title ?? 'Blog', 'name');
+            setMeta('twitter:description', pageData.description ?? '', 'name');
+        } else {
+            document.title = 'Blog | Ironic';
+        }
+    }, [pageData]);
 
     if (!slug) {
         return (

@@ -1,8 +1,9 @@
 use proc_macro2::TokenStream;
 use quote::quote;
 use syn::{
-    Attribute, Expr, FnArg, ImplItem, ImplItemFn, ItemImpl, LitInt, LitStr, Meta, Pat, ReturnType,
-    Type, parse::Parse, parse::ParseStream, parse2, spanned::Spanned,
+    Attribute, Expr, FnArg, ImplItem, ImplItemFn, ItemImpl, Lit, LitInt, LitStr, Meta, Pat,
+    ReturnType, Token, Type, parse::Parse, parse::ParseStream, parse2, punctuated::Punctuated,
+    spanned::Spanned,
 };
 
 use crate::controller::take_components;
@@ -56,6 +57,7 @@ pub(crate) fn expand(attribute: TokenStream, item: TokenStream) -> syn::Result<T
         impl #self_ty {
             #[doc(hidden)]
             pub fn route_definitions() -> ::std::vec::Vec<::ironic::RouteDefinition> {
+                use ::ironic::OpenApiRouteExt;
                 ::std::vec![#(#definitions),*]
             }
         }
@@ -89,6 +91,224 @@ fn take_http_method(attrs: &mut Vec<Attribute>) -> syn::Result<Option<(syn::Iden
     *attrs = retained;
     Ok(route)
 }
+
+// ── OpenAPI attribute types ──────────────────────────────────────────
+
+struct OpenApiAttrs {
+    summary: Option<String>,
+    tags: Vec<String>,
+    operation_id: Option<String>,
+    security: Vec<String>,
+    responses: Vec<ResponseAttr>,
+    request_body: Option<RequestBodyAttr>,
+}
+
+struct ResponseAttr {
+    status: String,
+    description: String,
+    json_type: Option<Type>,
+}
+
+struct RequestBodyAttr {
+    json_type: Type,
+}
+
+/// Parses `#[api(key = "value", ...)]` attributes (`summary`, `tag`, `operation_id`).
+fn take_openapi_fields(attrs: &mut Vec<Attribute>) -> syn::Result<OpenApiAttrs> {
+    let mut summary = None;
+    let mut tags = Vec::new();
+    let mut operation_id = None;
+    let mut security = Vec::new();
+    let mut retained = Vec::new();
+
+    for attr in attrs.drain(..) {
+        if !attr.path().is_ident("api") {
+            retained.push(attr);
+            continue;
+        }
+        let nested = attr.parse_args_with(Punctuated::<Meta, Token![,]>::parse_terminated)?;
+        for meta in nested {
+            match meta {
+                Meta::NameValue(nv) if nv.path.is_ident("summary") => {
+                    let s = lit_str_from_expr(&nv.value)?;
+                    summary = Some(s.value());
+                }
+                Meta::NameValue(nv) if nv.path.is_ident("tag") => {
+                    let s = lit_str_from_expr(&nv.value)?;
+                    tags.push(s.value());
+                }
+                Meta::NameValue(nv) if nv.path.is_ident("operation_id") => {
+                    let s = lit_str_from_expr(&nv.value)?;
+                    operation_id = Some(s.value());
+                }
+                Meta::NameValue(nv) if nv.path.is_ident("security") => {
+                    let s = lit_str_from_expr(&nv.value)?;
+                    security.push(s.value());
+                }
+                other => {
+                    return Err(syn::Error::new_spanned(
+                        other,
+                        "expected `summary`, `tag`, `operation_id`, or `security`",
+                    ));
+                }
+            }
+        }
+    }
+    *attrs = retained;
+
+    let responses = take_response_attrs(attrs)?;
+    let request_body = take_request_body_attr(attrs)?;
+
+    Ok(OpenApiAttrs {
+        summary,
+        tags,
+        operation_id,
+        security,
+        responses,
+        request_body,
+    })
+}
+
+/// Parses `#[resp(status, "description")]` or `#[resp(status, "description", json = Type)]`.
+fn take_response_attrs(attrs: &mut Vec<Attribute>) -> syn::Result<Vec<ResponseAttr>> {
+    let mut responses = Vec::new();
+    let mut retained = Vec::new();
+
+    for attr in attrs.drain(..) {
+        if !attr.path().is_ident("resp") {
+            retained.push(attr);
+            continue;
+        }
+        let args: ResponseArgs = attr.parse_args()?;
+        responses.push(ResponseAttr {
+            status: args.status.to_string(),
+            description: args.description.value(),
+            json_type: args.json_type,
+        });
+    }
+    *attrs = retained;
+    Ok(responses)
+}
+
+struct ResponseArgs {
+    status: LitInt,
+    description: LitStr,
+    json_type: Option<Type>,
+}
+
+impl Parse for ResponseArgs {
+    fn parse(input: ParseStream<'_>) -> syn::Result<Self> {
+        let status: LitInt = input.parse()?;
+        input.parse::<Token![,]>()?;
+        let description: LitStr = input.parse()?;
+        let mut json_type = None;
+        if input.parse::<Token![,]>().is_ok() {
+            let key: syn::Ident = input.parse()?;
+            if key != "json" {
+                return Err(syn::Error::new(key.span(), "expected `json`"));
+            }
+            input.parse::<Token![=]>()?;
+            json_type = Some(input.parse()?);
+        }
+        Ok(ResponseArgs {
+            status,
+            description,
+            json_type,
+        })
+    }
+}
+
+/// Parses `#[req_body(json = Type)]`.
+fn take_request_body_attr(attrs: &mut Vec<Attribute>) -> syn::Result<Option<RequestBodyAttr>> {
+    let mut result = None;
+    let mut retained = Vec::new();
+
+    for attr in attrs.drain(..) {
+        if !attr.path().is_ident("req_body") {
+            retained.push(attr);
+            continue;
+        }
+        let args: RequestBodyArgs = attr.parse_args()?;
+        result = Some(RequestBodyAttr {
+            json_type: args.json_type,
+        });
+    }
+    *attrs = retained;
+    Ok(result)
+}
+
+struct RequestBodyArgs {
+    json_type: Type,
+}
+
+impl Parse for RequestBodyArgs {
+    fn parse(input: ParseStream<'_>) -> syn::Result<Self> {
+        let key: syn::Ident = input.parse()?;
+        if key != "json" {
+            return Err(syn::Error::new(key.span(), "expected `json`"));
+        }
+        input.parse::<Token![=]>()?;
+        let json_type: Type = input.parse()?;
+        Ok(RequestBodyArgs { json_type })
+    }
+}
+
+fn generate_openapi_call(openapi: &OpenApiAttrs) -> Option<TokenStream> {
+    if openapi.summary.is_none()
+        && openapi.tags.is_empty()
+        && openapi.operation_id.is_none()
+        && openapi.security.is_empty()
+        && openapi.responses.is_empty()
+        && openapi.request_body.is_none()
+    {
+        return None;
+    }
+
+    let mut calls: Vec<TokenStream> = Vec::new();
+
+    if let Some(ref s) = openapi.summary {
+        calls.push(quote! { .summary(#s) });
+    }
+    if let Some(ref id) = openapi.operation_id {
+        calls.push(quote! { .operation_id(#id) });
+    }
+    for tag in &openapi.tags {
+        calls.push(quote! { .tag(#tag) });
+    }
+    for scheme in &openapi.security {
+        let scopes: Vec<String> = Vec::new();
+        calls.push(quote! {
+            .security(#scheme, [#(#scopes),*])
+        });
+    }
+
+    if let Some(ref rb) = openapi.request_body {
+        let ty = &rb.json_type;
+        calls.push(quote! {
+            .request_body(::ironic::OpenApiRequestBody::json::<#ty>())
+        });
+    }
+
+    for resp in &openapi.responses {
+        let status_str = &resp.status;
+        let desc = &resp.description;
+        if let Some(ref json_ty) = resp.json_type {
+            calls.push(quote! {
+                .response(#status_str, ::ironic::OpenApiResponse::new(#desc).json::<#json_ty>())
+            });
+        } else {
+            calls.push(quote! {
+                .response(#status_str, ::ironic::OpenApiResponse::new(#desc))
+            });
+        }
+    }
+
+    Some(quote! {
+        .openapi(::ironic::OpenApiOperation::new() #(#calls)*)
+    })
+}
+
+// ── Core expand_method ───────────────────────────────────────────────
 
 fn expand_method(
     self_ty: &Type,
@@ -131,6 +351,8 @@ fn expand_method(
     let guards = take_components(&mut method.attrs, "use_guard")?;
     let interceptors = take_components(&mut method.attrs, "use_interceptor")?;
     let cache_ttl = take_cache_ttl(&mut method.attrs)?;
+    let openapi = take_openapi_fields(&mut method.attrs)?;
+
     let mut extractors = Vec::new();
     let mut bindings = Vec::new();
     let mut arguments = Vec::new();
@@ -159,6 +381,7 @@ fn expand_method(
     let cache_call = cache_ttl.map(|ttl| {
         quote! { .cache(::ironic::CacheMetadata::new(#ttl)) }
     });
+    let openapi_call = generate_openapi_call(&openapi);
     let parameter_calls: Vec<TokenStream> = extractors
         .into_iter()
         .zip(parameter_pipes)
@@ -188,6 +411,7 @@ fn expand_method(
         #(.guard(#guards))*
         #(.interceptor(#interceptors))*
         #cache_call
+        #openapi_call
     })
 }
 
@@ -297,6 +521,16 @@ impl Parse for CacheArgs {
         Ok(CacheArgs {
             ttl_secs: value.base10_parse()?,
         })
+    }
+}
+
+fn lit_str_from_expr(expr: &Expr) -> syn::Result<LitStr> {
+    match expr {
+        Expr::Lit(expr_lit) => match &expr_lit.lit {
+            Lit::Str(s) => Ok(s.clone()),
+            _ => Err(syn::Error::new_spanned(expr, "expected a string literal")),
+        },
+        _ => Err(syn::Error::new_spanned(expr, "expected a string literal")),
     }
 }
 

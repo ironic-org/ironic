@@ -9,15 +9,12 @@ set -euo pipefail
 #   ./scripts/release.sh major        → bump major (0.1.8 → 1.0.0)
 #
 # Automatically:
-#   1. Checks if version already published on crates.io — aborts if so
-#   2. Bumps version in Cargo.toml (workspace + internal deps)
-#   3. Syncs all hardcoded version strings in docs/
-#   4. Generates CHANGELOG.md from git commits since last tag
-#   5. Creates blog post + updates releases pages
-#   6. Builds + runs full test suite + clippy
-#   7. Publishes to crates.io
-#   8. Creates git commit + tag
-#   9. Pushes to GitHub (triggering CI)
+#   1. Bumps version in Cargo.toml (workspace + internal deps)
+#   2. Generates CHANGELOG.md from git commits since last tag
+#   3. Creates blog post + updates releases pages
+#   4. Runs pre-flight checks (fmt, clippy, all-features tests, docs build)
+#   5. Commits, tags, and pushes to GitHub
+#      (crates.io publish is handled by GitHub Actions on tag push)
 # ──────────────────────────────────────────────────────────────────────
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
@@ -60,26 +57,6 @@ sync_file() {
     fi
 }
 
-# Check if a version is already published on crates.io
-is_version_published() {
-    local ver="$1"
-    local body
-    body=$(curl -sf "https://crates.io/api/v1/crates/ironic" 2>/dev/null) || return 1
-    echo "$body" | python3 -c "
-import sys, json
-try:
-    data = json.load(sys.stdin)
-    max_ver = data.get('crate', {}).get('max_version', '')
-    print(max_ver)
-except Exception:
-    print('')
-" 2>/dev/null | grep -qF "$ver"
-}
-
-# ── step 0: check if version already published ───────────────────────
-
-echo "→ Checking crates.io for current version..."
-
 CURRENT=$(workspace_version)
 BUMP="${1:-}"
 
@@ -90,13 +67,6 @@ else
     NEW="$CURRENT"
     echo -e "→ Releasing ${CYAN}v$NEW${NC}"
 fi
-
-if is_version_published "$NEW"; then
-    echo -e "  ${RED}✗${NC} v$NEW is already published on crates.io — aborting"
-    echo "  Run with 'patch'/'minor'/'major' to bump first."
-    exit 1
-fi
-echo -e "  ${GREEN}✓${NC} v$NEW is not yet published — proceeding"
 
 # ── step 1: bump Cargo.toml if needed ────────────────────────────────
 
@@ -443,28 +413,14 @@ cargo test --all-features
 echo "  • npm run build (docs)"
 npm --prefix "$ROOT/docs" run build
 
-# ── step 7: publish to crates.io ────────────────────────────────────
+# ── step 7: commit, tag & push ──────────────────────────────────────
+# (crates.io publish is handled by GitHub Actions when the tag is pushed)
 
-echo "→ Publishing to crates.io..."
-
-cargo publish -p ironic-macros --allow-dirty 2>&1 || echo "  ! ironic-macros publish skipped"
-cargo publish -p ironic --allow-dirty
-
-# ── step 8: git tag & push ───────────────────────────────────────────
-
-echo "→ Creating git tag v$NEW"
+echo "→ Committing, tagging and pushing v$NEW..."
 
 cd "$ROOT"
 
-git add Cargo.toml Cargo.lock CHANGELOG.md \
-    docs/src/pages/home/components/hero-section.tsx \
-    docs/src/pages/home/components/stats-bar.tsx \
-    docs/content/docs/getting-started/getting-started.md \
-    docs/content/docs/getting-started/cli.md \
-    docs/content/blog/v$NEW.md \
-    docs/src/pages/BlogIndex.tsx \
-    docs/content/docs/releases/index.md \
-    "$RELEASES_V" 2>/dev/null || true
+git add -A
 
 if ! git diff --cached --quiet; then
     git commit -m "chore: release v$NEW"
@@ -473,19 +429,15 @@ else
     echo "  - nothing to commit"
 fi
 
-# Always delete stale local tag before creating a new one
-git tag -d "v$NEW" 2>/dev/null || true
-git tag -a "v$NEW" -m "Release v$NEW"
-echo -e "  ${GREEN}✓${NC} tag v$NEW created"
-
-echo "→ Pushing to GitHub..."
+echo "→ Pushing to current branch..."
 if ! git push origin HEAD; then
     echo -e "  ${RED}✗${NC} failed to push to origin — aborting"
-    git tag -d "v$NEW" 2>/dev/null || true
     exit 1
 fi
 
-echo "→ Pushing tag v$NEW..."
+echo "→ Creating and pushing tag v$NEW..."
+git tag -d "v$NEW" 2>/dev/null || true
+git tag -a "v$NEW" -m "Release v$NEW"
 if git push origin "v$NEW" 2>&1; then
     echo -e "  ${GREEN}✓${NC} tag pushed"
 else
@@ -497,7 +449,5 @@ fi
 echo ""
 echo -e "${GREEN}╔══════════════════════════════════════════════════════════════════╗${NC}"
 echo -e "${GREEN}║${NC}  🚀 Released ${CYAN}v$NEW${NC}"
-echo -e "${GREEN}║${NC}"
-echo -e "${GREEN}║${NC}  https://crates.io/crates/ironic/$NEW"
 echo -e "${GREEN}║${NC}  https://github.com/ironic-org/ironic/releases/tag/v$NEW"
 echo -e "${GREEN}╚══════════════════════════════════════════════════════════════════╝${NC}"

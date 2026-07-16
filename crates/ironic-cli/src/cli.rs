@@ -38,6 +38,8 @@ pub enum Command {
     Routes(InspectArgs),
     /// Prints a Graphviz dependency graph from module and injectable declarations.
     Graph(InspectArgs),
+    /// Manage database migrations.
+    Migrate(MigrateArgs),
 }
 
 /// Arguments for project creation.
@@ -151,4 +153,32 @@ pub struct ReadyResourceArgs {
 pub struct NameArgs {
     /// Resource or module name.
     pub name: String,
+}
+
+/// Arguments for the migrate command.
+#[derive(Debug, Args)]
+pub struct MigrateArgs {
+    /// Migration subcommand to execute.
+    #[command(subcommand)]
+    pub action: MigrateAction,
+}
+
+/// Supported migration operations.
+#[derive(Debug, Subcommand)]
+pub enum MigrateAction {
+    /// Run pending migrations.
+    Up,
+    /// Revert the last N migrations.
+    Down {
+        /// Number of migrations to revert (default: 1).
+        #[arg(long, default_value = "1")]
+        steps: i64,
+    },
+    /// Create a new migration file.
+    Create {
+        /// Migration name (e.g. "create_users_table").
+        name: String,
+    },
+    /// Show migration status (applied vs pending).
+    Status,
 }

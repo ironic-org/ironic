@@ -164,8 +164,6 @@ The pool is auto-injected into any service or controller that declares `Arc<PgPo
 
 ## Available integrations
 
-## Available integrations
-
 | Database | Feature flag | Crate | Pool type |
 |---|---|---|---|
 | PostgreSQL (SQLx) | `sqlx-postgres` | `sqlx` | `Arc<PgPool>` |

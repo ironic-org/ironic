@@ -44,6 +44,16 @@ pub enum CliError {
     },
 }
 
+impl From<io::Error> for CliError {
+    fn from(source: io::Error) -> Self {
+        Self::Io {
+            action: "IO operation",
+            path: PathBuf::new(),
+            source,
+        }
+    }
+}
+
 impl CliError {
     pub(crate) fn io(action: &'static str, path: impl Into<PathBuf>, source: io::Error) -> Self {
         Self::Io {

@@ -9,6 +9,7 @@ description: Master the Ironic command-line tools — create, generate, run, tes
 
 - Every CLI command and what it does
 - Generator commands for scaffolding code
+- Migration commands for database schema management
 - Project inspection tools
 - Doctor command for debugging
 
@@ -42,6 +43,29 @@ description: Master the Ironic command-line tools — create, generate, run, tes
 | `ironic generate middleware <name>` | `g mi` | Middleware |
 | `ironic generate pipe <name>` | `g pi` | Parameter pipe |
 | `ironic generate provider <name>` | `g pr` | Injectable provider |
+
+## Migration commands
+
+Requires the `sqlx-postgres`, `sqlx-mysql`, or `sqlx-sqlite` feature for `up|down|status`.
+
+| Command | What it does |
+|---------|-------------|
+| `ironic migrate create <name>` | Create a timestamped SQL migration file in `./migrations/` |
+| `ironic migrate up` | Apply all pending migrations |
+| `ironic migrate down --steps N` | Revert the last N migrations |
+| `ironic migrate status` | Show applied vs pending migrations |
+
+Ironic reads `DATABASE_URL` from the environment or `.env` file. Migration files follow the `sqlx` convention and are compatible with `sqlx-cli`.
+
+```bash
+# Typical workflow
+ironic migrate create add_users_table
+# edit migrations/1742169600_add_users_table.sql
+ironic migrate up
+ironic migrate status
+```
+
+For a full walkthrough, see [Database Migrations](/docs/data-auth/migrations).
 
 ## Inspection commands
 
@@ -80,5 +104,6 @@ Checks crates.io for a newer version and shows update instructions.
 - [x] `ironic new` creates projects
 - [x] `ironic start/build/test` wraps Cargo commands
 - [x] `ironic generate resource` creates full vertical slices
+- [x] `ironic migrate create/up/down/status` manages database schema
 - [x] `ironic doctor` diagnoses environment issues
 - [x] `ironic routes` and `ironic graph` inspect projects

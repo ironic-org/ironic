@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v0.5.0] - 2026-07-16
+
+### Fixed
+- update alias for Decorator command from 'd' to 'de' (e3e863c)\n- update npm command in CI workflow to use 'install' instead of 'ci' (4872ed8)\n
+
 ## [v0.4.9] - 2026-07-16
 
 ### Added

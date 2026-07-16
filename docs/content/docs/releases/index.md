@@ -5,7 +5,7 @@ description: Version history and release notes for the Ironic framework.
 
 # Releases
 
-## Current version: v0.4.6
+## Current version: v0.4.7
 
 All notable changes to Ironic are documented here. The project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 

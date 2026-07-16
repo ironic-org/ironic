@@ -12,6 +12,14 @@ type Post = {
 
 const posts: Post[] = [
     {
+        slug: 'v0.4.7',
+        title: 'v0.4.7 — enhance release script and project generator for better version handling and documentation sync',
+        description: 'enhance release script and project generator for better version handling and documentation sync',
+        date: '2026-07-16',
+        tag: 'release',
+        readTime: '2 min',
+    },
+    {
         slug: 'v0.4.6',
         title: 'v0.4.6 — Release v0.4.6',
         description: 'Release v0.4.6',
@@ -463,7 +471,7 @@ export default function BlogIndex() {
                                 <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-500 opacity-75" />
                                 <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-500" />
                             </span>
-                            Latest: v0.4.2
+                            Latest: v0.4.7
                         </div>
                         <h1 className="text-4xl md:text-5xl lg:text-6xl font-extrabold text-fd-foreground tracking-tight leading-[1.1] mb-6">
                             The Ironic

@@ -95,7 +95,7 @@ pub enum Generator {
     #[command(alias = "res")]
     Resource(NameArgs),
     /// Generates a custom parameter decorator.
-    #[command(alias = "d")]
+    #[command(alias = "de")]
     Decorator(NameArgs),
     /// Generates an exception filter.
     #[command(alias = "f")]

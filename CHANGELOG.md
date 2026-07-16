@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v0.4.6] - 2026-07-16
+
+### Added
+- update version to 0.4.6 and enhance OpenAPI support with new attributes (f088ce6)\n
+### Fixed
+- comment out database module by default with setup guide (a0612d4)\n
+
 ## [v0.4.5] - 2026-07-16
 
 ### Added

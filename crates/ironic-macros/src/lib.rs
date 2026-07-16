@@ -98,6 +98,9 @@ marker_attribute!(
     cron,
     interval,
     timeout,
+    api,
+    resp,
+    req_body,
 );
 
 /// Configures an async entry point with Ironic's Tokio runtime.

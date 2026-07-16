@@ -1,265 +1,301 @@
 ---
 title: OpenAPI
-description: Auto-generate OpenAPI schemas and Swagger UI from your controller definitions — no extra annotations needed.
+description: Auto-generate OpenAPI 3.1 specs and Swagger UI from route attributes — no extra boilerplate.
 ---
 
 # OpenAPI
 
 ## What you'll learn
 
-- Generate OpenAPI specs automatically from your controllers
+- Annotate handlers with `#[api]`, `#[resp]`, `#[req_body]` for full OpenAPI metadata
 - Serve Swagger UI at `/docs`
-- Add descriptions and examples to your API schema
-- Customize API metadata, server URLs, and security schemes
-- Exclude routes from documentation
+- Document request body, responses per status code, and parameters
+- Configure security schemes (Bearer JWT, API key, OAuth2)
 
 ---
 
-## Step 1: Add the schema derive
+## How it works
+
+OpenAPI docs build from:
+
+1. **`#[derive(OpenApiSchema)]`** on your DTOs/entities → JSON Schema
+2. **`#[api]`, `#[resp]`, `#[req_body]`** on route handlers → operation metadata
+
+No separate route definition needed — everything stays on the handler method.
+
+---
+
+## Step 1: Schema derive
 
 ```rust
 use ironic::OpenApiSchema;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 
-#[derive(Serialize, OpenApiSchema)]    // ← Auto-generates OpenAPI schema
-struct UserView {
-    id: u64,
-    name: String,
-    email: String,
-}
-```
-
-## Step 2: Build and view
-
-```rust
-#[ironic::main]
-async fn main() {
-    let app = FrameworkApplication::builder()
-        .module(AppModule::definition())
-        .platform(AxumAdapter::new())
-        .build().await.unwrap();
-
-    // Print OpenAPI JSON (useful for CI/CD pipelines)
-    println!("{}", ironic::generate_openapi_json(&app));
-
-    app.listen("127.0.0.1:3000").await.unwrap();
-}
-```
-
-Visit **`http://localhost:3000/docs`** for the Swagger UI:
-
-```
-┌─────────────────────────────────────────┐
-│  Swagger UI                     [docs]  │
-│  ┌─────────────────────────────────────┐│
-│  │ GET    /users          List users  ││
-│  │ POST   /users          Create user ││
-│  │ GET    /users/:id      Get user    ││
-│  │ PUT    /users/:id      Update user ││
-│  │ DELETE /users/:id      Delete user ││
-│  └─────────────────────────────────────┘│
-└─────────────────────────────────────────┘
-```
-
-> **It just works.** Every controller and route is automatically discovered. No extra code needed.
-
-## Customizing schema fields
-
-Add descriptions and examples to your DTO fields using doc comments. The OpenAPI generator picks them up automatically:
-
-```rust
 #[derive(Serialize, OpenApiSchema)]
-struct ProductView {
-    /// Unique product identifier (auto-incremented)
+struct UserView {
+    /// Unique identifier.
     id: u64,
-
-    /// Human-readable product name shown in listings
+    /// Display name.
     name: String,
+}
 
-    /// Price in cents (e.g. 1999 = $19.99)
-    #[serde(rename = "price_cents")]
-    price: u64,
+#[derive(Deserialize, OpenApiSchema)]
+struct CreateUser {
+    /// Full name (1–100 characters).
+    name: String,
+    /// Age in years.
+    age: Option<u16>,
 }
 ```
 
-Doc comments (`///`) become field-level `description` properties. `#[serde(rename)]` changes the field name in the schema — useful when your internal Rust names differ from your public API.
+Doc comments (`///`) become `description` in the schema.
 
-## Setting API info
+---
 
-Customize the OpenAPI `info` block via `OpenApiConfig`:
+## Step 2: Annotate handlers
 
 ```rust
-use ironic::openapi::OpenApiConfig;
+#[routes]
+impl ExampleController {
+    #[get]
+    #[api(summary = "List all examples", tag = "Examples")]
+    #[resp(200, "A list of examples", json = Vec<Example>)]
+    async fn list(&self) -> Result<Json<Vec<Example>>, HttpError> {
+        Ok(Json(self.service.list()))
+    }
 
-let config = OpenApiConfig {
-    title: "PetStore API".into(),
-    version: "2.1.0".into(),
-    description: Some("REST API for managing pets, orders, and inventory.".into()),
-    ..Default::default()
-};
+    #[get("/:id")]
+    #[api(summary = "Get an example by ID", tag = "Examples")]
+    #[resp(200, "The requested example", json = Example)]
+    #[resp(404, "Example not found")]
+    async fn get(&self, #[param] id: u64) -> Result<Json<Example>, HttpError> {
+        self.service.find(id).map(Json)
+    }
 
-FrameworkApplication::builder()
-    .platform(AxumAdapter::new())
-    .openapi_config(config)
-    .build().await.unwrap();
-```
+    #[post]
+    #[api(summary = "Create a new example", tag = "Examples")]
+    #[req_body(json = CreateExampleDto)]
+    #[resp(201, "Example created", json = Example)]
+    #[resp(400, "Validation error")]
+    async fn create(&self, #[body] dto: CreateExampleDto) -> Result<Json<Example>, HttpError> {
+        Ok(Json(self.service.create(dto)))
+    }
 
-This produces:
+    #[put("/:id")]
+    #[api(summary = "Update an existing example", tag = "Examples")]
+    #[req_body(json = UpdateExampleDto)]
+    #[resp(200, "Example updated", json = Example)]
+    #[resp(404, "Example not found")]
+    async fn update(&self, #[param] id: u64, #[body] dto: UpdateExampleDto) -> Result<Json<Example>, HttpError> {
+        self.service.update(id, dto).map(Json)
+    }
 
-```json
-{
-  "openapi": "3.1.0",
-  "info": {
-    "title": "PetStore API",
-    "version": "2.1.0",
-    "description": "REST API for managing pets, orders, and inventory."
-  }
+    #[delete("/:id")]
+    #[api(summary = "Delete an example", tag = "Examples")]
+    #[resp(204, "Example deleted")]
+    #[resp(404, "Example not found")]
+    async fn delete(&self, #[param] id: u64) -> Result<(), HttpError> {
+        self.service.delete(id)
+    }
 }
 ```
 
-## Server URLs
+The `#[routes]` macro reads `#[api]`, `#[resp]`, `#[req_body]` and generates the `.openapi(...)` call automatically. Your handler methods stay clean.
 
-If your API runs behind a gateway or load balancer, set the public-facing URL:
+---
+
+## Attribute reference
+
+### `#[api(key = "value", ...)]`
+
+| Key | Type | Description |
+|-----|------|-------------|
+| `summary` | string | Short route description |
+| `tag` | string | Grouping tag (repeatable) |
+| `operation_id` | string | Unique operation ID |
+| `security` | string | Security scheme name (repeatable, registered in `OpenApiConfig`) |
 
 ```rust
-let config = OpenApiConfig {
-    servers: vec![
-        "https://api.example.com/v2".into(),
-        "https://staging-api.example.com/v2".into(),
-    ],
-    ..Default::default()
-};
+#[api(summary = "Get user by ID", tag = "Users", operation_id = "getUser", security = "bearer")]
 ```
 
-The Swagger UI uses the first server URL for "Try it out" requests.
+### `#[resp(status, "description", json = Type)]`
+
+First two args are required; `json = Type` is optional (for responses with a body).
+
+```rust
+#[resp(200, "User found", json = UserView)]
+#[resp(404, "User not found")]
+```
+
+### `#[req_body(json = Type)]`
+
+```rust
+#[req_body(json = CreateUser)]
+```
+
+---
+
+## Step 3: Wire it up in main.rs
+
+```rust
+use ironic::{AxumAdapter, OpenApiConfig, OpenApiAxumExt};
+
+AxumAdapter::new()
+    .with_openapi(
+        OpenApiConfig::new("My API", "0.1.0")
+            .description("REST API for my app")
+            .security_scheme("bearer", SecurityScheme::HttpBearer {
+                bearer_format: Some("JWT".into()),
+            }),
+    )
+    .swagger_ui("/docs")
+```
+
+---
 
 ## Security schemes
 
-Document authentication so clients know what to send:
+### Available scheme types
 
 ```rust
-let config = OpenApiConfig {
-    security: vec![SecurityScheme::BearerJwt {
-        description: "Include `Authorization: Bearer <token>`".into(),
-    }],
-    ..Default::default()
-};
-```
+use std::collections::BTreeMap;
 
-| Scheme | Use case |
-|--------|----------|
-| `SecurityScheme::BearerJwt` | Token-based auth; adds a padlock icon to every route in Swagger UI |
-| `SecurityScheme::ApiKey { header }` | API key in a custom header like `X-API-Key` |
-| `SecurityScheme::Basic` | HTTP Basic Auth (username/password) |
+// Bearer JWT
+SecurityScheme::HttpBearer { bearer_format: Some("JWT".into()) }
 
-Security schemes apply globally. To mark specific routes as public (no auth), use `#[no_auth]` on the route handler.
+// API key in header
+SecurityScheme::ApiKey { name: "X-API-Key".into(), location: "header".into() }
 
-## Tag grouping for controllers
-
-Organize Swagger UI into logical sections with tags:
-
-```rust
-#[controller("/products")]
-#[openapi_tag("Inventory")]
-#[derive(Injectable)]
-struct ProductsController {
-    service: Arc<ProductsService>,
+// OAuth2 authorization code flow
+SecurityScheme::OAuth2AuthorizationCode {
+    authorization_url: "https://auth.example.com/authorize".into(),
+    token_url: "https://auth.example.com/token".into(),
+    scopes: BTreeMap::from([
+        ("users:read".into(), "Read user profiles".into()),
+    ]),
 }
 ```
 
-All routes in `ProductsController` appear under the "Inventory" group in the Swagger UI sidebar, separate from "Users" or "Orders" controllers.
+### Registering multiple schemes
 
-## Enabling Swagger UI
-
-Swagger UI is served at `/docs` automatically when the `openapi` feature is active. No additional feature flag is needed:
-
-```toml
-ironic = { features = ["openapi"] }
-```
-
-The JSON spec is available at `/docs/openapi.json`. Use this endpoint for CI/CD tooling, API gateways, or generating client SDKs.
-
-## Excluding routes
-
-Hide internal or deprecated routes from the docs:
+Chain `.security_scheme(...)` for each scheme — all appear in the `components/securitySchemes` section of the spec:
 
 ```rust
-#[get("/health")]
-#[hidden]                              // ← This route won't appear in OpenAPI
-async fn health(&self) -> StatusCode {
-    StatusCode::OK
+use std::collections::BTreeMap;
+use ironic::SecurityScheme;
+
+let config = OpenApiConfig::new("My API", "1.0.0")
+    .security_scheme("bearer", SecurityScheme::HttpBearer {
+        bearer_format: Some("JWT".into()),
+    })
+    .security_scheme("api_key", SecurityScheme::ApiKey {
+        name: "X-API-Key".into(),
+        location: "header".into(),
+    })
+    .security_scheme("oauth", SecurityScheme::OAuth2AuthorizationCode {
+        authorization_url: "https://auth.example.com/authorize".into(),
+        token_url: "https://auth.example.com/token".into(),
+        scopes: BTreeMap::from([
+            ("users:read".into(), "Read user profiles".into()),
+        ]),
+    });
+```
+
+### Applying schemes to routes
+
+Use `security = "scheme_name"` in `#[api(...)]` to require a scheme on a specific route. Repeat for multiple schemes:
+
+```rust
+#[api(
+    summary = "List all examples",
+    tag = "Examples",
+    security = "bearer",
+    security = "api_key",
+)]
+#[resp(200, "A list of examples", json = Vec<Example>)]
+async fn list(&self) -> Result<Json<Vec<Example>>, HttpError> {
+    Ok(Json(self.service.list()))
 }
 ```
 
-Use `#[hidden]` for health checks, metrics endpoints, debug routes, or any endpoint you don't want publicly documented.
+Routes without `security = "..."` are unauthenticated (public).
+
+### Choosing between schemes
+
+| Scenario | Approach |
+|----------|----------|
+| Single auth method (e.g. JWT only) | One `security_scheme("bearer", ...)` + `security = "bearer"` on protected routes |
+| Multiple auth methods, same routes | Multiple `security_scheme` calls + `security = "bearer"` + `security = "api_key"` on each protected route |
+| Different auth per route | Apply different `security = "..."` values per handler |
+| Mixed public + protected | Omit `security = "..."` on public routes |
+| Scoped OAuth2 | Pass scopes via the third argument to `.security(name, scopes)` when building programmatically |
+
+---
+
+## The generated template
+
+`ironic new my-app` generates a full CRUD with:
+
+- `src/main.rs` — `with_openapi(...).swagger_ui("/docs")`
+- `src/modules/example/` — Handlers annotated with `#[api]`, `#[resp]`, `#[req_body]`
+- DTOs with `#[derive(OpenApiSchema)]`
+
+Visit `http://localhost:8080/docs` after starting the server.
+
+---
 
 ## Generated JSON example
-
-Here's what a minimal OpenAPI output looks like for a `GET /users` endpoint:
 
 ```json
 {
   "openapi": "3.1.0",
   "info": { "title": "My API", "version": "0.1.0" },
   "paths": {
-    "/users": {
+    "/example": {
       "get": {
-        "summary": "List users",
-        "operationId": "listUsers",
+        "summary": "List all examples",
+        "operationId": "list",
+        "tags": ["Examples"],
         "responses": {
           "200": {
-            "description": "Successful response",
+            "description": "A list of examples",
             "content": {
               "application/json": {
                 "schema": {
                   "type": "array",
-                  "items": { "$ref": "#/components/schemas/UserView" }
+                  "items": { "$ref": "#/components/schemas/Example" }
                 }
               }
             }
           }
         }
-      }
-    }
-  },
-  "components": {
-    "schemas": {
-      "UserView": {
-        "type": "object",
-        "properties": {
-          "id": { "type": "integer", "format": "int64" },
-          "name": { "type": "string" },
-          "email": { "type": "string" }
+      },
+      "post": {
+        "summary": "Create a new example",
+        "operationId": "create",
+        "tags": ["Examples"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/CreateExampleDto" }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Example created",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Example" }
+              }
+            }
+          },
+          "400": { "description": "Validation error" }
         }
       }
     }
   }
 }
 ```
-
-## Common mistakes
-
-| Mistake | Why it's wrong | Fix |
-|---------|---------------|-----|
-| Forgetting `#[derive(OpenApiSchema)]` | DTO won't appear in `components/schemas` | Add the derive to every struct used in routes |
-| Leaking internal routes in docs | Health checks and debug endpoints clutter Swagger UI | Use `#[hidden]` on routes meant only for internal use |
-| Not setting `info.version` | API consumers can't track breaking changes | Always set a version string in `OpenApiConfig` |
-| Omitting security schemes | Security requirements are invisible to API consumers | Add `SecurityScheme::BearerJwt` or `ApiKey` to `OpenApiConfig` |
-
-## Try it yourself
-
-1. Create a `ProductView` struct with `id`, `name`, `price`
-2. Add `#[derive(OpenApiSchema)]`
-3. Run the server and visit `/docs`
-4. Verify your Product schema appears in Swagger UI
-
-## What you learned
-
-- [x] `#[derive(OpenApiSchema)]` auto-generates API documentation
-- [x] Swagger UI is available at `/docs`
-- [x] All controllers, routes, and schemas are discovered automatically
-- [x] Doc comments (///) become field descriptions in the schema
-- [x] `OpenApiConfig` sets title, version, description, and server URLs
-- [x] Security schemes document authentication requirements
-- [x] `#[hidden]` excludes routes from the OpenAPI spec
-- [x] `#[openapi_tag]` organizes endpoints into Swagger UI groups

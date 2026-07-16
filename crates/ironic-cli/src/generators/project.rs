@@ -240,7 +240,7 @@ fn example_controller_mod() -> String {
 }
 
 fn example_controller() -> String {
-    "use std::sync::Arc;\nuse ironic::prelude::*;\nuse super::super::services::ExampleService;\nuse crate::modules::example::dto::{CreateExampleDto, UpdateExampleDto};\nuse crate::modules::example::entities::Example;\n\n#[controller(\"/example\")]\n#[derive(Injectable)]\npub struct ExampleController { service: Arc<ExampleService> }\n\n#[routes]\nimpl ExampleController {\n    #[get]\n    async fn list(&self) -> Result<Json<Vec<Example>>, HttpError> { Ok(Json(self.service.list())) }\n\n    #[get(\"/:id\")]\n    async fn get(&self, #[param] id: u64) -> Result<Json<Example>, HttpError> { self.service.find(id).map(Json) }\n\n    #[post]\n    async fn create(&self, #[body] dto: CreateExampleDto) -> Result<Json<Example>, HttpError> { Ok(Json(self.service.create(dto))) }\n\n    #[put(\"/:id\")]\n    async fn update(&self, #[param] id: u64, #[body] dto: UpdateExampleDto) -> Result<Json<Example>, HttpError> { self.service.update(id, dto).map(Json) }\n\n    #[delete(\"/:id\")]\n    async fn delete(&self, #[param] id: u64) -> Result<(), HttpError> { self.service.delete(id) }\n}\n".to_owned()
+    "use std::sync::Arc;\nuse ironic::prelude::*;\nuse super::super::services::ExampleService;\nuse crate::modules::example::dto::{CreateExampleDto, UpdateExampleDto};\nuse crate::modules::example::entities::Example;\n\n#[controller(\"/example\")]\n#[derive(Injectable)]\npub struct ExampleController { service: Arc<ExampleService> }\n\n#[routes]\nimpl ExampleController {\n    #[get]\n    #[api(summary = \"List all examples\", tag = \"Examples\")]\n    #[resp(200, \"A list of examples\", json = Vec<Example>)]\n    async fn list(&self) -> Result<Json<Vec<Example>>, HttpError> {\n        Ok(Json(self.service.list()))\n    }\n\n    #[get(\"/:id\")]\n    #[api(summary = \"Get an example by ID\", tag = \"Examples\")]\n    #[resp(200, \"The requested example\", json = Example)]\n    #[resp(404, \"Example not found\")]\n    async fn get(&self, #[param] id: u64) -> Result<Json<Example>, HttpError> {\n        self.service.find(id).map(Json)\n    }\n\n    #[post]\n    #[api(summary = \"Create a new example\", tag = \"Examples\")]\n    #[req_body(json = CreateExampleDto)]\n    #[resp(201, \"Example created\", json = Example)]\n    #[resp(400, \"Validation error\")]\n    async fn create(&self, #[body] dto: CreateExampleDto) -> Result<Json<Example>, HttpError> {\n        Ok(Json(self.service.create(dto)))\n    }\n\n    #[put(\"/:id\")]\n    #[api(summary = \"Update an existing example\", tag = \"Examples\")]\n    #[req_body(json = UpdateExampleDto)]\n    #[resp(200, \"Example updated\", json = Example)]\n    #[resp(404, \"Example not found\")]\n    async fn update(&self, #[param] id: u64, #[body] dto: UpdateExampleDto) -> Result<Json<Example>, HttpError> {\n        self.service.update(id, dto).map(Json)\n    }\n\n    #[delete(\"/:id\")]\n    #[api(summary = \"Delete an example\", tag = \"Examples\")]\n    #[resp(204, \"Example deleted\")]\n    #[resp(404, \"Example not found\")]\n    async fn delete(&self, #[param] id: u64) -> Result<(), HttpError> {\n        self.service.delete(id)\n    }\n}\n".to_owned()
 }
 
 fn example_service_mod() -> String {
@@ -256,11 +256,11 @@ fn example_dto_mod() -> String {
 }
 
 fn example_create_dto() -> String {
-    "use garde::Validate;\nuse serde::{Deserialize, Serialize};\n\n#[derive(Debug, Clone, Serialize, Deserialize, Validate)]\npub struct CreateExampleDto {\n    #[garde(length(min = 1, max = 256))]\n    pub name: String,\n    #[garde(skip)]\n    pub description: Option<String>,\n}\n".to_owned()
+    "use garde::Validate;\nuse ironic::OpenApiSchema;\nuse serde::{Deserialize, Serialize};\n\n#[derive(Debug, Clone, Serialize, Deserialize, Validate, OpenApiSchema)]\npub struct CreateExampleDto {\n    #[garde(length(min = 1, max = 256))]\n    /// Item name (1–256 characters).\n    pub name: String,\n    #[garde(skip)]\n    /// Optional description.\n    pub description: Option<String>,\n}\n".to_owned()
 }
 
 fn example_update_dto() -> String {
-    "use serde::{Deserialize, Serialize};\n\n#[derive(Debug, Clone, Serialize, Deserialize)]\npub struct UpdateExampleDto {\n    pub name: Option<String>,\n    pub description: Option<String>,\n}\n".to_owned()
+    "use ironic::OpenApiSchema;\nuse serde::{Deserialize, Serialize};\n\n#[derive(Debug, Clone, Serialize, Deserialize, OpenApiSchema)]\npub struct UpdateExampleDto {\n    /// New name (leave `null` to keep unchanged).\n    pub name: Option<String>,\n    /// New description (leave `null` to keep unchanged).\n    pub description: Option<String>,\n}\n".to_owned()
 }
 
 fn example_entity_mod() -> String {
@@ -268,7 +268,7 @@ fn example_entity_mod() -> String {
 }
 
 fn example_entity() -> String {
-    "use serde::{Deserialize, Serialize};\n\n#[derive(Debug, Clone, Serialize, Deserialize)]\npub struct Example {\n    pub id: u64,\n    pub name: String,\n    pub description: String,\n}\n".to_owned()
+    "use ironic::OpenApiSchema;\nuse serde::{Deserialize, Serialize};\n\n#[derive(Debug, Clone, Serialize, Deserialize, OpenApiSchema)]\npub struct Example {\n    /// Unique identifier.\n    pub id: u64,\n    /// Item name.\n    pub name: String,\n    /// Item description.\n    pub description: String,\n}\n".to_owned()
 }
 
 fn example_test_mod() -> String {
@@ -358,7 +358,8 @@ pub async fn build_pool() -> sqlx::PgPool {
 
     tracing::info!(\"database pool ready (max: {})\", pool.size());
     pool
-}\n".to_owned()
+}\n"
+    .to_owned()
 }
 
 fn platform_telemetry() -> String {

@@ -176,7 +176,7 @@ pub enum MigrateAction {
     },
     /// Create a new migration file.
     Create {
-        /// Migration name (e.g. "create_users_table").
+        /// Migration name (e.g. "`create_users_table`").
         name: String,
     },
     /// Show migration status (applied vs pending).

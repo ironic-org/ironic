@@ -162,7 +162,7 @@ pub fn create(
     ];
     let cidir = destination.join(".github/workflows");
     fs::create_dir_all(&cidir).map_err(|error| CliError::io("create directory", &cidir, error))?;
-    fs::write(cidir.join("ci.yml"), ci_workflow().to_owned())
+    fs::write(cidir.join("ci.yml"), ci_workflow())
         .map_err(|error| CliError::io("write", cidir.join("ci.yml"), error))?;
 
     // Validate all owned paths before writing. Allow pre-existing non-source files
@@ -311,7 +311,7 @@ async fn main() {{
 }
 
 fn app_source() -> &'static str {
-    r#"use ironic::prelude::*;
+    r"use ironic::prelude::*;
 use crate::welcome::WelcomeModule;
 use crate::modules::example::ExampleModule;
 use ironic::metrics::MetricsModule;
@@ -319,7 +319,7 @@ use ironic::metrics::MetricsModule;
 #[derive(Module)]
 #[module(imports = [HealthModule, MetricsModule, WelcomeModule, ExampleModule])]
 pub struct AppModule;
-"#
+"
 }
 
 fn welcome_source(name: &str) -> String {
@@ -373,7 +373,7 @@ module_path = "src/modules"
 // ── Example module (CRUD) ──────────────────────────────────────────────
 
 fn example_module() -> &'static str {
-    r#"use ironic::prelude::*;
+    r"use ironic::prelude::*;
 
 pub mod controller;
 pub mod repositories;
@@ -391,7 +391,7 @@ pub use services::ExampleService;
 #[derive(Module)]
 #[module(providers = [ExampleRepository, ExampleService], controllers = [ExampleController])]
 pub struct ExampleModule;
-"#
+"
 }
 
 fn example_controller_mod() -> &'static str {
@@ -460,7 +460,7 @@ fn example_service_mod() -> &'static str {
 }
 
 fn example_service() -> &'static str {
-    r#"use std::sync::Arc;
+    r"use std::sync::Arc;
 use ironic::prelude::*;
 use crate::modules::example::dto::{CreateExampleDto, UpdateExampleDto};
 use crate::modules::example::entities::Example;
@@ -492,7 +492,7 @@ impl ExampleService {
         self.repository.delete(id)
     }
 }
-"#
+"
 }
 
 fn example_repository_mod() -> &'static str {
@@ -554,7 +554,7 @@ fn example_dto_mod() -> &'static str {
 }
 
 fn example_create_dto() -> &'static str {
-    r#"use garde::Validate;
+    r"use garde::Validate;
 use ironic::OpenApiSchema;
 use serde::{Deserialize, Serialize};
 
@@ -567,11 +567,11 @@ pub struct CreateExampleDto {
     /// Optional description.
     pub description: Option<String>,
 }
-"#
+"
 }
 
 fn example_update_dto() -> &'static str {
-    r#"use ironic::OpenApiSchema;
+    r"use ironic::OpenApiSchema;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize, OpenApiSchema)]
@@ -581,7 +581,7 @@ pub struct UpdateExampleDto {
     /// New description (leave `null` to keep unchanged).
     pub description: Option<String>,
 }
-"#
+"
 }
 
 fn example_entity_mod() -> &'static str {
@@ -589,7 +589,7 @@ fn example_entity_mod() -> &'static str {
 }
 
 fn example_entity() -> &'static str {
-    r#"use ironic::OpenApiSchema;
+    r"use ironic::OpenApiSchema;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize, OpenApiSchema)]
@@ -601,19 +601,19 @@ pub struct Example {
     /// Item description.
     pub description: String,
 }
-"#
+"
 }
 
 // ── Example tests ──────────────────────────────────────────────────────
 
 fn example_test_mod() -> &'static str {
-    r#"/// Unit tests — service and business logic in isolation (no HTTP).
+    r"/// Unit tests — service and business logic in isolation (no HTTP).
 #[cfg(test)]
 mod unit;
 /// Integration tests — full HTTP request/response through the framework.
 #[cfg(test)]
 mod integration;
-"#
+"
 }
 
 fn example_test_unit() -> &'static str {
@@ -965,7 +965,7 @@ volumes:
 }
 
 fn makefile() -> &'static str {
-    r#".PHONY: build test dev fmt clippy docker-build docker-up docker-down clean
+    r".PHONY: build test dev fmt clippy docker-build docker-up docker-down clean
 
 build:
 	cargo build
@@ -993,11 +993,11 @@ docker-down:
 
 clean:
 	cargo clean
-"#
+"
 }
 
 fn justfile() -> &'static str {
-    r#"build:
+    r"build:
     cargo build
 
 test:
@@ -1023,7 +1023,7 @@ docker-down:
 
 clean:
     cargo clean
-"#
+"
 }
 
 fn rust_toolchain() -> &'static str {
@@ -1036,7 +1036,7 @@ components = ["rustfmt", "clippy"]
 fn readme(name: &str) -> String {
     let version = env!("CARGO_PKG_VERSION");
     format!(
-        r#"# {name}
+        r"# {name}
 
 Built with [Ironic](https://github.com/ironic-org/ironic) v{version}.
 
@@ -1085,12 +1085,12 @@ make docker-build # Build image only
 ## Environment
 
 Copy `.env.example` to `.env` and adjust values.
-"#,
+",
     )
 }
 
 fn ci_workflow() -> &'static str {
-    r#"name: CI
+    r"name: CI
 
 on:
   push:
@@ -1113,7 +1113,7 @@ jobs:
       - run: cargo fmt --all -- --check
       - run: cargo clippy -- -D warnings
       - run: cargo test -- --test-threads=1
-"#
+"
 }
 
 // ── Helpers ────────────────────────────────────────────────────────────

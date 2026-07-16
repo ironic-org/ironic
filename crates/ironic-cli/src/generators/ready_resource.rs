@@ -552,26 +552,41 @@ pub struct AuthController { service: Arc<AuthService> }
 #[routes]
 impl AuthController {
     #[post("/register")]
+    #[api(summary = "Register a new user", tag = "Auth")]
+    #[req_body(json = RegisterDto)]
+    #[resp(200, "User registered successfully", json = PublicUser)]
+    #[resp(400, "Validation error or email already exists")]
     async fn register(&self, #[body] dto: RegisterDto) -> Result<Json<PublicUser>, HttpError> {
         Ok(Json(self.service.register(dto)?.public_view()))
     }
 
     #[post("/login")]
+    #[api(summary = "Log in with email and password", tag = "Auth")]
+    #[req_body(json = LoginDto)]
+    #[resp(200, "JWT tokens issued", json = TokenResponse)]
+    #[resp(401, "Invalid email or password")]
     async fn login(&self, #[body] dto: LoginDto) -> Result<Json<TokenResponse>, HttpError> {
         Ok(Json(self.service.login(dto)?))
     }
 
     #[post("/refresh")]
+    #[api(summary = "Refresh an access token", tag = "Auth")]
+    #[req_body(json = RefreshDto)]
+    #[resp(200, "New tokens issued", json = TokenResponse)]
+    #[resp(401, "Invalid refresh token")]
     async fn refresh(&self, #[body] dto: RefreshDto) -> Result<Json<TokenResponse>, HttpError> {
         Ok(Json(self.service.refresh(dto)?))
     }
 
-     #[get("/me")]
-     #[use_guard(AuthGuard)]
-     async fn me(&self, #[custom(current_user)] user_id: u64) -> Result<Json<PublicUser>, HttpError> {
-         Ok(Json(self.service.me(user_id)?.public_view()))
-     }
- }
+    #[get("/me")]
+    #[api(summary = "Get current user profile", tag = "Auth", security = "bearer")]
+    #[resp(200, "Current user profile", json = PublicUser)]
+    #[resp(401, "Unauthorized")]
+    #[use_guard(AuthGuard)]
+    async fn me(&self, #[custom(current_user)] user_id: u64) -> Result<Json<PublicUser>, HttpError> {
+        Ok(Json(self.service.me(user_id)?.public_view()))
+    }
+}
 "#
 }
 
@@ -589,11 +604,19 @@ pub struct AuthController { service: Arc<AuthService> }
 #[routes]
 impl AuthController {
     #[post("/register")]
+    #[api(summary = "Register a new user", tag = "Auth")]
+    #[req_body(json = RegisterDto)]
+    #[resp(200, "User registered successfully", json = PublicUser)]
+    #[resp(400, "Validation error or email already exists")]
     async fn register(&self, #[body] dto: RegisterDto) -> Result<Json<PublicUser>, HttpError> {
         Ok(Json(self.service.register(dto)?.public_view()))
     }
 
     #[post("/login")]
+    #[api(summary = "Log in with email and password", tag = "Auth")]
+    #[req_body(json = LoginDto)]
+    #[resp(200, "User authenticated", json = PublicUser)]
+    #[resp(401, "Invalid email or password")]
     async fn login(&self, #[body] dto: LoginDto) -> Result<Json<PublicUser>, HttpError> {
         Ok(Json(self.service.login(dto)?.public_view()))
     }
@@ -620,17 +643,23 @@ pub struct AuthController { service: Arc<AuthService> }
 #[routes]
 impl AuthController {
     #[get("/oauth/:provider")]
+    #[api(summary = "Get OAuth provider authorization URL", tag = "Auth")]
+    #[resp(200, "OAuth authorization URL")]
     async fn login(&self, #[param] provider: String) -> Result<Json<serde_json::Value>, HttpError> {
         let url = self.service.oauth_url(&provider)?;
         Ok(Json(json!({"url": url})))
     }
 
     #[get("/oauth/callback")]
+    #[api(summary = "Handle OAuth callback and exchange code for tokens", tag = "Auth")]
+    #[resp(200, "OAuth tokens issued", json = TokenResponse)]
     async fn callback(&self, #[query] code: String) -> Result<Json<TokenResponse>, HttpError> {
         Ok(Json(self.service.exchange_code(&code)?))
     }
 
     #[get("/me")]
+    #[api(summary = "Get current user profile", tag = "Auth", security = "bearer")]
+    #[resp(200, "Current user profile", json = PublicUser)]
     #[use_guard(AuthGuard)]
     async fn me(&self, #[custom(current_user)] user_id: u64) -> Result<Json<PublicUser>, HttpError> {
         Ok(Json(PublicUser { id: user_id, email: "oauth@user.com".into(), name: "OAuth User".into(), role: crate::modules::auth::entities::role::Role::User, provider: "oauth".into() }))

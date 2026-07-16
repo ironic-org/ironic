@@ -3,7 +3,7 @@ title: v0.4.x
 description: Complete changelog and release notes for the Ironic v0.4.x stable series.
 ---
 
-## v0.4.7 — July 16, 2026
+## v0.4.7 — 2026-07-16
 
 # v0.4.7
 
@@ -11,7 +11,7 @@ description: Complete changelog and release notes for the Ironic v0.4.x stable s
 - enhance release script and project generator for better version handling and documentation sync (a8e859e)\n
 
 ---
-## v0.4.6 — July 16, 2026
+## v0.4.6 — 2026-07-16
 
 # v0.4.6
 
@@ -21,12 +21,12 @@ description: Complete changelog and release notes for the Ironic v0.4.x stable s
 - comment out database module by default with setup guide (a0612d4)\n
 
 ---
-## v0.4.5 — July 16, 2026
+## v0.4.5 — 2026-07-16
 
 # v0.4.5
 
 ---
-## v0.4.4 — July 16, 2026
+## v0.4.4 — 2026-07-16
 
 # v0.4.4
 
@@ -34,7 +34,7 @@ description: Complete changelog and release notes for the Ironic v0.4.x stable s
 - enhance update command to automatically upgrade to the latest version (24228b6)\n
 
 ---
-## v0.4.3 — July 16, 2026
+## v0.4.3 — 2026-07-16
 
 # v0.4.3
 
@@ -42,7 +42,7 @@ description: Complete changelog and release notes for the Ironic v0.4.x stable s
 - update default server host to 0.0.0.0 in multiple examples (435807c)\n- update latest version in BlogIndex to v0.4.2 (2ca67ef)\n
 
 ---
-## v0.4.2 — July 16, 2026
+## v0.4.2 — 2026-07-16
 
 # v0.4.2
 
@@ -52,7 +52,7 @@ description: Complete changelog and release notes for the Ironic v0.4.x stable s
 - enhance getting started guide with project structure details (eb6ebeb)\n
 
 ---
-## v0.4.1 — July 15, 2026
+## v0.4.1 — 2026-07-15
 
 # v0.4.1
 
@@ -64,7 +64,7 @@ description: Complete changelog and release notes for the Ironic v0.4.x stable s
 - streamline code structure and improve readability across multiple files (3b7b0a2)\n
 
 ---
-## v0.4.0 — July 15, 2026
+## v0.4.0 — 2026-07-15
 
 # v0.4.0 — Production Readiness & Enterprise Features
 

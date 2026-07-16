@@ -2,64 +2,63 @@ name: Release
 
 on:
   push:
-    tags:
-      - 'v[0-9]+.[0-9]+.[0-9]+*'
+    tags: ["v*"]
 
 env:
   CARGO_TERM_COLOR: always
 
 jobs:
-  verify:
-    name: Verify
+  release:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
-      - uses: Swatinem/rust-cache@v2
-      - run: cargo test --all-features
-      - run: cargo clippy --workspace --all-targets --all-features -- -D warnings
 
-  github-release:
-    name: GitHub Release
-    needs: [verify]
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-    steps:
-      - uses: actions/checkout@v4
+      - name: Install Rust toolchain
+        run: |
+          rustup show
+          rustc --version && cargo --version
+
+      - name: Cache cargo registry and build
+        uses: actions/cache@v4
         with:
-          fetch-depth: 0
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target/
+          key: ${{ runner.os }}-cargo-release-${{ hashFiles('Cargo.lock') }}
+
+      - name: Check formatting
+        run: cargo fmt --all -- --check
+
+      - name: Clippy (all features)
+        run: cargo clippy --workspace --all-targets --all-features -- -D warnings
+
+      - name: Test (all features)
+        run: cargo test --all-features
+
+      - name: Build docs
+        run: npm --prefix docs ci && npm --prefix docs run build
+
+      - name: cargo audit
+        run: |
+          cargo install cargo-audit --locked 2>/dev/null || true
+          cargo audit
+
+      - name: cargo deny
+        run: |
+          cargo install cargo-deny --locked 2>/dev/null || true
+          cargo deny check
 
       - name: Generate changelog
         id: changelog
         run: |
-          VERSION="${{ github.ref_name }}"
-          echo "version=${VERSION#v}" >> $GITHUB_OUTPUT
-          # Extract the section for this release version
-          awk "/^## \[${VERSION#v}\]/{p=1; next} /^## \[/{if(p) exit} p" CHANGELOG.md > /tmp/release-notes.md
-          cat /tmp/release-notes.md
+          echo "## What's Changed" > release-notes.md
+          git log --oneline --no-merges $(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || echo "")..HEAD >> release-notes.md
+          echo "release_notes_file=release-notes.md" >> $GITHUB_OUTPUT
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          name: ${{ github.ref_name }}
-          body_path: /tmp/release-notes.md
-          generate_release_notes: true
-          make_latest: true
-
-  publish-crates-io:
-    name: Publish to crates.io
-    needs: [verify]
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
-      - uses: Swatinem/rust-cache@v2
-
-      - name: Publish ironic-macros
-        run: cargo publish -p ironic-macros --token ${{ secrets.CRATES_IO_TOKEN }}
-        continue-on-error: true
-
-      - name: Publish ironic
-        run: cargo publish -p ironic --token ${{ secrets.CRATES_IO_TOKEN }}
-        continue-on-error: true
+          body_path: release-notes.md
+          draft: false
+          prerelease: false

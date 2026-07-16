@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v0.4.9] - 2026-07-16
+
+### Added
+- implement CI/CD pipeline, security auditing, and operational endpoints (e5537f2)\n- enhance observability with operational endpoints and health checks (0082bdb)\n
+### Fixed
+- improve documentation and formatting in build script and tests (5226611)\n
+
 ## [v0.4.8] - 2026-07-16
 
 ### Added

@@ -2,9 +2,9 @@
 
 ## Purpose
 
-HealthIndicator trait, DI-based aggregation, per-dependency status reporting.
+HealthIndicator trait, DI-based aggregation, per-dependency status reporting, liveness/readiness probe distinction.
 
-## Requirements
+## MODIFIED Requirements
 
 ### Requirement: System SHALL provide HealthIndicator trait
 The framework SHALL provide a public `HealthIndicator` trait that components can implement to report their health status. The trait SHALL include `check_liveness()` (default: always Ok) and `check_readiness()` (default: calls existing check logic).
@@ -18,30 +18,20 @@ The framework SHALL provide a public `HealthIndicator` trait that components can
 - **THEN** the readiness endpoint SHALL include `"my_service": "ok"`
 - **AND** the combined `/health` endpoint SHALL aggregate it as before
 
-### Requirement: Health endpoint SHALL aggregate all registered health checks
+### Requirement: Health endpoint SHALL aggregate all registered health checks (unchanged)
 The `GET /health` endpoint SHALL discover all registered `HealthIndicator` implementations via the DI container and return their statuses.
 
-#### Scenario: Composite health response
+#### Scenario: Composite health response (unchanged)
 - **WHEN** `GET /health` is called
 - **AND** a database health indicator returns `Ok`
 - **AND** a Redis health indicator returns `Err`
 - **THEN** the response SHALL be `{"status": "degraded", "checks": {"database": "ok", "redis": "unreachable"}}`
 - **AND** the HTTP status code SHALL be `200` for `ok`, `207` for `degraded`, `503` for `unhealthy`
 
-### Requirement: Existing IntegrationHealth SHALL be wrapped as HealthIndicator
+### Requirement: Existing IntegrationHealth SHALL be wrapped as HealthIndicator (unchanged)
 All existing `IntegrationHealth` implementations (SQLx, SeaORM, Diesel, Mongo, Redis) SHALL provide `HealthIndicator` implementations automatically when their feature is enabled.
 
-#### Scenario: Database health check via IntegrationHealth
-- **WHEN** a SQLx pool is registered
-- **THEN** it SHALL be available as a HealthIndicator without additional configuration
-
-### Requirement: Health checks SHALL have configurable timeout
-Each health check SHALL have a configurable timeout to prevent a stuck check from blocking the endpoint.
-
-#### Scenario: Health check timeout
-- **WHEN** a health check takes longer than the configured timeout (default 5s)
-- **THEN** that check SHALL be reported as `"unhealthy"` with a timeout message
-- **AND** the endpoint SHALL still respond for other checks
+## ADDED Requirements
 
 ### Requirement: System SHALL expose liveness probe endpoint
 The framework SHALL expose `GET /health/live` that returns `{"status": "alive"}` with HTTP 200 without invoking dependency health checks.

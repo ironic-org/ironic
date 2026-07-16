@@ -7,8 +7,9 @@ description: Built-in health endpoint, custom health indicators, and Docker HEAL
 
 ## What you'll learn
 
-- Use the built-in `GET /health` endpoint
+- Use the built-in `GET /health`, `GET /health/live`, and `GET /health/ready` endpoints
 - Add custom health indicators with the `HealthIndicator` trait
+- Liveness vs. readiness probe distinction
 - Composite health checks that aggregate multiple indicators
 - Configurable check timeouts
 - IntegrationHealth for databases, Redis, and external services
@@ -19,7 +20,7 @@ description: Built-in health endpoint, custom health indicators, and Docker HEAL
 
 ## HealthModule
 
-Import `HealthModule` to get a `GET /health` endpoint out of the box:
+Import `HealthModule` to get health and version endpoints out of the box:
 
 ```rust
 use ironic::health::HealthModule;
@@ -29,13 +30,31 @@ use ironic::health::HealthModule;
 struct AppModule;
 ```
 
-Response:
+### Endpoints
 
-```json
-{"status": "ok"}
-```
+| Endpoint | Purpose | Response |
+|----------|---------|----------|
+| `GET /health` | Composite health (readiness, backward compatible) | `{"status": "ok"}` — 200/207/503 |
+| `GET /health/live` | Liveness probe (process alive) | `{"status": "alive"}` — always 200 |
+| `GET /health/ready` | Readiness probe (dependencies healthy) | `{"status": "ok"}` — 200/503 |
+| `GET /version` | Build metadata | `{"git_sha": "abc123", ...}` — 200 |
 
-HTTP status: `200` when healthy, `503` when degraded.
+### Composite health (`GET /health`)
+
+Aggregates all registered `HealthIndicator::check()` results. HTTP status: `200` when
+healthy, `207 Multi-Status` when degraded, `503` when unhealthy.
+
+### Liveness probe (`GET /health/live`)
+
+Returns `200 OK` with `{"status": "alive"}` without invoking any dependency checks.
+Use this for Kubernetes `livenessProbe` to know when the process should be restarted.
+
+### Readiness probe (`GET /health/ready`)
+
+Aggregates all registered `HealthIndicator::check_readiness()` results. Returns `200 OK`
+when all dependencies are healthy, `503 Service Unavailable` when any dependency is
+degraded or unhealthy. Use this for Kubernetes `readinessProbe` to know when the
+process should receive traffic.
 
 ## Composite health
 
@@ -71,14 +90,45 @@ pub trait HealthIndicator: Send + Sync {
     /// Name of this component, shown in the health response.
     fn name(&self) -> &str;
 
-    /// Runs the health check. Called concurrently with other indicators.
+    /// Runs a health check (deprecated, use `check_readiness` instead).
+    #[deprecated(since = "0.5.0", note = "use `check_readiness` instead")]
     fn check(&self) -> impl Future<Output = HealthStatus> + Send;
+
+    /// Reports whether the component's process is alive.
+    /// Default: always returns `HealthStatus::Ok`.
+    fn check_liveness(&self) -> impl Future<Output = HealthStatus> + Send {
+        async { HealthStatus::Ok }
+    }
+
+    /// Reports whether the component is ready to serve traffic.
+    /// Default: delegates to `check()` for backward compatibility.
+    fn check_readiness(&self) -> impl Future<Output = HealthStatus> + Send {
+        self.check()
+    }
 }
 ```
 
 Every indicator runs in parallel — a slow database check does not delay the
 Redis check.  If an indicator exceeds the configured timeout, it is reported
 as `unhealthy`.
+
+### Liveness vs. Readiness
+
+The `HealthIndicator` trait distinguishes between two probe types:
+
+- **Liveness** (`check_liveness`): Is the process itself alive? Defaults to `Ok`
+  for all indicators. Override only if your component can detect fatal internal
+  state (e.g., poisoned connection pool, corrupted in-memory cache).
+
+- **Readiness** (`check_readiness`): Is the component ready to serve traffic?
+  Defaults to calling the existing `check()` for backward compatibility.
+  Override to implement dependency-aware health logic (e.g., database reachable,
+  upstream API responsive).
+
+The existing `check()` method is **deprecated** since v0.5.0. New code should
+implement `check_readiness()` instead. The default implementation of
+`check_readiness()` delegates to `check()`, so existing indicators continue to
+work without changes.
 
 ## HealthStatus variants
 
@@ -383,6 +433,19 @@ CMD ["/usr/local/bin/my-api"]
 
 Docker will poll `/health` every 15 seconds and restart the container if it fails 3 consecutive checks.
 
+For Kubernetes deployments, use the dedicated probe endpoints:
+
+```yaml
+livenessProbe:
+  httpGet:
+    path: /health/live
+    port: 3000
+readinessProbe:
+  httpGet:
+    path: /health/ready
+    port: 3000
+```
+
 ## Common mistakes
 
 | Mistake | Fix |
@@ -394,9 +457,12 @@ Docker will poll `/health` every 15 seconds and restart the container if it fail
 
 ## What you learned
 
-- [x] `HealthModule` provides a built-in `GET /health` endpoint
-- [x] `HealthIndicator` trait defines `name()` and `check()` for custom checks
+- [x] `HealthModule` provides `GET /health`, `GET /health/live`, `GET /health/ready`, and `GET /version`
+- [x] Liveness probes (`/health/live`) report process health without dependency checks
+- [x] Readiness probes (`/health/ready`) aggregate dependency readiness for traffic routing
+- [x] `HealthIndicator` trait defines `check_liveness()` and `check_readiness()` with defaults
+- [x] The existing `check()` method is deprecated — new code should use `check_readiness()`
 - [x] Composite health returns `200` / `207` / `503` based on aggregate status
 - [x] IntegrationHealth wiring auto-registers database/Redis indicators
 - [x] Configurable timeout prevents slow checks from blocking the endpoint
-- [x] Docker HEALTHCHECK integrates directly with the `/health` endpoint
+- [x] Docker HEALTHCHECK and Kubernetes probes integrate directly with the health endpoints

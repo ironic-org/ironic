@@ -181,7 +181,7 @@ pub mod prelude {
         LogEntry, LogStorage, StorageError, TimeSeriesConfig, TimeSeriesModule,
     };
     pub use crate::{
-        AxumAdapter, CacheMetadata, CompiledHttpApplication, ConfigurationError,
+        AxumAdapter, BuildInfo, CacheMetadata, CompiledHttpApplication, ConfigurationError,
         ConfigurationLoader, ControllerDefinition, Dependency, ExceptionFilter, FeatureToggle,
         FilterContext, FrameworkApplication, FrameworkError, FrameworkResult, Guard, GuardDecision,
         GuardFuture, HeaderParameter, HealthModule, HealthStatus, HttpError, HttpMethod,

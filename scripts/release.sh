@@ -191,24 +191,26 @@ else
     fi
 fi
 
-# ── step 4: sync all docs to workspace version ───────────────────────
+# ── step 4: sync current-version references in docs ───────────────────
 
 echo "→ Syncing docs to v$NEW"
 
-DOC_FILES=(
-    "$ROOT/docs/src/pages/home/components/hero-section.tsx"
-    "$ROOT/docs/src/pages/home/components/stats-bar.tsx"
-    "$ROOT/docs/content/docs/getting-started/getting-started.md"
-    "$ROOT/docs/content/docs/getting-started/cli.md"
-)
-
-for f in "${DOC_FILES[@]}"; do
-    # extract the first version-like string from the file
-    DOC_VER=$(grep -oE '[0-9]+\.[0-9]+\.[0-9]+' "$f" | head -1 || true)
-    if [[ -n "$DOC_VER" ]] && [[ "$DOC_VER" != "$NEW" ]]; then
-        sync_file "$DOC_VER" "$NEW" "$f"
+# Only update files that display the CURRENT version (not historical release notes/blogs)
+while IFS= read -r -d '' f; do
+    OLD_VER=$(grep -oE '[0-9]+\.[0-9]+\.[0-9]+' "$f" | head -1 || true)
+    if [[ -n "$OLD_VER" ]] && [[ "$OLD_VER" != "$NEW" ]] && [[ "$OLD_VER" == "$CURRENT" ]]; then
+        sync_file "$OLD_VER" "$NEW" "$f"
     fi
-done
+done < <(
+    grep -rlE '[0-9]+\.[0-9]+\.[0-9]+' "$ROOT/docs" \
+        --include='*.md' --include='*.tsx' --include='*.mdx' \
+        --exclude-dir='blog' --exclude-dir='releases' 2>/dev/null || true
+    # Also pick up the home page components (tsx not always in docs/)
+    for f in "$ROOT/docs/src/pages/home/components/hero-section.tsx" \
+             "$ROOT/docs/src/pages/home/components/stats-bar.tsx"; do
+        if [[ -f "$f" ]]; then echo "$f"; fi
+    done
+) | sort -u | tr '\n' '\0'
 
 # ── step 5: create blog post and update releases ────────────────────
 
@@ -239,9 +241,13 @@ BLOG_BODY="${BLOG_BODY}$(format_blog_section "Fixed" "$fixed")"
 BLOG_BODY="${BLOG_BODY}$(format_blog_section "Changed" "$changed")"
 BLOG_BODY="${BLOG_BODY}$(format_blog_section "Security" "$security")"
 
-# Generate a summary from the first change entry
-FIRST_LINE=$(grep -oE '^- .+' <<< "$COMMITS" | head -1 | sed 's/^- //' | sed 's/ (.*//' || echo "Release v$NEW")
-SUMMARY="${FIRST_LINE:0:120}"
+# Generate a summary from the first meaningful changelog entry
+FIRST_ENTRY=$( (echo -e "${added}${fixed}${changed}") | grep -oE '^- .+' | head -1 | sed 's/^- //' | sed 's/ ([a-f0-9]\{7\})$//' || true)
+if [[ -z "$FIRST_ENTRY" ]]; then
+    SUMMARY="Release v$NEW"
+else
+    SUMMARY="${FIRST_ENTRY:0:120}"
+fi
 
 # Create blog post only if it doesn't already exist
 if [[ -f "$BLOG_FILE" ]]; then
@@ -260,6 +266,16 @@ $BLOG_BODY
 BLOGEOF
 
     echo -e "  ${GREEN}✓${NC} blog post created: $BLOG_FILE"
+fi
+
+# Update BlogIndex.tsx — bump "Latest: vX.Y.Z" badge
+if grep -q "Latest: v[0-9]" "$BLOG_INDEX" 2>/dev/null; then
+    if [[ "$(uname)" == "Darwin" ]]; then
+        sed -i '' "s/Latest: v[0-9.]*/Latest: v$NEW/" "$BLOG_INDEX"
+    else
+        sed -i "s/Latest: v[0-9.]*/Latest: v$NEW/" "$BLOG_INDEX"
+    fi
+    echo -e "  ${GREEN}✓${NC} BlogIndex.tsx latest badge updated"
 fi
 
 # Update BlogIndex.tsx — insert new post after the opening array bracket, skip if exists
@@ -289,42 +305,162 @@ else
     echo "  ! BlogIndex.tsx pattern not found — add manually"
 fi
 
-# Update releases/index.md — add row to the version table & bump current version, skip if exists
-if grep -q "| \[v$NEW\]" "$RELEASES_INDEX" 2>/dev/null; then
-    echo -e "  ${CYAN}!${NC} releases/index.md already has v$NEW — skipping"
-else
-    # Bump the "Current version:" line
-    if grep -q "^## Current version: " "$RELEASES_INDEX" 2>/dev/null; then
-        if [[ "$(uname)" == "Darwin" ]]; then
-            sed -i '' "s/^## Current version: v[0-9.]*$/## Current version: v$NEW/" "$RELEASES_INDEX"
-        else
-            sed -i "s/^## Current version: v[0-9.]*$/## Current version: v$NEW/" "$RELEASES_INDEX"
-        fi
-    fi
-    # Add row to version table (insert before first existing version row)
-    TABLE_INSERT="| [v$NEW](/blog/v$NEW) | $TODAY | $SUMMARY |"
-    RELEASES_TABLE_LINE=$(grep -n "| v" "$RELEASES_INDEX" | head -1 | cut -d: -f1 || true)
-    if [[ -n "$RELEASES_TABLE_LINE" ]]; then
-        {
-            head -n "$((RELEASES_TABLE_LINE - 1))" "$RELEASES_INDEX"
-            echo "$TABLE_INSERT"
-            tail -n +"$RELEASES_TABLE_LINE" "$RELEASES_INDEX"
-        } > "$RELEASES_INDEX.tmp" && mv "$RELEASES_INDEX.tmp" "$RELEASES_INDEX"
-        echo -e "  ${GREEN}✓${NC} releases/index.md updated"
-    fi
-fi
+# Update releases/index.md — regenerate the full version table from all blog posts
+echo "→ Regenerating releases version table from blog posts..."
 
-# Format date for human-readable release section headers
-format_date() {
-    local d="$1"
-    if [[ "$(uname)" == "Darwin" ]]; then
-        date -j -f "%Y-%m-%d" "$d" "+%B %d, %Y" 2>/dev/null || echo "$d"
-    else
-        date -d "$d" "+%B %d, %Y" 2>/dev/null || echo "$d"
-    fi
-}
+# Bump the "Current version:" line
+sed -i '' "s/^## Current version: v[0-9.]*$/## Current version: v$NEW/" "$RELEASES_INDEX" 2>/dev/null || true
 
-RELEASE_DATE=$(format_date "$TODAY")
+python3 -c "
+import re, os, glob
+
+BLOG_DIR = os.path.expanduser('$BLOG_DIR')
+RELEASES_INDEX = os.path.expanduser('$RELEASES_INDEX')
+RELEASES_V = os.path.expanduser('$RELEASES_V')
+MAJOR_MINOR = '$MAJOR_MINOR'
+
+def parse_frontmatter(path):
+    with open(path) as f:
+        lines = f.read().splitlines()
+    if not lines or lines[0] != '---':
+        return {}
+    end = 1
+    while end < len(lines) and lines[end] != '---':
+        end += 1
+    front = {}
+    for line in lines[1:end]:
+        m = re.match(r'^(\w+):\s*\"(.+)\"$', line)
+        if m:
+            front[m.group(1)] = m.group(2)
+    return front
+
+def blog_body(path):
+    \"\"\"Return everything after the frontmatter and title line.\"\"\"
+    with open(path) as f:
+        lines = f.read().splitlines()
+    if not lines or lines[0] != '---':
+        return ''
+    end = 1
+    while end < len(lines) and lines[end] != '---':
+        end += 1
+    body = lines[end+1:]
+    # Skip the '# vX.Y.Z' title line
+    while body and body[0].startswith('# '):
+        body = body[1:]
+    return '\n'.join(body).strip()
+
+def format_date(d):
+    try:
+        parts = d.split('-')
+        dt = calendar.timegm((int(parts[0]), int(parts[1]), int(parts[2], 0, 0, 0, 0)))
+        from datetime import datetime
+        dt = datetime.strptime(d, '%Y-%m-%d')
+        return dt.strftime('%B %d, %Y')
+    except Exception:
+        return d
+
+# Collect versioned blog posts
+rows = []
+for f in sorted(glob.glob(os.path.join(BLOG_DIR, 'v*.md'))):
+    slug = os.path.splitext(os.path.basename(f))[0]
+    m = re.match(r'^v(\d+)\.(\d+)\.(\d+)$', slug)
+    if not m:
+        continue
+    front = parse_frontmatter(f)
+    desc = front.get('description', slug)
+    date = front.get('date', '')
+    ver = f'{m.group(1)}.{m.group(2)}.{m.group(3)}'
+    rows.append(((int(m.group(1)), int(m.group(2)), int(m.group(3))), ver, date, desc, f))
+
+# ── Regenerate releases/index.md table ──────────────────────────────
+with open(RELEASES_INDEX) as f:
+    old = f.read()
+
+# Preserve special entries (non-versioned or versioned without own blog post)
+special = []
+for line in old.splitlines():
+    if line.startswith('| ['):
+        slug_m = re.match(r'\| \[v(.+?)\]', line)
+        if slug_m:
+            vslug = slug_m.group(1)
+            if not re.match(r'^\d+\.\d+\.\d+$', vslug):
+                special.append(line)
+            else:
+                blog_path = os.path.join(BLOG_DIR, f'v{vslug}.md')
+                if not os.path.exists(blog_path):
+                    special.append(line)
+
+seen = set()
+unique_special = []
+for line in special:
+    if line not in seen:
+        seen.add(line)
+        unique_special.append(line)
+
+if rows:
+    rows.sort(key=lambda r: r[0], reverse=True)
+    blog_rows = [
+        f'| [v{slug}](/blog/v{slug}) | {date} | {desc} |'
+        for _, slug, date, desc, _ in rows
+    ]
+    all_rows = blog_rows + unique_special
+    marker_start = '| Version | Date | Highlights |\\n|---------|------|-----------|'
+    marker_end = 'Full changelog:'
+    idx_start = old.find(marker_start)
+    idx_end = old.find(marker_end, idx_start)
+    if idx_start >= 0 and idx_end >= 0:
+        new_content = (
+            old[:idx_start]
+            + marker_start + '\\n'
+            + '\\n'.join(all_rows) + '\\n\\n'
+            + old[idx_end:]
+        )
+        with open(RELEASES_INDEX, 'w') as f:
+            f.write(new_content)
+        print('  \u2713 releases/index.md table regenerated')
+    else:
+        print('  ! markers not found in releases/index.md')
+else:
+    print('  ! no versioned blog posts found for releases table')
+
+# ── Regenerate releases/vMAJOR.MINOR.x/index.md sections ──────────
+if RELEASES_V and os.path.exists(RELEASES_V) and MAJOR_MINOR:
+    with open(RELEASES_V) as f:
+        series_content = f.read()
+    # Find blog posts matching this major.minor series
+    series_rows = [
+        r for r in rows
+        if str(r[0][0]) + '.' + str(r[0][1]) == MAJOR_MINOR
+    ]
+    if series_rows:
+        # Keep the intro (everything before the first version heading)
+        intro_match = re.search(r'^## v', series_content, re.MULTILINE)
+        if intro_match:
+            intro = series_content[:intro_match.start()]
+        else:
+            # Fallback: use everything after frontmatter as intro
+            intro_end = series_content.rfind('\\n---\\n')
+            if intro_end > 0:
+                intro = series_content[:intro_end + 5] + '\\n'
+            else:
+                intro = series_content + '\\n'
+        # Build version sections from blog posts
+        sections = []
+        for ver_tuple, ver, date, desc, fpath in sorted(series_rows, key=lambda r: r[0], reverse=True):
+            body = blog_body(fpath)
+            if body:
+                human_date = format_date(date)
+                sections.append(f'## v{ver} \\u2014 {human_date}\\n\\n{body}\\n\\n---')
+        if sections:
+            new_series = intro + '\\n'.join(sections) + '\\n'
+            with open(RELEASES_V, 'w') as f:
+                f.write(new_series)
+            print(f'  \u2713 {os.path.basename(RELEASES_V)} sections regenerated')
+    else:
+        print(f'  - no blog posts for series v{MAJOR_MINOR}.x')
+elif RELEASES_V and MAJOR_MINOR:
+    print('  ! series file does not exist yet (will be created below)')
+"
 
 # Create releases series directory if it doesn't exist (e.g. v0.4.x/)
 # When a major/minor bump occurs, create the new series file from a template
@@ -363,39 +499,7 @@ if [[ ! -f "$RELEASES_V" ]]; then
     echo -e "  ${GREEN}✓${NC} created $RELEASES_V with new series"
 fi
 
-# Find the first existing version entry to use as the insertion anchor
-RELEASES_V_ANCHOR=$(grep -E "^## v" "$RELEASES_V" | head -1 | sed 's/^## //; s/ —.*//' || true)
-
-# Update releases series index — prepend new version section, skip if exists
-if grep -q "^## v$NEW — " "$RELEASES_V" 2>/dev/null; then
-    echo -e "  ${CYAN}!${NC} $(basename "$RELEASES_V") already has v$NEW — skipping"
-else
-    RELEASES_V_INSERT="## v$NEW — $RELEASE_DATE
-$BLOG_BODY
-
----
-
-"
-    if [[ -n "$RELEASES_V_ANCHOR" ]]; then
-        ANCHOR_LINE=$(grep -n "^## v$RELEASES_V_ANCHOR" "$RELEASES_V" | head -1 | cut -d: -f1 || true)
-    else
-        # No version entries yet — anchor after the last --- (intro separator)
-        ANCHOR_LINE=$(grep -n "^---$" "$RELEASES_V" | tail -1 | cut -d: -f1 || true)
-        if [[ -n "$ANCHOR_LINE" ]]; then
-            ANCHOR_LINE=$((ANCHOR_LINE + 1))
-        else
-            ANCHOR_LINE=1
-        fi
-    fi
-    if [[ -n "$ANCHOR_LINE" ]]; then
-        {
-            head -n "$((ANCHOR_LINE - 1))" "$RELEASES_V"
-            echo "$RELEASES_V_INSERT"
-            tail -n +"$ANCHOR_LINE" "$RELEASES_V"
-        } > "$RELEASES_V.tmp" && mv "$RELEASES_V.tmp" "$RELEASES_V"
-        echo -e "  ${GREEN}✓${NC} releases/v${MAJOR_MINOR}.x/index.md updated"
-    fi
-fi
+# (series version sections are regenerated from blog posts by the Python block above)
 
 # ── step 6: pre-flight checks ───────────────────────────────────────
 

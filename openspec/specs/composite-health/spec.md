@@ -7,11 +7,16 @@ HealthIndicator trait, DI-based aggregation, per-dependency status reporting.
 ## Requirements
 
 ### Requirement: System SHALL provide HealthIndicator trait
-The framework SHALL provide a public `HealthIndicator` trait that components can implement to report their health status.
+The framework SHALL provide a public `HealthIndicator` trait that components can implement to report their health status. The trait SHALL include `check_liveness()` (default: always Ok) and `check_readiness()` (default: calls existing check logic).
 
-#### Scenario: Custom health indicator registered
-- **WHEN** a component implements `HealthIndicator` with `name()` returning `"my_service"` and `check()` returning `Ok`
-- **THEN** it SHALL be discoverable by the health endpoint
+#### Scenario: Custom health indicator implements liveness
+- **WHEN** a component implements `HealthIndicator` with `check_liveness()` returning `Ok`
+- **THEN** the liveness endpoint SHALL report it as alive
+
+#### Scenario: Custom health indicator implements readiness
+- **WHEN** a component implements `HealthIndicator` with `name()` returning `"my_service"` and `check_readiness()` returning `Ok`
+- **THEN** the readiness endpoint SHALL include `"my_service": "ok"`
+- **AND** the combined `/health` endpoint SHALL aggregate it as before
 
 ### Requirement: Health endpoint SHALL aggregate all registered health checks
 The `GET /health` endpoint SHALL discover all registered `HealthIndicator` implementations via the DI container and return their statuses.
@@ -37,3 +42,26 @@ Each health check SHALL have a configurable timeout to prevent a stuck check fro
 - **WHEN** a health check takes longer than the configured timeout (default 5s)
 - **THEN** that check SHALL be reported as `"unhealthy"` with a timeout message
 - **AND** the endpoint SHALL still respond for other checks
+
+### Requirement: System SHALL expose liveness probe endpoint
+The framework SHALL expose `GET /health/live` that returns `{"status": "alive"}` with HTTP 200 without invoking dependency health checks.
+
+#### Scenario: Liveness endpoint
+- **WHEN** `GET /health/live` is called
+- **THEN** the response SHALL be `{"status": "alive"}`
+- **AND** the status code SHALL be `200 OK`
+- **AND** no dependency health checks SHALL be executed
+
+### Requirement: System SHALL expose readiness probe endpoint
+The framework SHALL expose `GET /health/ready` that aggregates all `HealthIndicator::check_readiness()` results.
+
+#### Scenario: Readiness all healthy
+- **WHEN** `GET /health/ready` is called
+- **AND** all readiness checks return `Ok`
+- **THEN** the response SHALL be `{"status": "ok"}` with HTTP 200
+
+#### Scenario: Readiness degraded
+- **WHEN** `GET /health/ready` is called
+- **AND** at least one readiness check returns `Err`
+- **THEN** the response SHALL include the failing check details
+- **AND** the HTTP status SHALL be `503 Service Unavailable`

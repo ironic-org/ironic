@@ -21,7 +21,18 @@ The framework SHALL generate or propagate a unique request ID for each incoming 
 - **THEN** a unique request ID SHALL be generated and attached to the request
 
 ### Requirement: Framework SHALL provide a health endpoint
-The framework SHALL support registering health check endpoints that report the status of application dependencies, aggregated from all registered `HealthIndicator` implementations.
+The framework SHALL support registering health check endpoints that report the status of application dependencies, aggregated from all registered `HealthIndicator` implementations. The system SHALL expose liveness (`/health/live`) and readiness (`/health/ready`) probe endpoints in addition to the existing composite `/health` endpoint.
+
+#### Scenario: Liveness endpoint returns alive
+- **WHEN** a GET request is made to `/health/live`
+- **THEN** the response SHALL be `{"status": "alive"}` with HTTP 200
+
+#### Scenario: Readiness endpoint reflects dependency failure
+- **WHEN** a GET request is made to `/health/ready`
+- **AND** a database health check fails
+- **THEN** the response SHALL include `{"checks": {"database": "unreachable"}}`
+- **AND** the aggregate status SHALL be `"degraded"` or `"unhealthy"`
+- **AND** the HTTP status SHALL be 503
 
 #### Scenario: Composite health endpoint returns aggregate status
 - **WHEN** a GET request is made to `/health`
@@ -72,3 +83,10 @@ The framework SHALL provide a convenience API for emitting structured log events
 #### Scenario: Structured log event
 - **WHEN** application code calls `info!(event = "user.login", user_id = 42)`
 - **THEN** the log output SHALL include `event=user.login` and `user_id=42` as structured fields
+
+### Requirement: System SHALL provide a version endpoint
+The framework SHALL expose a `GET /version` endpoint returning build metadata.
+
+#### Scenario: Version response
+- **WHEN** `GET /version` is called
+- **THEN** the response SHALL include `git_sha`, `build_timestamp`, `rust_version`, `features`, and `version` fields

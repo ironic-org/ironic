@@ -42,7 +42,7 @@ jobs:
         run: cargo test --all-features
 
       - name: Build docs
-        run: npm --prefix docs ci && npm --prefix docs run build
+        run: npm --prefix docs install && npm --prefix docs run build
 
       - name: cargo audit (advisory check)
         if: success() || failure()

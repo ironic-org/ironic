@@ -305,30 +305,100 @@ else
     echo "  ! BlogIndex.tsx pattern not found — add manually"
 fi
 
-# Update releases/index.md — add row to the version table & bump current version, skip if exists
-if grep -q "| \[v$NEW\]" "$RELEASES_INDEX" 2>/dev/null; then
-    echo -e "  ${CYAN}!${NC} releases/index.md already has v$NEW — skipping"
-else
-    # Bump the "Current version:" line
-    if grep -q "^## Current version: " "$RELEASES_INDEX" 2>/dev/null; then
-        if [[ "$(uname)" == "Darwin" ]]; then
-            sed -i '' "s/^## Current version: v[0-9.]*$/## Current version: v$NEW/" "$RELEASES_INDEX"
-        else
-            sed -i "s/^## Current version: v[0-9.]*$/## Current version: v$NEW/" "$RELEASES_INDEX"
-        fi
-    fi
-    # Add row to version table (insert before first existing version row)
-    TABLE_INSERT="| [v$NEW](/blog/v$NEW) | $TODAY | $SUMMARY |"
-    RELEASES_TABLE_LINE=$(grep -n "| v" "$RELEASES_INDEX" | head -1 | cut -d: -f1 || true)
-    if [[ -n "$RELEASES_TABLE_LINE" ]]; then
-        {
-            head -n "$((RELEASES_TABLE_LINE - 1))" "$RELEASES_INDEX"
-            echo "$TABLE_INSERT"
-            tail -n +"$RELEASES_TABLE_LINE" "$RELEASES_INDEX"
-        } > "$RELEASES_INDEX.tmp" && mv "$RELEASES_INDEX.tmp" "$RELEASES_INDEX"
-        echo -e "  ${GREEN}✓${NC} releases/index.md updated"
-    fi
-fi
+# Update releases/index.md — regenerate the full version table from all blog posts
+echo "→ Regenerating releases version table from blog posts..."
+
+# Bump the "Current version:" line
+sed -i '' "s/^## Current version: v[0-9.]*$/## Current version: v$NEW/" "$RELEASES_INDEX" 2>/dev/null || true
+
+python3 -c "
+import re, os, glob
+
+BLOG_DIR = os.path.expanduser('$BLOG_DIR')
+RELEASES_INDEX = os.path.expanduser('$RELEASES_INDEX')
+
+def parse_frontmatter(path):
+    with open(path) as f:
+        lines = f.read().splitlines()
+    if not lines or lines[0] != '---':
+        return {}
+    end = 1
+    while end < len(lines) and lines[end] != '---':
+        end += 1
+    front = {}
+    for line in lines[1:end]:
+        m = re.match(r'^(\w+):\s*\"(.+)\"$', line)
+        if m:
+            front[m.group(1)] = m.group(2)
+    return front
+
+# Collect versioned blog posts
+rows = []
+for f in sorted(glob.glob(os.path.join(BLOG_DIR, 'v*.md'))):
+    slug = os.path.splitext(os.path.basename(f))[0]
+    m = re.match(r'^v(\d+)\.(\d+)\.(\d+)$', slug)
+    if not m:
+        continue
+    front = parse_frontmatter(f)
+    desc = front.get('description', slug)
+    date = front.get('date', '')
+    ver = f'{m.group(1)}.{m.group(2)}.{m.group(3)}'
+    rows.append(((int(m.group(1)), int(m.group(2)), int(m.group(3))), ver, date, desc))
+
+# Preserve special entries from existing table (non-versioned, e.g. v0.1.x-v0.2.x)
+with open(RELEASES_INDEX) as f:
+    old = f.read()
+special = []
+for line in old.splitlines():
+    if line.startswith('| ['):
+        slug_m = re.match(r'\| \[v(.+?)\]', line)
+        if slug_m:
+            slug = slug_m.group(1)
+            if not re.match(r'^\d+\.\d+\.\d+$', slug):
+                special.append(line)
+# Keep v0.3.2 and v0.3.1 which link to /blog/v0.3.0
+# (they don't have individual blog posts but are in the existing table)
+for line in old.splitlines():
+    if line.startswith('| ['):
+        slug_m = re.match(r'\| \[v(.+?)\]', line)
+        if slug_m:
+            vslug = slug_m.group(1)
+            # Keep rows for v0.3.1, v0.3.2 that point to a different blog post
+            if re.match(r'^\d+\.\d+\.\d+$', vslug):
+                parts = vslug.split('.')
+                blog_path = os.path.join(BLOG_DIR, f'v{vslug}.md')
+                if not os.path.exists(blog_path):
+                    special.append(line)
+            else:
+                special.append(line)
+
+if rows:
+    rows.sort(key=lambda r: r[0], reverse=True)
+    blog_rows = [
+        f'| [v{slug}](/blog/v{slug}) | {date} | {desc} |'
+
+        for _, slug, date, desc in rows
+    ]
+    all_rows = blog_rows + special
+    marker_start = '| Version | Date | Highlights |\\n|---------|------|-----------|'
+    marker_end = 'Full changelog:'
+    idx_start = old.find(marker_start)
+    idx_end = old.find(marker_end, idx_start)
+    if idx_start >= 0 and idx_end >= 0:
+        new_content = (
+            old[:idx_start]
+            + marker_start + '\\n'
+            + '\\n'.join(all_rows) + '\\n\\n'
+            + old[idx_end:]
+        )
+        with open(RELEASES_INDEX, 'w') as f:
+            f.write(new_content)
+        print('  \u2713 releases/index.md table regenerated')
+    else:
+        print('  ! markers not found in releases/index.md')
+else:
+    print('  ! no versioned blog posts found')
+"
 
 # Format date for human-readable release section headers
 format_date() {

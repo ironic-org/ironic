@@ -12,6 +12,22 @@ type Post = {
 
 const posts: Post[] = [
     {
+        slug: 'production-hardening-operational-endpoints',
+        title: 'Production-hardening 2: Health probes, version endpoint, and build metadata',
+        description: 'Liveness and readiness probe endpoints for Kubernetes (GET /health/live, GET /health/ready). Build metadata endpoint (GET /version) with git SHA, build timestamp, Rust version, and active features. HealthIndicator trait split for liveness vs readiness distinction.',
+        date: 'Jul 16, 2026',
+        tag: 'feature',
+        readTime: '4 min',
+    },
+    {
+        slug: 'production-hardening-ci-cd',
+        title: 'Production-hardening 1: CI/CD pipeline, security auditing, and release automation',
+        description: 'GitHub Actions CI with fmt/clippy/test/docs/audit/deny on every PR. Automated release workflow triggered by tag push. cargo-audit and cargo-deny for dependency vulnerability and license compliance. Local audit script for offline checks.',
+        date: 'Jul 16, 2026',
+        tag: 'release',
+        readTime: '5 min',
+    },
+    {
         slug: 'v0.4.8',
         title: 'v0.4.8 — add database migration commands and update documentation',
         description: 'add database migration commands and update documentation',

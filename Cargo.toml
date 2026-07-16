@@ -211,6 +211,7 @@ members = [
     ".",
     "crates/ironic-macros",
 ]
+exclude = ["fuzz"]
 
 
 

@@ -192,6 +192,45 @@ async fn built_in_health_and_request_correlation_are_enabled() {
     application.shutdown().await.unwrap();
 }
 
+#[tokio::test]
+async fn liveness_probe_returns_alive() {
+    let application = TestApplication::new::<HealthModule>().await.unwrap();
+
+    let response = application.get("/health/live").send().await;
+    response.assert_status(200);
+    response.assert_json(&serde_json::json!({"status": "alive"}));
+
+    application.shutdown().await.unwrap();
+}
+
+#[tokio::test]
+async fn readiness_probe_returns_ok_when_no_indicators() {
+    let application = TestApplication::new::<HealthModule>().await.unwrap();
+
+    let response = application.get("/health/ready").send().await;
+    response.assert_status(200);
+    response.assert_json(&serde_json::json!({"status": "ok"}));
+
+    application.shutdown().await.unwrap();
+}
+
+#[tokio::test]
+async fn version_endpoint_returns_build_info() {
+    let application = TestApplication::new::<HealthModule>().await.unwrap();
+
+    let response = application.get("/version").send().await;
+    response.assert_status(200);
+
+    let info: serde_json::Value = response.json().unwrap();
+    assert!(info.get("git_sha").is_some(), "version response must include git_sha");
+    assert!(info.get("build_timestamp").is_some(), "version response must include build_timestamp");
+    assert!(info.get("rust_version").is_some(), "version response must include rust_version");
+    assert!(info.get("features").is_some(), "version response must include features");
+    assert!(info.get("version").is_some(), "version response must include version");
+
+    application.shutdown().await.unwrap();
+}
+
 type Events = Arc<Mutex<Vec<&'static str>>>;
 
 struct LifecycleService {

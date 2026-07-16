@@ -1,6 +1,7 @@
 # Ironic
 
 [![CI](https://github.com/ironic-org/ironic/actions/workflows/ci.yml/badge.svg)](https://github.com/ironic-org/ironic/actions/workflows/ci.yml)
+[![Release](https://github.com/ironic-org/ironic/actions/workflows/release.yml/badge.svg)](https://github.com/ironic-org/ironic/actions/workflows/release.yml)
 [![Crates.io](https://img.shields.io/crates/v/ironic.svg)](https://crates.io/crates/ironic)
 [![Docs.rs](https://img.shields.io/docsrs/ironic)](https://docs.rs/ironic)
 [![License](https://img.shields.io/badge/license-MIT%2FApache--2.0-blue)](LICENSE-MIT)

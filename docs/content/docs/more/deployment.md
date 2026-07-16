@@ -265,7 +265,16 @@ the drain phase — no extra wiring needed.
 
 ## Health checks
 
-The built-in `HealthModule` serves `GET /health` and returns `{"status":"ok"}`. It's imported by every generated app:
+The built-in `HealthModule` serves four operational endpoints:
+
+| Endpoint | Purpose |
+|----------|---------|
+| `GET /health` | Composite health (backward compatible) — 200 / 207 / 503 |
+| `GET /health/live` | Liveness probe — always 200 |
+| `GET /health/ready` | Readiness probe — 200 / 503 |
+| `GET /version` | Build metadata (git SHA, features, etc.) |
+
+`HealthModule` is imported by every generated app:
 
 ```rust
 #[derive(Module)]
@@ -273,18 +282,24 @@ The built-in `HealthModule` serves `GET /health` and returns `{"status":"ok"}`. 
 pub struct AppModule;
 ```
 
+For Kubernetes, use the dedicated probe endpoints:
+
+```yaml
+livenessProbe:
+  httpGet:
+    path: /health/live
+    port: 3000
+readinessProbe:
+  httpGet:
+    path: /health/ready
+    port: 3000
+```
+
 For Docker, add a HEALTHCHECK instruction:
 
 ```dockerfile
 HEALTHCHECK --interval=10s --timeout=3s --retries=3 \
-  CMD ["/app/{binary}", "health"] || exit 1
-```
-
-Or use curl in a non‑distroless image:
-
-```dockerfile
-HEALTHCHECK --interval=10s --timeout=3s --retries=3 \
-  CMD curl -f http://localhost:3000/health || exit 1
+  CMD curl -f http://localhost:3000/health/live || exit 1
 ```
 
 ## Production checklist
@@ -302,13 +317,14 @@ HEALTHCHECK --interval=10s --timeout=3s --retries=3 \
 | **REDIS_URL** | Uses strong password if exposed over network |
 | **TLS** | Terminate at reverse proxy or load balancer; app listens plain HTTP |
 | **DRAIN_TIMEOUT** | Set to match your max request duration (default 30s) |
-| **HEALTHCHECK** | `/health` returns `200` and orchestration monitors it |
+| **LIVENESS PROBE** | `/health/live` returns `200` — configure in K8s `livenessProbe` |
+| **READINESS PROBE** | `/health/ready` returns `200` — configure in K8s `readinessProbe` |
+| **VERSION ENDPOINT** | `/version` returns build metadata for CI/CD traceability |
+| **HEALTHCHECK** | `/health/live` returns `200` and orchestration monitors it |
 | **METRICS** | `/metrics` is scraped by Prometheus / VictoriaMetrics |
 | **DISTROLESS** | No shell in runtime image; minimal attack surface |
 | **ENV_FILE** | `.env` added to `.gitignore`; never committed to source |
 | **BACKTRACES** | Set `RUST_BACKTRACE=1` for debugging, omit in production |
-
-## Try it yourself
 
 ## Try it yourself
 
@@ -338,7 +354,9 @@ HEALTHCHECK --interval=10s --timeout=3s --retries=3 \
 - [x] Set up nginx for TLS termination and proxying
 - [x] Understand graceful shutdown with `listen()` and `listen_with_shutdown()`
 - [x] Configure drain timeout to control how long in-flight requests have to complete
-- [x] Use the built‑in `/health` endpoint and Docker HEALTHCHECK
+- [x] Use the built‑in `/health`, `/health/live`, `/health/ready`, and `/version` endpoints
+- [x] Configure Kubernetes liveness and readiness probes via `/health/live` and `/health/ready`
+- [x] Use `/version` for build metadata traceability in CI/CD
 - [x] Run through a production readiness checklist
 
 ## Next steps

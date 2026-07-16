@@ -1,0 +1,18 @@
+[package]
+name = "ironic-fuzz"
+version = "0.0.0"
+publish = false
+edition = "2024"
+
+[package.metadata]
+cargo-fuzz = true
+
+[dependencies]
+libfuzzer-sys = "0.4"
+
+[dependencies.ironic]
+path = ".."
+
+# We import only the http crate from the workspace so we don't need full ironic.
+# But since ironic's facade inlines everything via #[path], we just depend on ironic
+# and the fuzzer will exercise whatever features are enabled by default.

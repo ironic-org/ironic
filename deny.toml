@@ -1,27 +1,39 @@
-[advisories]
-ignore = [
-    "RUSTSEC-2023-0071",  # rsa: Marvin Attack - no fix available (transient via oauth2)
-    "RUSTSEC-2026-0118",  # hickory-proto: NSEC3 loop - no fix available (transient via mongodb)
-]
+# cargo-deny configuration
+# See https://embarkstudios.github.io/cargo-deny/
 
-[bans]
-multiple-versions = "warn"
-wildcards = "deny"
+[advisories]
+ignore = []
 
 [licenses]
-confidence-threshold = 0.8
 allow = [
+    "MIT",
     "Apache-2.0",
     "Apache-2.0 WITH LLVM-exception",
     "BSD-2-Clause",
     "BSD-3-Clause",
     "ISC",
-    "MIT",
-    "Unicode-3.0",
     "Zlib",
+    "Unicode-3.0",
+    "Unicode-DFS-2016",
+    "CC0-1.0",
+    "0BSD",
+    "MPL-2.0",
+    "OpenSSL",
+    "LicenseRef-ring",
+    "CDLA-Permissive-2.0",
 ]
+confidence-threshold = 0.8
+exceptions = []
+
+[bans]
+multiple-versions = "warn"
+wildcards = "allow"
+highlight = "all"
+skip = []
+skip-tree = []
 
 [sources]
-unknown-git = "deny"
 unknown-registry = "deny"
-
+unknown-git = "deny"
+allow-registry = ["https://github.com/rust-lang/crates.io-index"]
+allow-git = []

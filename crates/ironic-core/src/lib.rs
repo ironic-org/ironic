@@ -26,8 +26,8 @@ pub use application::{
     ModuleConfigurationError,
 };
 pub use health::{
-    HealthConfig, HealthIndicator, HealthModule, HealthStatus,
-    register as register_health_indicator,
+    BuildInfo, HealthConfig, HealthIndicator, HealthModule, HealthStatus,
+    configure as configure_health, register as register_health_indicator,
 };
 pub use lifecycle::{
     LifecycleDefinition, LifecycleDefinitionBuilder, LifecycleError, LifecycleFuture,

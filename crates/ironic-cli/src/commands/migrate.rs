@@ -10,8 +10,7 @@ use crate::{CliError, cli::MigrateAction};
 const MIGRATIONS_DIR: &str = "./migrations";
 
 #[cfg(not(feature = "sqlx-postgres"))]
-const NO_SQLX_MSG: &str =
-    "The `migrate up|down|status` commands require the `sqlx` feature.\n\
+const NO_SQLX_MSG: &str = "The `migrate up|down|status` commands require the `sqlx` feature.\n\
      Install with: cargo install ironic --features sqlx-postgres";
 
 pub(crate) fn execute(action: MigrateAction, output: &mut impl Write) -> Result<(), CliError> {
@@ -96,10 +95,12 @@ type DbPool = sqlx::PgPool;
 #[cfg(feature = "sqlx-postgres")]
 async fn connect() -> Result<DbPool, CliError> {
     let url = load_database_url()?;
-    DbPool::connect(&url).await.map_err(|e| CliError::CommandFailed {
-        program: "ironic migrate".into(),
-        status: format!("failed to connect to database: {e}"),
-    })
+    DbPool::connect(&url)
+        .await
+        .map_err(|e| CliError::CommandFailed {
+            program: "ironic migrate".into(),
+            status: format!("failed to connect to database: {e}"),
+        })
 }
 
 #[cfg(feature = "sqlx-postgres")]
@@ -117,10 +118,13 @@ fn run_migrations(output: &mut impl Write) -> Result<(), CliError> {
                 status: format!("failed to load migrations: {e}"),
             })?;
 
-        migrator.run(&pool).await.map_err(|e| CliError::CommandFailed {
-            program: "ironic migrate".into(),
-            status: format!("migration run failed: {e}"),
-        })?;
+        migrator
+            .run(&pool)
+            .await
+            .map_err(|e| CliError::CommandFailed {
+                program: "ironic migrate".into(),
+                status: format!("migration run failed: {e}"),
+            })?;
 
         writeln!(output, "  ✓ Migrations applied successfully")?;
         Ok(())
@@ -142,10 +146,13 @@ fn revert_migrations(steps: i64, output: &mut impl Write) -> Result<(), CliError
                 status: format!("failed to load migrations: {e}"),
             })?;
 
-        migrator.undo(&pool, steps).await.map_err(|e| CliError::CommandFailed {
-            program: "ironic migrate".into(),
-            status: format!("migration revert failed: {e}"),
-        })?;
+        migrator
+            .undo(&pool, steps)
+            .await
+            .map_err(|e| CliError::CommandFailed {
+                program: "ironic migrate".into(),
+                status: format!("migration revert failed: {e}"),
+            })?;
 
         writeln!(output, "  ✓ Reverted {steps} migration(s)")?;
         Ok(())
@@ -167,12 +174,11 @@ fn show_status(output: &mut impl Write) -> Result<(), CliError> {
                 status: format!("failed to load migrations: {e}"),
             })?;
 
-        let applied: Vec<(String,)> = sqlx::query_as(
-            "SELECT version::text FROM _sqlx_migrations ORDER BY version"
-        )
-        .fetch_all(&pool)
-        .await
-        .unwrap_or_default();
+        let applied: Vec<(String,)> =
+            sqlx::query_as("SELECT version::text FROM _sqlx_migrations ORDER BY version")
+                .fetch_all(&pool)
+                .await
+                .unwrap_or_default();
 
         writeln!(output, "  Migration status:")?;
         writeln!(output)?;
@@ -184,7 +190,11 @@ fn show_status(output: &mut impl Write) -> Result<(), CliError> {
             } else {
                 "  ⏳ Pending "
             };
-            writeln!(output, "  {status}  {version_str:>8}  {}", migration.description)?;
+            writeln!(
+                output,
+                "  {status}  {version_str:>8}  {}",
+                migration.description
+            )?;
         }
 
         writeln!(output)?;

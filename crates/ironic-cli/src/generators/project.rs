@@ -71,7 +71,10 @@ pub fn create(
         ),
         (destination.join("Makefile"), makefile().into()),
         (destination.join("justfile"), justfile().into()),
-        (destination.join("rust-toolchain.toml"), rust_toolchain().into()),
+        (
+            destination.join("rust-toolchain.toml"),
+            rust_toolchain().into(),
+        ),
         (destination.join("README.md"), readme(&names.kebab)),
         (destination.join("src/main.rs"), main_source(&names.kebab)),
         (destination.join("src/app.rs"), app_source().into()),
@@ -79,7 +82,10 @@ pub fn create(
             destination.join("src/welcome.rs"),
             welcome_source(&names.kebab),
         ),
-        (destination.join("src/platform/mod.rs"), platform_mod().into()),
+        (
+            destination.join("src/platform/mod.rs"),
+            platform_mod().into(),
+        ),
         (
             destination.join("src/platform/config.rs"),
             platform_config().into(),
@@ -195,7 +201,12 @@ fn manifest(name: &str, workspace: Option<&Path>) -> String {
     let range = version.splitn(3, '.').take(2).collect::<Vec<_>>().join(".");
     let dep_spec = workspace.map_or_else(
         || format!("version = \"{range}\""),
-        |workspace| format!("path = \"{}\", default-features = false", toml_path(workspace)),
+        |workspace| {
+            format!(
+                "path = \"{}\", default-features = false",
+                toml_path(workspace)
+            )
+        },
     );
     format!(
         r#"[package]

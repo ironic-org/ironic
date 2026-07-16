@@ -276,9 +276,8 @@ fn generate_openapi_call(openapi: &OpenApiAttrs) -> Option<TokenStream> {
         calls.push(quote! { .tag(#tag) });
     }
     for scheme in &openapi.security {
-        let scopes: Vec<String> = Vec::new();
         calls.push(quote! {
-            .security(#scheme, [#(#scopes),*])
+            .security(#scheme, Vec::<String>::new())
         });
     }
 

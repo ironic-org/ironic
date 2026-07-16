@@ -52,19 +52,13 @@ export function baseOptions(): BaseLayoutProps {
         nav: {
             title: (
                 <>
-                    <svg
+                    <img
+                        src='/logo.png'
+                        alt='Ironic'
                         width='24'
                         height='24'
-                        viewBox='0 0 24 24'
-                        fill='none'
-                        stroke='currentColor'
-                        strokeWidth='2'
-                        strokeLinecap='round'
-                        strokeLinejoin='round'
-                        className='size-5 text-brand'
-                    >
-                        <path d='M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5' />
-                    </svg>
+                        className='size-5'
+                    />
                     <span className='font-medium max-md:hidden'>Ironic</span>
                 </>
             ),

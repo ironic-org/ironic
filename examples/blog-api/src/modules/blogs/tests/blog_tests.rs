@@ -10,7 +10,7 @@ fn make_service() -> BlogService {
     }
 }
 
-#[tokio::test]
+#[ironic::test]
 async fn test_create_and_find() {
     let svc = make_service();
     let dto = CreateBlogDto {
@@ -33,7 +33,7 @@ async fn test_create_and_find() {
     assert_eq!(found.id, post.id);
 }
 
-#[tokio::test]
+#[ironic::test]
 async fn test_find_by_slug() {
     let svc = make_service();
     svc.create(CreateBlogDto {
@@ -53,7 +53,7 @@ async fn test_find_by_slug() {
     assert_eq!(post.title, "My Rust Journey");
 }
 
-#[tokio::test]
+#[ironic::test]
 async fn test_update_post() {
     let svc = make_service();
     let post = svc
@@ -87,7 +87,7 @@ async fn test_update_post() {
     assert!(updated.published);
 }
 
-#[tokio::test]
+#[ironic::test]
 async fn test_publish_unpublish() {
     let svc = make_service();
     let post = svc
@@ -111,7 +111,7 @@ async fn test_publish_unpublish() {
     assert!(!unpublished.published);
 }
 
-#[tokio::test]
+#[ironic::test]
 async fn test_delete_post() {
     let svc = make_service();
     let post = svc
@@ -130,7 +130,7 @@ async fn test_delete_post() {
     assert!(svc.find(post.id).is_err());
 }
 
-#[tokio::test]
+#[ironic::test]
 async fn test_slug_conflict() {
     let svc = make_service();
     svc.create(CreateBlogDto {
@@ -156,7 +156,7 @@ async fn test_slug_conflict() {
     assert!(result.is_err());
 }
 
-#[tokio::test]
+#[ironic::test]
 async fn test_category_crud() {
     let svc = make_service();
     let cat = svc
@@ -168,7 +168,7 @@ async fn test_category_crud() {
     assert!(cats.iter().any(|c| c.id == cat.id));
 }
 
-#[tokio::test]
+#[ironic::test]
 async fn test_assign_category_to_post() {
     let svc = make_service();
     let cat = svc
@@ -198,7 +198,7 @@ async fn test_assign_category_to_post() {
     assert!(!removed.category_ids.contains(&cat.id));
 }
 
-#[tokio::test]
+#[ironic::test]
 async fn test_stats() {
     let svc = make_service();
     let stats = svc.stats().expect("stats should succeed");

@@ -164,11 +164,11 @@ fn image_processor() -> String {
 }
 
 fn unit_upload_test() -> String {
-    "//! Unit tests for UploadService (local adapter).\n\nuse crate::modules::file_upload::services::UploadService;\n\n#[tokio::test]\nasync fn upload_and_download() {\n    let svc = UploadService::new();\n    let resp = svc.upload(\"test.txt\", b\"hello\".to_vec(), \"text/plain\").await.unwrap();\n    assert!(resp.id.len() > 10);\n    let data = svc.download(&resp.id).await.unwrap();\n    assert_eq!(data, b\"hello\");\n    svc.delete(&resp.id).await.unwrap();\n}\n".into()
+    "//! Unit tests for UploadService (local adapter).\n\nuse crate::modules::file_upload::services::UploadService;\n\n#[ironic::test]\nasync fn upload_and_download() {\n    let svc = UploadService::new();\n    let resp = svc.upload(\"test.txt\", b\"hello\".to_vec(), \"text/plain\").await.unwrap();\n    assert!(resp.id.len() > 10);\n    let data = svc.download(&resp.id).await.unwrap();\n    assert_eq!(data, b\"hello\");\n    svc.delete(&resp.id).await.unwrap();\n}\n".into()
 }
 
 fn integration_upload_test() -> String {
-    "//! Integration tests for upload endpoints.\n\nuse ironic::{HttpStatus, TestApplication};\nuse super::super::*;\n\nasync fn app() -> TestApplication {\n    TestApplication::new::<FileUploadModule>().await.unwrap()\n}\n\n#[tokio::test]\nasync fn upload_returns_ok() {\n    let a = app().await;\n    let resp = a.post(\"/upload\").header(\"x-filename\", \"hello.txt\").header(\"content-type\", \"text/plain\").body(b\"hello\".to_vec()).send().await;\n    assert_eq!(resp.status(), HttpStatus::OK);\n    a.shutdown().await.unwrap();\n}\n\n#[tokio::test]\nasync fn download_missing_returns_404() {\n    let a = app().await;\n    a.get(\"/upload/nonexistent\").send().await.assert_status(404);\n    a.shutdown().await.unwrap();\n}\n".into()
+    "//! Integration tests for upload endpoints.\n\nuse ironic::{HttpStatus, TestApplication};\nuse super::super::*;\n\nasync fn app() -> TestApplication {\n    TestApplication::new::<FileUploadModule>().await.unwrap()\n}\n\n#[ironic::test]\nasync fn upload_returns_ok() {\n    let a = app().await;\n    let resp = a.post(\"/upload\").header(\"x-filename\", \"hello.txt\").header(\"content-type\", \"text/plain\").body(b\"hello\".to_vec()).send().await;\n    assert_eq!(resp.status(), HttpStatus::OK);\n    a.shutdown().await.unwrap();\n}\n\n#[ironic::test]\nasync fn download_missing_returns_404() {\n    let a = app().await;\n    a.get(\"/upload/nonexistent\").send().await.assert_status(404);\n    a.shutdown().await.unwrap();\n}\n".into()
 }
 
 // ======================================================================
@@ -220,9 +220,9 @@ fn welcome_template() -> String {
 }
 
 fn unit_email_test() -> String {
-    "//! Unit tests for EmailService (log adapter).\n\nuse crate::modules::email::services::EmailService;\n\n#[tokio::test]\nasync fn send_logs_email() {\n    let svc = EmailService::new();\n    let log = svc.send(\"test@example.com\", \"Hello\", \"Test body\").await.unwrap();\n    assert_eq!(log.status, \"sent\");\n    assert_eq!(log.to_email, \"test@example.com\");\n}\n".into()
+    "//! Unit tests for EmailService (log adapter).\n\nuse crate::modules::email::services::EmailService;\n\n#[ironic::test]\nasync fn send_logs_email() {\n    let svc = EmailService::new();\n    let log = svc.send(\"test@example.com\", \"Hello\", \"Test body\").await.unwrap();\n    assert_eq!(log.status, \"sent\");\n    assert_eq!(log.to_email, \"test@example.com\");\n}\n".into()
 }
 
 fn integration_email_test() -> String {
-    "//! Integration tests for email endpoints.\n\nuse ironic::{HttpStatus, TestApplication};\nuse serde_json::json;\nuse super::super::*;\n\nasync fn app() -> TestApplication {\n    TestApplication::new::<EmailModule>().await.unwrap()\n}\n\n#[tokio::test]\nasync fn send_email_returns_ok() {\n    let a = app().await;\n    let resp = a.post(\"/email/send\").json(&json!({\"to\":\"test@test.com\",\"subject\":\"Hi\",\"body\":\"Hello\"})).send().await;\n    assert_eq!(resp.status(), HttpStatus::OK);\n    a.shutdown().await.unwrap();\n}\n\n#[tokio::test]\nasync fn status_returns_ok() {\n    let a = app().await;\n    let resp = a.get(\"/email/status/test-id\").send().await;\n    assert_eq!(resp.status(), HttpStatus::OK);\n    a.shutdown().await.unwrap();\n}\n".into()
+    "//! Integration tests for email endpoints.\n\nuse ironic::{HttpStatus, TestApplication};\nuse serde_json::json;\nuse super::super::*;\n\nasync fn app() -> TestApplication {\n    TestApplication::new::<EmailModule>().await.unwrap()\n}\n\n#[ironic::test]\nasync fn send_email_returns_ok() {\n    let a = app().await;\n    let resp = a.post(\"/email/send\").json(&json!({\"to\":\"test@test.com\",\"subject\":\"Hi\",\"body\":\"Hello\"})).send().await;\n    assert_eq!(resp.status(), HttpStatus::OK);\n    a.shutdown().await.unwrap();\n}\n\n#[ironic::test]\nasync fn status_returns_ok() {\n    let a = app().await;\n    let resp = a.get(\"/email/status/test-id\").send().await;\n    assert_eq!(resp.status(), HttpStatus::OK);\n    a.shutdown().await.unwrap();\n}\n".into()
 }

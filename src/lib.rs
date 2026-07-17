@@ -195,7 +195,7 @@ pub mod prelude {
     };
     pub use crate::{
         AxumAdapter, BuildInfo, CacheMetadata, CompiledHttpApplication, ConfigurationError,
-        ConfigurationLoader, ControllerDefinition, Dependency, ExceptionFilter, FeatureToggle,
+        ConfigurationLoader, ControllerDefinition, Dependency, ExceptionExt, ExceptionFilter, FeatureToggle,
         FilterContext, FormBody, FrameworkApplication, FrameworkError, FrameworkResult, Guard,
         GuardDecision, GuardFuture, HeaderParameter, HealthModule, HealthStatus, HttpError,
         HttpMethod, HttpPlatformAdapter, HttpPlatformApplication, Injectable, Interceptor,

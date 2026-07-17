@@ -1,4 +1,4 @@
 {
   "title": "HTTP & API",
-  "pages": ["api-versioning", "response-serialization", "validation-pipes", "exception-filters", "guards", "interceptors", "compression", "security", "openapi"]
+  "pages": ["api-versioning", "response-serialization", "validation-pipes", "exception-filters", "inline-exceptions", "guards", "interceptors", "compression", "security", "openapi"]
 }

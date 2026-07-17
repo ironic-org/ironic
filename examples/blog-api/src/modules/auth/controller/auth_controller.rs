@@ -15,7 +15,10 @@ pub struct AuthController {
 impl AuthController {
     #[post("/login")]
     async fn login(&self, #[body] dto: LoginDto) -> Result<Json<TokenResponse>, HttpError> {
-        let tokens = self.auth.login(&dto.username, &dto.password)?;
+        let tokens = self
+            .auth
+            .login(&dto.username, &dto.password)
+            .exception(|e| HttpError::unauthorized("LOGIN_FAILED", e.message()))?;
         Ok(Json(tokens))
     }
 

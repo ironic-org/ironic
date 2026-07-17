@@ -18,7 +18,7 @@ mod serialization;
 
 pub use error::HttpError;
 pub(crate) use exception_filter::ExceptionFilterSet;
-pub use exception_filter::{ExceptionFilter, FilterContext};
+pub use exception_filter::{ExceptionExt, ExceptionFilter, FilterContext};
 pub use extract::{
     ExtractFuture, ExtractedValue, FormBody, HeaderParameter, JsonBody, ParameterExtractor,
     PathParameter, QueryParameters,

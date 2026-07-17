@@ -43,6 +43,65 @@ pub trait ExceptionFilter: Send + Sync + 'static {
     ) -> Result<FrameworkResponse, HttpError>;
 }
 
+/// Extension trait for `Result<T, HttpError>` providing inline exception handling.
+pub trait ExceptionExt<T> {
+    /// Transforms the error using a closure.
+    ///
+    /// # Errors
+    ///
+    /// Returns the error produced by the closure.
+    ///
+    /// ```ignore
+    /// self.auth.login(&dto.username, &dto.password)
+    ///     .exception(|e| HttpError::unauthorized("LOGIN_FAILED", e.message()))?;
+    /// ```
+    fn exception<F>(self, f: F) -> Result<T, HttpError>
+    where
+        F: FnOnce(HttpError) -> HttpError;
+
+    /// Catches the error using an [`ExceptionFilter`].
+    ///
+    /// If the filter returns `Ok(response)`, the error is replaced with
+    /// the response body as the new error message.
+    /// If the filter returns `Err(error)`, the original error passes through.
+    ///
+    /// # Errors
+    ///
+    /// Returns either the transformed error from the filter, or the original
+    /// error if the filter does not catch it.
+    ///
+    /// ```ignore
+    /// self.auth.login(&dto.username, &dto.password)
+    ///     .catch(Arc::new(NotFoundFilter))?;
+    /// ```
+    fn exception_catch(self, filter: Arc<dyn ExceptionFilter>) -> Result<T, HttpError>;
+}
+
+impl<T> ExceptionExt<T> for Result<T, HttpError> {
+    fn exception<F>(self, f: F) -> Result<T, HttpError>
+    where
+        F: FnOnce(HttpError) -> HttpError,
+    {
+        self.map_err(f)
+    }
+
+    fn exception_catch(self, filter: Arc<dyn ExceptionFilter>) -> Result<T, HttpError> {
+        match self {
+            Ok(value) => Ok(value),
+            Err(error) => {
+                let ctx = FilterContext::new(RouteMetadata::default());
+                match filter.catch(&error, &ctx) {
+                    Ok(response) => {
+                        let body = String::from_utf8_lossy(response.body().as_bytes());
+                        Err(HttpError::internal(error.code(), body.to_string()))
+                    }
+                    Err(e) => Err(e),
+                }
+            }
+        }
+    }
+}
+
 /// Collects exception filters at a given scope.
 #[derive(Clone, Default)]
 pub(crate) struct ExceptionFilterSet {

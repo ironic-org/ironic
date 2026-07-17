@@ -8,13 +8,6 @@ on:
       - 'README.md'
       - 'CHANGELOG.md'
       - '.github/workflows/docs.yml'
-  push:
-    branches: [main]
-    paths-ignore:
-      - 'docs/**'
-      - 'README.md'
-      - 'CHANGELOG.md'
-      - '.github/workflows/docs.yml'
 
 env:
   CARGO_TERM_COLOR: always

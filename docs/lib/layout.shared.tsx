@@ -54,7 +54,7 @@ export function baseOptions(): BaseLayoutProps {
             title: (
                 <>
                     <img
-                        src='/logo.png'
+                        src='/logo.svg'
                         alt='Ironic'
                         width='24'
                         height='24'

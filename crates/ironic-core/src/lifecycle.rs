@@ -10,6 +10,22 @@ pub type LifecycleFuture<'a> =
 pub(crate) type InitCallback = Arc<dyn Fn(ProviderValue) -> LifecycleFuture<'static> + Send + Sync>;
 pub(crate) type ShutdownCallback =
     Arc<dyn Fn(ProviderValue, ShutdownSignal) -> LifecycleFuture<'static> + Send + Sync>;
+pub(crate) type ConfigureCallback =
+    Arc<dyn Fn(ProviderValue, String) -> LifecycleFuture<'static> + Send + Sync>;
+pub(crate) type ServerReadyCallback =
+    Arc<dyn Fn(ProviderValue) -> LifecycleFuture<'static> + Send + Sync>;
+pub(crate) type RequestInitCallback =
+    Arc<dyn Fn(ProviderValue, String) -> LifecycleFuture<'static> + Send + Sync>;
+pub(crate) type RequestDestroyCallback =
+    Arc<dyn Fn(ProviderValue) -> LifecycleFuture<'static> + Send + Sync>;
+pub(crate) type ErrorCallback =
+    Arc<dyn Fn(ProviderValue, String, String) -> LifecycleFuture<'static> + Send + Sync>;
+pub(crate) type GuardDeniedCallback =
+    Arc<dyn Fn(ProviderValue, String) -> LifecycleFuture<'static> + Send + Sync>;
+pub(crate) type BeforeShutdownCallback =
+    Arc<dyn Fn(ProviderValue, ShutdownSignal) -> LifecycleFuture<'static> + Send + Sync>;
+pub(crate) type AfterShutdownCallback =
+    Arc<dyn Fn(ProviderValue) -> LifecycleFuture<'static> + Send + Sync>;
 
 /// A safe lifecycle callback failure.
 #[derive(Clone, Debug, Eq, PartialEq, thiserror::Error)]
@@ -27,6 +43,8 @@ impl LifecycleError {
         }
     }
 }
+
+// ── Existing hooks ──────────────────────────────────────────────────
 
 /// Runs after a provider's module and dependencies are available.
 pub trait OnModuleInit: Send + Sync + 'static {
@@ -52,6 +70,82 @@ pub trait OnApplicationShutdown: Send + Sync + 'static {
     fn on_application_shutdown(&self, signal: ShutdownSignal) -> LifecycleFuture<'_>;
 }
 
+// ── New hooks ───────────────────────────────────────────────────────
+
+/// Runs during module graph compilation, before any providers are built.
+///
+/// Use for: dynamic route registration, conditional provider setup,
+/// validating module configuration.
+pub trait OnModuleConfigure: Send + Sync + 'static {
+    /// Receives the module's diagnostic name.
+    fn on_module_configure(&self, module_name: &str) -> LifecycleFuture<'_>;
+}
+
+/// Runs after the HTTP server binds to a port and is ready to accept connections.
+///
+/// Use for: self-health checks, notifying orchestrators, logging the bound address.
+pub trait OnServerReady: Send + Sync + 'static {
+    /// Called when the server is ready.
+    fn on_server_ready(&self) -> LifecycleFuture<'_>;
+}
+
+/// Runs when a request-scoped provider is first resolved within a request.
+///
+/// Use for: per-request setup like initializing auth context, allocating
+/// temporary resources, or logging the request identifier.
+pub trait OnRequestInit: Send + Sync + 'static {
+    /// `request_id` is the framework-generated request identifier.
+    fn on_request_init(&self, request_id: &str) -> LifecycleFuture<'_>;
+}
+
+/// Runs when the request scope ends and the provider is about to be dropped.
+///
+/// Use for: closing temporary connections, flushing per-request metrics,
+/// releasing resources acquired in `OnRequestInit`.
+pub trait OnRequestDestroy: Send + Sync + 'static {
+    /// Called when the owning request scope is dropped.
+    fn on_request_destroy(&self) -> LifecycleFuture<'_>;
+}
+
+/// Called on every unhandled error before exception filters run.
+///
+/// Use for: centralized error logging, Sentry/DataDog reporting, alerting
+/// on specific error codes across the entire application.
+pub trait OnError: Send + Sync + 'static {
+    /// `error_code` is the machine-readable code (e.g. `"POST_NOT_FOUND"`).
+    /// `error_message` is the human-readable message.
+    fn on_error(&self, error_code: &str, error_message: &str) -> LifecycleFuture<'_>;
+}
+
+/// Called when any `Guard` returns `GuardDecision::Deny`.
+///
+/// Use for: centralized auth failure logging, brute-force detection,
+/// rate-limit counters per guard type.
+pub trait OnGuardDenied: Send + Sync + 'static {
+    /// `guard_name` is the display name of the guard that denied the request.
+    fn on_guard_denied(&self, guard_name: &str) -> LifecycleFuture<'_>;
+}
+
+/// Runs immediately after a shutdown signal is received, BEFORE the server
+/// stops accepting new connections.
+///
+/// Use for: draining in-flight connections, rejecting new requests gracefully,
+/// signalling load balancers to stop routing traffic.
+pub trait BeforeShutdown: Send + Sync + 'static {
+    /// Receives the shutdown signal.
+    fn before_shutdown(&self, signal: ShutdownSignal) -> LifecycleFuture<'_>;
+}
+
+/// Runs after ALL `OnModuleDestroy` callbacks have completed.
+///
+/// Use for: final metrics flush, last-chance cleanup, logging shutdown duration.
+pub trait AfterShutdown: Send + Sync + 'static {
+    /// Called after every module has been destroyed.
+    fn after_shutdown(&self) -> LifecycleFuture<'_>;
+}
+
+// ── LifecycleDefinition ─────────────────────────────────────────────
+
 /// Type-erased lifecycle callbacks registered for one provider.
 #[derive(Clone)]
 pub struct LifecycleDefinition {
@@ -60,6 +154,14 @@ pub struct LifecycleDefinition {
     pub(crate) application_bootstrap: Option<InitCallback>,
     pub(crate) module_destroy: Option<InitCallback>,
     pub(crate) application_shutdown: Option<ShutdownCallback>,
+    pub(crate) module_configure: Option<ConfigureCallback>,
+    pub(crate) server_ready: Option<ServerReadyCallback>,
+    pub(crate) request_init: Option<RequestInitCallback>,
+    pub(crate) request_destroy: Option<RequestDestroyCallback>,
+    pub(crate) on_error: Option<ErrorCallback>,
+    pub(crate) guard_denied: Option<GuardDeniedCallback>,
+    pub(crate) before_shutdown: Option<BeforeShutdownCallback>,
+    pub(crate) after_shutdown: Option<AfterShutdownCallback>,
 }
 
 impl LifecycleDefinition {
@@ -73,6 +175,14 @@ impl LifecycleDefinition {
                 application_bootstrap: None,
                 module_destroy: None,
                 application_shutdown: None,
+                module_configure: None,
+                server_ready: None,
+                request_init: None,
+                request_destroy: None,
+                on_error: None,
+                guard_denied: None,
+                before_shutdown: None,
+                after_shutdown: None,
             },
             marker: PhantomData,
         }
@@ -91,12 +201,17 @@ impl std::fmt::Debug for LifecycleDefinition {
             .debug_struct("LifecycleDefinition")
             .field("key", &self.key)
             .field("module_init", &self.module_init.is_some())
-            .field(
-                "application_bootstrap",
-                &self.application_bootstrap.is_some(),
-            )
+            .field("application_bootstrap", &self.application_bootstrap.is_some())
             .field("module_destroy", &self.module_destroy.is_some())
             .field("application_shutdown", &self.application_shutdown.is_some())
+            .field("module_configure", &self.module_configure.is_some())
+            .field("server_ready", &self.server_ready.is_some())
+            .field("request_init", &self.request_init.is_some())
+            .field("request_destroy", &self.request_destroy.is_some())
+            .field("on_error", &self.on_error.is_some())
+            .field("guard_denied", &self.guard_denied.is_some())
+            .field("before_shutdown", &self.before_shutdown.is_some())
+            .field("after_shutdown", &self.after_shutdown.is_some())
             .finish()
     }
 }
@@ -163,6 +278,104 @@ impl<T: Send + Sync + 'static> LifecycleDefinitionBuilder<T> {
             Box::pin(async move {
                 let provider = downcast::<T>(value)?;
                 provider.on_application_shutdown(signal).await
+            })
+        }));
+        self
+    }
+
+    // ── New builder methods ─────────────────────────────────────────
+
+    /// Registers [`OnModuleConfigure`].
+    #[must_use]
+    pub fn module_configure(mut self) -> Self where T: OnModuleConfigure {
+        self.definition.module_configure = Some(Arc::new(|value, name| {
+            Box::pin(async move {
+                let provider = downcast::<T>(value)?;
+                provider.on_module_configure(&name).await
+            })
+        }));
+        self
+    }
+
+    /// Registers [`OnServerReady`].
+    #[must_use]
+    pub fn server_ready(mut self) -> Self where T: OnServerReady {
+        self.definition.server_ready = Some(Arc::new(|value| {
+            Box::pin(async move {
+                let provider = downcast::<T>(value)?;
+                provider.on_server_ready().await
+            })
+        }));
+        self
+    }
+
+    /// Registers [`OnRequestInit`].
+    #[must_use]
+    pub fn request_init(mut self) -> Self where T: OnRequestInit {
+        self.definition.request_init = Some(Arc::new(|value, request_id| {
+            Box::pin(async move {
+                let provider = downcast::<T>(value)?;
+                provider.on_request_init(&request_id).await
+            })
+        }));
+        self
+    }
+
+    /// Registers [`OnRequestDestroy`].
+    #[must_use]
+    pub fn request_destroy(mut self) -> Self where T: OnRequestDestroy {
+        self.definition.request_destroy = Some(Arc::new(|value| {
+            Box::pin(async move {
+                let provider = downcast::<T>(value)?;
+                provider.on_request_destroy().await
+            })
+        }));
+        self
+    }
+
+    /// Registers [`OnError`].
+    #[must_use]
+    pub fn on_error(mut self) -> Self where T: OnError {
+        self.definition.on_error = Some(Arc::new(|value, code, msg| {
+            Box::pin(async move {
+                let provider = downcast::<T>(value)?;
+                provider.on_error(&code, &msg).await
+            })
+        }));
+        self
+    }
+
+    /// Registers [`OnGuardDenied`].
+    #[must_use]
+    pub fn guard_denied(mut self) -> Self where T: OnGuardDenied {
+        self.definition.guard_denied = Some(Arc::new(|value, name| {
+            Box::pin(async move {
+                let provider = downcast::<T>(value)?;
+                provider.on_guard_denied(&name).await
+            })
+        }));
+        self
+    }
+
+    /// Registers [`BeforeShutdown`].
+    #[must_use]
+    pub fn before_shutdown(mut self) -> Self where T: BeforeShutdown {
+        self.definition.before_shutdown = Some(Arc::new(|value, signal| {
+            Box::pin(async move {
+                let provider = downcast::<T>(value)?;
+                provider.before_shutdown(signal).await
+            })
+        }));
+        self
+    }
+
+    /// Registers [`AfterShutdown`].
+    #[must_use]
+    pub fn after_shutdown(mut self) -> Self where T: AfterShutdown {
+        self.definition.after_shutdown = Some(Arc::new(|value| {
+            Box::pin(async move {
+                let provider = downcast::<T>(value)?;
+                provider.after_shutdown().await
             })
         }));
         self

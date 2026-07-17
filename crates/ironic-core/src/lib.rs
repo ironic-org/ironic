@@ -30,8 +30,10 @@ pub use health::{
     configure as configure_health, register as register_health_indicator,
 };
 pub use lifecycle::{
-    LifecycleDefinition, LifecycleDefinitionBuilder, LifecycleError, LifecycleFuture,
-    OnApplicationBootstrap, OnApplicationShutdown, OnModuleDestroy, OnModuleInit,
+    AfterShutdown, BeforeShutdown, LifecycleDefinition, LifecycleDefinitionBuilder,
+    LifecycleError, LifecycleFuture, OnApplicationBootstrap, OnApplicationShutdown,
+    OnError, OnGuardDenied, OnModuleConfigure, OnModuleDestroy, OnModuleInit,
+    OnRequestDestroy, OnRequestInit, OnServerReady,
 };
 
 /// A statically declared Ironic application module.

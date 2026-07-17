@@ -219,6 +219,7 @@ where
         let container = http.container().clone();
         module_ref.set_container(container.clone());
 
+        configure_modules(&graph, &container).await?;
         initialize_eager_providers(&graph, &container).await?;
         let mut initialized = Vec::new();
         if let Err(error) = initialize_lifecycle(&graph, &container, &mut initialized).await {
@@ -226,6 +227,10 @@ where
             return Err(error);
         }
         if let Err(error) = bootstrap_application(&initialized).await {
+            let _ = destroy_modules(&initialized).await;
+            return Err(error);
+        }
+        if let Err(error) = server_ready(&initialized).await {
             let _ = destroy_modules(&initialized).await;
             return Err(error);
         }
@@ -435,6 +440,13 @@ async fn shutdown_application(
     initialized: &[InitializedLifecycle],
     signal: ShutdownSignal,
 ) -> Result<(), ApplicationError> {
+    // BeforeShutdown: notify providers BEFORE server stops accepting
+    for lifecycle in initialized {
+        if let Some(callback) = &lifecycle.definition.before_shutdown {
+            let _ = callback(Arc::clone(&lifecycle.provider), signal).await;
+        }
+    }
+
     let mut first_error = None;
     for lifecycle in initialized.iter().rev() {
         if let Some(callback) = &lifecycle.definition.application_shutdown
@@ -448,6 +460,14 @@ async fn shutdown_application(
     if let Err(error) = destroy_modules(initialized).await {
         first_error.get_or_insert(error);
     }
+
+    // AfterShutdown: final cleanup after all destroy callbacks
+    for lifecycle in initialized.iter().rev() {
+        if let Some(callback) = &lifecycle.definition.after_shutdown {
+            let _ = callback(Arc::clone(&lifecycle.provider)).await;
+        }
+    }
+
     first_error.map_or(Ok(()), Err)
 }
 
@@ -479,6 +499,44 @@ fn lifecycle_error(
 
 fn resolution_message(error: &ResolveError) -> String {
     error.to_string()
+}
+
+async fn configure_modules(
+    graph: &CompiledApplicationGraph,
+    container: &Container,
+) -> Result<(), ApplicationError> {
+    for module_id in graph.initialization_order() {
+        let module = graph
+            .module(*module_id)
+            .expect("initialization order references a compiled module");
+        let module_name = format!("{:?}", module.id());
+        for definition in module.lifecycle() {
+            if let Some(callback) = &definition.module_configure {
+                let provider = container
+                    .resolve_key(definition.key())
+                    .await
+                    .map_err(|error| ApplicationError::EagerProvider {
+                        provider: definition.key(),
+                        message: resolution_message(&error),
+                    })?;
+                callback(provider, module_name.clone()).await.map_err(|error| {
+                    lifecycle_error(definition.key(), "module configuration", &error)
+                })?;
+            }
+        }
+    }
+    Ok(())
+}
+
+async fn server_ready(initialized: &[InitializedLifecycle]) -> Result<(), ApplicationError> {
+    for lifecycle in initialized {
+        if let Some(callback) = &lifecycle.definition.server_ready {
+            callback(Arc::clone(&lifecycle.provider)).await.map_err(|error| {
+                lifecycle_error(lifecycle.definition.key(), "server ready", &error)
+            })?;
+        }
+    }
+    Ok(())
 }
 
 #[cfg(test)]

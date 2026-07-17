@@ -1,0 +1,14 @@
+{
+  "title": "Lifecycle Hooks",
+  "pages": [
+    "overview",
+    "on-module-configure",
+    "on-server-ready",
+    "on-request-init",
+    "on-request-destroy",
+    "on-error",
+    "on-guard-denied",
+    "before-shutdown",
+    "after-shutdown"
+  ]
+}

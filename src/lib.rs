@@ -189,7 +189,7 @@ pub mod prelude {
         Json, JsonBody, LifecycleDefinition, Middleware, Module, ModuleDefinition, ModuleRef,
         OnApplicationBootstrap, OnApplicationShutdown, OnModuleDestroy, OnModuleInit,
         ParameterPipe, PathParameter, PipelineFuture, ProviderDefinition, QueryParameters,
-        RequestContext, RequestId, RequestScope, RequestTracing, RouteDefinition, RouteMetadata,
+        RequestContext, RequestId, RequestLogging, RequestScope, RequestTracing, RouteDefinition, RouteMetadata,
         Scope, Secret, SecretString, Serializable, ShutdownSignal, ValidateConfiguration,
         VersionMetadata, VersioningStrategy, WsGatewayDefinition, api, body, cache, controller,
         create_param_decorator, cron, custom, delete, get, handler_fn, head, header, interval,

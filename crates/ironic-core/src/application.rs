@@ -1,7 +1,7 @@
 use std::{future::Future, net::SocketAddr, pin::Pin, sync::Arc};
 
 use ironic_di::{Container, ProviderDefinition, ProviderKey, ProviderValue, ResolveError};
-use ironic_http::Middleware;
+use ironic_http::{Middleware, RequestLogging};
 use ironic_platform::{HttpPlatformAdapter, HttpPlatformApplication, Shutdown, ShutdownSignal};
 
 use crate::{
@@ -77,6 +77,7 @@ pub struct FrameworkApplicationBuilder<A = MissingPlatform> {
     overrides: Vec<ironic_di::ProviderDefinition>,
     middlewares: Vec<Arc<dyn Middleware>>,
     adapter: A,
+    disable_request_logging: bool,
 }
 
 type ModuleConfigurationFuture =
@@ -111,6 +112,7 @@ impl Default for FrameworkApplicationBuilder<MissingPlatform> {
             overrides: Vec::new(),
             middlewares: Vec::new(),
             adapter: MissingPlatform,
+            disable_request_logging: false,
         }
     }
 }
@@ -155,6 +157,16 @@ impl<A> FrameworkApplicationBuilder<A> {
         self
     }
 
+    /// Disables the default [`RequestLogging`] middleware.
+    ///
+    /// By default, every request is logged as a structured tracing event. Call
+    /// this method to opt out.
+    #[must_use]
+    pub fn without_request_logging(mut self) -> Self {
+        self.disable_request_logging = true;
+        self
+    }
+
     /// Selects a concrete HTTP platform adapter.
     #[must_use]
     pub fn platform<B>(self, adapter: B) -> FrameworkApplicationBuilder<B> {
@@ -163,6 +175,7 @@ impl<A> FrameworkApplicationBuilder<A> {
             overrides: self.overrides,
             middlewares: self.middlewares,
             adapter,
+            disable_request_logging: self.disable_request_logging,
         }
     }
 }
@@ -198,6 +211,11 @@ where
             self.overrides,
         )?
         .extend_middleware(self.middlewares);
+        let http = if self.disable_request_logging {
+            http
+        } else {
+            http.middleware(RequestLogging::new())
+        };
         let container = http.container().clone();
         module_ref.set_container(container.clone());
 

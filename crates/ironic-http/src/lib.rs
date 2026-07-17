@@ -27,7 +27,7 @@ pub use handler::{ErasedHandler, HandlerArguments, HandlerFuture, handler_fn};
 pub use metadata::{CacheMetadata, VersionMetadata, VersioningStrategy};
 #[cfg(feature = "multipart")]
 pub use multipart::{MultipartConfig, MultipartForm, MultipartFormData, UploadedFile};
-pub use observability::{RequestId, RequestTracing};
+pub use observability::{RequestId, RequestLogging, RequestTracing};
 pub use pipeline::{
     Guard, GuardDecision, GuardFuture, Interceptor, InterceptorNext, Middleware, MiddlewareNext,
     ParameterPipe, PipeFuture, PipelineComponents, PipelineFuture, pipe_fn,

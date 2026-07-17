@@ -90,3 +90,81 @@ impl Middleware for RequestTracing {
         )
     }
 }
+
+/// Logs HTTP request/response pairs as structured tracing events.
+///
+/// Captures method, URI, status code, body sizes, and duration. When the
+/// `logging` feature is enabled on the `ironic` crate, these events are
+/// automatically persisted by [`TimeSeriesLayer`].
+///
+/// Register on a [`CompiledHttpApplication`](crate::CompiledHttpApplication):
+///
+/// ```ignore
+/// .middleware(RequestLogging::new())
+/// ```
+#[derive(Clone, Copy, Debug, Default)]
+pub struct RequestLogging;
+
+impl RequestLogging {
+    /// Creates the request logging middleware.
+    #[must_use]
+    pub const fn new() -> Self {
+        Self
+    }
+}
+
+impl Middleware for RequestLogging {
+    fn handle<'a>(
+        &'a self,
+        context: &'a mut RequestContext,
+        next: MiddlewareNext<'a>,
+    ) -> PipelineFuture<'a> {
+        Box::pin(async move {
+            let start = std::time::Instant::now();
+            let method = context.request().method().clone();
+            let uri = context.request().uri().clone();
+            let req_body_size = context.request().body().len() as u64;
+
+            let result = next.run(context).await;
+            let duration = start.elapsed();
+            let duration_ms = (duration.as_secs_f64() * 1000.0 * 100.0).round() / 100.0;
+
+            match &result {
+                Ok(response) => {
+                    let status = response.status().as_u16();
+                    let resp_body_size = response.body().as_bytes().len() as u64;
+                    let event_level = match status {
+                        500..=599 => "error",
+                        400..=499 => "warn",
+                        _ => "info",
+                    };
+                    tracing::info!(
+                        target: "ironic.http.access",
+                        event_level,
+                        http_method = %method,
+                        http_uri = %uri,
+                        http_status_code = status,
+                        http_request_body_size = req_body_size,
+                        http_response_body_size = resp_body_size,
+                        http_duration_ms = duration_ms,
+                    );
+                }
+                Err(error) => {
+                    tracing::info!(
+                        target: "ironic.http.access",
+                        event_level = "error",
+                        http_method = %method,
+                        http_uri = %uri,
+                        http_status_code = 500i64,
+                        http_request_body_size = req_body_size,
+                        http_response_body_size = 0u64,
+                        http_duration_ms = duration_ms,
+                        http_error_code = error.code(),
+                    );
+                }
+            }
+
+            result
+        })
+    }
+}

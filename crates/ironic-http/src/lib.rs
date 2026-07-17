@@ -54,3 +54,8 @@ pub use http::StatusCode as HttpStatus;
 pub use http::Uri;
 /// HTTP headers used by transport-neutral requests and responses.
 pub use http::{HeaderMap, HeaderName, HeaderValue};
+
+/// Convenience alias for [`FrameworkResponse`].
+pub type Response = FrameworkResponse;
+/// Convenience alias for [`FrameworkRequest`].
+pub type Request = FrameworkRequest;

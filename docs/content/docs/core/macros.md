@@ -171,23 +171,22 @@ async fn show(
 
 ## Pipeline attributes
 
-### `#[guard]`, `#[interceptor]`, `#[middleware]`, and `#[exception]`
+### `#[guard]`, `#[interceptor]`, and `#[middleware]`
 
-Attach guards, interceptors, middleware, and exception filters at the controller level:
+Attach guards, interceptors, and middleware at the controller or route level:
 
 ```rust
 #[controller("/admin")]
 #[guard(AuthGuard)]
 #[interceptor(LoggingInterceptor)]
 #[middleware(RateLimitMiddleware::new(100))]
-#[exception(NotFoundFilter)]
 #[derive(Injectable)]
 pub struct AdminController { ... }
 ```
 
-`#[guard]`, `#[interceptor]`, and `#[middleware]` also work on individual route methods. `#[exception]` is controller-level only — use `.exception_filter(...)` on route definitions for per-route filtering.
+`#[guard]`, `#[interceptor]`, and `#[middleware]` also work on individual route methods. Exception filters use `.exception_filter(...)` builder-style on route definitions.
 
-Guards run **before** the handler and can short-circuit with an error. Interceptors **wrap** handler execution (before + after). Middleware wraps the full request lifecycle. Exception filters catch errors after the handler fails.
+Guards run **before** the handler and can short-circuit with an error. Interceptors **wrap** handler execution (before + after). Middleware wraps the full request lifecycle.
 
 **Common mistakes:**
 - Forgetting to register the guard/interceptor as a provider — they must be in `providers` to be resolved.

@@ -49,6 +49,7 @@ Each takes two strings: an **error code** (machine-readable, like `POST_NOT_FOUN
 An exception filter implements the `ExceptionFilter` trait with one method — `catch()`:
 
 ```rust
+use std::sync::Arc;
 use ironic::{ExceptionFilter, FilterContext, FrameworkResponse, HttpError, HttpStatus};
 
 pub struct NotFoundFilter;
@@ -60,7 +61,7 @@ impl ExceptionFilter for NotFoundFilter {
         _ctx: &FilterContext,
     ) -> Result<FrameworkResponse, HttpError> {
         if error.status() == HttpStatus::NOT_FOUND {
-            let body = serde_json::json!({
+            let body = ironic::json::json!({
                 "error": error.code(),
                 "message": error.message(),
                 "status": 404,
@@ -79,41 +80,85 @@ Key points:
 - If you don't handle it, return `Err(error.clone())` — the next filter in the chain gets a chance.
 - Filters run in registration order. The first one to return `Ok` wins.
 
-## Where to apply filters
+## Route-level — `.exception_filter()` builder
 
-### Controller-level — `#[exception]` attribute
-
-Apply to all routes in a controller:
+Apply to a single `RouteDefinition` using the dot notation:
 
 ```rust
-#[controller("/blogs")]
-#[exception(NotFoundFilter)]
-#[derive(Injectable)]
-struct BlogsController;
+use std::sync::Arc;
+use ironic::{HttpMethod, RouteDefinition, handler_fn};
+
+let route = RouteDefinition::new(
+    HttpMethod::GET,
+    "/users/:id",
+    "show",
+    handler_fn(|_controller: Arc<MyService>, _arguments| {
+        async move {
+            Err::<FrameworkResponse, HttpError>(HttpError::not_found(
+                "POST_NOT_FOUND",
+                "Post 42 was not found",
+            ))
+        }
+    }),
+)
+.expect("route path must be valid")
+.exception_filter(Arc::new(NotFoundFilter));
 ```
 
-Every route in `BlogsController` inherits the `NotFoundFilter`. If any handler returns a 404, the filter catches it and returns the structured JSON response.
+The filter runs specifically for this route. If the handler returns a 404, `NotFoundFilter::catch()` transforms it into a clean JSON response. If another error type occurs, the `Err(error.clone())` passes it through to the next filter or the global handler.
 
-### Route-level — `.exception_filter()` builder
+## Global — GlobalErrorMiddleware
 
-Apply to a single route definition:
-
-```rust
-let route = RouteDefinition::new(HttpMethod::GET, "/users/:id", "show", handler_fn(show_user))?
-    .exception_filter(Arc::new(NotFoundFilter));
-```
-
-### Global — catches everything
+For catching ALL errors across the entire application, use a middleware wrapper instead of an exception filter. Register it as the outermost middleware in your `main.rs`:
 
 ```rust
-FrameworkApplication::builder()
+use ironic::{Middleware, MiddlewareNext, PipelineFuture, RequestContext};
+
+struct GlobalErrorMiddleware;
+
+impl Middleware for GlobalErrorMiddleware {
+    fn handle<'a>(
+        &'a self,
+        context: &'a mut RequestContext,
+        next: MiddlewareNext<'a>,
+    ) -> PipelineFuture<'a> {
+        Box::pin(async move {
+            match next.run(context).await {
+                Ok(response) => Ok(response),
+                Err(error) => {
+                    let body = ironic::json::json!({
+                        "error": error.code(),
+                        "message": error.message(),
+                        "status": error.status().as_u16(),
+                    });
+                    ironic::FrameworkResponse::json(error.status(), &body)
+                }
+            }
+        })
+    }
+}
+
+// In main():
+let application = FrameworkApplication::builder()
     .module(AppModule::definition())
-    .platform(AxumAdapter::new())
-    .exception_filter(Arc::new(GlobalErrorFilter))
+    .middleware(GlobalErrorMiddleware)  // ← outermost, catches everything
+    .middleware(SecurityHeadersMiddleware::new(...))
     .build().await.unwrap();
 ```
 
-Global filters run last, after all route and controller filters. This is where you put catch-all handlers — convert `InternalServerError` into a safe public message, or log every unhandled error.
+This ensures NO unhandled error reaches the client as a raw trace. Every error gets transformed into `{"error", "message", "status"}` JSON.
+
+**Place it first** in the middleware chain so it wraps the entire application — security headers, rate limits, CORS, and all routes are inside its try/catch.
+
+## Route-level vs Global
+
+| Approach | Scope | Use for |
+|---|---|---|
+| `.exception_filter()` on `RouteDefinition` | One route | Specific error handling (404 → custom response) |
+| `GlobalErrorMiddleware` | Every route | Catch-all safety net (all errors → JSON) |
+| Both together | Full coverage | Route-specific catches first, global catches the rest |
+
+Typical setup: `GlobalErrorMiddleware` as the outermost middleware (safety net), plus route-specific `.exception_filter()` for custom error responses on critical endpoints.
 
 ## Filter priority
 
@@ -131,7 +176,8 @@ The pipeline tries each filter in order. The first filter to return `Ok(response
 | You want to... | Use |
 |---|---|
 | Prevent a request from reaching the handler (auth check) | `#[guard]` |
-| Transform an error into a nice response | `#[exception]` |
+| Transform an error into a nice response | `.exception_filter(Arc::new(...))` |
+| Catch ALL unhandled errors globally | `GlobalErrorMiddleware` |
 | Run code after the handler regardless of error | `#[interceptor]` |
 | Return a custom error message from the handler | `HttpError::not_found(...)` directly |
 
@@ -145,11 +191,13 @@ The pipeline tries each filter in order. The first filter to return `Ok(response
 | Catching all errors without passing through unknowns | Return `Err(error.clone())` for errors you don't handle |
 | Filter returning `Ok` response with wrong status code | Match the status in your response to the original error's status |
 | Expecting access to extracted parameters in the filter | The handler hasn't run yet (or has failed) — use `FilterContext` for metadata |
+| Forgetting `Arc::new(...)` | Exception filters must be wrapped in `Arc` |
 
 ## What you learned
 
 - [x] Exception filters catch errors and transform them into clean responses
 - [x] Implement `ExceptionFilter::catch()` to handle specific error statuses
-- [x] Use `#[exception]` on controllers, `.exception_filter()` on routes, or globally
+- [x] Use `.exception_filter(Arc::new(...))` on `RouteDefinition` for route-level filtering
+- [x] Use `GlobalErrorMiddleware` for a global catch-all safety net
 - [x] Filters chain — first to `Ok` wins, pass through with `Err` to try the next
 - [x] Use guards for access control, exception filters for error transformation

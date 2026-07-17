@@ -99,7 +99,6 @@ marker_attribute!(
     middleware,
     cache,
     cron,
-    exception,
     interval,
     timeout,
     api,

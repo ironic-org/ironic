@@ -8,12 +8,10 @@ use crate::modules::blogs::entities::BlogPost;
 use crate::modules::blogs::services::BlogService;
 use crate::modules::auth::guards::JwtGuard;
 use crate::modules::decorators::{Pagination, PaginationParams};
-use crate::modules::exception_filters::NotFoundFilter;
 use crate::modules::interceptors::TimingInterceptor;
 
 #[controller("/api/blogs")]
 #[guard(JwtGuard)]
-#[exception(NotFoundFilter)]
 #[middleware(RequestTracing::new())]
 #[middleware(RequestLogging::new())]
 #[derive(Injectable)]
@@ -23,6 +21,8 @@ pub struct BlogsController {
 
 #[routes]
 impl BlogsController {
+    // Exception filters use dot notation on routes:
+    //   RouteDefinition::new(...).exception_filter(Arc::new(NotFoundFilter))
     #[get]
     #[interceptor(TimingInterceptor)]
     #[cache(ttl_secs = 30)]

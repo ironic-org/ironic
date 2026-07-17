@@ -114,7 +114,7 @@ Middleware error ──► Skips everything, returns error immediately
 | **Middleware** | ✅ `.middleware()` | ✅ `#[middleware]` | ✅ `#[middleware]` |
 | **Guard** | ✅ `.guard()` | ✅ `#[guard]` | ✅ `#[guard]` |
 | **Interceptor** | ✅ `.interceptor()` | ✅ `#[interceptor]` | ✅ `#[interceptor]` |
-| **ExceptionFilter** | ✅ `.exception_filter()` | ✅ `#[exception]` | ✅ `.exception_filter()` |
+| **ExceptionFilter** | ✅ `.exception_filter()` | — | ✅ `.exception_filter()` |
 | **Pipe** | ✅ `.pipe()` | ✅ | ✅ `.parameter_with_pipe()` |
 
 ---

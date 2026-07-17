@@ -282,7 +282,7 @@ impl ironic::Middleware for GlobalExceptionMiddleware {{
                         "message": error.message(),
                         "status": error.status().as_u16(),
                     }});
-                    ironic::FrameworkResponse::json(error.status(), &body)
+                    ironic::Response::json(error.status(), &body)
                 }}
             }}
         }})

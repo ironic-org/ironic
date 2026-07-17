@@ -9,7 +9,6 @@ pub(crate) fn expand(attribute: TokenStream, item: TokenStream) -> syn::Result<T
     let guards = take_components(&mut item.attrs, "guard")?;
     let interceptors = take_components(&mut item.attrs, "interceptor")?;
     let middlewares = take_components(&mut item.attrs, "middleware")?;
-    let exception_filters = take_components(&mut item.attrs, "exception")?;
 
     Ok(quote! {
         #item
@@ -26,7 +25,6 @@ pub(crate) fn expand(attribute: TokenStream, item: TokenStream) -> syn::Result<T
                 #(.guard(#guards))*
                 #(.interceptor(#interceptors))*
                 #(.middleware(#middlewares))*
-                #(.exception_filter(::std::sync::Arc::new(#exception_filters)))*
             }
         }
     })

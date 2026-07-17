@@ -1,13 +1,61 @@
+use ironic::{ExceptionFilter, FilterContext, FrameworkResponse, HttpError, HttpStatus};
+use std::sync::Arc;
+
 use crate::modules::blogs::dto::CreateBlogDto;
 use crate::modules::blogs::repositories::{BlogRepository, CategoryRepository};
 use crate::modules::blogs::services::BlogService;
-use std::sync::Arc;
 
 fn make_service() -> BlogService {
     BlogService {
         blog_repo: Arc::new(BlogRepository),
         category_repo: Arc::new(CategoryRepository),
     }
+}
+
+struct DemoNotFoundFilter;
+
+impl ExceptionFilter for DemoNotFoundFilter {
+    fn catch(
+        &self,
+        error: &HttpError,
+        _ctx: &FilterContext,
+    ) -> Result<FrameworkResponse, HttpError> {
+        if error.status() == HttpStatus::NOT_FOUND {
+            let body = ironic::json::json!({
+                "error": error.code(),
+                "message": error.message(),
+                "status": 404,
+            });
+            Ok(FrameworkResponse::json(HttpStatus::NOT_FOUND, &body)?)
+        } else {
+            Err(error.clone())
+        }
+    }
+}
+
+#[ironic::test]
+async fn test_exception_filter_catches_not_found() {
+    use ironic::HttpMethod;
+    use ironic::RouteDefinition;
+    use ironic::handler_fn;
+
+    let route = RouteDefinition::new(
+        HttpMethod::GET,
+        "/exception-demo/:id",
+        "exception_demo",
+        handler_fn(|_controller: Arc<BlogService>, _arguments| {
+            async move {
+                Err::<FrameworkResponse, HttpError>(HttpError::not_found(
+                    "POST_NOT_FOUND",
+                    "Post 42 was not found",
+                ))
+            }
+        }),
+    )
+    .expect("route path must be valid")
+    .exception_filter(Arc::new(DemoNotFoundFilter));
+
+    assert!(route.path().contains("exception-demo"));
 }
 
 #[ironic::test]

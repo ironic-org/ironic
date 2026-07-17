@@ -94,7 +94,7 @@ pub use http_impl::{
 pub use ironic_macros::{
     Injectable, Module, OpenApiSchema, Serializable, api, body, cache, controller, cron, decorator,
     delete, form, get, guard, head, header, interceptor, interval, main, options, param, patch, pipe, post, put, query,
-    exception, middleware, resp, routes, subscribe_message, r#test, timeout,
+    middleware, resp, routes, subscribe_message, r#test, timeout,
     web_socket_gateway,
 };
 #[cfg(feature = "openapi")]
@@ -204,10 +204,11 @@ pub mod prelude {
         OnModuleConfigure, OnModuleDestroy, OnModuleInit, OnRequestDestroy, OnRequestInit,
         OnServerReady, AfterShutdown, BeforeShutdown,
         ParameterPipe, PathParameter, PipelineFuture, ProviderDefinition, QueryParameters,
-        RequestContext, RequestId, RequestLogging, RequestScope, RequestTracing, RouteDefinition, RouteMetadata,
+        RequestContext, RequestId, RequestLogging, RequestScope, RequestTracing, Response,
+        RouteDefinition, RouteMetadata,
         Scope, Secret, SecretString, Serializable, ShutdownSignal, ValidateConfiguration,
         Value, VersionMetadata, VersioningStrategy, WsGatewayDefinition, api, body, cache, controller,
-        create_param_decorator, cron, decorator, delete, exception, form, get, guard, handler_fn, head, header, interceptor, interval,
+        create_param_decorator, cron, decorator, delete, form, get, guard, handler_fn, head, header, interceptor, interval,
         middleware, options, param, patch, pipe, pipe_fn, post, put, query, resp, routes,
         subscribe_message, timeout, web_socket_gateway,
     };

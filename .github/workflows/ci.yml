@@ -57,11 +57,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Cache cargo-audit and cargo-deny
+      - name: Cache cargo-audit
         uses: actions/cache@v4
         with:
           path: ~/.cargo/bin/cargo-audit
-          key: ${{ runner.os }}-cargo-audit
+          key: ${{ runner.os }}-cargo-audit-v0.21
 
       - name: Install cargo-audit
         run: cargo install cargo-audit --locked 2>/dev/null || true
@@ -73,7 +73,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ~/.cargo/bin/cargo-deny
-          key: ${{ runner.os }}-cargo-deny
+          key: ${{ runner.os }}-cargo-deny-v0.20
 
       - name: Install cargo-deny
         run: cargo install cargo-deny --locked 2>/dev/null || true

@@ -153,13 +153,17 @@ docs: update release workflow guide
 | Docs | Build docs site |
 | Fuzz | 60s smoke test on nightly |
 
-### Code Style
+### Code Style (Enforced — PRs Must Comply)
 
-- Follow existing patterns in the codebase
-- No comments in code unless the logic is non-obvious
-- Keep functions small and focused
-- Add tests for new features
-- All public APIs must be documented
+PRs that violate these rules **will not be merged**:
+
+- **Patterns** — follow existing conventions in the codebase
+- **No comments** — code should be self-documenting. Comments only for non-obvious logic
+- **Small functions** — each function should have a single responsibility
+- **Document all public APIs** — every public type, method, and module export needs a doc comment
+- **Tests required** — new features must include tests; bug fixes must include a regression test
+
+All items are checked via the PR template checklist. CI enforces what it can (fmt, clippy, tests); the rest is enforced during review.
 
 ### Need Help?
 

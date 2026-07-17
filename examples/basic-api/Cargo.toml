@@ -15,4 +15,3 @@ garde.workspace = true
 dotenvy = "0.15"
 
 [dev-dependencies]
-tokio.workspace = true

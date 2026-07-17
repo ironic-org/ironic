@@ -227,7 +227,6 @@ dotenvy = "0.15"
 tracing-subscriber = {{ version = "0.3", features = ["env-filter"] }}
 
 [dev-dependencies]
-tokio = {{ version = "1", features = ["macros", "rt"] }}
 
 # Available features (uncomment to enable):
 # serialization   — role-based field exposure
@@ -682,14 +681,14 @@ async fn app() -> TestApplication {
     TestApplication::new::<ExampleModule>().await.expect("test app must initialise")
 }
 
-#[tokio::test]
+#[ironic::test]
 async fn list_returns_ok() {
     let a = app().await;
     assert_eq!(a.get("/example").send().await.status(), HttpStatus::OK);
     a.shutdown().await.unwrap();
 }
 
-#[tokio::test]
+#[ironic::test]
 async fn create_and_get() {
     let a = app().await;
     let resp = a.post("/example").json(&json!({"name": "Test", "description": null})).send().await;
@@ -699,7 +698,7 @@ async fn create_and_get() {
     a.shutdown().await.unwrap();
 }
 
-#[tokio::test]
+#[ironic::test]
 async fn update_works() {
     let a = app().await;
     let id = a.post("/example").json(&json!({"name": "Old"})).send().await
@@ -709,7 +708,7 @@ async fn update_works() {
     a.shutdown().await.unwrap();
 }
 
-#[tokio::test]
+#[ironic::test]
 async fn delete_works() {
     let a = app().await;
     let id = a.post("/example").json(&json!({"name": "Del"})).send().await
@@ -719,7 +718,7 @@ async fn delete_works() {
     a.shutdown().await.unwrap();
 }
 
-#[tokio::test]
+#[ironic::test]
 async fn not_found_returns_404() {
     let a = app().await;
     a.get("/example/999").send().await.assert_status(404);
@@ -728,7 +727,7 @@ async fn not_found_returns_404() {
 
 // To enable request body validation error tests, uncomment the `garde` feature
 // in Cargo.toml and add a test like:
-// #[tokio::test]
+// #[ironic::test]
 // async fn create_rejects_empty_name() {
 //     let a = app().await;
 //     let resp = a.post("/example").json(&json!({"name": ""})).send().await;

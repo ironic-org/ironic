@@ -11,14 +11,14 @@ async fn app() -> TestApplication {
         .expect("test app must initialise")
 }
 
-#[tokio::test]
+#[ironic::test]
 async fn list_returns_ok() {
     let a = app().await;
     assert_eq!(a.get("/example").send().await.status(), HttpStatus::OK);
     a.shutdown().await.unwrap();
 }
 
-#[tokio::test]
+#[ironic::test]
 async fn create_and_get() {
     let a = app().await;
     let resp = a
@@ -37,7 +37,7 @@ async fn create_and_get() {
     a.shutdown().await.unwrap();
 }
 
-#[tokio::test]
+#[ironic::test]
 async fn update_works() {
     let a = app().await;
     let id = a
@@ -58,7 +58,7 @@ async fn update_works() {
     a.shutdown().await.unwrap();
 }
 
-#[tokio::test]
+#[ironic::test]
 async fn delete_works() {
     let a = app().await;
     let id = a
@@ -78,7 +78,7 @@ async fn delete_works() {
     a.shutdown().await.unwrap();
 }
 
-#[tokio::test]
+#[ironic::test]
 async fn not_found_returns_404() {
     let a = app().await;
     a.get("/example/999").send().await.assert_status(404);

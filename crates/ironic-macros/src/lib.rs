@@ -8,6 +8,7 @@ mod module;
 mod openapi;
 mod routes;
 mod serializable;
+mod r#test;
 mod ws_gateway;
 
 #[proc_macro_derive(Injectable, attributes(injectable))]
@@ -102,6 +103,26 @@ marker_attribute!(
     resp,
     req_body,
 );
+
+/// Wraps an async test function with Ironic's Tokio runtime, removing the
+/// need for users to depend on `tokio` or use `#[tokio::test]`.
+///
+/// # Usage
+///
+/// ```ignore
+/// use ironic::test;
+///
+/// #[test]
+/// async fn my_test() {
+///     // test body — no tokio dependency needed
+/// }
+/// ```
+#[proc_macro_attribute]
+pub fn r#test(attribute: TokenStream, item: TokenStream) -> TokenStream {
+    r#test::expand(attribute.into(), item.into())
+        .unwrap_or_else(syn::Error::into_compile_error)
+        .into()
+}
 
 /// Configures an async entry point with Ironic's Tokio runtime.
 #[proc_macro_attribute]

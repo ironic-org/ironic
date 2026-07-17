@@ -437,6 +437,15 @@ fn take_extractor(
                     ));
                 }
             }
+            "form" => {
+                let value = quote!(::ironic::FormBody::<#argument_type>::new());
+                if extractor.replace(value).is_some() {
+                    return Err(syn::Error::new_spanned(
+                        argument_name,
+                        "a route parameter must have exactly one extractor attribute",
+                    ));
+                }
+            }
             "query" => {
                 let value = quote!(::ironic::QueryParameters::<#argument_type>::new());
                 if extractor.replace(value).is_some() {
@@ -489,7 +498,7 @@ fn take_extractor(
     let extractor = extractor.ok_or_else(|| {
         syn::Error::new_spanned(
             argument_name,
-            "route parameters require one of `#[body]`, `#[query]`, `#[param]`, `#[header]`, or `#[custom(ExtractorType)]`",
+            "route parameters require one of `#[body]`, `#[form]`, `#[query]`, `#[param]`, `#[header]`, or `#[custom(ExtractorType)]`",
         )
     })?;
     Ok((extractor, pipes))

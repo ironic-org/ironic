@@ -38,7 +38,7 @@ Implement production-readiness improvements: multipart upload, Redis session per
 - (none)
 
 ## Key Decisions
-- Multipart parsed from buffered `Vec<u8>` via `futures_util::stream::once` — avoids changing `FrameworkRequest`.
+- Multipart parsed from buffered `Vec<u8>` via `futures_util::stream::once` — avoids changing `Request`.
 - `RedisSessionStore` serializes JSON manually to avoid touching `Session`/`SessionId` types.
 - `ConcurrencyLimitService` is infallible (`Error = Infallible`) for `Router::layer()` compatibility.
 - OAuth2 `exchange_code()` is generic over `AsyncHttpClient` — no `reqwest` dependency.

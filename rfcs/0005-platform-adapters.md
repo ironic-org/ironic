@@ -70,7 +70,7 @@ Native extensions that are `Send + Sync + 'static` may be copied or moved into t
 The Axum application builder accepts Tower layers before final router construction:
 
 ```rust
-let app = FrameworkApplication::builder()
+let app = Application::builder()
     .module(AppModule::definition())
     .platform(
         AxumAdapter::new()
@@ -116,7 +116,7 @@ The adapter owns one internal state object containing the compiled application a
 
 ## Errors
 
-Platform errors are wrapped by `FrameworkError::Platform` and use stable categories: route conflict, request conversion, response conversion, bind, serve, and graceful shutdown. Client responses never include raw I/O or native framework errors.
+Platform errors are wrapped by `AppError::Platform` and use stable categories: route conflict, request conversion, response conversion, bind, serve, and graceful shutdown. Client responses never include raw I/O or native framework errors.
 
 ## Alternatives considered
 

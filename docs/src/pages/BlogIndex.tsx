@@ -13,6 +13,14 @@ type Post = {
 
 const posts: Post[] = [
     {
+        slug: 'v1.0.3',
+        title: 'v1.0.3 — add async test macro to simplify testing without external dependencies',
+        description: 'add async test macro to simplify testing without external dependencies',
+        date: '2026-07-17',
+        tag: 'release',
+        readTime: '2 min',
+    },
+    {
         slug: 'v1.0.2',
         title: 'v1.0.2 — enhance release workflow with version detection and conditional execution',
         description: 'enhance release workflow with version detection and conditional execution',

@@ -93,7 +93,7 @@ fn wrong_password_rejected() {
 
 // ── Guards ────────────────────────────────────────────────────────
 
-#[tokio::test]
+#[ironic::test]
 async fn auth_guard_denies_missing_header() {
     let mut ctx = RequestContext::new(FrameworkRequest::new(
         ironic::HttpMethod::GET,
@@ -105,7 +105,7 @@ async fn auth_guard_denies_missing_header() {
     assert!(matches!(decision, GuardDecision::Deny));
 }
 
-#[tokio::test]
+#[ironic::test]
 async fn role_guard_denies_wrong_role() {
     let mut ctx = RequestContext::new(FrameworkRequest::new(
         ironic::HttpMethod::GET,

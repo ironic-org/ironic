@@ -14,7 +14,7 @@ async fn app() -> TestApplication {
 }
 
 #[ignore]
-#[tokio::test]
+#[ironic::test]
 async fn list_returns_ok() {
     let a = app().await;
     let resp = a.get("/api/todos").send().await;
@@ -23,7 +23,7 @@ async fn list_returns_ok() {
 }
 
 #[ignore]
-#[tokio::test]
+#[ironic::test]
 async fn create_returns_todo() {
     let a = app().await;
     let resp = a
@@ -39,7 +39,7 @@ async fn create_returns_todo() {
 }
 
 #[ignore]
-#[tokio::test]
+#[ironic::test]
 async fn create_rejects_empty_title() {
     let a = app().await;
     let resp = a
@@ -52,7 +52,7 @@ async fn create_rejects_empty_title() {
 }
 
 #[ignore]
-#[tokio::test]
+#[ironic::test]
 async fn get_returns_404_for_missing() {
     let a = app().await;
     a.get("/api/todos/00000000-0000-0000-0000-000000000000")
@@ -63,7 +63,7 @@ async fn get_returns_404_for_missing() {
 }
 
 #[ignore]
-#[tokio::test]
+#[ironic::test]
 async fn lifecycle_create_update_toggle_delete() {
     let a = app().await;
 

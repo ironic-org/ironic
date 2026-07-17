@@ -8,7 +8,7 @@ async fn app() -> TestApplication {
     TestApplication::new::<AuthModule>().await.unwrap()
 }
 
-#[tokio::test]
+#[ironic::test]
 async fn register_and_login_flow() {
     let a = app().await;
     let resp = a
@@ -29,7 +29,7 @@ async fn register_and_login_flow() {
     a.shutdown().await.unwrap();
 }
 
-#[tokio::test]
+#[ironic::test]
 async fn login_invalid_credentials() {
     let a = app().await;
     let resp = a

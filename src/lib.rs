@@ -114,6 +114,10 @@ pub use {
 ))]
 pub use cache_interceptor::CacheInterceptor;
 
+#[path = "feature_gate.rs"]
+mod feature_gate;
+pub use feature_gate::FeatureGateGuard;
+
 /// Convenience re-exports of [`serde_json`] types and macros.
 pub mod json {
     pub use serde_json::{from_slice, from_str, from_value, json, to_string, to_value, to_vec, Value};
@@ -195,14 +199,14 @@ pub mod prelude {
     };
     pub use crate::{
         AxumAdapter, BuildInfo, CacheMetadata, CompiledHttpApplication, ConfigurationError,
-        ConfigurationLoader, ControllerDefinition, Dependency, ExceptionExt, ExceptionFilter, FeatureToggle,
-        FilterContext, FormBody, FrameworkApplication, FrameworkError, FrameworkResult, Guard,
+        ConfigurationLoader, ControllerDefinition, Dependency, ExceptionExt, ExceptionFilter, FeatureGateGuard,
+        FeatureToggle, FilterContext, FormBody, FrameworkApplication, FrameworkError, FrameworkResult, Guard,
         GuardDecision, GuardFuture, HeaderParameter, HealthModule, HealthStatus, HttpError,
         HttpMethod, HttpPlatformAdapter, HttpPlatformApplication, Injectable, Interceptor,
         InterceptorNext, Json, JsonBody, LifecycleDefinition, Middleware, Module, ModuleDefinition,
         ModuleRef, OnApplicationBootstrap, OnApplicationShutdown, OnError, OnGuardDenied,
-        OnModuleConfigure, OnModuleDestroy, OnModuleInit, OnRequestDestroy, OnRequestInit,
-        OnServerReady, AfterShutdown, BeforeShutdown,
+        OnModuleConfigure, OnModuleDestroy, OnModuleInit, OnModuleLoad, OnModuleUnload,
+        OnRequestDestroy, OnRequestInit, OnServerReady, AfterShutdown, BeforeShutdown,
         ParameterPipe, PathParameter, PipelineFuture, ProviderDefinition, QueryParameters,
         RequestContext, RequestId, RequestLogging, RequestScope, RequestTracing, Response,
         RouteDefinition, RouteMetadata,

@@ -131,4 +131,28 @@ impl RequestContext {
     pub fn extension<T: Clone + Send + Sync + 'static>(&self) -> Option<&T> {
         self.extensions.get::<T>()
     }
+
+    /// Returns the client's preferred content type from the `Accept` header.
+    ///
+    /// Parses the header and returns the highest-weighted MIME type, or `None`
+    /// if the header is absent.
+    #[must_use]
+    pub fn preferred_content_type(&self) -> Option<&str> {
+        let accepting = self.request.headers().get("accept")?.to_str().ok()?;
+        // Simple parser: take the first type before comma or semicolon
+        let best = accepting
+            .split(',')
+            .next()?
+            .split(';')
+            .next()?
+            .trim();
+        if best.is_empty() { None } else { Some(best) }
+    }
+
+    /// Returns `true` if the client prefers JSON responses.
+    #[must_use]
+    pub fn accepts_json(&self) -> bool {
+        self.preferred_content_type()
+            .is_some_and(|ct| ct.contains("json") || ct.contains("*/*"))
+    }
 }

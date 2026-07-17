@@ -33,7 +33,7 @@ pub use lifecycle::{
     AfterShutdown, BeforeShutdown, LifecycleDefinition, LifecycleDefinitionBuilder,
     LifecycleError, LifecycleFuture, OnApplicationBootstrap, OnApplicationShutdown,
     OnError, OnGuardDenied, OnModuleConfigure, OnModuleDestroy, OnModuleInit,
-    OnRequestDestroy, OnRequestInit, OnServerReady,
+    OnModuleLoad, OnModuleUnload, OnRequestDestroy, OnRequestInit, OnServerReady,
 };
 
 /// A statically declared Ironic application module.

@@ -68,6 +68,7 @@ pub struct AxumAdapter {
     static_files: Vec<StaticFileRoute>,
     #[cfg(feature = "resilience-ext")]
     max_concurrent_requests: Option<u64>,
+    max_connections: Option<usize>,
 }
 
 type RouterConfigurator = Box<dyn FnOnce(Router) -> Router + Send + 'static>;
@@ -94,6 +95,7 @@ impl AxumAdapter {
             static_files: Vec::new(),
             #[cfg(feature = "resilience-ext")]
             max_concurrent_requests: None,
+            max_connections: None,
         }
     }
 
@@ -169,6 +171,16 @@ impl AxumAdapter {
     #[must_use]
     pub const fn max_concurrent_requests(mut self, max: u64) -> Self {
         self.max_concurrent_requests = Some(max);
+        self
+    }
+
+    /// Sets the maximum number of open TCP connections.
+    ///
+    /// Limits the total number of concurrent socket connections to prevent
+    /// file descriptor exhaustion from slowloris-style attacks.
+    #[must_use]
+    pub const fn max_connections(mut self, max: usize) -> Self {
+        self.max_connections = Some(max);
         self
     }
 }
@@ -458,6 +470,7 @@ fn framework_response(response: FrameworkResponse) -> Response {
     let body = match body {
         FrameworkBody::Empty => Body::empty(),
         FrameworkBody::Bytes(bytes) => Body::from(bytes),
+        FrameworkBody::Stream(bytes) => Body::from(bytes.as_ref().clone()),
     };
     let mut response = Response::new(body);
     *response.status_mut() = status;

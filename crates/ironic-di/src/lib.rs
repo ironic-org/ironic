@@ -400,7 +400,10 @@ impl ContainerBuilder {
             .collect();
 
         Container {
-            inner: Arc::new(ContainerInner { registrations }),
+            inner: Arc::new(ContainerInner {
+                registrations,
+                health: Mutex::new(HashMap::new()),
+            }),
         }
     }
 }
@@ -412,6 +415,27 @@ struct Registration {
 
 struct ContainerInner {
     registrations: HashMap<ProviderKey, Arc<Registration>>,
+    health: Mutex<HashMap<ProviderKey, ProviderHealth>>,
+}
+
+/// Per-provider health statistics.
+#[derive(Clone, Debug, Default)]
+pub struct ProviderHealth {
+    /// Total successful constructions.
+    pub construct_count: u64,
+    /// Total failed constructions.
+    pub error_count: u64,
+    /// Last error message, if any.
+    pub last_error: Option<String>,
+}
+
+/// Consolidated health summary for the container.
+#[derive(Clone, Debug)]
+pub struct ProviderHealthSummary {
+    /// Total registered providers.
+    pub total_providers: usize,
+    /// Per-provider health data.
+    pub providers: HashMap<ProviderKey, ProviderHealth>,
 }
 
 /// An immutable dependency injection container.
@@ -480,6 +504,41 @@ impl Container {
         RequestScope {
             container: self.clone(),
             cache: Arc::new(RequestCache::default()),
+        }
+    }
+
+    /// Returns consolidated provider health statistics.
+    #[must_use]
+    pub fn health(&self) -> ProviderHealthSummary {
+        let providers = self.inner.health.lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .clone();
+        ProviderHealthSummary {
+            total_providers: self.inner.registrations.len(),
+            providers,
+        }
+    }
+
+    /// Creates a new container with one provider registration replaced.
+    ///
+    /// Use for post-bootstrap hot-swapping of providers (e.g. A/B testing,
+    /// feature-flag-gated implementations). The original container is
+    /// unchanged.
+    #[must_use]
+    pub fn with_override(self, provider: ProviderDefinition) -> Self {
+        let mut registrations = self.inner.registrations.clone();
+        registrations.insert(
+            provider.key(),
+            Arc::new(Registration {
+                definition: provider,
+                singleton: OnceCell::new(),
+            }),
+        );
+        Self {
+            inner: Arc::new(ContainerInner {
+                registrations,
+                health: Mutex::new(HashMap::new()),
+            }),
         }
     }
 }

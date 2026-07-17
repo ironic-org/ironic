@@ -343,7 +343,21 @@ where
             initialized,
             ..
         } = self;
-        let serving = platform.listen(address, Shutdown::new(shutdown)).await;
+
+        // Wrap the shutdown future so BeforeShutdown callbacks run
+        // BEFORE the server stops accepting connections.
+        let init_for_shutdown = initialized.clone();
+        let wrapped = async move {
+            let signal = shutdown.await;
+            for lifecycle in &init_for_shutdown {
+                if let Some(callback) = &lifecycle.definition.before_shutdown {
+                    let _ = callback(Arc::clone(&lifecycle.provider), signal).await;
+                }
+            }
+            signal
+        };
+
+        let serving = platform.listen(address, Shutdown::new(wrapped)).await;
         let signal = match &serving {
             Ok(signal) => *signal,
             Err(_) => ShutdownSignal::Custom("platform-error"),
@@ -440,12 +454,8 @@ async fn shutdown_application(
     initialized: &[InitializedLifecycle],
     signal: ShutdownSignal,
 ) -> Result<(), ApplicationError> {
-    // BeforeShutdown: notify providers BEFORE server stops accepting
-    for lifecycle in initialized {
-        if let Some(callback) = &lifecycle.definition.before_shutdown {
-            let _ = callback(Arc::clone(&lifecycle.provider), signal).await;
-        }
-    }
+    // BeforeShutdown already ran in listen_with_shutdown before server stopped.
+    // Continue with application shutdown and module destruction.
 
     let mut first_error = None;
     for lifecycle in initialized.iter().rev() {

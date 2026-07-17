@@ -26,6 +26,10 @@ pub(crate) type BeforeShutdownCallback =
     Arc<dyn Fn(ProviderValue, ShutdownSignal) -> LifecycleFuture<'static> + Send + Sync>;
 pub(crate) type AfterShutdownCallback =
     Arc<dyn Fn(ProviderValue) -> LifecycleFuture<'static> + Send + Sync>;
+pub(crate) type ModuleLoadCallback =
+    Arc<dyn Fn(ProviderValue, String) -> LifecycleFuture<'static> + Send + Sync>;
+pub(crate) type ModuleUnloadCallback =
+    Arc<dyn Fn(ProviderValue, String) -> LifecycleFuture<'static> + Send + Sync>;
 
 /// A safe lifecycle callback failure.
 #[derive(Clone, Debug, Eq, PartialEq, thiserror::Error)]
@@ -144,6 +148,18 @@ pub trait AfterShutdown: Send + Sync + 'static {
     fn after_shutdown(&self) -> LifecycleFuture<'_>;
 }
 
+/// Runs when a module is dynamically loaded after bootstrap.
+pub trait OnModuleLoad: Send + Sync + 'static {
+    /// `module_name` identifies the loaded module for diagnostics.
+    fn on_module_load(&self, module_name: &str) -> LifecycleFuture<'_>;
+}
+
+/// Runs when a module is dynamically unloaded at runtime.
+pub trait OnModuleUnload: Send + Sync + 'static {
+    /// `module_name` identifies the unloaded module for diagnostics.
+    fn on_module_unload(&self, module_name: &str) -> LifecycleFuture<'_>;
+}
+
 // ── LifecycleDefinition ─────────────────────────────────────────────
 
 /// Type-erased lifecycle callbacks registered for one provider.
@@ -162,6 +178,8 @@ pub struct LifecycleDefinition {
     pub(crate) guard_denied: Option<GuardDeniedCallback>,
     pub(crate) before_shutdown: Option<BeforeShutdownCallback>,
     pub(crate) after_shutdown: Option<AfterShutdownCallback>,
+    pub(crate) module_load: Option<ModuleLoadCallback>,
+    pub(crate) module_unload: Option<ModuleUnloadCallback>,
 }
 
 impl LifecycleDefinition {
@@ -183,6 +201,8 @@ impl LifecycleDefinition {
                 guard_denied: None,
                 before_shutdown: None,
                 after_shutdown: None,
+                module_load: None,
+                module_unload: None,
             },
             marker: PhantomData,
         }
@@ -212,6 +232,8 @@ impl std::fmt::Debug for LifecycleDefinition {
             .field("guard_denied", &self.guard_denied.is_some())
             .field("before_shutdown", &self.before_shutdown.is_some())
             .field("after_shutdown", &self.after_shutdown.is_some())
+            .field("module_load", &self.module_load.is_some())
+            .field("module_unload", &self.module_unload.is_some())
             .finish()
     }
 }
@@ -376,6 +398,30 @@ impl<T: Send + Sync + 'static> LifecycleDefinitionBuilder<T> {
             Box::pin(async move {
                 let provider = downcast::<T>(value)?;
                 provider.after_shutdown().await
+            })
+        }));
+        self
+    }
+
+    /// Registers [`OnModuleLoad`].
+    #[must_use]
+    pub fn module_load(mut self) -> Self where T: OnModuleLoad {
+        self.definition.module_load = Some(Arc::new(|value, name| {
+            Box::pin(async move {
+                let provider = downcast::<T>(value)?;
+                provider.on_module_load(&name).await
+            })
+        }));
+        self
+    }
+
+    /// Registers [`OnModuleUnload`].
+    #[must_use]
+    pub fn module_unload(mut self) -> Self where T: OnModuleUnload {
+        self.definition.module_unload = Some(Arc::new(|value, name| {
+            Box::pin(async move {
+                let provider = downcast::<T>(value)?;
+                provider.on_module_unload(&name).await
             })
         }));
         self

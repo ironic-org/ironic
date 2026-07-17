@@ -99,6 +99,8 @@ pub struct RouteDefinition {
     handler: Arc<dyn ErasedHandler>,
     pipeline: PipelineComponents,
     metadata: RouteMetadata,
+    /// Per-route request timeout. Overrides the global timeout for this route.
+    pub(crate) timeout: Option<std::time::Duration>,
 }
 
 impl RouteDefinition {
@@ -122,7 +124,15 @@ impl RouteDefinition {
             handler,
             pipeline: PipelineComponents::new(),
             metadata: RouteMetadata::new(),
+            timeout: None,
         })
+    }
+
+    /// Sets a per-route request timeout. Overrides the global adapter timeout.
+    #[must_use]
+    pub fn timeout(mut self, duration: std::time::Duration) -> Self {
+        self.timeout = Some(duration);
+        self
     }
 
     /// Adds a parameter extractor in handler declaration order.

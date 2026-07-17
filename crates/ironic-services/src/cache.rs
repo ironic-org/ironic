@@ -40,6 +40,8 @@ pub trait Cache: Send + Sync + 'static {
     fn remove<'a>(&'a self, key: &'a str) -> CacheFuture<'a, bool>;
     /// Clears this cache namespace.
     fn clear(&self) -> CacheFuture<'_, ()>;
+    /// Removes all entries whose key starts with the given prefix.
+    fn remove_by_prefix<'a>(&'a self, prefix: &'a str) -> CacheFuture<'a, usize>;
 }
 
 #[derive(Clone, Debug)]
@@ -155,6 +157,22 @@ impl Cache for InMemoryCache {
             Ok(())
         })
     }
+
+    fn remove_by_prefix<'a>(&'a self, prefix: &'a str) -> CacheFuture<'a, usize> {
+        Box::pin(async move {
+            let mut entries = self.entries.write().await;
+            let keys: Vec<String> = entries
+                .keys()
+                .filter(|k| k.starts_with(prefix))
+                .cloned()
+                .collect();
+            let count = keys.len();
+            for k in keys {
+                entries.remove(&k);
+            }
+            Ok(count)
+        })
+    }
 }
 
 /// A Redis-backed cache implementation.
@@ -247,6 +265,24 @@ impl Cache for RedisCache {
             Err(CacheError::Backend(
                 "Redis cache does not support clear across all keys without a prefix scan".into(),
             ))
+        })
+    }
+
+    fn remove_by_prefix<'a>(&'a self, prefix: &'a str) -> CacheFuture<'a, usize> {
+        let full_prefix = format!("{}:{}", self.key_prefix, prefix);
+        Box::pin(async move {
+            use redis::AsyncCommands;
+            let mut conn = self.client.clone();
+            let keys: Vec<String> = conn.keys(format!("{full_prefix}*")).await.map_err(|e| {
+                CacheError::Backend(e.to_string())
+            })?;
+            let count = keys.len();
+            if !keys.is_empty() {
+                let _: () = conn.del(&keys).await.map_err(|e| {
+                    CacheError::Backend(format!("failed to delete keys: {e}"))
+                })?;
+            }
+            Ok(count)
         })
     }
 }

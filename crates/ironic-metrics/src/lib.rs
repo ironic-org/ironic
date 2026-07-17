@@ -46,6 +46,7 @@ fn bucket_for(latency: f64) -> usize {
 struct MetricsStore {
     request_count: AtomicU64,
     in_flight: AtomicU64,
+    error_count: AtomicU64,
     latency_buckets: [AtomicU64; NUM_BUCKETS],
 }
 
@@ -70,6 +71,7 @@ fn new_buckets() -> [AtomicU64; NUM_BUCKETS] {
 static METRICS: LazyLock<MetricsStore> = LazyLock::new(|| MetricsStore {
     request_count: AtomicU64::new(0),
     in_flight: AtomicU64::new(0),
+    error_count: AtomicU64::new(0),
     latency_buckets: new_buckets(),
 });
 
@@ -96,6 +98,9 @@ fn push_latency(latency: f64) {
 struct PerEndpointMetrics {
     request_count: AtomicU64,
     latency_buckets: [AtomicU64; NUM_BUCKETS],
+    status_2xx: AtomicU64,
+    status_4xx: AtomicU64,
+    status_5xx: AtomicU64,
 }
 
 fn new_per_endpoint_buckets() -> [AtomicU64; NUM_BUCKETS] {
@@ -150,16 +155,25 @@ fn ensure_per_endpoint(key: &str) {
         .or_insert_with(|| PerEndpointMetrics {
             request_count: AtomicU64::new(0),
             latency_buckets: new_per_endpoint_buckets(),
+            status_2xx: AtomicU64::new(0),
+            status_4xx: AtomicU64::new(0),
+            status_5xx: AtomicU64::new(0),
         });
 }
 
-fn record_per_endpoint(key: &str, duration: f64) {
+fn record_per_endpoint(key: &str, duration: f64, status: u16) {
     let map = PER_ENDPOINT
         .read()
         .unwrap_or_else(std::sync::PoisonError::into_inner);
     if let Some(endpoint) = map.get(key) {
         endpoint.request_count.fetch_add(1, Ordering::Relaxed);
         endpoint.latency_buckets[bucket_for(duration)].fetch_add(1, Ordering::Relaxed);
+        match status / 100 {
+            2 => { endpoint.status_2xx.fetch_add(1, Ordering::Relaxed); }
+            4 => { endpoint.status_4xx.fetch_add(1, Ordering::Relaxed); }
+            5 => { endpoint.status_5xx.fetch_add(1, Ordering::Relaxed); }
+            _ => {}
+        }
     }
 }
 
@@ -299,14 +313,17 @@ where
             METRICS.latency_buckets[bucket_for(duration)].fetch_add(1, Ordering::Relaxed);
             push_latency(duration);
 
-            if let Some(ref k) = key {
-                record_per_endpoint(k, duration);
-            }
-
             let status = match &result {
                 Ok(response) => response.status().as_u16(),
                 Err(_) => 500,
             };
+
+            if let Some(ref k) = key {
+                record_per_endpoint(k, duration, status);
+            }
+            if status >= 500 {
+                METRICS.error_count.fetch_add(1, Ordering::Relaxed);
+            }
             if let Ok(mut counts) = STATUS_COUNTS.lock() {
                 *counts.entry(status).or_insert(0) += 1;
             }
@@ -336,6 +353,12 @@ pub fn scrape() -> String {
     let _ = writeln!(out, "# HELP ironic_http_requests_total Total HTTP requests");
     let _ = writeln!(out, "# TYPE ironic_http_requests_total counter");
     let _ = writeln!(out, "ironic_http_requests_total {count}");
+    let _ = writeln!(out);
+
+    let error_count = METRICS.error_count.load(Ordering::Relaxed);
+    let _ = writeln!(out, "# HELP ironic_http_errors_total Total HTTP errors (5xx)");
+    let _ = writeln!(out, "# TYPE ironic_http_errors_total counter");
+    let _ = writeln!(out, "ironic_http_errors_total {error_count}");
     let _ = writeln!(out);
 
     if let Ok(statuses) = STATUS_COUNTS.lock() {
@@ -447,6 +470,21 @@ pub fn scrape() -> String {
                         out,
                         "ironic_http_request_duration_seconds_per_endpoint_count{{endpoint=\"{key}\"}} {ep_count}",
                     );
+                }
+            }
+            let _ = writeln!(out);
+
+            // Per-endpoint status code breakdown
+            let _ = writeln!(out, "# HELP ironic_http_endpoint_status_total Per-endpoint status code counts");
+            let _ = writeln!(out, "# TYPE ironic_http_endpoint_status_total counter");
+            for key in &keys {
+                if let Some(ep) = ep_map.get(*key) {
+                    let c2 = ep.status_2xx.load(Ordering::Relaxed);
+                    let c4 = ep.status_4xx.load(Ordering::Relaxed);
+                    let c5 = ep.status_5xx.load(Ordering::Relaxed);
+                    if c2 > 0 { let _ = writeln!(out, "ironic_http_endpoint_status_total{{endpoint=\"{key}\",status=\"2xx\"}} {c2}"); }
+                    if c4 > 0 { let _ = writeln!(out, "ironic_http_endpoint_status_total{{endpoint=\"{key}\",status=\"4xx\"}} {c4}"); }
+                    if c5 > 0 { let _ = writeln!(out, "ironic_http_endpoint_status_total{{endpoint=\"{key}\",status=\"5xx\"}} {c5}"); }
                 }
             }
             let _ = writeln!(out);

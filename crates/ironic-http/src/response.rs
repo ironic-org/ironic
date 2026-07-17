@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use serde::Serialize;
 
 use crate::{HeaderMap, HeaderValue, HttpError, HttpStatus};
@@ -11,6 +13,8 @@ pub enum FrameworkBody {
     Empty,
     /// A complete in-memory response body.
     Bytes(Vec<u8>),
+    /// A streaming response body using shared ownership for efficient cloning.
+    Stream(Arc<Vec<u8>>),
 }
 
 impl FrameworkBody {
@@ -20,6 +24,7 @@ impl FrameworkBody {
         match self {
             Self::Empty => &[],
             Self::Bytes(bytes) => bytes,
+            Self::Stream(bytes) => bytes,
         }
     }
 }
@@ -50,6 +55,16 @@ impl FrameworkResponse {
             status,
             headers: HeaderMap::new(),
             body: FrameworkBody::Bytes(body.into()),
+        }
+    }
+
+    /// Creates a streaming response using a shared body for efficient cloning.
+    #[must_use]
+    pub fn from_stream(status: HttpStatus, body: Arc<Vec<u8>>) -> Self {
+        Self {
+            status,
+            headers: HeaderMap::new(),
+            body: FrameworkBody::Stream(body),
         }
     }
 
@@ -89,6 +104,73 @@ impl FrameworkResponse {
             message: message.into(),
         };
         Self::json(status, &body).unwrap_or_else(|_| Self::empty(status))
+    }
+
+    /// Creates a structured JSON error response with request tracing metadata.
+    ///
+    /// Includes `timestamp` (Unix millis) and `request_id` in the response body
+    /// for production error correlation with server logs.
+    #[must_use]
+    pub fn error_with_tracing(
+        status: HttpStatus,
+        code: &'static str,
+        message: impl Into<String>,
+        request_id: Option<&str>,
+    ) -> Self {
+        #[derive(Serialize)]
+        struct ErrorBody<'a> {
+            status: u16,
+            code: &'a str,
+            message: String,
+            timestamp_ms: u128,
+            #[serde(skip_serializing_if = "Option::is_none")]
+            request_id: Option<&'a str>,
+        }
+
+        let ts = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map_or(0, |d| d.as_millis());
+
+        let body = ErrorBody {
+            status: status.as_u16(),
+            code,
+            message: message.into(),
+            timestamp_ms: ts,
+            request_id,
+        };
+        Self::json(status, &body).unwrap_or_else(|_| Self::empty(status))
+    }
+
+    /// Paginated response wrapper.
+    ///
+    /// Serializes as `{"items": [...], "total": N, "offset": N, "limit": N}`.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`HttpError`] when serialization fails.
+    pub fn paginated<T: Serialize>(
+        items: &[T],
+        total: u64,
+        offset: u64,
+        limit: u64,
+    ) -> Result<Self, HttpError> {
+        #[derive(Serialize)]
+        struct PageBody<'a, I> {
+            items: &'a [I],
+            total: u64,
+            offset: u64,
+            limit: u64,
+        }
+
+        Self::json(
+            HttpStatus::OK,
+            &PageBody {
+                items,
+                total,
+                offset,
+                limit,
+            },
+        )
     }
 
     /// Returns the response status.

@@ -127,6 +127,7 @@ impl Interceptor for SerializeInterceptor {
 
             let body = match response.body() {
                 FrameworkBody::Bytes(bytes) => bytes.clone(),
+                FrameworkBody::Stream(bytes) => bytes.as_ref().clone(),
                 FrameworkBody::Empty => return Ok(response),
             };
 
@@ -364,6 +365,7 @@ mod tests {
         let response = app.execute(route, &mut cx).await.unwrap();
         let body = match response.body() {
             FrameworkBody::Bytes(b) => b.clone(),
+            FrameworkBody::Stream(b) => b.as_ref().clone(),
             _ => panic!("expected bytes body"),
         };
         let value: serde_json::Value = serde_json::from_slice(&body).unwrap();
@@ -384,6 +386,7 @@ mod tests {
         let response = app.execute(route, &mut cx).await.unwrap();
         let body = match response.body() {
             FrameworkBody::Bytes(b) => b.clone(),
+            FrameworkBody::Stream(b) => b.as_ref().clone(),
             _ => panic!("expected bytes body"),
         };
         let value: serde_json::Value = serde_json::from_slice(&body).unwrap();
@@ -401,6 +404,7 @@ mod tests {
         let response = app.execute(route, &mut cx).await.unwrap();
         let body = match response.body() {
             FrameworkBody::Bytes(b) => b.clone(),
+            FrameworkBody::Stream(b) => b.as_ref().clone(),
             _ => panic!("expected bytes body"),
         };
         let value: serde_json::Value = serde_json::from_slice(&body).unwrap();
@@ -417,6 +421,7 @@ mod tests {
         let response = app.execute(route, &mut cx).await.unwrap();
         let body = match response.body() {
             FrameworkBody::Bytes(b) => b.clone(),
+            FrameworkBody::Stream(b) => b.as_ref().clone(),
             _ => panic!("expected bytes body"),
         };
         let value: serde_json::Value = serde_json::from_slice(&body).unwrap();

@@ -1,80 +1,65 @@
 ---
 title: Request Tracing
-description: Automatic request IDs and tracing spans for every HTTP request — correlate logs, track requests across services.
+description: Auto-registered — adds request IDs and tracing spans to every request.
 ---
 
 # Request Tracing
 
-## What you'll learn
-
-- How `RequestTracing` adds correlation IDs and tracing spans to every request
-- How to access the request ID in your handlers
-- How to propagate request IDs to downstream services
-
-`RequestTracing` is automatically registered as global middleware by the framework. It requires no feature flag and no manual setup.
-
----
+`RequestTracing` runs on every request automatically. No setup or feature flag needed.
 
 ## What it does
 
-For every incoming request, `RequestTracing`:
+- Generates a unique `x-request-id` (or propagates one from the client)
+- Creates a `tracing` span with method, URI, and status code
+- Returns `x-request-id` in the response header
 
-1. **Generates or propagates a request ID.** If the client sent an `x-request-id` header, that value is used. Otherwise, a unique ID is generated (`rf-{timestamp}-{sequence}`).
-2. **Inserts the ID into the request context** as a `RequestId` extension.
-3. **Creates a tracing span** (`ironic.http.request`) with the method, URI, and response status code.
-4. **Injects the ID into the response** as the `x-request-id` header.
-
-```rust
-// No setup needed — RequestTracing::new() is auto-registered
-```
-
----
-
-## Accessing the request ID
-
-Read the `RequestId` from the request context in any middleware, interceptor, or handler:
+## How to use
 
 ```rust
 use ironic::prelude::*;
 
-fn handler(
-    context: RequestContext,
-) -> impl IntoFrameworkResponse {
-    if let Some(request_id) = context.extension::<RequestId>() {
-        tracing::info!(%request_id, "processing request");
+// No registration needed — it's auto-registered
+
+// Access the request ID in your handler
+fn handler(context: RequestContext) -> impl IntoFrameworkResponse {
+    if let Some(id) = context.extension::<RequestId>() {
+        tracing::info!(%id, "processing request");
+        format!("request_id: {id}")
+    } else {
+        "ok".to_string()
     }
-    "ok"
 }
 ```
 
-The `RequestId` type also implements `Display` and `Clone`:
+## Per-controller or per-route
+
+Use `#[middleware]` to apply `RequestTracing` to specific controllers or routes (e.g. when you opt out globally but want it on certain paths):
 
 ```rust
-let id: RequestId = context.extension::<RequestId>().unwrap().clone();
-println!("{}", id); // rf-00000001782a3c40-0000000000000001
+#[controller("/api")]
+#[middleware(RequestTracing::new())]
+pub struct ApiController;
+
+#[get("/sensitive")]
+#[middleware(RequestTracing::new())]
+async fn sensitive(&self) -> Result<Json<()>, HttpError> {
+    // tracing only on this route
+}
 ```
 
----
+## Propagation
 
-## Use cases
+Forward the `x-request-id` header to downstream services for end-to-end correlation:
 
-### Log correlation
+```rust
+let request_id = context
+    .extension::<RequestId>()
+    .map(|id| id.as_str().to_owned())
+    .unwrap_or_default();
 
-Every event emitted inside a `RequestTracing` span automatically carries the request ID. When combined with [`RequestLogging`](./request-logging) or the [`TimeSeriesLayer`](../observability/logging), you can correlate access logs with application logs by request ID.
-
-### Distributed tracing
-
-The `x-request-id` header can be forwarded to downstream services, enabling end-to-end request tracking across a microservice architecture. For full OpenTelemetry integration (W3C trace context, OTLP export), see [Tracing & Telemetry](../observability/tracing).
-
-### Client-side debugging
-
-Returning `x-request-id` to clients lets them include the ID in support tickets, making it straightforward to look up the exact request in your logs.
-
----
-
-## What you learned
-
-- [x] `RequestTracing` is auto-registered globally — no setup required
-- [x] Adds or propagates `x-request-id`, creates a tracing span
-- [x] Access the ID via `context.extension::<RequestId>()`
-- [x] The `x-request-id` header is returned in the response
+client
+    .get("https://internal-api/data")
+    .header("x-request-id", &request_id)
+    .send()
+    .await?;
+```

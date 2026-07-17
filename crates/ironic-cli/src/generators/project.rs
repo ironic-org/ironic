@@ -427,7 +427,7 @@ impl ExampleController {
 
     #[post]
     #[api(summary = "Create a new example", tag = "Examples")]
-    #[req_body(json = CreateExampleDto)]
+    #[body(json = CreateExampleDto)]
     #[resp(201, "Example created", json = Example)]
     #[resp(400, "Validation error")]
     async fn create(&self, #[body] dto: CreateExampleDto) -> Result<Json<Example>, HttpError> {
@@ -436,7 +436,7 @@ impl ExampleController {
 
     #[put("/:id")]
     #[api(summary = "Update an existing example", tag = "Examples")]
-    #[req_body(json = UpdateExampleDto)]
+    #[body(json = UpdateExampleDto)]
     #[resp(200, "Example updated", json = Example)]
     #[resp(404, "Example not found")]
     async fn update(&self, #[param] id: u64, #[body] dto: UpdateExampleDto) -> Result<Json<Example>, HttpError> {

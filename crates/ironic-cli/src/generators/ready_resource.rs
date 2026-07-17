@@ -553,7 +553,7 @@ pub struct AuthController { service: Arc<AuthService> }
 impl AuthController {
     #[post("/register")]
     #[api(summary = "Register a new user", tag = "Auth")]
-    #[req_body(json = RegisterDto)]
+    #[body(json = RegisterDto)]
     #[resp(200, "User registered successfully", json = PublicUser)]
     #[resp(400, "Validation error or email already exists")]
     async fn register(&self, #[body] dto: RegisterDto) -> Result<Json<PublicUser>, HttpError> {
@@ -562,7 +562,7 @@ impl AuthController {
 
     #[post("/login")]
     #[api(summary = "Log in with email and password", tag = "Auth")]
-    #[req_body(json = LoginDto)]
+    #[body(json = LoginDto)]
     #[resp(200, "JWT tokens issued", json = TokenResponse)]
     #[resp(401, "Invalid email or password")]
     async fn login(&self, #[body] dto: LoginDto) -> Result<Json<TokenResponse>, HttpError> {
@@ -571,7 +571,7 @@ impl AuthController {
 
     #[post("/refresh")]
     #[api(summary = "Refresh an access token", tag = "Auth")]
-    #[req_body(json = RefreshDto)]
+    #[body(json = RefreshDto)]
     #[resp(200, "New tokens issued", json = TokenResponse)]
     #[resp(401, "Invalid refresh token")]
     async fn refresh(&self, #[body] dto: RefreshDto) -> Result<Json<TokenResponse>, HttpError> {
@@ -582,7 +582,7 @@ impl AuthController {
     #[api(summary = "Get current user profile", tag = "Auth", security = "bearer")]
     #[resp(200, "Current user profile", json = PublicUser)]
     #[resp(401, "Unauthorized")]
-    #[use_guard(AuthGuard)]
+    #[guard(AuthGuard)]
     async fn me(&self, #[custom(current_user)] user_id: u64) -> Result<Json<PublicUser>, HttpError> {
         Ok(Json(self.service.me(user_id)?.public_view()))
     }
@@ -605,7 +605,7 @@ pub struct AuthController { service: Arc<AuthService> }
 impl AuthController {
     #[post("/register")]
     #[api(summary = "Register a new user", tag = "Auth")]
-    #[req_body(json = RegisterDto)]
+    #[body(json = RegisterDto)]
     #[resp(200, "User registered successfully", json = PublicUser)]
     #[resp(400, "Validation error or email already exists")]
     async fn register(&self, #[body] dto: RegisterDto) -> Result<Json<PublicUser>, HttpError> {
@@ -614,7 +614,7 @@ impl AuthController {
 
     #[post("/login")]
     #[api(summary = "Log in with email and password", tag = "Auth")]
-    #[req_body(json = LoginDto)]
+    #[body(json = LoginDto)]
     #[resp(200, "User authenticated", json = PublicUser)]
     #[resp(401, "Invalid email or password")]
     async fn login(&self, #[body] dto: LoginDto) -> Result<Json<PublicUser>, HttpError> {
@@ -660,7 +660,7 @@ impl AuthController {
     #[get("/me")]
     #[api(summary = "Get current user profile", tag = "Auth", security = "bearer")]
     #[resp(200, "Current user profile", json = PublicUser)]
-    #[use_guard(AuthGuard)]
+    #[guard(AuthGuard)]
     async fn me(&self, #[custom(current_user)] user_id: u64) -> Result<Json<PublicUser>, HttpError> {
         Ok(Json(PublicUser { id: user_id, email: "oauth@user.com".into(), name: "OAuth User".into(), role: crate::modules::auth::entities::role::Role::User, provider: "oauth".into() }))
     }

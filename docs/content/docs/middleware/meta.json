@@ -1,4 +1,4 @@
 {
   "title": "Middleware",
-  "pages": ["overview", "request-tracing", "request-logging", "custom-middleware"]
+  "pages": ["overview", "request-tracing", "request-logging", "security", "authentication", "custom-middleware"]
 }

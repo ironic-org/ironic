@@ -92,9 +92,9 @@ pub use http_impl::{
     CacheMetadata, ExceptionFilter, FilterContext, VersionMetadata, VersioningStrategy,
 };
 pub use ironic_macros::{
-    Injectable, Module, OpenApiSchema, Serializable, api, body, cache, controller, cron, custom,
-    delete, get, head, header, interval, main, options, param, patch, pipe, post, put, query,
-    req_body, resp, routes, subscribe_message, r#test, timeout, use_guard, use_interceptor,
+    Injectable, Module, OpenApiSchema, Serializable, api, body, cache, controller, cron, decorator,
+    delete, get, guard, head, header, interceptor, interval, main, options, param, patch, pipe, post, put, query,
+    exception, middleware, resp, routes, subscribe_message, r#test, timeout,
     web_socket_gateway,
 };
 #[cfg(feature = "openapi")]
@@ -131,11 +131,11 @@ pub mod __private {
     }
 }
 
-/// Creates a custom parameter decorator that can be used with `#[custom(DecoratorName)]`
+/// Creates a custom parameter decorator that can be used with `#[decorator(DecoratorName)]`
 /// in route handler signatures.
 ///
 /// The macro defines a type alias so that the decorator name can be used as the argument
-/// to `#[custom(...)]`. The extractor type must implement [`ParameterExtractor`] and
+/// to `#[decorator(...)]`. The extractor type must implement [`ParameterExtractor`] and
 /// provide a `::new()` constructor.
 ///
 /// # Example
@@ -192,9 +192,9 @@ pub mod prelude {
         RequestContext, RequestId, RequestLogging, RequestScope, RequestTracing, RouteDefinition, RouteMetadata,
         Scope, Secret, SecretString, Serializable, ShutdownSignal, ValidateConfiguration,
         VersionMetadata, VersioningStrategy, WsGatewayDefinition, api, body, cache, controller,
-        create_param_decorator, cron, custom, delete, get, handler_fn, head, header, interval,
-        options, param, patch, pipe, pipe_fn, post, put, query, req_body, resp, routes,
-        subscribe_message, timeout, use_guard, use_interceptor, web_socket_gateway,
+        create_param_decorator, cron, decorator, delete, exception, get, guard, handler_fn, head, header, interceptor, interval,
+        middleware, options, param, patch, pipe, pipe_fn, post, put, query, resp, routes,
+        subscribe_message, timeout, web_socket_gateway,
     };
     #[cfg(feature = "serialization")]
     pub use crate::{FieldRule, FieldRules, SerializeInterceptor, set_current_roles};

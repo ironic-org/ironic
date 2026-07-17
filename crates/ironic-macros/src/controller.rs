@@ -6,8 +6,10 @@ pub(crate) fn expand(attribute: TokenStream, item: TokenStream) -> syn::Result<T
     let path = parse2::<LitStr>(attribute)?;
     let mut item = parse2::<ItemStruct>(item)?;
     let name = &item.ident;
-    let guards = take_components(&mut item.attrs, "use_guard")?;
-    let interceptors = take_components(&mut item.attrs, "use_interceptor")?;
+    let guards = take_components(&mut item.attrs, "guard")?;
+    let interceptors = take_components(&mut item.attrs, "interceptor")?;
+    let middlewares = take_components(&mut item.attrs, "middleware")?;
+    let exception_filters = take_components(&mut item.attrs, "exception")?;
 
     Ok(quote! {
         #item
@@ -23,6 +25,8 @@ pub(crate) fn expand(attribute: TokenStream, item: TokenStream) -> syn::Result<T
                 .with_routes(Self::route_definitions())
                 #(.guard(#guards))*
                 #(.interceptor(#interceptors))*
+                #(.middleware(#middlewares))*
+                #(.exception_filter(::std::sync::Arc::new(#exception_filters)))*
             }
         }
     })

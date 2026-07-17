@@ -268,18 +268,28 @@ FrameworkApplication::builder()
 ### Controller (all routes on one controller)
 
 ```rust
-ControllerDefinition::new::<UserController>("/users", provider)?
-    .interceptor(TimingInterceptor)
-    .interceptor(HeadersInterceptor::new("X-Controller", "users"))
-    .route(route);
+#[controller("/users")]
+#[interceptor(TimingInterceptor)]
+#[interceptor(HeadersInterceptor::new("X-Controller", "users"))]
+#[derive(Injectable)]
+struct UserController;
 ```
 
 ### Route (single endpoint)
 
 ```rust
-RouteDefinition::new(HttpMethod::GET, "/:id", "get_user", handler)?
-    .interceptor(TimingInterceptor)
-    .interceptor(HeadersInterceptor::new("X-Route", "get_user"));
+#[controller("/users")]
+#[derive(Injectable)]
+struct UserController;
+
+#[routes]
+impl UserController {
+    #[get("/{id}")]
+    #[interceptor(TimingInterceptor)]
+    async fn get(&self, #[param] id: u64) -> Result<Json<User>, HttpError> {
+        // ...
+    }
+}
 ```
 
 ### Attribute macro
@@ -288,8 +298,8 @@ On a controller struct (applies to every route method in that controller):
 
 ```rust
 #[controller("/items")]
-#[use_interceptor(TimingInterceptor)]
-#[use_interceptor(HeadersInterceptor::new("X-Controller", "items"))]
+#[interceptor(TimingInterceptor)]
+#[interceptor(HeadersInterceptor::new("X-Controller", "items"))]
 impl ItemsController { /* ... */ }
 ```
 
@@ -297,7 +307,7 @@ On a single route method:
 
 ```rust
 #[get("/:id")]
-#[use_interceptor(TimingInterceptor)]
+#[interceptor(TimingInterceptor)]
 async fn get(&self, #[param] id: u64) -> Result<String, HttpError> {
     Ok(id.to_string())
 }
@@ -350,7 +360,7 @@ TimingInterceptor::after    (logs elapsed time)
 2. Register it globally — verify every route gets timed
 3. Create a `PowerByInterceptor` that adds `X-Powered-By: Ironic` to every response
 4. Register it at the controller level — verify only that controller's routes get the header
-5. Apply `#[use_interceptor(TimingInterceptor)]` on a single route method
+5. Apply `#[interceptor(TimingInterceptor)]` on a single route method
 6. Send a request and confirm execution order: global → controller → route
 
 ## Common mistakes

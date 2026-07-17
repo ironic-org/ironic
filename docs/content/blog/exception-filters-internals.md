@@ -176,20 +176,22 @@ The filter inspects `error.status()` rather than `error.code()` so it catches _a
 
 ## Registering filters at all three levels
 
-**Route level** (`route.rs:203`):
+**Route level** — use `.exception_filter(...)` on the route definition:
 
 ```rust
-RouteDefinition::new(HttpMethod::GET, "/users/:id", "show", handler_fn(show_user))?
-    .exception_filter(Arc::new(NotFoundFilter))
+.route(
+    RouteDefinition::new(HttpMethod::GET, "/users/:id", "show", handler_fn(show_user))?
+        .exception_filter(Arc::new(NotFoundFilter))
+)
 ```
 
-**Controller level** (`route.rs:351`):
+**Controller level** — use `#[exception(...)]` on the struct, applied to all routes:
 
 ```rust
-ControllerDefinition::new::<UserController>("/users/", user_provider())?
-    .exception_filter(Arc::new(NotFoundFilter))
-    .route(show_user_route)
-    .route(list_users_route)
+#[controller("/users")]
+#[exception(NotFoundFilter)]
+#[derive(Injectable)]
+struct UserController;
 ```
 
 Every route in the controller inherits this filter. During compilation, controller filters are merged into each route's pipeline as the first layer.

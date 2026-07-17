@@ -52,9 +52,10 @@ let rules = FieldRules::new()
 ## Step 3: Apply the interceptor
 
 ```rust
-ControllerDefinition::new::<UserController>("/users", provider)
-    .unwrap()
-    .interceptor(SerializeInterceptor::new(rules))
+#[controller("/users")]
+#[interceptor(SerializeInterceptor::new(rules))]
+#[derive(Injectable)]
+struct UserController;
 ```
 
 ## How it works

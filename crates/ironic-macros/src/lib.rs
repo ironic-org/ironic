@@ -86,23 +86,30 @@ marker_attribute!(
     delete,
     head,
     options,
-    body,
     query,
     param,
     header,
-    custom,
+    decorator,
     pipe,
     subscribe_message,
-    use_guard,
-    use_interceptor,
+    guard,
+    interceptor,
+    middleware,
     cache,
     cron,
+    exception,
     interval,
     timeout,
     api,
     resp,
-    req_body,
 );
+
+/// Declares a JSON request body extractor for a route parameter,
+/// or a JSON request body type for `OpenAPI` metadata on a route method.
+#[proc_macro_attribute]
+pub fn body(_attribute: TokenStream, item: TokenStream) -> TokenStream {
+    item
+}
 
 /// Wraps an async test function with Ironic's Tokio runtime, removing the
 /// need for users to depend on `tokio` or use `#[tokio::test]`.

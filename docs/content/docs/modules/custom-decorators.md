@@ -8,7 +8,7 @@ description: Create your own parameter extractors — extract the current user, 
 ## What you'll learn
 
 - Create custom parameter extractors
-- Use them in route handlers with `#[custom(Name)]`
+- Use them in route handlers with `#[decorator(Name)]`
 - Extract common data (current user, client IP, locale) once and reuse
 
 Enable in `Cargo.toml`:
@@ -51,7 +51,7 @@ impl Controller {
     #[get("/me")]
     async fn profile(
         &self,
-        #[custom(current_user)] user_id: Option<u64>,  // ← Extracted automatically
+        #[decorator(current_user)] user_id: Option<u64>,  // ← Extracted automatically
     ) -> Result<Json<User>, HttpError> {
         match user_id {
             Some(id) => self.service.find_user(id).map(Json),
@@ -74,5 +74,5 @@ impl Controller {
 
 - [x] Implement `ParameterExtractor` to extract custom data
 - [x] Register with `create_param_decorator!`
-- [x] Use with `#[custom(name)]` in route handlers
+- [x] Use with `#[decorator(name)]` in route handlers
 - [x] Extract once, reuse across many handlers

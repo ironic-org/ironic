@@ -34,7 +34,7 @@ async fn list(&self) -> Result<Json<Vec<Product>>, HttpError> {
 }
 ```
 
-See [Caching](./cache-decorators) for details.
+See [Caching](/docs/modules/cache-decorators) for details.
 
 ## Scheduling
 
@@ -57,7 +57,7 @@ cron_schedule("0 3 * * *", || async move {
 });
 ```
 
-See [Task Scheduling](./scheduling) for details.
+See [Task Scheduling](/docs/modules/scheduling) for details.
 
 ## Events
 
@@ -95,7 +95,7 @@ impl ChatGateway {
 }
 ```
 
-See [WebSocket Gateways](./websocket-gateways) for details.
+See [WebSocket Gateways](/docs/modules/websocket-gateways) for details.
 
 ## What you learned
 

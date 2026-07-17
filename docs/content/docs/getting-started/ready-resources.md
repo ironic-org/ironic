@@ -90,8 +90,8 @@ OAUTH_REDIRECT_URL=http://localhost:3000/auth/oauth/callback
 
 ```rust
 #[get("/admin")]
-#[use_guard(RoleGuard::new(&["admin"]))]
-async fn admin_only(&self, #[custom(current_user)] user_id: u64) -> Result<Json<String>, HttpError> {
+#[guard(RoleGuard::new(&["admin"]))]
+async fn admin_only(&self, #[decorator(current_user)] user_id: u64) -> Result<Json<String>, HttpError> {
     Ok(Json(format!("Welcome admin #{user_id}!")))
 }
 ```
@@ -100,7 +100,7 @@ async fn admin_only(&self, #[custom(current_user)] user_id: u64) -> Result<Json<
 
 ```rust
 #[get("/profile")]
-async fn profile(&self, #[custom(current_user)] user_id: u64) -> Result<Json<User>, HttpError> {
+async fn profile(&self, #[decorator(current_user)] user_id: u64) -> Result<Json<User>, HttpError> {
     self.service.find_by_id(user_id)
 }
 ```

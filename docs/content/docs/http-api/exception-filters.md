@@ -87,6 +87,8 @@ impl ExceptionFilter for NotFoundFilter {
 
 ### Route level (most specific)
 
+Use `.exception_filter(...)` directly on a route definition:
+
 ```rust
 RouteDefinition::new(HttpMethod::GET, "/:id", "get_user", handler)
     .unwrap()
@@ -95,16 +97,21 @@ RouteDefinition::new(HttpMethod::GET, "/:id", "get_user", handler)
 
 ### Controller level
 
+Apply `#[exception(...)]` on the controller struct — every route inherits it:
+
 ```rust
-ControllerDefinition::new::<UserController>("/users", provider)
-    .unwrap()
-    .exception_filter(Arc::new(NotFoundFilter))
+#[controller("/users")]
+#[exception(NotFoundFilter)]
+#[derive(Injectable)]
+struct UserController;
 ```
 
 ### Application level (catches everything)
 
 ```rust
 FrameworkApplication::builder()
+    .module(AppModule::definition())
+    .platform(AxumAdapter::new())
     .exception_filter(Arc::new(GlobalErrorFilter))
     .build().await.unwrap();
 ```

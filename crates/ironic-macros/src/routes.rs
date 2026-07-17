@@ -218,13 +218,13 @@ impl Parse for ResponseArgs {
     }
 }
 
-/// Parses `#[req_body(json = Type)]`.
+/// Parses `#[body(json = Type)]`.
 fn take_request_body_attr(attrs: &mut Vec<Attribute>) -> syn::Result<Option<RequestBodyAttr>> {
     let mut result = None;
     let mut retained = Vec::new();
 
     for attr in attrs.drain(..) {
-        if !attr.path().is_ident("req_body") {
+        if !attr.path().is_ident("body") {
             retained.push(attr);
             continue;
         }
@@ -347,8 +347,9 @@ fn expand_method(
         ));
     }
 
-    let guards = take_components(&mut method.attrs, "use_guard")?;
-    let interceptors = take_components(&mut method.attrs, "use_interceptor")?;
+    let guards = take_components(&mut method.attrs, "guard")?;
+    let interceptors = take_components(&mut method.attrs, "interceptor")?;
+    let middlewares = take_components(&mut method.attrs, "middleware")?;
     let cache_ttl = take_cache_ttl(&mut method.attrs)?;
     let openapi = take_openapi_fields(&mut method.attrs)?;
 
@@ -409,6 +410,7 @@ fn expand_method(
         #(#parameter_calls)*
         #(.guard(#guards))*
         #(.interceptor(#interceptors))*
+        #(.middleware(#middlewares))*
         #cache_call
         #openapi_call
     })
@@ -466,7 +468,7 @@ fn take_extractor(
                     ));
                 }
             }
-            "custom" => {
+            "decorator" => {
                 let extractor_type: Type = attr.parse_args()?;
                 let value = quote!(#extractor_type::new());
                 if extractor.replace(value).is_some() {
@@ -489,7 +491,7 @@ fn take_extractor(
     let extractor = extractor.ok_or_else(|| {
         syn::Error::new_spanned(
             argument_name,
-            "route parameters require one of `#[body]`, `#[query]`, `#[param]`, `#[header]`, or `#[custom(ExtractorType)]`",
+            "route parameters require one of `#[body]`, `#[query]`, `#[param]`, `#[header]`, or `#[decorator(ExtractorType)]`",
         )
     })?;
     Ok((extractor, pipes))

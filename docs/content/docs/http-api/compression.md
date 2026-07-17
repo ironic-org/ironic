@@ -5,7 +5,26 @@ description: Compress API responses with gzip, brotli, or zstd — reduce bandwi
 
 # Compression
 
-Enable in `Cargo.toml`:
+## What is it?
+
+When a client (browser, mobile app, curl) makes an HTTP request, it tells the server which compression formats it understands via the `Accept-Encoding` header:
+
+```
+GET /api/blogs HTTP/1.1
+Accept-Encoding: gzip, brotli
+```
+
+The server can respond with a compressed body and a `Content-Encoding` header:
+
+```
+HTTP/1.1 200 OK
+Content-Encoding: brotli
+[brotli-compressed bytes...]
+```
+
+This is **transparent** — the client decompresses automatically. Your handler code doesn't know or care that compression happened. The result: JSON payloads shrink 5-10x, saving bandwidth and making your API feel faster.
+
+## Enabling
 
 ```toml
 ironic = { features = ["compression"] }
@@ -15,111 +34,59 @@ Add one line to enable:
 
 ```rust
 FrameworkApplication::builder()
-    .platform(AxumAdapter::new().compression())  // ← That's it!
+    .platform(AxumAdapter::new().compression())
     .build().await.unwrap();
 ```
 
-The server automatically negotiates the best format the client supports:
+That's it. No levels, no thresholds, no per-route configuration needed. The framework automatically negotiates the best format:
 
-| Client supports | Server sends |
-|----------------|-------------|
-| brotli + gzip | brotli (best compression) |
-| gzip only | gzip |
-| zstd + gzip | zstd |
+| Client sends `Accept-Encoding` | Server responds with |
+|---|---|
+| `br, gzip` | brotli (best compression) |
+| `gzip` only | gzip |
+| `zstd, gzip` | zstd |
 | nothing | uncompressed |
 
-> **When to use:** Always enable compression in production. Typical JSON API responses compress 5-10x smaller. The CPU cost is negligible compared to network savings.
+## How it works under the hood
 
-## Per-route compression opt-out
+- `.compression()` sets a flag on `AxumAdapter`
+- During `build()`, if enabled, a `tower_http::CompressionLayer` is inserted into the middleware stack
+- The layer reads `Accept-Encoding`, applies the best supported algorithm, and adds `Content-Encoding` to the response
+- Compression runs **after** your handler — your code always works with plain bytes
 
-Some endpoints should never be compressed — file downloads, streaming responses, or already-compressed content. Disable compression on specific routes:
+## Layer order
 
-```rust
-#[get("/download/:filename")]
-#[no_compression]                           // ← Skip compression for this route
-async fn download(&self, #[param] filename: String) -> Result<Vec<u8>, HttpError> {
-    self.storage.read(filename).await
-}
+In the request pipeline, compression sits near the outer edge:
+
+```
+SecurityHeaders → RateLimit → CORS → Metrics → Compression → BodyLimit → Timeout → Router
 ```
 
-This overrides the global `.compression()` only for the annotated route. Requests to `/download/*` are served uncompressed regardless of `Accept-Encoding`.
+This means compression wraps the entire response after all other layers have processed it.
 
-## Compression level control
+## When to use
 
-Set the compression level directly on the adapter builder. Higher levels trade CPU for smaller output:
+Always enable compression in production. The CPU cost is negligible compared to network savings. JSON API responses typically compress 5-10x smaller.
 
-```rust
-FrameworkApplication::builder()
-    .platform(AxumAdapter::new()
-        .compression()
-        .compression_level(CompressionLevel::Balanced)  // Default
-    )
-    .build().await.unwrap();
-```
-
-| Level | Description |
-|-------|-------------|
-| `CompressionLevel::Fast` | Lowest CPU, larger output. Good for high-throughput APIs. |
-| `CompressionLevel::Balanced` | Default. Good compromise for most workloads. |
-| `CompressionLevel::Best` | Smallest output, highest CPU. Best for slow networks or edge delivery. |
-
-When using both brotli and gzip, you can configure levels independently:
-
-```rust
-.compression_level_brotli(CompressionLevel::Best)
-.compression_level_gzip(CompressionLevel::Fast)
-```
-
-This sends best-compression brotli to modern browsers and fast gzip to legacy clients, without wasting CPU on both.
-
-## Size threshold
-
-Compressing tiny responses wastes CPU for negligible gain. Set a minimum size:
-
-```rust
-AxumAdapter::new()
-    .compression()
-    .compression_min_size(1024)  // Only compress responses >= 1KB
-```
-
-Responses below the threshold (common for 204 No Content, empty arrays, or health checks) are sent uncompressed. A threshold of 512–1024 bytes is a good starting point.
-
-## Compression algorithm comparison
-
-| Algorithm | Compression ratio | Speed | Browser support | Best for |
-|-----------|------------------|-------|----------------|----------|
-| gzip | 3-5x | Fastest | Universal | Legacy clients, edge proxies |
-| brotli | 5-7x | Moderate | 97% of browsers | Modern web apps, static assets |
-| zstd | 4-8x | Fast | Growing (HTTP/3) | Internal microservices, streams |
-
-Brotli typically produces 15-25% smaller output than gzip at a modest CPU cost. Zstd is the newest contender — competitive compression with gzip-like speed, ideal for server-to-server communication.
-
-## When NOT to compress
-
-Compression is not free. Skip it when:
+## When NOT to use
 
 | Scenario | Reason |
-|----------|--------|
-| Already-compressed content | PNG, JPEG, MP4, ZIP, WebP are already compressed — re-compressing adds CPU with no size reduction |
-| Tiny responses (<512 bytes) | Gzip headers alone can be 20+ bytes; on small payloads, the "compressed" output may be *larger* |
-| WebSocket connections | Per-message compression is available but different from HTTP response compression — use `.per_message_deflate()` instead |
-| Streaming / SSE | Chunked responses must be flushed immediately; compression requires buffering |
+|---|---|
+| Already-compressed content (PNG, JPEG, MP4, ZIP) | Re-compressing adds CPU with no size reduction |
+| Tiny responses (< 100 bytes) | Gzip headers alone can be 20+ bytes — output may be *larger* |
+| WebSocket connections | Per-message compression is a different protocol |
+| Streaming / SSE | Chunked responses must flush immediately; compression buffers |
 
 ## Common mistakes
 
-| Mistake | Why it's wrong | Fix |
-|---------|---------------|-----|
-| Not enabling compression in production | JSON responses are 5-10x larger than needed | Add `.compression()` to your AxumAdapter |
-| Compressing file downloads | Binary files are already compressed or benefit from range requests | Use `#[no_compression]` on file-serving routes |
-| Using `Best` level everywhere | High CPU per request adds latency under load | Use `Balanced` for dynamic APIs, `Best` only for static assets with CDN caching |
-| Setting `min_size` too high | Responses just above the threshold bloat your bandwidth | Keep it at 512–1024 bytes |
+| Mistake | Fix |
+|---|---|
+| Not enabling compression in production | Add `.compression()` to your `AxumAdapter` |
+| Expecting fine-grained control | The current API is a simple on/off toggle — future versions may add level/threshold control |
 
 ## What you learned
 
-- [x] `.compression()` enables gzip/brotli/zstd automatically
-- [x] The best format is negotiated per client
+- [x] `.compression()` enables gzip/brotli/zstd with one call
+- [x] The best format is auto-negotiated per client
 - [x] Works with zero additional configuration
-- [x] `#[no_compression]` disables compression per route
-- [x] `CompressionLevel` controls CPU vs ratio trade-off
-- [x] `compression_min_size` avoids wasteful tiny-response compression
-- [x] Don't compress images, videos, or other already-compressed content
+- [x] Enable it in production for 5-10x smaller responses

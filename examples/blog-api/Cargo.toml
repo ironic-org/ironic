@@ -8,7 +8,7 @@ rust-version.workspace = true
 license.workspace = true
 
 [dependencies]
-ironic = { workspace = true, features = ["security", "compression", "metrics", "validation"] }
+ironic = { workspace = true, features = ["security", "compression", "metrics", "validation", "cache", "logging", "scheduling", "cron", "openapi"] }
 serde.workspace = true
 serde_json.workspace = true
 garde.workspace = true
@@ -16,5 +16,6 @@ chrono.workspace = true
 uuid.workspace = true
 dotenvy = "0.15"
 tracing = "0.1"
+jsonwebtoken = "9"
 
 [dev-dependencies]

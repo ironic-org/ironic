@@ -1,63 +1,52 @@
 ---
 title: Exception Filters
-description: Handle errors gracefully — catch exceptions, transform them into user-friendly responses, and log what went wrong.
+description: Catch errors before they reach the client — transform raw errors into clean, structured JSON responses.
 ---
 
 # Exception Filters
 
-## What you'll learn
+## What is an Exception Filter?
 
-- Catch errors at the controller, route, or application level
-- Transform raw errors into structured JSON responses
-- Create custom error codes for your API
-- Return proper HTTP status codes (404, 400, 500)
+When your handler returns an `Err(HttpError::not_found(...))`, the framework needs to decide what to send back to the client. Without an exception filter, it sends a generic 500 or a raw error message. With an exception filter, you control exactly what the client sees.
 
-## The big picture
-
-Errors happen. Exception filters let you handle them **gracefully** instead of crashing:
+**Simple analogy:** A restaurant kitchen makes mistakes — wrong order, burnt food, missing ingredient. The waiter (exception filter) catches these problems before they reach the customer's table. Instead of the customer seeing raw kitchen errors, the waiter says "I'm sorry, we're out of the salmon — would you like the cod instead?" with a polite, structured response.
 
 ```
-Handler returns Err(...)
-      │
-      ▼
-┌──────────────────┐
-│ Exception Filter │ ← Transforms the error
-└──────┬───────────┘
-       ▼
-  {
-    "error": "USER_NOT_FOUND",
-    "message": "User with id 42 was not found",
-    "status": 404
-  }
+Handler returns Err("POST_NOT_FOUND")
+            │
+            ▼
+    ┌──────────────┐
+    │ NotFoundFilter │  ← catches 404s
+    └──────┬───────┘
+            ▼
+    {
+      "error": "POST_NOT_FOUND",
+      "message": "Blog post not found",
+      "status": 404
+    }
 ```
+
+Without the filter, the client might get a raw 500 or an unstructured error string. With the filter, every error is a consistent JSON shape with proper HTTP status codes.
 
 ## Built-in errors
 
-Ironic provides `HttpError` with common HTTP status codes:
+Ironic provides `HttpError` for common HTTP status codes. Use these in your services and controllers:
 
 ```rust
 use ironic::prelude::*;
 
-// In your service or controller:
-HttpError::not_found("USER_NOT_FOUND", "User #42 does not exist")
-// → 404 with error code
-
-HttpError::bad_request("INVALID_INPUT", "Email is required")
-// → 400 with error code
-
-HttpError::unauthorized("UNAUTHORIZED", "Invalid token")
-// → 401 with error code
-
-HttpError::forbidden("FORBIDDEN", "Admin access required")
-// → 403 with error code
-
-HttpError::internal("DB_ERROR", "Database connection failed")
-// → 500 with error code
+HttpError::not_found("USER_NOT_FOUND", "User #42 does not exist")   // → 404
+HttpError::bad_request("INVALID_INPUT", "Email is required")        // → 400
+HttpError::unauthorized("UNAUTHORIZED", "Invalid token")            // → 401
+HttpError::forbidden("FORBIDDEN", "Admin access required")          // → 403
+HttpError::internal("DB_ERROR", "Database connection failed")       // → 500
 ```
+
+Each takes two strings: an **error code** (machine-readable, like `POST_NOT_FOUND`) and a **message** (human-readable, like "Blog post not found").
 
 ## Creating a custom filter
 
-Catch specific errors and transform them:
+An exception filter implements the `ExceptionFilter` trait with one method — `catch()`:
 
 ```rust
 use ironic::{ExceptionFilter, FilterContext, FrameworkResponse, HttpError, HttpStatus};
@@ -71,42 +60,50 @@ impl ExceptionFilter for NotFoundFilter {
         _ctx: &FilterContext,
     ) -> Result<FrameworkResponse, HttpError> {
         if error.status() == HttpStatus::NOT_FOUND {
-            Ok(FrameworkResponse::error(
-                HttpStatus::NOT_FOUND,
-                "CUSTOM_NOT_FOUND",
-                format!("Resource not found: {}", error.message()),
-            ))
+            let body = serde_json::json!({
+                "error": error.code(),
+                "message": error.message(),
+                "status": 404,
+            });
+            Ok(FrameworkResponse::json(HttpStatus::NOT_FOUND, &body)?)
         } else {
-            Err(error.clone())  // ← Pass through errors we don't handle
+            Err(error.clone())   // ← Pass through errors we don't handle
         }
     }
 }
 ```
 
+Key points:
+- The `catch` method receives the error and a `FilterContext` (which has route metadata).
+- If you handle the error, return `Ok(response)`.
+- If you don't handle it, return `Err(error.clone())` — the next filter in the chain gets a chance.
+- Filters run in registration order. The first one to return `Ok` wins.
+
 ## Where to apply filters
 
-### Route level (most specific)
+### Controller-level — `#[exception]` attribute
 
-Use `.exception_filter(...)` directly on a route definition:
-
-```rust
-RouteDefinition::new(HttpMethod::GET, "/:id", "get_user", handler)
-    .unwrap()
-    .exception_filter(Arc::new(NotFoundFilter))
-```
-
-### Controller level
-
-Apply `#[exception(...)]` on the controller struct — every route inherits it:
+Apply to all routes in a controller:
 
 ```rust
-#[controller("/users")]
+#[controller("/blogs")]
 #[exception(NotFoundFilter)]
 #[derive(Injectable)]
-struct UserController;
+struct BlogsController;
 ```
 
-### Application level (catches everything)
+Every route in `BlogsController` inherits the `NotFoundFilter`. If any handler returns a 404, the filter catches it and returns the structured JSON response.
+
+### Route-level — `.exception_filter()` builder
+
+Apply to a single route definition:
+
+```rust
+let route = RouteDefinition::new(HttpMethod::GET, "/users/:id", "show", handler_fn(show_user))?
+    .exception_filter(Arc::new(NotFoundFilter));
+```
+
+### Global — catches everything
 
 ```rust
 FrameworkApplication::builder()
@@ -116,27 +113,43 @@ FrameworkApplication::builder()
     .build().await.unwrap();
 ```
 
+Global filters run last, after all route and controller filters. This is where you put catch-all handlers — convert `InternalServerError` into a safe public message, or log every unhandled error.
+
 ## Filter priority
 
-More specific filters run first. If they pass, the next level runs:
+More specific filters run first:
 
 ```
-Route filter ──► Controller filter ──► Global filter ──► Default handler
-  (tried first)     (tried next)         (last resort)     (returns 500)
+Route filter → Controller filter → Global filter → Default handler
+ (tried first)    (tried next)        (last resort)    (returns 500)
 ```
 
-> **Best practice:** Put specific filters at the route level and a general "catch-all" at the global level.
+The pipeline tries each filter in order. The first filter to return `Ok(response)` wins — no further filters run. If all filters pass through with `Err(error)`, the default handler returns a generic 500.
 
-## Try it yourself
+## When to use Exception Filters vs Guards
 
-1. Create a `ValidationErrorFilter` that catches validation errors
-2. Transform them into `{"error": "VALIDATION", "fields": {...}}`
-3. Apply it at the controller level
-4. Send invalid data and verify the response format
+| You want to... | Use |
+|---|---|
+| Prevent a request from reaching the handler (auth check) | `#[guard]` |
+| Transform an error into a nice response | `#[exception]` |
+| Run code after the handler regardless of error | `#[interceptor]` |
+| Return a custom error message from the handler | `HttpError::not_found(...)` directly |
+
+**Rule:** Guards say "no" before the handler runs. Exception filters clean up after the handler fails.
+
+## Common mistakes
+
+| Mistake | Fix |
+|---|---|
+| Returning `Err(...)` for auth failures from a guard, expecting the exception filter to catch it | Guards return `Deny` to short-circuit — exception filters only catch handler errors |
+| Catching all errors without passing through unknowns | Return `Err(error.clone())` for errors you don't handle |
+| Filter returning `Ok` response with wrong status code | Match the status in your response to the original error's status |
+| Expecting access to extracted parameters in the filter | The handler hasn't run yet (or has failed) — use `FilterContext` for metadata |
 
 ## What you learned
 
-- [x] Use `HttpError` for common HTTP errors (404, 400, 401, 403, 500)
-- [x] Create custom filters with `ExceptionFilter` trait
-- [x] Apply filters at route, controller, or global level
-- [x] Filters cascade from most specific to most general
+- [x] Exception filters catch errors and transform them into clean responses
+- [x] Implement `ExceptionFilter::catch()` to handle specific error statuses
+- [x] Use `#[exception]` on controllers, `.exception_filter()` on routes, or globally
+- [x] Filters chain — first to `Ok` wins, pass through with `Err` to try the next
+- [x] Use guards for access control, exception filters for error transformation

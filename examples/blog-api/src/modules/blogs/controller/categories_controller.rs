@@ -5,8 +5,10 @@ use uuid::Uuid;
 
 use crate::modules::blogs::entities::Category;
 use crate::modules::blogs::services::BlogService;
+use crate::modules::exception_filters::NotFoundFilter;
 
 #[controller("/api/categories")]
+#[exception(NotFoundFilter)]
 #[derive(Injectable)]
 pub struct CategoriesController {
     service: Arc<BlogService>,

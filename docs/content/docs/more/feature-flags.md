@@ -106,3 +106,28 @@ Every feature flag in `Cargo.toml` (51 total), organized by category.
 | `serialization` | `Serializable`, `SerializeInterceptor`, field-level role rules |
 | `cron` | Cron expression support in scheduling (`cron()`, `cron_schedule()`) |
 | `custom-decorators` | `create_param_decorator!` macro (note: custom decorators work without this flag) |
+
+## Production Features
+
+These are always available (no feature flag required):
+
+| Feature | API |
+|---------|-----|
+| Error envelope | `FrameworkResponse::error_with_tracing()` — includes `request_id`, `timestamp_ms` |
+| Paginated response | `FrameworkResponse::paginated()` — `{"items","total","offset","limit"}` |
+| Per-route timeout | `RouteDefinition::timeout(duration)` — overrides global adapter timeout |
+| Feature gate guard | `FeatureGateGuard::new("feature-name")` — gates routes behind runtime toggles |
+| Cache prefix invalidation | `Cache::remove_by_prefix(prefix)` — invalidates all keys starting with prefix |
+| Rate limit key resolver | `RateLimitMiddleware::key_resolver(...)` — custom rate limit keys |
+| TCP connection limit | `AxumAdapter::max_connections(n)` — prevents socket exhaustion |
+| Task pause/resume | `ScheduledTask::pause()` / `resume()` — runtime task control |
+| Error counter metric | `ironic_http_errors_total` — auto-incremented on 5xx in Prometheus scrape |
+| Content negotiation | `RequestContext::accepts_json()` / `preferred_content_type()` |
+| BeforeShutdown fix | Runs BEFORE server stops accepting connections |
+| Provider health | `Container::health()` → `ProviderHealthSummary` |
+| Dead-letter queue | `EventBus::drain_dead_letters()` — captures undelivered events |
+| Per-endpoint status metrics | `ironic_http_endpoint_status_total{status="2xx/4xx/5xx"}` |
+| Hot-reload config injection | `Reloadable<T>` — watch channel for runtime config updates |
+| Post-bootstrap overrides | `Container::with_override(provider)` — hot-swap providers |
+| Streaming body | `FrameworkBody::Stream(Arc<Vec<u8>>)` + `FrameworkResponse::from_stream()` |
+| Dynamic module hooks | `OnModuleLoad` / `OnModuleUnload` — runtime module lifecycle |

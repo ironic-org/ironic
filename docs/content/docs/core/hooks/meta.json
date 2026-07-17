@@ -9,6 +9,8 @@
     "on-error",
     "on-guard-denied",
     "before-shutdown",
-    "after-shutdown"
+    "after-shutdown",
+    "on-module-load",
+    "on-module-unload"
   ]
 }

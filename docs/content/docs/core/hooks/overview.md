@@ -1,11 +1,11 @@
 ---
 title: Lifecycle Hooks
-description: The complete lifecycle hook system — 13 hooks covering startup, request, runtime, and shutdown phases.
+description: The complete lifecycle hook system — 15 hooks covering startup, request, runtime, shutdown, and dynamic module phases.
 ---
 
 # Lifecycle Hooks
 
-Ironic provides **13 lifecycle hooks** that let you plug into every phase of an application's lifecycle — from module compilation through request handling, error dispatch, and graceful shutdown.
+Ironic provides **15 lifecycle hooks** that let you plug into every phase of an application's lifecycle.
 
 ## The full lifecycle
 
@@ -64,6 +64,19 @@ Ironic provides **13 lifecycle hooks** that let you plug into every phase of an 
               ┌────────────────────┐
               │ AfterShutdown      │ ← Final cleanup
               └────────────────────┘
+
+    ╔══════════════════════════════════════╗
+    ║       RUNTIME MODULE LIFECYCLE      ║
+    ║                                     ║
+    ║  ┌─ Module dynamically loaded       ║
+    ║  │  ┌─────────────────────────────┐ ║
+    ║  ├──│ OnModuleLoad               │ ║ ← Provider init for new module
+    ║  │  └─────────────────────────────┘ ║
+    ║  │                ...                ║
+    ║  │  ┌─────────────────────────────┐ ║
+    ║  ├──│ OnModuleUnload             │ ║ ← Provider cleanup before removal
+    ║  │  └─────────────────────────────┘ ║
+    ╚══════════════════════════════════════╝
 ```
 
 ## Startup hooks

@@ -1,4 +1,4 @@
 {
   "title": "Modules",
-  "pages": ["dynamic-modules", "application-services", "cache-decorators", "scheduling", "websocket-gateways", "request-scoped-providers", "custom-decorators"]
+  "pages": ["dynamic-modules", "application-services", "cache-decorators", "cache-invalidation", "scheduling", "task-pause-resume", "dead-letter-queue", "websocket-gateways", "request-scoped-providers", "custom-decorators"]
 }

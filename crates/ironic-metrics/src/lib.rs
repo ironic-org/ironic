@@ -169,9 +169,15 @@ fn record_per_endpoint(key: &str, duration: f64, status: u16) {
         endpoint.request_count.fetch_add(1, Ordering::Relaxed);
         endpoint.latency_buckets[bucket_for(duration)].fetch_add(1, Ordering::Relaxed);
         match status / 100 {
-            2 => { endpoint.status_2xx.fetch_add(1, Ordering::Relaxed); }
-            4 => { endpoint.status_4xx.fetch_add(1, Ordering::Relaxed); }
-            5 => { endpoint.status_5xx.fetch_add(1, Ordering::Relaxed); }
+            2 => {
+                endpoint.status_2xx.fetch_add(1, Ordering::Relaxed);
+            }
+            4 => {
+                endpoint.status_4xx.fetch_add(1, Ordering::Relaxed);
+            }
+            5 => {
+                endpoint.status_5xx.fetch_add(1, Ordering::Relaxed);
+            }
             _ => {}
         }
     }
@@ -356,7 +362,10 @@ pub fn scrape() -> String {
     let _ = writeln!(out);
 
     let error_count = METRICS.error_count.load(Ordering::Relaxed);
-    let _ = writeln!(out, "# HELP ironic_http_errors_total Total HTTP errors (5xx)");
+    let _ = writeln!(
+        out,
+        "# HELP ironic_http_errors_total Total HTTP errors (5xx)"
+    );
     let _ = writeln!(out, "# TYPE ironic_http_errors_total counter");
     let _ = writeln!(out, "ironic_http_errors_total {error_count}");
     let _ = writeln!(out);
@@ -475,16 +484,34 @@ pub fn scrape() -> String {
             let _ = writeln!(out);
 
             // Per-endpoint status code breakdown
-            let _ = writeln!(out, "# HELP ironic_http_endpoint_status_total Per-endpoint status code counts");
+            let _ = writeln!(
+                out,
+                "# HELP ironic_http_endpoint_status_total Per-endpoint status code counts"
+            );
             let _ = writeln!(out, "# TYPE ironic_http_endpoint_status_total counter");
             for key in &keys {
                 if let Some(ep) = ep_map.get(*key) {
                     let c2 = ep.status_2xx.load(Ordering::Relaxed);
                     let c4 = ep.status_4xx.load(Ordering::Relaxed);
                     let c5 = ep.status_5xx.load(Ordering::Relaxed);
-                    if c2 > 0 { let _ = writeln!(out, "ironic_http_endpoint_status_total{{endpoint=\"{key}\",status=\"2xx\"}} {c2}"); }
-                    if c4 > 0 { let _ = writeln!(out, "ironic_http_endpoint_status_total{{endpoint=\"{key}\",status=\"4xx\"}} {c4}"); }
-                    if c5 > 0 { let _ = writeln!(out, "ironic_http_endpoint_status_total{{endpoint=\"{key}\",status=\"5xx\"}} {c5}"); }
+                    if c2 > 0 {
+                        let _ = writeln!(
+                            out,
+                            "ironic_http_endpoint_status_total{{endpoint=\"{key}\",status=\"2xx\"}} {c2}"
+                        );
+                    }
+                    if c4 > 0 {
+                        let _ = writeln!(
+                            out,
+                            "ironic_http_endpoint_status_total{{endpoint=\"{key}\",status=\"4xx\"}} {c4}"
+                        );
+                    }
+                    if c5 > 0 {
+                        let _ = writeln!(
+                            out,
+                            "ironic_http_endpoint_status_total{{endpoint=\"{key}\",status=\"5xx\"}} {c5}"
+                        );
+                    }
                 }
             }
             let _ = writeln!(out);

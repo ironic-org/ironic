@@ -8,7 +8,7 @@ use std::{
 
 use ironic_di::{ProviderDefinition, Scope};
 use ironic_http::{
-    ControllerDefinition, Response, HttpMethod, HttpStatus, RouteDefinition, handler_fn,
+    ControllerDefinition, HttpMethod, HttpStatus, Response, RouteDefinition, handler_fn,
 };
 use serde::Serialize;
 

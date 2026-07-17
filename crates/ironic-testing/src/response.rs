@@ -1,4 +1,4 @@
-use ironic_http::{Response, HeaderMap, HttpStatus};
+use ironic_http::{HeaderMap, HttpStatus, Response};
 use serde::{Serialize, de::DeserializeOwned};
 
 /// An in-process response with typed accessors and focused assertions.

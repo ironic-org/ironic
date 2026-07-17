@@ -49,8 +49,7 @@ impl ScheduledTask {
 }
 
 fn should_break(result: &Result<(), watch::error::RecvError>, state: TaskState) -> bool {
-    result.is_err()
-        || matches!(state, TaskState::Stopped)
+    result.is_err() || matches!(state, TaskState::Stopped)
 }
 
 /// Spawns a fixed interval task. Missed ticks are skipped and the first run follows one period.
@@ -77,7 +76,10 @@ where
             }
         }
     });
-    ScheduledTask { control, task: handle }
+    ScheduledTask {
+        control,
+        task: handle,
+    }
 }
 
 /// Spawns a task driven by a cron expression. The task fires when the system
@@ -118,7 +120,10 @@ where
             }
         }
     });
-    ScheduledTask { control, task: handle }
+    ScheduledTask {
+        control,
+        task: handle,
+    }
 }
 
 /// Parses a cron expression and spawns a scheduled task.
@@ -157,5 +162,8 @@ where
             }
         }
     });
-    Ok(ScheduledTask { control, task: handle })
+    Ok(ScheduledTask {
+        control,
+        task: handle,
+    })
 }

@@ -3,10 +3,10 @@ use std::sync::Arc;
 use ironic::prelude::*;
 use uuid::Uuid;
 
+use crate::modules::auth::guards::JwtGuard;
 use crate::modules::blogs::dto::{BlogFilterDto, CreateBlogDto, UpdateBlogDto};
 use crate::modules::blogs::entities::BlogPost;
 use crate::modules::blogs::services::BlogService;
-use crate::modules::auth::guards::JwtGuard;
 use crate::modules::decorators::{Pagination, PaginationParams};
 use crate::modules::interceptors::TimingInterceptor;
 
@@ -34,7 +34,9 @@ impl BlogsController {
     ) -> Result<Json<Vec<BlogPost>>, HttpError> {
         let mut posts = self.service.list(&filter)?;
         let start = ((pagination.page - 1) * pagination.size) as usize;
-        let page: Vec<BlogPost> = posts.drain(start..posts.len().min(start + pagination.size as usize)).collect();
+        let page: Vec<BlogPost> = posts
+            .drain(start..posts.len().min(start + pagination.size as usize))
+            .collect();
         Ok(Json(page))
     }
 

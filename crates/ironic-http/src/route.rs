@@ -8,8 +8,8 @@ use std::{
 use ironic_di::{Container, Dependency, ProviderDefinition, ProviderKey, ProviderValue};
 
 use crate::{
-    ErasedHandler, Response, Guard, HandlerArguments, HttpError, HttpMethod, Interceptor,
-    Middleware, ParameterExtractor, ParameterPipe, PipelineComponents, RequestContext,
+    ErasedHandler, Guard, HandlerArguments, HttpError, HttpMethod, Interceptor, Middleware,
+    ParameterExtractor, ParameterPipe, PipelineComponents, RequestContext, Response,
     VersionMetadata,
 };
 

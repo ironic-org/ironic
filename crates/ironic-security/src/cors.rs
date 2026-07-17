@@ -5,8 +5,7 @@
 use std::sync::Arc;
 
 use ironic_http::{
-    Response, HttpMethod, HttpStatus, Middleware, MiddlewareNext, PipelineFuture,
-    RequestContext,
+    HttpMethod, HttpStatus, Middleware, MiddlewareNext, PipelineFuture, RequestContext, Response,
 };
 
 /// CORS configuration.

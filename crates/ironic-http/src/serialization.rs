@@ -1,8 +1,6 @@
 use serde_json::Value;
 
-use crate::{
-    Body, HttpError, Interceptor, InterceptorNext, PipelineFuture, RequestContext,
-};
+use crate::{Body, HttpError, Interceptor, InterceptorNext, PipelineFuture, RequestContext};
 
 /// A serialization rule for a single JSON field path.
 #[derive(Clone, Debug, Eq, PartialEq)]

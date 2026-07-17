@@ -2,7 +2,7 @@
 
 use std::sync::Arc;
 
-use crate::{Response, HttpError, RouteMetadata};
+use crate::{HttpError, Response, RouteMetadata};
 
 /// Request context available to exception filters.
 #[derive(Clone, Debug)]
@@ -36,11 +36,7 @@ pub trait ExceptionFilter: Send + Sync + 'static {
     /// # Errors
     ///
     /// Returns [`HttpError`] when the filter itself fails.
-    fn catch(
-        &self,
-        error: &HttpError,
-        context: &FilterContext,
-    ) -> Result<Response, HttpError>;
+    fn catch(&self, error: &HttpError, context: &FilterContext) -> Result<Response, HttpError>;
 }
 
 /// Extension trait for `Result<T, HttpError>` providing inline exception handling.

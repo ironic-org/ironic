@@ -1,8 +1,8 @@
 use std::sync::Arc;
 
+use ironic::prelude::*;
 use ironic::time::Utc;
 use ironic::{LifecycleFuture, OnModuleInit};
-use ironic::prelude::*;
 use uuid::Uuid;
 
 use crate::modules::blogs::dto::{BlogFilterDto, CreateBlogDto, UpdateBlogDto};
@@ -18,9 +18,15 @@ pub struct BlogService {
 impl OnModuleInit for BlogService {
     fn on_module_init(&self) -> LifecycleFuture<'_> {
         Box::pin(async move {
-            let existing = self.blog_repo.list(&BlogFilterDto::default()).unwrap_or_default();
+            let existing = self
+                .blog_repo
+                .list(&BlogFilterDto::default())
+                .unwrap_or_default();
             if !existing.is_empty() {
-                ironic::logging::log::info!("{} existing blog posts found — skipping seed", existing.len());
+                ironic::logging::log::info!(
+                    "{} existing blog posts found — skipping seed",
+                    existing.len()
+                );
                 return Ok(());
             }
 

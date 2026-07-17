@@ -1,8 +1,8 @@
 use std::{any::type_name, fmt, future::Future, marker::PhantomData, pin::Pin, sync::Arc};
 
 use crate::{
-    CompiledHttpApplication, CompiledRoute, ExceptionFilterSet, ExtractedValue, Response,
-    HttpError, RequestContext,
+    CompiledHttpApplication, CompiledRoute, ExceptionFilterSet, ExtractedValue, HttpError,
+    RequestContext, Response,
 };
 
 /// The asynchronous result of middleware or interceptor execution.
@@ -379,9 +379,9 @@ mod tests {
 
     use super::*;
     use crate::{
-        ControllerDefinition, ExtractFuture, Request, HeaderMap, HttpMethod, HttpStatus,
-        IntoResponse, ParameterExtractor, RouteDefinition, Uri, compile_controller_routes,
-        handler_fn, parse_int,
+        ControllerDefinition, ExtractFuture, HeaderMap, HttpMethod, HttpStatus, IntoResponse,
+        ParameterExtractor, Request, RouteDefinition, Uri, compile_controller_routes, handler_fn,
+        parse_int,
     };
 
     type Events = Arc<Mutex<Vec<&'static str>>>;

@@ -38,7 +38,7 @@ pub use pipes::{ParseUUIDPipe, parse_uuid};
 #[cfg(feature = "validation")]
 pub use pipes::{ValidationPipe, validate};
 pub use request::{Request, RequestContext};
-pub use response::{Body, Response, IntoResponse, Json};
+pub use response::{Body, IntoResponse, Json, Response};
 pub use route::{
     CompiledHttpApplication, CompiledRoute, ControllerDefinition, RouteDefinition, RouteError,
     RouteMetadata, WsGatewayDefinition, compile_controller_routes,

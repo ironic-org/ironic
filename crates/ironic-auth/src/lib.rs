@@ -3,8 +3,8 @@
 use std::{future::Future, pin::Pin, sync::Arc};
 
 use crate::{
-    Request, Guard, GuardDecision, GuardFuture, HttpError, Middleware, MiddlewareNext,
-    PipelineFuture, RequestContext,
+    Guard, GuardDecision, GuardFuture, HttpError, Middleware, MiddlewareNext, PipelineFuture,
+    Request, RequestContext,
 };
 
 /// The upstream Argon2 password-hashing API.

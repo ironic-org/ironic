@@ -14,9 +14,7 @@ pub struct FeatureGateGuard {
 impl FeatureGateGuard {
     /// Creates a guard for the named feature flag.
     pub fn new(name: impl Into<String>) -> Self {
-        Self {
-            name: name.into(),
-        }
+        Self { name: name.into() }
     }
 }
 

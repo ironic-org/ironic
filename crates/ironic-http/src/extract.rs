@@ -263,7 +263,7 @@ mod tests {
     use serde::Deserialize;
 
     use super::*;
-    use crate::{Request, HeaderMap, HttpMethod};
+    use crate::{HeaderMap, HttpMethod, Request};
 
     #[derive(Debug, Deserialize, Eq, PartialEq)]
     struct Query {

@@ -15,8 +15,8 @@ use axum::{
 };
 use futures_util::FutureExt;
 use ironic_http::{
-    CompiledHttpApplication, CompiledRoute, Body, Request, Response,
-    HttpError, HttpMethod, HttpStatus, IntoResponse, RequestContext, VersioningStrategy,
+    Body, CompiledHttpApplication, CompiledRoute, HttpError, HttpMethod, HttpStatus, IntoResponse,
+    Request, RequestContext, Response, VersioningStrategy,
 };
 use ironic_platform::{
     HttpPlatformAdapter, HttpPlatformApplication, PlatformFuture, Shutdown, ShutdownSignal,
@@ -421,7 +421,10 @@ fn matches_header_version(request: &AxumRequest, version: &ironic_http::VersionM
         .is_some_and(|v| v == version.version)
 }
 
-fn matches_media_type_version(request: &AxumRequest, version: &ironic_http::VersionMetadata) -> bool {
+fn matches_media_type_version(
+    request: &AxumRequest,
+    version: &ironic_http::VersionMetadata,
+) -> bool {
     let pattern = format!("vnd.api.v{}+json", version.version);
     request
         .headers()
@@ -448,8 +451,8 @@ async fn execute_route(
             ));
         }
     };
-    let request = Request::new(parts.method, parts.uri, parts.headers, body)
-        .with_path_parameters(parameters);
+    let request =
+        Request::new(parts.method, parts.uri, parts.headers, body).with_path_parameters(parameters);
     let mut context = RequestContext::new(request);
 
     let execution = std::panic::AssertUnwindSafe(application.execute(&route, &mut context))
@@ -892,7 +895,11 @@ mod tests {
 
         // Non-versioned path should 404
         let response = router
-            .oneshot(Request::get("/users/profile").body(AxumBody::empty()).unwrap())
+            .oneshot(
+                Request::get("/users/profile")
+                    .body(AxumBody::empty())
+                    .unwrap(),
+            )
             .await
             .unwrap();
         assert_eq!(response.status(), HttpStatus::NOT_FOUND);
@@ -959,7 +966,11 @@ mod tests {
 
         // Missing header should 404
         let response = router
-            .oneshot(Request::get("/api/resource").body(AxumBody::empty()).unwrap())
+            .oneshot(
+                Request::get("/api/resource")
+                    .body(AxumBody::empty())
+                    .unwrap(),
+            )
             .await
             .unwrap();
         assert_eq!(response.status(), HttpStatus::NOT_FOUND);
@@ -1108,7 +1119,11 @@ mod tests {
         // v1 response
         let response = router
             .clone()
-            .oneshot(Request::get("/v1/api/items").body(AxumBody::empty()).unwrap())
+            .oneshot(
+                Request::get("/v1/api/items")
+                    .body(AxumBody::empty())
+                    .unwrap(),
+            )
             .await
             .unwrap();
         assert_eq!(response.status(), HttpStatus::OK);
@@ -1118,7 +1133,11 @@ mod tests {
         // v2 response
         let response = router
             .clone()
-            .oneshot(Request::get("/v2/api/items").body(AxumBody::empty()).unwrap())
+            .oneshot(
+                Request::get("/v2/api/items")
+                    .body(AxumBody::empty())
+                    .unwrap(),
+            )
             .await
             .unwrap();
         assert_eq!(response.status(), HttpStatus::OK);

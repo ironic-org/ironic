@@ -529,9 +529,11 @@ async fn configure_modules(
                         provider: definition.key(),
                         message: resolution_message(&error),
                     })?;
-                callback(provider, module_name.clone()).await.map_err(|error| {
-                    lifecycle_error(definition.key(), "module configuration", &error)
-                })?;
+                callback(provider, module_name.clone())
+                    .await
+                    .map_err(|error| {
+                        lifecycle_error(definition.key(), "module configuration", &error)
+                    })?;
             }
         }
     }
@@ -541,9 +543,11 @@ async fn configure_modules(
 async fn server_ready(initialized: &[InitializedLifecycle]) -> Result<(), ApplicationError> {
     for lifecycle in initialized {
         if let Some(callback) = &lifecycle.definition.server_ready {
-            callback(Arc::clone(&lifecycle.provider)).await.map_err(|error| {
-                lifecycle_error(lifecycle.definition.key(), "server ready", &error)
-            })?;
+            callback(Arc::clone(&lifecycle.provider))
+                .await
+                .map_err(|error| {
+                    lifecycle_error(lifecycle.definition.key(), "server ready", &error)
+                })?;
         }
     }
     Ok(())

@@ -1,8 +1,8 @@
 use std::sync::Arc;
 
 use crate::http_impl::{
-    CacheMetadata, Response, HttpError, HttpStatus, Interceptor, InterceptorNext,
-    PipelineFuture, RequestContext,
+    CacheMetadata, HttpError, HttpStatus, Interceptor, InterceptorNext, PipelineFuture,
+    RequestContext, Response,
 };
 use crate::services::cache::Cache;
 

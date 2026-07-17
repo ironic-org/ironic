@@ -16,8 +16,7 @@ impl Guard for JwtGuard {
                 .and_then(|v| v.strip_prefix("Bearer "))
                 .unwrap_or_default();
 
-            let secret = std::env::var("JWT_SECRET")
-                .unwrap_or_else(|_| "ironic-dev-secret".into());
+            let secret = std::env::var("JWT_SECRET").unwrap_or_else(|_| "ironic-dev-secret".into());
 
             let key = DecodingKey::from_secret(secret.as_bytes());
             match decode::<Claims>(token, &key, &Validation::default()) {

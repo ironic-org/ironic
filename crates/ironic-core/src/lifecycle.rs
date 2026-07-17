@@ -221,7 +221,10 @@ impl std::fmt::Debug for LifecycleDefinition {
             .debug_struct("LifecycleDefinition")
             .field("key", &self.key)
             .field("module_init", &self.module_init.is_some())
-            .field("application_bootstrap", &self.application_bootstrap.is_some())
+            .field(
+                "application_bootstrap",
+                &self.application_bootstrap.is_some(),
+            )
             .field("module_destroy", &self.module_destroy.is_some())
             .field("application_shutdown", &self.application_shutdown.is_some())
             .field("module_configure", &self.module_configure.is_some())
@@ -309,7 +312,10 @@ impl<T: Send + Sync + 'static> LifecycleDefinitionBuilder<T> {
 
     /// Registers [`OnModuleConfigure`].
     #[must_use]
-    pub fn module_configure(mut self) -> Self where T: OnModuleConfigure {
+    pub fn module_configure(mut self) -> Self
+    where
+        T: OnModuleConfigure,
+    {
         self.definition.module_configure = Some(Arc::new(|value, name| {
             Box::pin(async move {
                 let provider = downcast::<T>(value)?;
@@ -321,7 +327,10 @@ impl<T: Send + Sync + 'static> LifecycleDefinitionBuilder<T> {
 
     /// Registers [`OnServerReady`].
     #[must_use]
-    pub fn server_ready(mut self) -> Self where T: OnServerReady {
+    pub fn server_ready(mut self) -> Self
+    where
+        T: OnServerReady,
+    {
         self.definition.server_ready = Some(Arc::new(|value| {
             Box::pin(async move {
                 let provider = downcast::<T>(value)?;
@@ -333,7 +342,10 @@ impl<T: Send + Sync + 'static> LifecycleDefinitionBuilder<T> {
 
     /// Registers [`OnRequestInit`].
     #[must_use]
-    pub fn request_init(mut self) -> Self where T: OnRequestInit {
+    pub fn request_init(mut self) -> Self
+    where
+        T: OnRequestInit,
+    {
         self.definition.request_init = Some(Arc::new(|value, request_id| {
             Box::pin(async move {
                 let provider = downcast::<T>(value)?;
@@ -345,7 +357,10 @@ impl<T: Send + Sync + 'static> LifecycleDefinitionBuilder<T> {
 
     /// Registers [`OnRequestDestroy`].
     #[must_use]
-    pub fn request_destroy(mut self) -> Self where T: OnRequestDestroy {
+    pub fn request_destroy(mut self) -> Self
+    where
+        T: OnRequestDestroy,
+    {
         self.definition.request_destroy = Some(Arc::new(|value| {
             Box::pin(async move {
                 let provider = downcast::<T>(value)?;
@@ -357,7 +372,10 @@ impl<T: Send + Sync + 'static> LifecycleDefinitionBuilder<T> {
 
     /// Registers [`OnError`].
     #[must_use]
-    pub fn on_error(mut self) -> Self where T: OnError {
+    pub fn on_error(mut self) -> Self
+    where
+        T: OnError,
+    {
         self.definition.on_error = Some(Arc::new(|value, code, msg| {
             Box::pin(async move {
                 let provider = downcast::<T>(value)?;
@@ -369,7 +387,10 @@ impl<T: Send + Sync + 'static> LifecycleDefinitionBuilder<T> {
 
     /// Registers [`OnGuardDenied`].
     #[must_use]
-    pub fn guard_denied(mut self) -> Self where T: OnGuardDenied {
+    pub fn guard_denied(mut self) -> Self
+    where
+        T: OnGuardDenied,
+    {
         self.definition.guard_denied = Some(Arc::new(|value, name| {
             Box::pin(async move {
                 let provider = downcast::<T>(value)?;
@@ -381,7 +402,10 @@ impl<T: Send + Sync + 'static> LifecycleDefinitionBuilder<T> {
 
     /// Registers [`BeforeShutdown`].
     #[must_use]
-    pub fn before_shutdown(mut self) -> Self where T: BeforeShutdown {
+    pub fn before_shutdown(mut self) -> Self
+    where
+        T: BeforeShutdown,
+    {
         self.definition.before_shutdown = Some(Arc::new(|value, signal| {
             Box::pin(async move {
                 let provider = downcast::<T>(value)?;
@@ -393,7 +417,10 @@ impl<T: Send + Sync + 'static> LifecycleDefinitionBuilder<T> {
 
     /// Registers [`AfterShutdown`].
     #[must_use]
-    pub fn after_shutdown(mut self) -> Self where T: AfterShutdown {
+    pub fn after_shutdown(mut self) -> Self
+    where
+        T: AfterShutdown,
+    {
         self.definition.after_shutdown = Some(Arc::new(|value| {
             Box::pin(async move {
                 let provider = downcast::<T>(value)?;
@@ -405,7 +432,10 @@ impl<T: Send + Sync + 'static> LifecycleDefinitionBuilder<T> {
 
     /// Registers [`OnModuleLoad`].
     #[must_use]
-    pub fn module_load(mut self) -> Self where T: OnModuleLoad {
+    pub fn module_load(mut self) -> Self
+    where
+        T: OnModuleLoad,
+    {
         self.definition.module_load = Some(Arc::new(|value, name| {
             Box::pin(async move {
                 let provider = downcast::<T>(value)?;
@@ -417,7 +447,10 @@ impl<T: Send + Sync + 'static> LifecycleDefinitionBuilder<T> {
 
     /// Registers [`OnModuleUnload`].
     #[must_use]
-    pub fn module_unload(mut self) -> Self where T: OnModuleUnload {
+    pub fn module_unload(mut self) -> Self
+    where
+        T: OnModuleUnload,
+    {
         self.definition.module_unload = Some(Arc::new(|value, name| {
             Box::pin(async move {
                 let provider = downcast::<T>(value)?;

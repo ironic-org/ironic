@@ -14,7 +14,7 @@ use std::{
 };
 
 use ironic_http::{
-    Response, HttpStatus, Middleware, MiddlewareNext, PipelineFuture, RequestContext,
+    HttpStatus, Middleware, MiddlewareNext, PipelineFuture, RequestContext, Response,
 };
 
 /// Type alias for rate limit key resolver functions.
@@ -285,15 +285,19 @@ impl Middleware for RateLimitMiddleware {
         next: MiddlewareNext<'a>,
     ) -> PipelineFuture<'a> {
         Box::pin(async move {
-            let key = if let Some(ref r) = self.key_resolver { r(context) } else { context
-                .request()
-                .headers()
-                .get("x-forwarded-for")
-                .and_then(|v| v.to_str().ok())
-                .and_then(|all| all.split(',').next_back().map(str::trim))
-                .filter(|ip| !ip.is_empty())
-                .unwrap_or("127.0.0.1")
-                .to_owned() };
+            let key = if let Some(ref r) = self.key_resolver {
+                r(context)
+            } else {
+                context
+                    .request()
+                    .headers()
+                    .get("x-forwarded-for")
+                    .and_then(|v| v.to_str().ok())
+                    .and_then(|all| all.split(',').next_back().map(str::trim))
+                    .filter(|ip| !ip.is_empty())
+                    .unwrap_or("127.0.0.1")
+                    .to_owned()
+            };
 
             let result = self
                 .backend

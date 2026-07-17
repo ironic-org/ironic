@@ -1,6 +1,6 @@
 use std::{convert::Infallible, future::Future, net::SocketAddr, sync::Arc};
 
-use ironic_core::{ApplicationError, Application, Module};
+use ironic_core::{Application, ApplicationError, Module};
 use ironic_di::{Dependency, ProviderDefinition, ResolveError, Scope};
 use ironic_http::{CompiledHttpApplication, HttpMethod};
 use ironic_platform::{

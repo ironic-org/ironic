@@ -273,14 +273,16 @@ impl Cache for RedisCache {
         Box::pin(async move {
             use redis::AsyncCommands;
             let mut conn = self.client.clone();
-            let keys: Vec<String> = conn.keys(format!("{full_prefix}*")).await.map_err(|e| {
-                CacheError::Backend(e.to_string())
-            })?;
+            let keys: Vec<String> = conn
+                .keys(format!("{full_prefix}*"))
+                .await
+                .map_err(|e| CacheError::Backend(e.to_string()))?;
             let count = keys.len();
             if !keys.is_empty() {
-                let _: () = conn.del(&keys).await.map_err(|e| {
-                    CacheError::Backend(format!("failed to delete keys: {e}"))
-                })?;
+                let _: () = conn
+                    .del(&keys)
+                    .await
+                    .map_err(|e| CacheError::Backend(format!("failed to delete keys: {e}")))?;
             }
             Ok(count)
         })

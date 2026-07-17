@@ -2,7 +2,7 @@
 use std::sync::Arc;
 use std::{error::Error, fmt};
 
-use crate::{Response, HttpStatus, IntoResponse};
+use crate::{HttpStatus, IntoResponse, Response};
 
 /// A safe, structured HTTP request or handler failure.
 #[derive(Clone, Debug)]
@@ -141,10 +141,6 @@ impl IntoResponse for HttpError {
             };
             return Response::json(self.status, &body);
         }
-        Ok(Response::error(
-            self.status,
-            self.code,
-            self.message,
-        ))
+        Ok(Response::error(self.status, self.code, self.message))
     }
 }

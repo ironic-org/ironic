@@ -1,4 +1,4 @@
-use ironic::{ExceptionFilter, FilterContext, Response, HttpError, HttpStatus};
+use ironic::{ExceptionFilter, FilterContext, HttpError, HttpStatus, Response};
 use std::sync::Arc;
 
 use crate::modules::blogs::dto::CreateBlogDto;
@@ -15,11 +15,7 @@ fn make_service() -> BlogService {
 struct DemoNotFoundFilter;
 
 impl ExceptionFilter for DemoNotFoundFilter {
-    fn catch(
-        &self,
-        error: &HttpError,
-        _ctx: &FilterContext,
-    ) -> Result<Response, HttpError> {
+    fn catch(&self, error: &HttpError, _ctx: &FilterContext) -> Result<Response, HttpError> {
         if error.status() == HttpStatus::NOT_FOUND {
             let body = ironic::json::json!({
                 "error": error.code(),
@@ -43,13 +39,11 @@ async fn test_exception_filter_catches_not_found() {
         HttpMethod::GET,
         "/exception-demo/:id",
         "exception_demo",
-        handler_fn(|_controller: Arc<BlogService>, _arguments| {
-            async move {
-                Err::<Response, HttpError>(HttpError::not_found(
-                    "POST_NOT_FOUND",
-                    "Post 42 was not found",
-                ))
-            }
+        handler_fn(|_controller: Arc<BlogService>, _arguments| async move {
+            Err::<Response, HttpError>(HttpError::not_found(
+                "POST_NOT_FOUND",
+                "Post 42 was not found",
+            ))
         }),
     )
     .expect("route path must be valid")

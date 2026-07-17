@@ -23,10 +23,7 @@ impl AuthController {
     }
 
     #[post("/refresh")]
-    async fn refresh(
-        &self,
-        #[body] payload: Value,
-    ) -> Result<Json<TokenResponse>, HttpError> {
+    async fn refresh(&self, #[body] payload: Value) -> Result<Json<TokenResponse>, HttpError> {
         let refresh_token = payload["refresh_token"]
             .as_str()
             .ok_or_else(|| HttpError::bad_request("MISSING_TOKEN", "refresh_token is required"))?;

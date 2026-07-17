@@ -510,7 +510,10 @@ impl Container {
     /// Returns consolidated provider health statistics.
     #[must_use]
     pub fn health(&self) -> ProviderHealthSummary {
-        let providers = self.inner.health.lock()
+        let providers = self
+            .inner
+            .health
+            .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner)
             .clone();
         ProviderHealthSummary {

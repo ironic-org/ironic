@@ -1,8 +1,8 @@
 use std::collections::HashMap;
 
 use ironic_http::{
-    CompiledHttpApplication, Request, Response, HeaderMap, HeaderName,
-    HeaderValue, HttpError, HttpMethod, HttpStatus, IntoResponse, RequestContext, Uri,
+    CompiledHttpApplication, HeaderMap, HeaderName, HeaderValue, HttpError, HttpMethod, HttpStatus,
+    IntoResponse, Request, RequestContext, Response, Uri,
 };
 use serde::Serialize;
 

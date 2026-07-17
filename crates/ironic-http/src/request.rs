@@ -140,12 +140,7 @@ impl RequestContext {
     pub fn preferred_content_type(&self) -> Option<&str> {
         let accepting = self.request.headers().get("accept")?.to_str().ok()?;
         // Simple parser: take the first type before comma or semicolon
-        let best = accepting
-            .split(',')
-            .next()?
-            .split(';')
-            .next()?
-            .trim();
+        let best = accepting.split(',').next()?.split(';').next()?.trim();
         if best.is_empty() { None } else { Some(best) }
     }
 

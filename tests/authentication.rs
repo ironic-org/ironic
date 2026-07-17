@@ -5,7 +5,7 @@
 use std::collections::HashSet;
 
 use ironic::{
-    Request, Guard, HeaderMap, HeaderValue, HttpMethod, RequestContext,
+    Guard, HeaderMap, HeaderValue, HttpMethod, Request, RequestContext,
     auth::{
         AuthContext, Authorizable, Principal, RequireAccess, bearer_token, hash_password,
         verify_password,

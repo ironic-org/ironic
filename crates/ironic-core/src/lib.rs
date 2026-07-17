@@ -22,18 +22,17 @@ use ironic_http::{
 };
 
 pub use application::{
-    ApplicationError, Application, ApplicationBuilder, MissingPlatform,
-    ModuleConfigurationError,
+    Application, ApplicationBuilder, ApplicationError, MissingPlatform, ModuleConfigurationError,
 };
 pub use health::{
     BuildInfo, HealthConfig, HealthIndicator, HealthModule, HealthStatus,
     configure as configure_health, register as register_health_indicator,
 };
 pub use lifecycle::{
-    AfterShutdown, BeforeShutdown, LifecycleDefinition, LifecycleDefinitionBuilder,
-    LifecycleError, LifecycleFuture, OnApplicationBootstrap, OnApplicationShutdown,
-    OnError, OnGuardDenied, OnModuleConfigure, OnModuleDestroy, OnModuleInit,
-    OnModuleLoad, OnModuleUnload, OnRequestDestroy, OnRequestInit, OnServerReady,
+    AfterShutdown, BeforeShutdown, LifecycleDefinition, LifecycleDefinitionBuilder, LifecycleError,
+    LifecycleFuture, OnApplicationBootstrap, OnApplicationShutdown, OnError, OnGuardDenied,
+    OnModuleConfigure, OnModuleDestroy, OnModuleInit, OnModuleLoad, OnModuleUnload,
+    OnRequestDestroy, OnRequestInit, OnServerReady,
 };
 
 /// A statically declared Ironic application module.

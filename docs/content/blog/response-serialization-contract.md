@@ -19,11 +19,11 @@ Open `crates/ironic-http/src/response.rs:29` and you'll find exactly three field
 pub struct Response {
     status: HttpStatus,
     headers: HeaderMap,
-    body: FrameworkBody,
+    body: Body,
 }
 ```
 
-No streams, no channels, no async wiring. `FrameworkBody` is just two variants: `Empty` or `Bytes(Vec<u8>)`. This is deliberate. The framework never streams — it materializes the entire response before handing it across the adapter boundary. If you need streaming, build it on the adapter side, not here.
+No streams, no channels, no async wiring. `Body` is just two variants: `Empty` or `Bytes(Vec<u8>)`. This is deliberate. The framework never streams — it materializes the entire response before handing it across the adapter boundary. If you need streaming, build it on the adapter side, not here.
 
 `HttpStatus` is a re-export of `http::StatusCode`. `HeaderMap` is a re-export of `http::HeaderMap`. These are the only dependencies on the `http` crate in the entire response module — and they are the same types every Rust HTTP library already understands.
 
@@ -84,8 +84,8 @@ This is where the architecture pays off. The Axum adapter has exactly two functi
 ```rust
 fn framework_response(response: Response) -> Response {
     let (status, headers, body) = response.into_parts();
-    // map FrameworkBody::Empty -> Body::empty()
-    // map FrameworkBody::Bytes -> Body::from(bytes)
+    // map Body::Empty -> Body::empty()
+    // map Body::Bytes -> Body::from(bytes)
     // copy status and headers
 }
 

@@ -1,13 +1,13 @@
 ---
 title: Streaming Responses
-description: Use shared body ownership for efficient large response cloning with FrameworkBody::Stream.
+description: Use shared body ownership for efficient large response cloning with Body::Stream.
 ---
 
 # Streaming Responses
 
 ## What is it?
 
-When building large responses (file downloads, report exports, bulk data), cloning the entire `Vec<u8>` body for every middleware/interceptor is wasteful. `FrameworkBody::Stream(Arc<Vec<u8>>)` uses shared ownership — the body is cloned by incrementing a reference count, not by copying megabytes.
+When building large responses (file downloads, report exports, bulk data), cloning the entire `Vec<u8>` body for every middleware/interceptor is wasteful. `Body::Stream(Arc<Vec<u8>>)` uses shared ownership — the body is cloned by incrementing a reference count, not by copying megabytes.
 
 ## How to use
 
@@ -32,8 +32,8 @@ fn export_csv() -> Response {
 
 ## How it works
 
-- `FrameworkBody::Bytes(Vec<u8>)` — owned body, clones copy all bytes
-- `FrameworkBody::Stream(Arc<Vec<u8>>)` — shared body, clones increment a reference count (atomic)
+- `Body::Bytes(Vec<u8>)` — owned body, clones copy all bytes
+- `Body::Stream(Arc<Vec<u8>>)` — shared body, clones increment a reference count (atomic)
 
 Middleware and interceptors that read the body can call `.as_bytes()` on either variant — they get a `&[u8]` slice regardless.
 

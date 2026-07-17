@@ -129,5 +129,5 @@ These are always available (no feature flag required):
 | Per-endpoint status metrics | `ironic_http_endpoint_status_total{status="2xx/4xx/5xx"}` |
 | Hot-reload config injection | `Reloadable<T>` — watch channel for runtime config updates |
 | Post-bootstrap overrides | `Container::with_override(provider)` — hot-swap providers |
-| Streaming body | `FrameworkBody::Stream(Arc<Vec<u8>>)` + `Response::from_stream()` |
+| Streaming body | `Body::Stream(Arc<Vec<u8>>)` + `Response::from_stream()` |
 | Dynamic module hooks | `OnModuleLoad` / `OnModuleUnload` — runtime module lifecycle |

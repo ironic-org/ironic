@@ -37,8 +37,8 @@ pub use pipes::{ParseBoolPipe, ParseFloatPipe, ParseIntPipe, parse_bool, parse_f
 pub use pipes::{ParseUUIDPipe, parse_uuid};
 #[cfg(feature = "validation")]
 pub use pipes::{ValidationPipe, validate};
-pub use request::{FrameworkRequest, RequestContext};
-pub use response::{FrameworkBody, FrameworkResponse, IntoFrameworkResponse, Json};
+pub use request::{Request, RequestContext};
+pub use response::{Body, Response, IntoResponse, Json};
 pub use route::{
     CompiledHttpApplication, CompiledRoute, ControllerDefinition, RouteDefinition, RouteError,
     RouteMetadata, WsGatewayDefinition, compile_controller_routes,
@@ -54,8 +54,3 @@ pub use http::StatusCode as HttpStatus;
 pub use http::Uri;
 /// HTTP headers used by transport-neutral requests and responses.
 pub use http::{HeaderMap, HeaderName, HeaderValue};
-
-/// Convenience alias for [`FrameworkResponse`].
-pub type Response = FrameworkResponse;
-/// Convenience alias for [`FrameworkRequest`].
-pub type Request = FrameworkRequest;

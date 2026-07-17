@@ -263,7 +263,7 @@ mod tests {
     use serde::Deserialize;
 
     use super::*;
-    use crate::{FrameworkRequest, HeaderMap, HttpMethod};
+    use crate::{Request, HeaderMap, HttpMethod};
 
     #[derive(Debug, Deserialize, Eq, PartialEq)]
     struct Query {
@@ -276,7 +276,7 @@ mod tests {
     }
 
     fn context(uri: &str, body: &[u8]) -> RequestContext {
-        RequestContext::new(FrameworkRequest::new(
+        RequestContext::new(Request::new(
             HttpMethod::POST,
             uri.parse::<Uri>().unwrap(),
             HeaderMap::new(),

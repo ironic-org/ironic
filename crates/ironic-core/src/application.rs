@@ -72,7 +72,7 @@ impl From<ModuleError> for ApplicationError {
 }
 
 /// Starts application construction from a root module and platform adapter.
-pub struct FrameworkApplicationBuilder<A = MissingPlatform> {
+pub struct ApplicationBuilder<A = MissingPlatform> {
     root: Option<RootModule>,
     overrides: Vec<ironic_di::ProviderDefinition>,
     middlewares: Vec<Arc<dyn Middleware>>,
@@ -105,7 +105,7 @@ impl ModuleConfigurationError {
     }
 }
 
-impl Default for FrameworkApplicationBuilder<MissingPlatform> {
+impl Default for ApplicationBuilder<MissingPlatform> {
     fn default() -> Self {
         Self {
             root: None,
@@ -117,7 +117,7 @@ impl Default for FrameworkApplicationBuilder<MissingPlatform> {
     }
 }
 
-impl<A> FrameworkApplicationBuilder<A> {
+impl<A> ApplicationBuilder<A> {
     /// Sets the explicit root module definition.
     #[must_use]
     pub fn module(mut self, module: ModuleDefinition) -> Self {
@@ -169,8 +169,8 @@ impl<A> FrameworkApplicationBuilder<A> {
 
     /// Selects a concrete HTTP platform adapter.
     #[must_use]
-    pub fn platform<B>(self, adapter: B) -> FrameworkApplicationBuilder<B> {
-        FrameworkApplicationBuilder {
+    pub fn platform<B>(self, adapter: B) -> ApplicationBuilder<B> {
+        ApplicationBuilder {
             root: self.root,
             overrides: self.overrides,
             middlewares: self.middlewares,
@@ -180,7 +180,7 @@ impl<A> FrameworkApplicationBuilder<A> {
     }
 }
 
-impl<A> FrameworkApplicationBuilder<A>
+impl<A> ApplicationBuilder<A>
 where
     A: HttpPlatformAdapter,
 {
@@ -191,7 +191,7 @@ where
     /// Returns [`ApplicationError`] when graph compilation, provider initialization, lifecycle
     /// callbacks, or platform construction fails. Successfully initialized lifecycle providers are
     /// destroyed before an error is returned.
-    pub async fn build(self) -> Result<FrameworkApplication<A::Application>, ApplicationError> {
+    pub async fn build(self) -> Result<Application<A::Application>, ApplicationError> {
         let root = match self.root.ok_or(ApplicationError::MissingRootModule)? {
             RootModule::Ready(module) => module,
             RootModule::Deferred(module) => {
@@ -245,7 +245,7 @@ where
             }
         };
 
-        Ok(FrameworkApplication {
+        Ok(Application {
             graph,
             container,
             platform,
@@ -255,22 +255,22 @@ where
 }
 
 /// A compiled and initialized application ready to listen.
-pub struct FrameworkApplication<P = ()> {
+pub struct Application<P = ()> {
     graph: CompiledApplicationGraph,
     container: Container,
     platform: P,
     initialized: Vec<InitializedLifecycle>,
 }
 
-impl FrameworkApplication<()> {
+impl Application<()> {
     /// Creates an empty application builder.
     #[must_use]
-    pub fn builder() -> FrameworkApplicationBuilder<MissingPlatform> {
-        FrameworkApplicationBuilder::default()
+    pub fn builder() -> ApplicationBuilder<MissingPlatform> {
+        ApplicationBuilder::default()
     }
 }
 
-impl<P> FrameworkApplication<P> {
+impl<P> Application<P> {
     /// Returns the validated application graph.
     #[must_use]
     pub const fn graph(&self) -> &CompiledApplicationGraph {
@@ -302,7 +302,7 @@ impl<P> FrameworkApplication<P> {
     }
 }
 
-impl<P> FrameworkApplication<P>
+impl<P> Application<P>
 where
     P: HttpPlatformApplication,
 {
@@ -338,7 +338,7 @@ where
     where
         F: Future<Output = ShutdownSignal> + Send + 'static,
     {
-        let FrameworkApplication {
+        let Application {
             platform,
             initialized,
             ..
@@ -748,7 +748,7 @@ mod tests {
     #[tokio::test]
     async fn runs_complete_lifecycle_in_deterministic_order() {
         let events = Arc::new(Mutex::new(Vec::new()));
-        let application = FrameworkApplication::builder()
+        let application = Application::builder()
             .module(test_module(&events, false))
             .platform(FakeAdapter {
                 events: Arc::clone(&events),
@@ -801,7 +801,7 @@ mod tests {
     #[tokio::test]
     async fn cleans_up_partially_initialized_applications() {
         let events = Arc::new(Mutex::new(Vec::new()));
-        let result = FrameworkApplication::builder()
+        let result = Application::builder()
             .module(test_module(&events, true))
             .platform(FakeAdapter {
                 events: Arc::clone(&events),
@@ -827,7 +827,7 @@ mod tests {
     #[tokio::test]
     async fn cleans_up_when_platform_build_fails() {
         let events = Arc::new(Mutex::new(Vec::new()));
-        let result = FrameworkApplication::builder()
+        let result = Application::builder()
             .module(test_module(&events, false))
             .platform(FakeAdapter {
                 events: Arc::clone(&events),
@@ -846,7 +846,7 @@ mod tests {
     #[tokio::test]
     async fn rejects_builders_without_a_root_module() {
         let events = Arc::new(Mutex::new(Vec::new()));
-        let result = FrameworkApplication::builder()
+        let result = Application::builder()
             .platform(FakeAdapter {
                 events,
                 fail_build: false,
@@ -859,7 +859,7 @@ mod tests {
     #[tokio::test]
     async fn asynchronously_configures_the_root_module() {
         let events = Arc::new(Mutex::new(Vec::new()));
-        let application = FrameworkApplication::builder()
+        let application = Application::builder()
             .module_async(async {
                 tokio::task::yield_now().await;
                 Ok(TestModule::definition())
@@ -879,7 +879,7 @@ mod tests {
     #[tokio::test]
     async fn reports_async_module_configuration_failures() {
         let events = Arc::new(Mutex::new(Vec::new()));
-        let result = FrameworkApplication::builder()
+        let result = Application::builder()
             .module_async(async {
                 Err(ModuleConfigurationError::new(
                     "remote configuration is unavailable",

@@ -8,7 +8,7 @@ use std::{
 
 use ironic_di::{ProviderDefinition, Scope};
 use ironic_http::{
-    ControllerDefinition, FrameworkResponse, HttpMethod, HttpStatus, RouteDefinition, handler_fn,
+    ControllerDefinition, Response, HttpMethod, HttpStatus, RouteDefinition, handler_fn,
 };
 use serde::Serialize;
 
@@ -259,7 +259,7 @@ impl Module for HealthModule {
                         "unhealthy" => HttpStatus::SERVICE_UNAVAILABLE,
                         _ => HttpStatus::OK,
                     };
-                    FrameworkResponse::json(status, &response)
+                    Response::json(status, &response)
                 },
             ),
         )
@@ -272,7 +272,7 @@ impl Module for HealthModule {
             "health_live",
             handler_fn(
                 |_controller: Arc<HealthController>, _arguments| async move {
-                    FrameworkResponse::json(
+                    Response::json(
                         HttpStatus::OK,
                         &LivenessResponse {
                             status: "alive".into(),
@@ -295,7 +295,7 @@ impl Module for HealthModule {
                         "unhealthy" | "degraded" => HttpStatus::SERVICE_UNAVAILABLE,
                         _ => HttpStatus::OK,
                     };
-                    FrameworkResponse::json(status, &response)
+                    Response::json(status, &response)
                 },
             ),
         )
@@ -309,7 +309,7 @@ impl Module for HealthModule {
             handler_fn(
                 |_controller: Arc<VersionController>, _arguments| async move {
                     let info = BuildInfo::capture();
-                    FrameworkResponse::json(HttpStatus::OK, &info)
+                    Response::json(HttpStatus::OK, &info)
                 },
             ),
         )

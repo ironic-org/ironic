@@ -5,7 +5,7 @@
 use std::sync::Arc;
 
 use ironic_http::{
-    FrameworkResponse, HttpMethod, HttpStatus, Middleware, MiddlewareNext, PipelineFuture,
+    Response, HttpMethod, HttpStatus, Middleware, MiddlewareNext, PipelineFuture,
     RequestContext,
 };
 
@@ -132,7 +132,7 @@ impl Middleware for CorsMiddleware {
                     .is_some();
 
             if is_preflight {
-                let mut response = FrameworkResponse::empty(HttpStatus::NO_CONTENT);
+                let mut response = Response::empty(HttpStatus::NO_CONTENT);
                 set_cors_headers(&mut response, &self.config, &origin);
                 return Ok(response);
             }
@@ -144,7 +144,7 @@ impl Middleware for CorsMiddleware {
     }
 }
 
-fn set_cors_headers(response: &mut FrameworkResponse, config: &CorsConfig, origin: &str) {
+fn set_cors_headers(response: &mut Response, config: &CorsConfig, origin: &str) {
     let headers = response.headers_mut();
     if config.allowed_origins.contains(&"*".to_owned()) && !config.allow_credentials {
         headers.insert(

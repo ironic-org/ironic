@@ -22,7 +22,7 @@ use ironic_http::{
 };
 
 pub use application::{
-    ApplicationError, FrameworkApplication, FrameworkApplicationBuilder, MissingPlatform,
+    ApplicationError, Application, ApplicationBuilder, MissingPlatform,
     ModuleConfigurationError,
 };
 pub use health::{

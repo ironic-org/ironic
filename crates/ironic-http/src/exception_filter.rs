@@ -2,7 +2,7 @@
 
 use std::sync::Arc;
 
-use crate::{FrameworkResponse, HttpError, RouteMetadata};
+use crate::{Response, HttpError, RouteMetadata};
 
 /// Request context available to exception filters.
 #[derive(Clone, Debug)]
@@ -40,7 +40,7 @@ pub trait ExceptionFilter: Send + Sync + 'static {
         &self,
         error: &HttpError,
         context: &FilterContext,
-    ) -> Result<FrameworkResponse, HttpError>;
+    ) -> Result<Response, HttpError>;
 }
 
 /// Extension trait for `Result<T, HttpError>` providing inline exception handling.
@@ -133,7 +133,7 @@ impl ExceptionFilterSet {
         &self,
         error: &HttpError,
         context: &FilterContext,
-    ) -> Option<Result<FrameworkResponse, HttpError>> {
+    ) -> Option<Result<Response, HttpError>> {
         for filter in &self.filters {
             let result = filter.catch(error, context);
             if let Ok(ref _resp) = result {

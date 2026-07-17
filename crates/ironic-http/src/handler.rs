@@ -2,13 +2,13 @@ use std::{any::type_name, future::Future, marker::PhantomData, pin::Pin, sync::A
 
 use ironic_di::ProviderValue;
 
-use crate::{FrameworkResponse, HttpError, IntoFrameworkResponse};
+use crate::{Response, HttpError, IntoResponse};
 
 use super::extract::ExtractedValue;
 
 /// The asynchronous result of erased handler invocation.
 pub type HandlerFuture =
-    Pin<Box<dyn Future<Output = Result<FrameworkResponse, HttpError>> + Send + 'static>>;
+    Pin<Box<dyn Future<Output = Result<Response, HttpError>> + Send + 'static>>;
 
 /// Extracted, type-erased arguments supplied to a controller handler adapter.
 pub struct HandlerArguments {
@@ -63,7 +63,7 @@ where
     C: Send + Sync + 'static,
     F: Fn(Arc<C>, HandlerArguments) -> Fut + Send + Sync + 'static,
     Fut: Future<Output = Result<R, HttpError>> + Send + 'static,
-    R: IntoFrameworkResponse + 'static,
+    R: IntoResponse + 'static,
 {
     fn call(&self, controller: ProviderValue, arguments: HandlerArguments) -> HandlerFuture {
         let Ok(controller) = controller.downcast::<C>() else {
@@ -86,7 +86,7 @@ where
     C: Send + Sync + 'static,
     F: Fn(Arc<C>, HandlerArguments) -> Fut + Send + Sync + 'static,
     Fut: Future<Output = Result<R, HttpError>> + Send + 'static,
-    R: IntoFrameworkResponse + 'static,
+    R: IntoResponse + 'static,
 {
     Arc::new(HandlerFn {
         function,

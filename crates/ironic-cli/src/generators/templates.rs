@@ -104,7 +104,7 @@ pub(crate) fn decorator(names: &Names) -> String {
 
 pub(crate) fn filter(names: &Names) -> String {
     format!(
-        "use ironic::{{ExceptionFilter, FilterContext, FrameworkResponse, HttpError, HttpStatus}};\n\npub struct {0}Filter;\n\nimpl ExceptionFilter for {0}Filter {{\n    fn catch(&self, error: &HttpError, _ctx: &FilterContext) -> Result<FrameworkResponse, HttpError> {{\n        Err(HttpError::bad_request(\"UNHANDLED\", error.message()))\n    }}\n}}\n",
+        "use ironic::{{ExceptionFilter, FilterContext, Response, HttpError, HttpStatus}};\n\npub struct {0}Filter;\n\nimpl ExceptionFilter for {0}Filter {{\n    fn catch(&self, error: &HttpError, _ctx: &FilterContext) -> Result<Response, HttpError> {{\n        Err(HttpError::bad_request(\"UNHANDLED\", error.message()))\n    }}\n}}\n",
         names.pascal
     )
 }

@@ -302,7 +302,7 @@ async fn main() {{
     let cors_origins = platform::config::env_json_array("CORS_ORIGINS");
     let rate_limit_max: u64 = platform::config::env_parsed("RATE_LIMIT_MAX", 100u64);
 
-    let application = FrameworkApplication::builder()
+    let application = Application::builder()
         .module(AppModule::definition())
         .middleware(GlobalExceptionMiddleware)
         .middleware(SecurityHeadersMiddleware::new(SecurityHeadersConfig::default()))

@@ -7,7 +7,7 @@ use crate::{HeaderMap, HeaderValue, HttpError, HttpStatus};
 /// An owned transport-neutral response body.
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
 #[non_exhaustive]
-pub enum FrameworkBody {
+pub enum Body {
     /// No response body.
     #[default]
     Empty,
@@ -17,7 +17,7 @@ pub enum FrameworkBody {
     Stream(Arc<Vec<u8>>),
 }
 
-impl FrameworkBody {
+impl Body {
     /// Returns the body as bytes.
     #[must_use]
     pub fn as_bytes(&self) -> &[u8] {
@@ -31,20 +31,20 @@ impl FrameworkBody {
 
 /// An owned transport-neutral HTTP response.
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub struct FrameworkResponse {
+pub struct Response {
     status: HttpStatus,
     headers: HeaderMap,
-    body: FrameworkBody,
+    body: Body,
 }
 
-impl FrameworkResponse {
+impl Response {
     /// Creates an empty response with `status`.
     #[must_use]
     pub fn empty(status: HttpStatus) -> Self {
         Self {
             status,
             headers: HeaderMap::new(),
-            body: FrameworkBody::Empty,
+            body: Body::Empty,
         }
     }
 
@@ -54,7 +54,7 @@ impl FrameworkResponse {
         Self {
             status,
             headers: HeaderMap::new(),
-            body: FrameworkBody::Bytes(body.into()),
+            body: Body::Bytes(body.into()),
         }
     }
 
@@ -64,7 +64,7 @@ impl FrameworkResponse {
         Self {
             status,
             headers: HeaderMap::new(),
-            body: FrameworkBody::Stream(body),
+            body: Body::Stream(body),
         }
     }
 
@@ -193,52 +193,52 @@ impl FrameworkResponse {
 
     /// Returns the response body.
     #[must_use]
-    pub const fn body(&self) -> &FrameworkBody {
+    pub const fn body(&self) -> &Body {
         &self.body
     }
 
     /// Splits the response into transport-owned parts.
     #[must_use]
-    pub fn into_parts(self) -> (HttpStatus, HeaderMap, FrameworkBody) {
+    pub fn into_parts(self) -> (HttpStatus, HeaderMap, Body) {
         (self.status, self.headers, self.body)
     }
 
     /// Replaces the response body.
-    pub fn set_body(&mut self, body: FrameworkBody) {
+    pub fn set_body(&mut self, body: Body) {
         self.body = body;
     }
 }
 
 /// Converts a handler result into a framework response.
-pub trait IntoFrameworkResponse {
+pub trait IntoResponse {
     /// Performs response conversion.
     ///
     /// # Errors
     ///
     /// Returns [`HttpError`] when conversion or serialization fails.
-    fn into_framework_response(self) -> Result<FrameworkResponse, HttpError>;
+    fn into_framework_response(self) -> Result<Response, HttpError>;
 }
 
-impl IntoFrameworkResponse for FrameworkResponse {
-    fn into_framework_response(self) -> Result<FrameworkResponse, HttpError> {
+impl IntoResponse for Response {
+    fn into_framework_response(self) -> Result<Response, HttpError> {
         Ok(self)
     }
 }
 
-impl IntoFrameworkResponse for () {
-    fn into_framework_response(self) -> Result<FrameworkResponse, HttpError> {
-        Ok(FrameworkResponse::empty(HttpStatus::NO_CONTENT))
+impl IntoResponse for () {
+    fn into_framework_response(self) -> Result<Response, HttpError> {
+        Ok(Response::empty(HttpStatus::NO_CONTENT))
     }
 }
 
-impl IntoFrameworkResponse for String {
-    fn into_framework_response(self) -> Result<FrameworkResponse, HttpError> {
-        Ok(FrameworkResponse::bytes(HttpStatus::OK, self))
+impl IntoResponse for String {
+    fn into_framework_response(self) -> Result<Response, HttpError> {
+        Ok(Response::bytes(HttpStatus::OK, self))
     }
 }
 
-impl IntoFrameworkResponse for &'static str {
-    fn into_framework_response(self) -> Result<FrameworkResponse, HttpError> {
+impl IntoResponse for &'static str {
+    fn into_framework_response(self) -> Result<Response, HttpError> {
         self.to_owned().into_framework_response()
     }
 }
@@ -247,18 +247,18 @@ impl IntoFrameworkResponse for &'static str {
 #[derive(Clone, Copy, Debug)]
 pub struct Json<T>(pub T);
 
-impl<T: Serialize> IntoFrameworkResponse for Json<T> {
-    fn into_framework_response(self) -> Result<FrameworkResponse, HttpError> {
-        FrameworkResponse::json(HttpStatus::OK, &self.0)
+impl<T: Serialize> IntoResponse for Json<T> {
+    fn into_framework_response(self) -> Result<Response, HttpError> {
+        Response::json(HttpStatus::OK, &self.0)
     }
 }
 
-impl<T, E> IntoFrameworkResponse for Result<T, E>
+impl<T, E> IntoResponse for Result<T, E>
 where
-    T: IntoFrameworkResponse,
-    E: IntoFrameworkResponse,
+    T: IntoResponse,
+    E: IntoResponse,
 {
-    fn into_framework_response(self) -> Result<FrameworkResponse, HttpError> {
+    fn into_framework_response(self) -> Result<Response, HttpError> {
         match self {
             Ok(value) => value.into_framework_response(),
             Err(error) => error.into_framework_response(),

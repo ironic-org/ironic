@@ -29,7 +29,7 @@ async fn main() {
         .and_then(|v| v.parse().ok())
         .unwrap_or(100);
 
-    let application = FrameworkApplication::builder()
+    let application = Application::builder()
         .module(AppModule::definition())
         .middleware(SecurityHeadersMiddleware::new(
             SecurityHeadersConfig::default(),

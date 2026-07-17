@@ -1,7 +1,7 @@
 use serde_json::Value;
 
 use crate::{
-    FrameworkBody, HttpError, Interceptor, InterceptorNext, PipelineFuture, RequestContext,
+    Body, HttpError, Interceptor, InterceptorNext, PipelineFuture, RequestContext,
 };
 
 /// A serialization rule for a single JSON field path.
@@ -126,9 +126,9 @@ impl Interceptor for SerializeInterceptor {
             }
 
             let body = match response.body() {
-                FrameworkBody::Bytes(bytes) => bytes.clone(),
-                FrameworkBody::Stream(bytes) => bytes.as_ref().clone(),
-                FrameworkBody::Empty => return Ok(response),
+                Body::Bytes(bytes) => bytes.clone(),
+                Body::Stream(bytes) => bytes.as_ref().clone(),
+                Body::Empty => return Ok(response),
             };
 
             let mut value: Value = serde_json::from_slice(&body).map_err(|e| {
@@ -148,7 +148,7 @@ impl Interceptor for SerializeInterceptor {
                 )
             })?;
 
-            response.set_body(FrameworkBody::Bytes(new_body));
+            response.set_body(Body::Bytes(new_body));
             Ok(response)
         })
     }
@@ -347,7 +347,7 @@ mod tests {
     }
 
     fn request_context() -> RequestContext {
-        RequestContext::new(crate::FrameworkRequest::new(
+        RequestContext::new(crate::Request::new(
             HttpMethod::GET,
             "/api".parse().unwrap(),
             HeaderMap::new(),
@@ -364,8 +364,8 @@ mod tests {
         let route = &app.routes()[0];
         let response = app.execute(route, &mut cx).await.unwrap();
         let body = match response.body() {
-            FrameworkBody::Bytes(b) => b.clone(),
-            FrameworkBody::Stream(b) => b.as_ref().clone(),
+            Body::Bytes(b) => b.clone(),
+            Body::Stream(b) => b.as_ref().clone(),
             _ => panic!("expected bytes body"),
         };
         let value: serde_json::Value = serde_json::from_slice(&body).unwrap();
@@ -385,8 +385,8 @@ mod tests {
         let route = &app.routes()[0];
         let response = app.execute(route, &mut cx).await.unwrap();
         let body = match response.body() {
-            FrameworkBody::Bytes(b) => b.clone(),
-            FrameworkBody::Stream(b) => b.as_ref().clone(),
+            Body::Bytes(b) => b.clone(),
+            Body::Stream(b) => b.as_ref().clone(),
             _ => panic!("expected bytes body"),
         };
         let value: serde_json::Value = serde_json::from_slice(&body).unwrap();
@@ -403,8 +403,8 @@ mod tests {
         let route = &app.routes()[0];
         let response = app.execute(route, &mut cx).await.unwrap();
         let body = match response.body() {
-            FrameworkBody::Bytes(b) => b.clone(),
-            FrameworkBody::Stream(b) => b.as_ref().clone(),
+            Body::Bytes(b) => b.clone(),
+            Body::Stream(b) => b.as_ref().clone(),
             _ => panic!("expected bytes body"),
         };
         let value: serde_json::Value = serde_json::from_slice(&body).unwrap();
@@ -420,8 +420,8 @@ mod tests {
         let route = &app.routes()[0];
         let response = app.execute(route, &mut cx).await.unwrap();
         let body = match response.body() {
-            FrameworkBody::Bytes(b) => b.clone(),
-            FrameworkBody::Stream(b) => b.as_ref().clone(),
+            Body::Bytes(b) => b.clone(),
+            Body::Stream(b) => b.as_ref().clone(),
             _ => panic!("expected bytes body"),
         };
         let value: serde_json::Value = serde_json::from_slice(&body).unwrap();

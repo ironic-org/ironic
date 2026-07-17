@@ -1,8 +1,8 @@
 use std::collections::HashMap;
 
 use ironic_http::{
-    CompiledHttpApplication, FrameworkRequest, FrameworkResponse, HeaderMap, HeaderName,
-    HeaderValue, HttpError, HttpMethod, HttpStatus, IntoFrameworkResponse, RequestContext, Uri,
+    CompiledHttpApplication, Request, Response, HeaderMap, HeaderName,
+    HeaderValue, HttpError, HttpMethod, HttpStatus, IntoResponse, RequestContext, Uri,
 };
 use serde::Serialize;
 
@@ -128,7 +128,7 @@ impl<'a> TestRequestBuilder<'a> {
                 format!("No route matches `{} {request_path}`", self.method),
             )));
         };
-        let request = FrameworkRequest::new(self.method, uri, self.headers, self.body)
+        let request = Request::new(self.method, uri, self.headers, self.body)
             .with_path_parameters(parameters);
         let mut context = RequestContext::new(request);
         let response = self
@@ -163,8 +163,8 @@ fn segments(path: &str) -> Vec<&str> {
         .collect()
 }
 
-fn error_response(error: HttpError) -> FrameworkResponse {
+fn error_response(error: HttpError) -> Response {
     error
         .into_framework_response()
-        .unwrap_or_else(|_| FrameworkResponse::empty(HttpStatus::INTERNAL_SERVER_ERROR))
+        .unwrap_or_else(|_| Response::empty(HttpStatus::INTERNAL_SERVER_ERROR))
 }

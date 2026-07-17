@@ -26,7 +26,7 @@ async fn main() {
     //   #[guard(RoleGuard::new(&["admin"]))]
     //   ControllerDefinition::new(...).middleware(CorsMiddleware::new(cors))
 
-    let application = FrameworkApplication::builder()
+    let application = Application::builder()
         .module(AppModule::definition())
         .platform(
             AxumAdapter::new()

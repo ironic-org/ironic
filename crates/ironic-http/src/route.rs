@@ -8,7 +8,7 @@ use std::{
 use ironic_di::{Container, Dependency, ProviderDefinition, ProviderKey, ProviderValue};
 
 use crate::{
-    ErasedHandler, FrameworkResponse, Guard, HandlerArguments, HttpError, HttpMethod, Interceptor,
+    ErasedHandler, Response, Guard, HandlerArguments, HttpError, HttpMethod, Interceptor,
     Middleware, ParameterExtractor, ParameterPipe, PipelineComponents, RequestContext,
     VersionMetadata,
 };
@@ -531,7 +531,7 @@ impl CompiledRoute {
         &self,
         controller: ProviderValue,
         context: &mut RequestContext,
-    ) -> Result<FrameworkResponse, HttpError> {
+    ) -> Result<Response, HttpError> {
         let mut arguments = Vec::with_capacity(self.parameters.len());
         for parameter in &self.parameters {
             let mut value = parameter.extractor.extract(context).await?;
@@ -669,7 +669,7 @@ impl CompiledHttpApplication {
         &self,
         route: &CompiledRoute,
         context: &mut RequestContext,
-    ) -> Result<FrameworkResponse, HttpError> {
+    ) -> Result<Response, HttpError> {
         if context.extension::<crate::RequestScope>().is_none() {
             context.insert_extension(self.container.request_scope());
         }

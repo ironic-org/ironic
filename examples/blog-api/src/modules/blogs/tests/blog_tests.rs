@@ -1,4 +1,4 @@
-use ironic::{ExceptionFilter, FilterContext, FrameworkResponse, HttpError, HttpStatus};
+use ironic::{ExceptionFilter, FilterContext, Response, HttpError, HttpStatus};
 use std::sync::Arc;
 
 use crate::modules::blogs::dto::CreateBlogDto;
@@ -19,14 +19,14 @@ impl ExceptionFilter for DemoNotFoundFilter {
         &self,
         error: &HttpError,
         _ctx: &FilterContext,
-    ) -> Result<FrameworkResponse, HttpError> {
+    ) -> Result<Response, HttpError> {
         if error.status() == HttpStatus::NOT_FOUND {
             let body = ironic::json::json!({
                 "error": error.code(),
                 "message": error.message(),
                 "status": 404,
             });
-            Ok(FrameworkResponse::json(HttpStatus::NOT_FOUND, &body)?)
+            Ok(Response::json(HttpStatus::NOT_FOUND, &body)?)
         } else {
             Err(error.clone())
         }
@@ -45,7 +45,7 @@ async fn test_exception_filter_catches_not_found() {
         "exception_demo",
         handler_fn(|_controller: Arc<BlogService>, _arguments| {
             async move {
-                Err::<FrameworkResponse, HttpError>(HttpError::not_found(
+                Err::<Response, HttpError>(HttpError::not_found(
                     "POST_NOT_FOUND",
                     "Post 42 was not found",
                 ))

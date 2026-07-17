@@ -6,7 +6,7 @@ use crate::{HeaderMap, HttpMethod, RouteMetadata, Uri};
 
 /// An owned, transport-neutral HTTP request.
 #[derive(Debug)]
-pub struct FrameworkRequest {
+pub struct Request {
     method: HttpMethod,
     uri: Uri,
     headers: HeaderMap,
@@ -14,7 +14,7 @@ pub struct FrameworkRequest {
     body: Vec<u8>,
 }
 
-impl FrameworkRequest {
+impl Request {
     /// Creates a request from transport-owned parts.
     #[must_use]
     pub fn new(method: HttpMethod, uri: Uri, headers: HeaderMap, body: Vec<u8>) -> Self {
@@ -73,7 +73,7 @@ impl FrameworkRequest {
 
 /// Mutable request state passed through extraction and handler dispatch.
 pub struct RequestContext {
-    request: FrameworkRequest,
+    request: Request,
     extensions: Extensions,
     route_metadata: Option<RouteMetadata>,
 }
@@ -90,7 +90,7 @@ impl std::fmt::Debug for RequestContext {
 impl RequestContext {
     /// Creates a context for a framework request.
     #[must_use]
-    pub fn new(request: FrameworkRequest) -> Self {
+    pub fn new(request: Request) -> Self {
         Self {
             request,
             extensions: Extensions::new(),
@@ -111,13 +111,13 @@ impl RequestContext {
 
     /// Returns the transport-neutral request.
     #[must_use]
-    pub const fn request(&self) -> &FrameworkRequest {
+    pub const fn request(&self) -> &Request {
         &self.request
     }
 
     /// Returns mutable access to the transport-neutral request.
     #[must_use]
-    pub const fn request_mut(&mut self) -> &mut FrameworkRequest {
+    pub const fn request_mut(&mut self) -> &mut Request {
         &mut self.request
     }
 

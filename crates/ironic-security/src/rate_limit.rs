@@ -14,7 +14,7 @@ use std::{
 };
 
 use ironic_http::{
-    FrameworkResponse, HttpStatus, Middleware, MiddlewareNext, PipelineFuture, RequestContext,
+    Response, HttpStatus, Middleware, MiddlewareNext, PipelineFuture, RequestContext,
 };
 
 /// Type alias for rate limit key resolver functions.
@@ -301,7 +301,7 @@ impl Middleware for RateLimitMiddleware {
                 .await;
 
             if !result.allowed {
-                let mut response = FrameworkResponse::error(
+                let mut response = Response::error(
                     HttpStatus::TOO_MANY_REQUESTS,
                     ironic_core::error_codes::codes::RATE_LIMIT_EXCEEDED,
                     "Too many requests, please try again later",

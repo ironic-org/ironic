@@ -1,13 +1,13 @@
 use std::{any::type_name, fmt, future::Future, marker::PhantomData, pin::Pin, sync::Arc};
 
 use crate::{
-    CompiledHttpApplication, CompiledRoute, ExceptionFilterSet, ExtractedValue, FrameworkResponse,
+    CompiledHttpApplication, CompiledRoute, ExceptionFilterSet, ExtractedValue, Response,
     HttpError, RequestContext,
 };
 
 /// The asynchronous result of middleware or interceptor execution.
 pub type PipelineFuture<'a> =
-    Pin<Box<dyn Future<Output = Result<FrameworkResponse, HttpError>> + Send + 'a>>;
+    Pin<Box<dyn Future<Output = Result<Response, HttpError>> + Send + 'a>>;
 
 /// The asynchronous result of guard evaluation.
 pub type GuardFuture<'a> =
@@ -224,7 +224,7 @@ pub(crate) async fn execute(
     application: &CompiledHttpApplication,
     route: &CompiledRoute,
     context: &mut RequestContext,
-) -> Result<FrameworkResponse, HttpError> {
+) -> Result<Response, HttpError> {
     context.set_route_metadata(route.metadata().clone());
     let state = ExecutionState { application, route };
     match run_middleware(&state, 0, context).await {
@@ -379,8 +379,8 @@ mod tests {
 
     use super::*;
     use crate::{
-        ControllerDefinition, ExtractFuture, FrameworkRequest, HeaderMap, HttpMethod, HttpStatus,
-        IntoFrameworkResponse, ParameterExtractor, RouteDefinition, Uri, compile_controller_routes,
+        ControllerDefinition, ExtractFuture, Request, HeaderMap, HttpMethod, HttpStatus,
+        IntoResponse, ParameterExtractor, RouteDefinition, Uri, compile_controller_routes,
         handler_fn, parse_int,
     };
 
@@ -589,7 +589,7 @@ mod tests {
                             "handler failed",
                         ))
                     } else {
-                        Ok(FrameworkResponse::empty(HttpStatus::NO_CONTENT))
+                        Ok(Response::empty(HttpStatus::NO_CONTENT))
                     }
                 }
             }),
@@ -663,7 +663,7 @@ mod tests {
     }
 
     fn request_context() -> RequestContext {
-        RequestContext::new(FrameworkRequest::new(
+        RequestContext::new(Request::new(
             HttpMethod::GET,
             "/pipeline".parse::<Uri>().unwrap(),
             HeaderMap::new(),
@@ -671,7 +671,7 @@ mod tests {
         ))
     }
 
-    async fn run(stage: FailureStage) -> (Result<FrameworkResponse, HttpError>, Vec<&'static str>) {
+    async fn run(stage: FailureStage) -> (Result<Response, HttpError>, Vec<&'static str>) {
         let (application, events) = fixture(stage);
         let mut context = request_context();
         let result = application
@@ -846,7 +846,7 @@ mod tests {
                 async move {
                     push(&events, "handler");
                     let _value = arguments.take::<u64>(0)?;
-                    Ok(FrameworkResponse::empty(HttpStatus::NO_CONTENT))
+                    Ok(Response::empty(HttpStatus::NO_CONTENT))
                 }
             }),
         )
@@ -947,7 +947,7 @@ mod tests {
                 async move {
                     push(&events, "handler");
                     let _value = arguments.take::<u64>(0)?;
-                    Ok(FrameworkResponse::empty(HttpStatus::NO_CONTENT))
+                    Ok(Response::empty(HttpStatus::NO_CONTENT))
                 }
             }),
         )
@@ -995,10 +995,10 @@ mod tests {
             &self,
             error: &HttpError,
             _context: &crate::FilterContext,
-        ) -> Result<FrameworkResponse, HttpError> {
+        ) -> Result<Response, HttpError> {
             push(&self.events, self.code);
             if self.handled && error.code() == self.code {
-                Ok(FrameworkResponse::empty(HttpStatus::IM_A_TEAPOT))
+                Ok(Response::empty(HttpStatus::IM_A_TEAPOT))
             } else {
                 Err(HttpError::bad_request("UNHANDLED", "not handled"))
             }
@@ -1018,7 +1018,7 @@ mod tests {
                 let events = Arc::clone(&handler_events);
                 async move {
                     push(&events, "handler");
-                    Err::<FrameworkResponse, HttpError>(HttpError::internal(
+                    Err::<Response, HttpError>(HttpError::internal(
                         "SPECIFIC_ERROR",
                         "specific error",
                     ))
@@ -1064,7 +1064,7 @@ mod tests {
                 let events = Arc::clone(&handler_events);
                 async move {
                     push(&events, "handler");
-                    let err: Result<FrameworkResponse, HttpError> =
+                    let err: Result<Response, HttpError> =
                         Err(HttpError::internal("SPECIFIC_ERROR", "specific error"));
                     err
                 }
@@ -1118,7 +1118,7 @@ mod tests {
                 let events = Arc::clone(&handler_events);
                 async move {
                     push(&events, "handler");
-                    let err: Result<FrameworkResponse, HttpError> =
+                    let err: Result<Response, HttpError> =
                         Err(HttpError::internal("SPECIFIC_ERROR", "specific error"));
                     err
                 }
@@ -1175,7 +1175,7 @@ mod tests {
                 let events = Arc::clone(&handler_events);
                 async move {
                     push(&events, "handler");
-                    let err: Result<FrameworkResponse, HttpError> =
+                    let err: Result<Response, HttpError> =
                         Err(HttpError::internal("ROUTE_FILTER", "route filter error"));
                     err
                 }
@@ -1231,10 +1231,10 @@ mod tests {
                 &self,
                 _error: &HttpError,
                 context: &crate::FilterContext,
-            ) -> Result<FrameworkResponse, HttpError> {
+            ) -> Result<Response, HttpError> {
                 push(&self.events, "filter_executed");
                 let _metadata = context.route_metadata();
-                Ok(FrameworkResponse::empty(HttpStatus::IM_A_TEAPOT))
+                Ok(Response::empty(HttpStatus::IM_A_TEAPOT))
             }
         }
 
@@ -1249,7 +1249,7 @@ mod tests {
                 let events = Arc::clone(&handler_events);
                 async move {
                     push(&events, "handler");
-                    let err: Result<FrameworkResponse, HttpError> =
+                    let err: Result<Response, HttpError> =
                         Err(HttpError::internal("METADATA_ERROR", "metadata error"));
                     err
                 }
@@ -1328,7 +1328,7 @@ mod tests {
                     push(&events, "handler");
                     let value = arguments.take::<String>(0).unwrap();
                     assert_eq!(value, "custom-decorator-value");
-                    Ok(FrameworkResponse::empty(HttpStatus::NO_CONTENT))
+                    Ok(Response::empty(HttpStatus::NO_CONTENT))
                 }
             }),
         )
@@ -1370,7 +1370,7 @@ mod tests {
                     push(&events, "handler");
                     let value = arguments.take::<i64>(0).unwrap();
                     assert_eq!(value, 42);
-                    Ok(FrameworkResponse::empty(HttpStatus::NO_CONTENT))
+                    Ok(Response::empty(HttpStatus::NO_CONTENT))
                 }
             }),
         )
@@ -1408,7 +1408,7 @@ mod tests {
             "/custom-pipe-fail",
             "custom_pipe_fail",
             handler_fn(|_controller: Arc<Controller>, _arguments| async move {
-                Ok::<_, HttpError>(FrameworkResponse::empty(HttpStatus::NO_CONTENT))
+                Ok::<_, HttpError>(Response::empty(HttpStatus::NO_CONTENT))
             }),
         )
         .unwrap()

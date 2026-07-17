@@ -1,6 +1,6 @@
 ---
 title: "Asynchronous Module Configuration — deferred root modules from remote sources"
-description: "How Ironic's FrameworkApplicationBuilder::module_async() lets you load configuration from secrets managers, service discovery, or remote APIs before the module graph is compiled."
+description: "How Ironic's ApplicationBuilder::module_async() lets you load configuration from secrets managers, service discovery, or remote APIs before the module graph is compiled."
 date: "2026-07-15"
 author: "Ironic Team"
 ---
@@ -64,7 +64,7 @@ It accepts any future that returns `Result<ModuleDefinition, ModuleConfiguration
 The magic happens in `.build()` at line 182 — and notice that `.build()` is now `async`:
 
 ```rust
-pub async fn build(self) -> Result<FrameworkApplication<A::Application>, ApplicationError> {
+pub async fn build(self) -> Result<Application<A::Application>, ApplicationError> {
     let root = match self.root.ok_or(ApplicationError::MissingRootModule)? {
         RootModule::Ready(module) => module,
         RootModule::Deferred(module) => {
@@ -114,7 +114,7 @@ Here's a concrete pattern for loading database credentials from a secrets manage
 ```rust
 use ironic_core::application::ModuleConfigurationError;
 
-FrameworkApplication::builder()
+Application::builder()
     .module_async(async {
         let secret = aws_sdk_secretsmanager::Client::new(&config)
             .get_secret_value()

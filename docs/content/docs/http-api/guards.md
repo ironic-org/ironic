@@ -167,24 +167,34 @@ CompiledHttpApplication::new(container, routes)
 ### Controller — applied to all routes in a controller
 
 ```rust
-use ironic::ControllerDefinition;
+use ironic::prelude::*;
 
-ControllerDefinition::new::<MyController>("/users", provider)
-    .unwrap()
-    .guard(RoleGuard::new(&["admin"]));
+#[controller("/users")]
+#[guard(RoleGuard::new(&["admin"]))]
+#[derive(Injectable)]
+struct UserController;
 ```
 
 ### Route — applied to a single route
 
 ```rust
-use ironic::{RouteDefinition, HttpMethod, handler_fn};
+use ironic::prelude::*;
 
-RouteDefinition::new(HttpMethod::GET, "/admin/dashboard", "admin_dashboard", handler_fn(admin_handler))
-    .unwrap()
-    .guard(RoleGuard::new(&["admin"]));
+#[controller("/admin")]
+#[derive(Injectable)]
+struct AdminController;
+
+#[routes]
+impl AdminController {
+    #[get("/dashboard")]
+    #[guard(RoleGuard::new(&["admin"]))]
+    async fn dashboard(&self) -> Result<Json<Dashboard>, HttpError> {
+        // ...
+    }
+}
 ```
 
-### Attribute macro — applied with `#[use_guard]`
+### Attribute macro — applied with `#[guard]`
 
 On a controller struct (applies to all routes) or on individual route methods:
 
@@ -193,20 +203,20 @@ use ironic::prelude::*;
 
 #[controller("/auth")]
 #[derive(Injectable)]
-#[use_guard(ApiKeyGuard::new(&["sk-master"]))]   // ← applies to every route
+#[guard(ApiKeyGuard::new(&["sk-master"]))]   // ← applies to every route
 pub struct AuthController { }
 
 #[routes]
 impl AuthController {
     #[get("/me")]
-    #[use_guard(AuthGuard)]                        // ← applies only to this route
+    #[guard(AuthGuard)]                        // ← applies only to this route
     async fn me(&self) -> Result<Json<User>, HttpError> {
         // ...
     }
 }
 ```
 
-> `#[use_guard(...)]` accepts any expression that evaluates to a type implementing `Guard`. Multiple `#[use_guard]` attributes on the same item add guards in the order they appear.
+> `#[guard(...)]` accepts any expression that evaluates to a type implementing `Guard`. Multiple `#[guard]` attributes on the same item add guards in the order they appear.
 
 ## Guard vs Middleware — when to use which
 
@@ -224,7 +234,7 @@ Rule of thumb: **if you only need to say "yes" or "no" to a request, use a guard
 
 ## Guards in the request lifecycle
 
-1. **Request arrives.** Platform adapter builds a `FrameworkRequest`.
+1. **Request arrives.** Platform adapter builds a `Request`.
 2. **Middleware executes.** Each middleware wraps the remaining pipeline — it can short-circuit before guards run.
 3. **Guards execute.** All guards (global → controller → route → attribute) run sequentially. If any returns `Deny`, the framework immediately returns `403 Forbidden` with error code `RF_HTTP_GUARD_DENIED`. No interceptor, parameter extraction, pipes, or handler code runs.
 4. **Interceptors execute.** Only reached if all guards `Allow`.
@@ -248,7 +258,7 @@ A guard returning `Err(_)` behaves like any pipeline error — it bypasses the s
 | Guard registered but not running | Check registration order and that no earlier guard is denying |
 | Trying to modify the response from a guard | Guards can only Allow/Deny — use middleware or interceptors instead |
 | Returning `Err(...)` instead of `Deny` for auth failures | Prefer `GuardDecision::Deny` for authorization failures; `Err` is for unexpected guard errors |
-| `#[use_guard]` on a struct without `Guard` trait | Make sure the type passed to `#[use_guard(...)]` implements `Guard` |
+| `#[guard]` on a struct without `Guard` trait | Make sure the type passed to `#[guard(...)]` implements `Guard` |
 
 ## What you learned
 
@@ -256,6 +266,6 @@ A guard returning `Err(_)` behaves like any pipeline error — it bypasses the s
 - [x] Implement custom guards by implementing the `Guard` trait with one async method
 - [x] Return `GuardDecision::Allow` to continue or `Deny` to 403
 - [x] Use `RequestContext` extensions to pass data between guards and handlers
-- [x] Register guards globally, per-controller, per-route, or with `#[use_guard]`
+- [x] Register guards globally, per-controller, per-route, or with `#[guard]`
 - [x] All guards at all levels must Allow for the handler to be invoked
 - [x] Choose guards for auth decisions, middleware for response transformation

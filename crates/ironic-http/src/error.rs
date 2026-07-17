@@ -2,7 +2,7 @@
 use std::sync::Arc;
 use std::{error::Error, fmt};
 
-use crate::{FrameworkResponse, HttpStatus, IntoFrameworkResponse};
+use crate::{HttpStatus, IntoResponse, Response};
 
 /// A safe, structured HTTP request or handler failure.
 #[derive(Clone, Debug)]
@@ -119,8 +119,8 @@ impl fmt::Display for HttpError {
 
 impl Error for HttpError {}
 
-impl IntoFrameworkResponse for HttpError {
-    fn into_framework_response(self) -> Result<FrameworkResponse, HttpError> {
+impl IntoResponse for HttpError {
+    fn into_framework_response(self) -> Result<Response, HttpError> {
         #[cfg(feature = "backtrace")]
         if cfg!(debug_assertions)
             && let Some(backtrace) = self.backtrace
@@ -139,12 +139,8 @@ impl IntoFrameworkResponse for HttpError {
                 message: self.message,
                 backtrace: backtrace.to_string(),
             };
-            return FrameworkResponse::json(self.status, &body);
+            return Response::json(self.status, &body);
         }
-        Ok(FrameworkResponse::error(
-            self.status,
-            self.code,
-            self.message,
-        ))
+        Ok(Response::error(self.status, self.code, self.message))
     }
 }

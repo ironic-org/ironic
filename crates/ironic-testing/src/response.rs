@@ -1,13 +1,13 @@
-use ironic_http::{FrameworkResponse, HeaderMap, HttpStatus};
+use ironic_http::{HeaderMap, HttpStatus, Response};
 use serde::{Serialize, de::DeserializeOwned};
 
 /// An in-process response with typed accessors and focused assertions.
 pub struct TestResponse {
-    response: FrameworkResponse,
+    response: Response,
 }
 
 impl TestResponse {
-    pub(crate) const fn new(response: FrameworkResponse) -> Self {
+    pub(crate) const fn new(response: Response) -> Self {
         Self { response }
     }
 
@@ -96,7 +96,7 @@ impl TestResponse {
 
     /// Consumes the wrapper and returns the framework response.
     #[must_use]
-    pub fn into_inner(self) -> FrameworkResponse {
+    pub fn into_inner(self) -> Response {
         self.response
     }
 }

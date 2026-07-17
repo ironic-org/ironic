@@ -1,4 +1,4 @@
-error: route parameters require one of `#[body]`, `#[form]`, `#[query]`, `#[param]`, `#[header]`, or `#[custom(ExtractorType)]`
+error: route parameters require one of `#[body]`, `#[form]`, `#[query]`, `#[param]`, `#[header]`, or `#[decorator(ExtractorType)]`
   --> crates/ironic/tests/ui/fail/missing_extractor.rs:11:29
    |
 11 |     async fn invalid(&self, value: String) -> Result<(), HttpError> {

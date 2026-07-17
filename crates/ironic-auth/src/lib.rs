@@ -3,8 +3,8 @@
 use std::{future::Future, pin::Pin, sync::Arc};
 
 use crate::{
-    FrameworkRequest, Guard, GuardDecision, GuardFuture, HttpError, Middleware, MiddlewareNext,
-    PipelineFuture, RequestContext,
+    Guard, GuardDecision, GuardFuture, HttpError, Middleware, MiddlewareNext, PipelineFuture,
+    Request, RequestContext,
 };
 
 /// The upstream Argon2 password-hashing API.
@@ -104,7 +104,7 @@ impl<P> AuthContext<P> {
 /// Converts request credentials into an application principal.
 pub trait Authenticator<P>: Send + Sync + 'static {
     /// Authenticates one request. `Ok(None)` represents an anonymous request.
-    fn authenticate<'a>(&'a self, request: &'a FrameworkRequest) -> AuthenticationFuture<'a, P>;
+    fn authenticate<'a>(&'a self, request: &'a Request) -> AuthenticationFuture<'a, P>;
 }
 
 /// Middleware that authenticates a request and stores [`AuthContext`].
@@ -242,7 +242,7 @@ impl<P: Authorizable> Guard for RequireAccess<P> {
 /// # Errors
 ///
 /// Returns [`AuthError::Unauthorized`] when an authorization header is malformed.
-pub fn bearer_token(request: &FrameworkRequest) -> Result<Option<&str>, AuthError> {
+pub fn bearer_token(request: &Request) -> Result<Option<&str>, AuthError> {
     let Some(value) = request.headers().get(http::header::AUTHORIZATION) else {
         return Ok(None);
     };

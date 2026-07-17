@@ -22,14 +22,14 @@ async fn main() {
     let addr = platform::config::server_address();
     let cors_origins: Vec<String> = std::env::var("CORS_ORIGINS")
         .ok()
-        .and_then(|v| serde_json::from_str(&v).ok())
+        .and_then(|v| ironic::json::from_str(&v).ok())
         .unwrap_or_default();
     let rate_limit_max: u64 = std::env::var("RATE_LIMIT_MAX")
         .ok()
         .and_then(|v| v.parse().ok())
         .unwrap_or(100);
 
-    let application = FrameworkApplication::builder()
+    let application = Application::builder()
         .module(AppModule::definition())
         .middleware(SecurityHeadersMiddleware::new(
             SecurityHeadersConfig::default(),
@@ -49,7 +49,7 @@ async fn main() {
         .await
         .expect("application must initialise");
 
-    tracing::info!(
+    ironic::logging::log::info!(
         "blog-api → http://{} (ironic v{})",
         addr,
         env!("CARGO_PKG_VERSION")

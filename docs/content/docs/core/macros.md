@@ -11,7 +11,7 @@ description: Complete reference for every Ironic macro and attribute — Injecta
 - How `#[derive(Module)]` and `#[derive(Injectable)]` wire up the DI container
 - How to declare routes with `#[get]`, `#[post]`, and the full HTTP verb set
 - How to extract path params, query strings, JSON bodies, and headers
-- How to attach guards and interceptors with `#[use_guard]` / `#[use_interceptor]`
+- How to attach guards and interceptors with `#[guard]` / `#[interceptor]`
 - How `#[ironic::main]` and `#[web_socket_gateway]` work
 
 ---
@@ -171,23 +171,26 @@ async fn show(
 
 ## Pipeline attributes
 
-### `#[use_guard]` and `#[use_interceptor]`
+### `#[guard]`, `#[interceptor]`, and `#[middleware]`
 
-Attach guards and interceptors at the controller or route level:
+Attach guards, interceptors, and middleware at the controller or route level:
 
 ```rust
 #[controller("/admin")]
-#[use_guard(AuthGuard)]
-#[use_interceptor(LoggingInterceptor)]
+#[guard(AuthGuard)]
+#[interceptor(LoggingInterceptor)]
+#[middleware(RateLimitMiddleware::new(100))]
 #[derive(Injectable)]
 pub struct AdminController { ... }
 ```
 
-Guards run **before** the handler and can short-circuit with an error. Interceptors **wrap** handler execution (before + after). Both can be placed on the struct (controller-level) or individual route methods (route-level).
+`#[guard]`, `#[interceptor]`, and `#[middleware]` also work on individual route methods. Exception filters use `.exception_filter(...)` builder-style on route definitions.
+
+Guards run **before** the handler and can short-circuit with an error. Interceptors **wrap** handler execution (before + after). Middleware wraps the full request lifecycle.
 
 **Common mistakes:**
 - Forgetting to register the guard/interceptor as a provider — they must be in `providers` to be resolved.
-- Attaching `#[use_guard]` to a method expecting a different guard signature — type mismatch at compile time.
+- Attaching `#[guard]` to a method expecting a different guard signature — type mismatch at compile time.
 
 ---
 
@@ -200,7 +203,7 @@ Wraps an `async fn main()` with Ironic's Tokio runtime and bootstrap machinery:
 ```rust
 #[ironic::main]
 async fn main() {
-    FrameworkApplication::builder()
+    Application::builder()
         .module(AppModule::definition())
         .platform(AxumAdapter::new())
         .build().await.unwrap()
@@ -246,7 +249,7 @@ The macro registers the WebSocket upgrade handler at the given path. Message han
 ## Try it yourself
 
 1. Create a `#[controller("/api")]` with a `#[get("/health")]` route
-2. Add `#[use_guard]` that checks for a custom header
+2. Add `#[guard]` that checks for a custom header
 3. Extract a `#[query]` parameter and echo it back in the response
 4. Register the controller, guard, and module in `AppModule`
 
@@ -257,7 +260,7 @@ The macro registers the WebSocket upgrade handler at the given path. Message han
 - [x] `#[controller("/prefix")]` + `#[routes]` declare HTTP endpoints
 - [x] `#[get]`, `#[post]`, `#[put]`, `#[delete]`, `#[patch]`, `#[head]`, `#[options]` map HTTP verbs
 - [x] `#[param]`, `#[body]`, `#[form]`, `#[query]`, `#[header]` extract request data
-- [x] `#[use_guard]` and `#[use_interceptor]` plug into the request pipeline
+- [x] `#[guard]` and `#[interceptor]` plug into the request pipeline
 - [x] `#[ironic::main]` sets up the async runtime
 - [x] `#[web_socket_gateway]` + `#[subscribe_message]` handle WebSocket connections
 

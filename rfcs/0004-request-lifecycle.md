@@ -63,7 +63,7 @@ Validation failures use status 422 by default. Syntax or decoding failures use s
 
 ## Errors
 
-Every stage returns `Result<FrameworkResponse, FrameworkError>`. User error types are converted into a framework error or response at the handler adapter boundary.
+Every stage returns `Result<Response, AppError>`. User error types are converted into a framework error or response at the handler adapter boundary.
 
 Error mapping occurs once, after framework middleware unwinds. Consequently:
 

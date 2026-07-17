@@ -34,8 +34,7 @@ use ironic::{VersionMetadata, VersioningStrategy};
 struct ItemsController { /* ... */ }
 
 // v2 version of the same controller
-ControllerDefinition::new::<ItemsController>("/items", provider)
-    .unwrap()
+ItemsController::controller_definition()
     .version(VersionMetadata::new("2", VersioningStrategy::Uri))
     // Creates: /v2/items
 ```
@@ -52,8 +51,7 @@ curl http://localhost:3000/v2/items       # → v2 response
 Clients specify the version in a request header:
 
 ```rust
-ControllerDefinition::new::<ItemsController>("/items", provider)
-    .unwrap()
+ItemsController::controller_definition()
     .version(VersionMetadata::new("2", VersioningStrategy::Header))
     // Matches: Accept-Version: 2
 ```
@@ -68,8 +66,7 @@ curl http://localhost:3000/items                            # → v1 (default)
 Clients specify the version in the Accept header:
 
 ```rust
-ControllerDefinition::new::<ItemsController>("/items", provider)
-    .unwrap()
+ItemsController::controller_definition()
     .version(VersionMetadata::new("2", VersioningStrategy::MediaType))
     // Matches: Accept: application/vnd.myapp.v2+json
 ```
@@ -79,12 +76,10 @@ ControllerDefinition::new::<ItemsController>("/items", provider)
 You can register the same controller multiple times with different versions:
 
 ```rust
-let v1 = ControllerDefinition::new::<ItemsController>("/items", provider.clone())
-    .unwrap()
+let v1 = ItemsController::controller_definition()
     .version(VersionMetadata::new("1", VersioningStrategy::Uri));
 
-let v2 = ControllerDefinition::new::<ItemsController>("/items", provider)
-    .unwrap()
+let v2 = ItemsController::controller_definition()
     .version(VersionMetadata::new("2", VersioningStrategy::Uri));
 ```
 

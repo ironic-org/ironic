@@ -1,4 +1,4 @@
 {
   "title": "Observability",
-  "pages": ["overview", "metrics", "tracing", "health-checks", "logging"]
+  "pages": ["overview", "metrics", "error-metrics", "tracing", "health-checks", "logging", "operational-endpoints"]
 }

@@ -8,8 +8,8 @@ use std::{
 use ironic_di::{Container, Dependency, ProviderDefinition, ProviderKey, ProviderValue};
 
 use crate::{
-    ErasedHandler, FrameworkResponse, Guard, HandlerArguments, HttpError, HttpMethod, Interceptor,
-    Middleware, ParameterExtractor, ParameterPipe, PipelineComponents, RequestContext,
+    ErasedHandler, Guard, HandlerArguments, HttpError, HttpMethod, Interceptor, Middleware,
+    ParameterExtractor, ParameterPipe, PipelineComponents, RequestContext, Response,
     VersionMetadata,
 };
 
@@ -99,6 +99,8 @@ pub struct RouteDefinition {
     handler: Arc<dyn ErasedHandler>,
     pipeline: PipelineComponents,
     metadata: RouteMetadata,
+    /// Per-route request timeout. Overrides the global timeout for this route.
+    pub(crate) timeout: Option<std::time::Duration>,
 }
 
 impl RouteDefinition {
@@ -122,7 +124,15 @@ impl RouteDefinition {
             handler,
             pipeline: PipelineComponents::new(),
             metadata: RouteMetadata::new(),
+            timeout: None,
         })
+    }
+
+    /// Sets a per-route request timeout. Overrides the global adapter timeout.
+    #[must_use]
+    pub fn timeout(mut self, duration: std::time::Duration) -> Self {
+        self.timeout = Some(duration);
+        self
     }
 
     /// Adds a parameter extractor in handler declaration order.
@@ -521,7 +531,7 @@ impl CompiledRoute {
         &self,
         controller: ProviderValue,
         context: &mut RequestContext,
-    ) -> Result<FrameworkResponse, HttpError> {
+    ) -> Result<Response, HttpError> {
         let mut arguments = Vec::with_capacity(self.parameters.len());
         for parameter in &self.parameters {
             let mut value = parameter.extractor.extract(context).await?;
@@ -659,7 +669,7 @@ impl CompiledHttpApplication {
         &self,
         route: &CompiledRoute,
         context: &mut RequestContext,
-    ) -> Result<FrameworkResponse, HttpError> {
+    ) -> Result<Response, HttpError> {
         if context.extension::<crate::RequestScope>().is_none() {
             context.insert_extension(self.container.request_scope());
         }

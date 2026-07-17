@@ -91,18 +91,18 @@ marker_attribute!(
     query,
     param,
     header,
-    custom,
+    decorator,
     pipe,
     subscribe_message,
-    use_guard,
-    use_interceptor,
+    guard,
+    interceptor,
+    middleware,
     cache,
     cron,
     interval,
     timeout,
     api,
     resp,
-    req_body,
 );
 
 /// Wraps an async test function with Ironic's Tokio runtime, removing the

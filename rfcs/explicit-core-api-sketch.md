@@ -8,10 +8,10 @@ Names on builders may be refined during implementation, but changing ownership, 
 use std::{sync::Arc, time::Duration};
 
 use ironic::{
-    app::FrameworkApplication,
+    app::Application,
     di::{DependencySet, Injectable, ProviderDefinition, ResolveError},
     http::{
-        ControllerDefinition, FrameworkResponse, Json, Path, RouteDefinition,
+        ControllerDefinition, Response, Json, Path, RouteDefinition,
         handler_fn,
     },
     module::{Module, ModuleDefinition},
@@ -112,10 +112,10 @@ enum AppError {
     UserNotFound,
 }
 
-impl ironic::http::IntoFrameworkResponse for AppError {
-    fn into_framework_response(self) -> FrameworkResponse {
+impl ironic::http::IntoResponse for AppError {
+    fn into_framework_response(self) -> Response {
         match self {
-            Self::UserNotFound => FrameworkResponse::not_found(
+            Self::UserNotFound => Response::not_found(
                 "USER_NOT_FOUND",
                 "The requested user does not exist",
             ),
@@ -148,8 +148,8 @@ impl Module for AppModule {
 }
 
 #[tokio::main]
-async fn main() -> Result<(), ironic::FrameworkError> {
-    let application = FrameworkApplication::builder()
+async fn main() -> Result<(), ironic::AppError> {
+    let application = Application::builder()
         .module(AppModule::definition())
         .platform(
             AxumAdapter::new()

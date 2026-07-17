@@ -1,6 +1,6 @@
 ---
 title: "Provider Override System — how test mocks and production config swaps work"
-description: "A technical walkthrough of Ironic's provider override mechanism: how ProviderKey matching, three override strategies, and shared API across TestApplicationBuilder, FrameworkApplicationBuilder, and TestModuleBuilder enable seamless mocking."
+description: "A technical walkthrough of Ironic's provider override mechanism: how ProviderKey matching, three override strategies, and shared API across TestApplicationBuilder, ApplicationBuilder, and TestModuleBuilder enable seamless mocking."
 date: "2026-07-15"
 author: "Ironic Team"
 ---
@@ -25,7 +25,7 @@ The override API surfaces three methods, each corresponding to a different provi
 
 ### `override_provider(ProviderDefinition)` — full definition
 
-This is the most general form. You construct a complete `ProviderDefinition` — specifying scope, dependencies, and an erased factory — and the override replaces the original registration wholesale. It is used when you need full control over lifetime, dependency graph, or scope semantics. Both `FrameworkApplicationBuilder` (`application.rs:143`) and `TestApplicationBuilder` (`testing/application.rs:21`) accept this directly.
+This is the most general form. You construct a complete `ProviderDefinition` — specifying scope, dependencies, and an erased factory — and the override replaces the original registration wholesale. It is used when you need full control over lifetime, dependency graph, or scope semantics. Both `ApplicationBuilder` (`application.rs:143`) and `TestApplicationBuilder` (`testing/application.rs:21`) accept this directly.
 
 ### `override_value::<T>(value)` — singleton concrete value
 
@@ -57,7 +57,7 @@ When your override needs to resolve other providers from the container — for e
 
 ## How overrides flow into the container
 
-All three builders — `FrameworkApplicationBuilder`, `TestApplicationBuilder`, and `TestModuleBuilder` — store overrides in a plain `Vec<ProviderDefinition>`. The pattern is identical across all three:
+All three builders — `ApplicationBuilder`, `TestApplicationBuilder`, and `TestModuleBuilder` — store overrides in a plain `Vec<ProviderDefinition>`. The pattern is identical across all three:
 
 1. Each `override_*` method pushes a `ProviderDefinition` onto the `overrides` field.
 2. At build time, the internal compilation function (`build_http_application_with_overrides` or `build_http_application_with_extra_providers`, `lib.rs:587-610` and `617-645`) registers all module providers and controller providers into a `ContainerBuilder`, iterates the override list, and calls `container.override_with(provider)` for each one.
@@ -69,7 +69,7 @@ The order matters: overrides are applied **after** all module registrations and 
 
 ## Shared API across three builders
 
-The elegance of the system is that all three builders carry the same override surface. `TestApplicationBuilder` (`testing/application.rs:13-16`), `FrameworkApplicationBuilder` (`application.rs:75-79`), and `TestModuleBuilder` (`testing/module.rs:26-29`) each own `overrides: Vec<ProviderDefinition>`. The `TestApplicationBuilder::build()` method (`testing/application.rs:57-67`) delegates directly to `FrameworkApplication::builder()`, passing its collected overrides through the chain. The `TestModuleBuilder::compile()` method (`testing/module.rs:69-86`) calls `build_http_application_with_overrides`, the same function used by the production build path.
+The elegance of the system is that all three builders carry the same override surface. `TestApplicationBuilder` (`testing/application.rs:13-16`), `ApplicationBuilder` (`application.rs:75-79`), and `TestModuleBuilder` (`testing/module.rs:26-29`) each own `overrides: Vec<ProviderDefinition>`. The `TestApplicationBuilder::build()` method (`testing/application.rs:57-67`) delegates directly to `Application::builder()`, passing its collected overrides through the chain. The `TestModuleBuilder::compile()` method (`testing/module.rs:69-86`) calls `build_http_application_with_overrides`, the same function used by the production build path.
 
 There is no separate "test DI container" or "mock registration API." The override mechanism is the same mechanism, whether you are building for production or for a unit test.
 
@@ -119,4 +119,4 @@ Because `override_value` wraps the mock in a `ProviderDefinition::value()`, the 
 
 ## Summary
 
-Ironic's provider override system gives you exactly one rule: the override key must match a registered provider key. Beyond that, you can replace any provider with a static value, an async factory, or a full `ProviderDefinition`. The same `Vec<ProviderDefinition>` flows through the same `ContainerBuilder::override_with()` path whether you use `TestApplicationBuilder`, `FrameworkApplicationBuilder`, or `TestModuleBuilder`. This means test mocks are not a separate concept — they are simply overrides applied through the same API that powers configuration-driven provider swaps in production.
+Ironic's provider override system gives you exactly one rule: the override key must match a registered provider key. Beyond that, you can replace any provider with a static value, an async factory, or a full `ProviderDefinition`. The same `Vec<ProviderDefinition>` flows through the same `ContainerBuilder::override_with()` path whether you use `TestApplicationBuilder`, `ApplicationBuilder`, or `TestModuleBuilder`. This means test mocks are not a separate concept — they are simply overrides applied through the same API that powers configuration-driven provider swaps in production.

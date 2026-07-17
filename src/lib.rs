@@ -92,9 +92,9 @@ pub use http_impl::{
     CacheMetadata, ExceptionFilter, FilterContext, VersionMetadata, VersioningStrategy,
 };
 pub use ironic_macros::{
-    Injectable, Module, OpenApiSchema, Serializable, api, body, cache, controller, cron, custom,
-    delete, form, get, head, header, interval, main, options, param, patch, pipe, post, put, query,
-    req_body, resp, routes, subscribe_message, r#test, timeout, use_guard, use_interceptor,
+    Injectable, Module, OpenApiSchema, Serializable, api, body, cache, controller, cron, decorator,
+    delete, form, get, guard, head, header, interceptor, interval, main, middleware, options,
+    param, patch, pipe, post, put, query, resp, routes, subscribe_message, r#test, timeout,
     web_socket_gateway,
 };
 #[cfg(feature = "openapi")]
@@ -114,6 +114,25 @@ pub use {
 ))]
 pub use cache_interceptor::CacheInterceptor;
 
+#[path = "feature_gate.rs"]
+mod feature_gate;
+pub use feature_gate::FeatureGateGuard;
+
+/// Convenience re-exports of [`serde_json`] types and macros.
+pub mod json {
+    pub use serde_json::{
+        Value, from_slice, from_str, from_value, json, to_string, to_value, to_vec,
+    };
+}
+
+pub use json::Value;
+
+/// Convenience re-exports of [`chrono`] types.
+#[cfg(any(feature = "cron", feature = "logging"))]
+pub mod time {
+    pub use chrono::{DateTime, Duration, Utc};
+}
+
 /// Implementation details used by generated code.
 #[doc(hidden)]
 pub mod __private {
@@ -131,11 +150,11 @@ pub mod __private {
     }
 }
 
-/// Creates a custom parameter decorator that can be used with `#[custom(DecoratorName)]`
+/// Creates a custom parameter decorator that can be used with `#[decorator(DecoratorName)]`
 /// in route handler signatures.
 ///
 /// The macro defines a type alias so that the decorator name can be used as the argument
-/// to `#[custom(...)]`. The extractor type must implement [`ParameterExtractor`] and
+/// to `#[decorator(...)]`. The extractor type must implement [`ParameterExtractor`] and
 /// provide a `::new()` constructor.
 ///
 /// # Example
@@ -181,20 +200,23 @@ pub mod prelude {
         LogEntry, LogStorage, StorageError, TimeSeriesConfig, TimeSeriesModule,
     };
     pub use crate::{
-        AxumAdapter, BuildInfo, CacheMetadata, CompiledHttpApplication, ConfigurationError,
-        ConfigurationLoader, ControllerDefinition, Dependency, ExceptionFilter, FeatureToggle,
-        FilterContext, FormBody, FrameworkApplication, FrameworkError, FrameworkResult, Guard,
-        GuardDecision, GuardFuture, HeaderParameter, HealthModule, HealthStatus, HttpError,
-        HttpMethod, HttpPlatformAdapter, HttpPlatformApplication, Injectable, Interceptor,
-        InterceptorNext, Json, JsonBody, LifecycleDefinition, Middleware, Module, ModuleDefinition,
-        ModuleRef, OnApplicationBootstrap, OnApplicationShutdown, OnModuleDestroy, OnModuleInit,
-        ParameterPipe, PathParameter, PipelineFuture, ProviderDefinition, QueryParameters,
-        RequestContext, RequestId, RequestScope, RequestTracing, RouteDefinition, RouteMetadata,
-        Scope, Secret, SecretString, Serializable, ShutdownSignal, ValidateConfiguration,
-        VersionMetadata, VersioningStrategy, WsGatewayDefinition, api, body, cache, controller,
-        create_param_decorator, cron, custom, delete, form, get, handler_fn, head, header,
-        interval, options, param, patch, pipe, pipe_fn, post, put, query, req_body, resp, routes,
-        subscribe_message, timeout, use_guard, use_interceptor, web_socket_gateway,
+        AfterShutdown, AppError, AppResult, Application, AxumAdapter, BeforeShutdown, BuildInfo,
+        CacheMetadata, CompiledHttpApplication, ConfigurationError, ConfigurationLoader,
+        ControllerDefinition, Dependency, ExceptionExt, ExceptionFilter, FeatureGateGuard,
+        FeatureToggle, FilterContext, FormBody, Guard, GuardDecision, GuardFuture, HeaderParameter,
+        HealthModule, HealthStatus, HttpError, HttpMethod, HttpPlatformAdapter,
+        HttpPlatformApplication, Injectable, Interceptor, InterceptorNext, Json, JsonBody,
+        LifecycleDefinition, Middleware, Module, ModuleDefinition, ModuleRef,
+        OnApplicationBootstrap, OnApplicationShutdown, OnError, OnGuardDenied, OnModuleConfigure,
+        OnModuleDestroy, OnModuleInit, OnModuleLoad, OnModuleUnload, OnRequestDestroy,
+        OnRequestInit, OnServerReady, ParameterPipe, PathParameter, PipelineFuture,
+        ProviderDefinition, QueryParameters, RequestContext, RequestId, RequestLogging,
+        RequestScope, RequestTracing, Response, RouteDefinition, RouteMetadata, Scope, Secret,
+        SecretString, Serializable, ShutdownSignal, ValidateConfiguration, Value, VersionMetadata,
+        VersioningStrategy, WsGatewayDefinition, api, body, cache, controller,
+        create_param_decorator, cron, decorator, delete, form, get, guard, handler_fn, head,
+        header, interceptor, interval, middleware, options, param, patch, pipe, pipe_fn, post, put,
+        query, resp, routes, subscribe_message, timeout, web_socket_gateway,
     };
     #[cfg(feature = "serialization")]
     pub use crate::{FieldRule, FieldRules, SerializeInterceptor, set_current_roles};

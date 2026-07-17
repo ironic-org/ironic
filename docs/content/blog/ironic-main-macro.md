@@ -18,7 +18,7 @@ From the user's perspective, starting an Ironic application is deceptively simpl
 ```rust
 #[ironic::main]
 async fn main() {
-    let app = ironic::FrameworkApplicationBuilder::new()
+    let app = ironic::ApplicationBuilder::new()
         .root_module::<modules::RootModule>()
         .build()
         .await

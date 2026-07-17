@@ -150,7 +150,7 @@ impl #name {
 
 `provider_definition()` generates a DI provider that constructs the gateway as a singleton — no dependencies, no factory arguments. The gateway struct itself must implement `Default` or be constructible with no arguments; the generated factory just returns `Ok(#name)`.
 
-`gateway_definition()` builds a `WsGatewayDefinition` that maps the WebSocket path to the gateway's DI key and handler name. This definition is what `FrameworkApplication` registers during `build()` — the Axum adapter uses it to create an Axum WebSocket route at the given path, and the framework's startup logic resolves the gateway from the container before the first connection arrives.
+`gateway_definition()` builds a `WsGatewayDefinition` that maps the WebSocket path to the gateway's DI key and handler name. This definition is what `Application` registers during `build()` — the Axum adapter uses it to create an Axum WebSocket route at the given path, and the framework's startup logic resolves the gateway from the container before the first connection arrives.
 
 The gateway struct you write contains event handler methods with `#[web_socket_event("event.name")]` attributes. Those are processed by a separate macro pass (on the `impl` block), not shown in this file — `ws_gateway.rs` only handles the struct-level annotation.
 

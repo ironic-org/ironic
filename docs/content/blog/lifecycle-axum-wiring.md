@@ -15,24 +15,24 @@ Let me trace the full path.
 
 ## The three phases
 
-There are exactly three phases, each with a clear entry point in `FrameworkApplication`:
+There are exactly three phases, each with a clear entry point in `Application`:
 
 | Phase | When | Where |
 |-------|------|-------|
-| **Init** | Before `axum::serve` | `FrameworkApplicationBuilder::build()` |
+| **Init** | Before `axum::serve` | `ApplicationBuilder::build()` |
 | **Serve** | Inside `axum::serve` | `platform.listen(address, shutdown)` |
 | **Shutdown** | After `axum::serve` returns | `shutdown_application()` and `destroy_modules()` |
 
-The bridge between them is the `initialized` vector — a plain `Vec<InitializedLifecycle>` created during build, carried through the `FrameworkApplication` struct, and consumed during shutdown.
+The bridge between them is the `initialized` vector — a plain `Vec<InitializedLifecycle>` created during build, carried through the `Application` struct, and consumed during shutdown.
 
 ---
 
 ## Phase 1 — Init (before the server binds)
 
-`FrameworkApplicationBuilder::build()` at `application.rs:181` is where everything comes together. The order is strict:
+`ApplicationBuilder::build()` at `application.rs:181` is where everything comes together. The order is strict:
 
 ```rust
-pub async fn build(self) -> Result<FrameworkApplication<A::Application>, ApplicationError> {
+pub async fn build(self) -> Result<Application<A::Application>, ApplicationError> {
     let module_ref = Arc::new(ModuleRef::new());
     let graph = compile_module_graph(root)?;                               // ①
     let http = build_http_application_with_extra_providers(...)?;          // ②
@@ -45,7 +45,7 @@ pub async fn build(self) -> Result<FrameworkApplication<A::Application>, Applica
 
     let platform = self.adapter.build(Arc::new(http))?;                   // ⑥
 
-    Ok(FrameworkApplication { graph, container, platform, initialized })
+    Ok(Application { graph, container, platform, initialized })
 }
 ```
 
@@ -132,11 +132,11 @@ Only after all lifecycle hooks have succeeded does the framework call `adapter.b
 
 ## Phase 2 — Serve (Axum is running)
 
-`FrameworkApplication::listen_with_shutdown()` at `application.rs:310`:
+`Application::listen_with_shutdown()` at `application.rs:310`:
 
 ```rust
 pub async fn listen_with_shutdown(self, address, shutdown) -> Result {
-    let FrameworkApplication { platform, initialized, .. } = self;
+    let Application { platform, initialized, .. } = self;
 
     let serving = platform.listen(address, Shutdown::new(shutdown)).await;
     let signal = serving.ok().copied().unwrap_or(ShutdownSignal::Custom("error"));
@@ -177,7 +177,7 @@ The `oneshot::channel` is the only connection between the shutdown signal and th
 **The only lifecycle interaction inside Axum's handler stack** is the `RequestScope` injection, which happens per-request in each Axum handler closure (`route.rs:658`):
 
 ```rust
-pub async fn execute(&self, route, context) -> Result<FrameworkResponse, HttpError> {
+pub async fn execute(&self, route, context) -> Result<Response, HttpError> {
     if context.extension::<RequestScope>().is_none() {
         context.insert_extension(self.container.request_scope());
     }
@@ -275,4 +275,4 @@ shutdown_application(initialized, signal)
 
 4. **Type-erased but type-safe** — the callbacks are `Arc<dyn Fn(ProviderValue) -> LifecycleFuture>`, which erases the concrete provider type. But the `LifecycleDefinitionBuilder` has a `PhantomData<T>` that forces the factory and callbacks to agree on `T`. The `downcast::<T>(value)` at call time is just a double-check — the types were already enforced by the builder.
 
-5. **No global state** — the `initialized` vec is owned by `FrameworkApplication` and consumed by `shutdown_application`. Nothing is leaked. No static variables. No `Mutex` on the shutdown path.
+5. **No global state** — the `initialized` vec is owned by `Application` and consumed by `shutdown_application`. Nothing is leaked. No static variables. No `Mutex` on the shutdown path.

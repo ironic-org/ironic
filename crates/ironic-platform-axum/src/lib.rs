@@ -8,15 +8,15 @@ use std::{
 
 use axum::{
     Router,
-    body::{Body, to_bytes},
-    extract::{Path, Request},
-    response::{IntoResponse, Response},
+    body::{Body as AxumBody, to_bytes},
+    extract::{Path, Request as AxumRequest},
+    response::{IntoResponse as AxumIntoResponse, Response as AxumResponse},
     routing::{MethodFilter, Route, on},
 };
 use futures_util::FutureExt;
 use ironic_http::{
-    CompiledHttpApplication, CompiledRoute, FrameworkBody, FrameworkRequest, FrameworkResponse,
-    HttpError, HttpMethod, HttpStatus, IntoFrameworkResponse, RequestContext, VersioningStrategy,
+    Body, CompiledHttpApplication, CompiledRoute, HttpError, HttpMethod, HttpStatus, IntoResponse,
+    Request, RequestContext, Response, VersioningStrategy,
 };
 use ironic_platform::{
     HttpPlatformAdapter, HttpPlatformApplication, PlatformFuture, Shutdown, ShutdownSignal,
@@ -68,6 +68,7 @@ pub struct AxumAdapter {
     static_files: Vec<StaticFileRoute>,
     #[cfg(feature = "resilience-ext")]
     max_concurrent_requests: Option<u64>,
+    max_connections: Option<usize>,
 }
 
 type RouterConfigurator = Box<dyn FnOnce(Router) -> Router + Send + 'static>;
@@ -94,6 +95,7 @@ impl AxumAdapter {
             static_files: Vec::new(),
             #[cfg(feature = "resilience-ext")]
             max_concurrent_requests: None,
+            max_connections: None,
         }
     }
 
@@ -169,6 +171,16 @@ impl AxumAdapter {
     #[must_use]
     pub const fn max_concurrent_requests(mut self, max: u64) -> Self {
         self.max_concurrent_requests = Some(max);
+        self
+    }
+
+    /// Sets the maximum number of open TCP connections.
+    ///
+    /// Limits the total number of concurrent socket connections to prevent
+    /// file descriptor exhaustion from slowloris-style attacks.
+    #[must_use]
+    pub const fn max_connections(mut self, max: usize) -> Self {
+        self.max_connections = Some(max);
         self
     }
 }
@@ -259,10 +271,10 @@ impl AxumApplication {
     pub fn layer<L>(mut self, layer: L) -> Self
     where
         L: Layer<Route> + Clone + Send + Sync + 'static,
-        L::Service: Service<Request> + Clone + Send + Sync + 'static,
-        <L::Service as Service<Request>>::Response: IntoResponse + 'static,
-        <L::Service as Service<Request>>::Error: Into<Infallible> + 'static,
-        <L::Service as Service<Request>>::Future: Send + 'static,
+        L::Service: Service<AxumRequest> + Clone + Send + Sync + 'static,
+        <L::Service as Service<AxumRequest>>::Response: AxumIntoResponse + 'static,
+        <L::Service as Service<AxumRequest>>::Error: Into<Infallible> + 'static,
+        <L::Service as Service<AxumRequest>>::Future: Send + 'static,
     {
         self.router = self.router.layer(layer);
         self
@@ -354,7 +366,7 @@ fn register_route(
     let native_path = native_path(&route.versioned_path());
     let version = route.version();
     let route = Arc::new(route);
-    let handler = move |Path(parameters): Path<HashMap<String, String>>, request: Request| {
+    let handler = move |Path(parameters): Path<HashMap<String, String>>, request: AxumRequest| {
         let application = Arc::clone(&application);
         let route = Arc::clone(&route);
         let version = version.clone();
@@ -401,7 +413,7 @@ fn register_route(
     Ok(router.route(&native_path, on(method, handler)))
 }
 
-fn matches_header_version(request: &Request, version: &ironic_http::VersionMetadata) -> bool {
+fn matches_header_version(request: &AxumRequest, version: &ironic_http::VersionMetadata) -> bool {
     request
         .headers()
         .get("accept-version")
@@ -409,7 +421,10 @@ fn matches_header_version(request: &Request, version: &ironic_http::VersionMetad
         .is_some_and(|v| v == version.version)
 }
 
-fn matches_media_type_version(request: &Request, version: &ironic_http::VersionMetadata) -> bool {
+fn matches_media_type_version(
+    request: &AxumRequest,
+    version: &ironic_http::VersionMetadata,
+) -> bool {
     let pattern = format!("vnd.api.v{}+json", version.version);
     request
         .headers()
@@ -422,9 +437,9 @@ async fn execute_route(
     application: Arc<CompiledHttpApplication>,
     route: Arc<CompiledRoute>,
     parameters: HashMap<String, String>,
-    request: Request,
+    request: AxumRequest,
     body_limit: usize,
-) -> Response {
+) -> AxumResponse {
     let (parts, body) = request.into_parts();
     let body = match to_bytes(body, body_limit).await {
         Ok(body) => body.to_vec(),
@@ -436,8 +451,8 @@ async fn execute_route(
             ));
         }
     };
-    let request = FrameworkRequest::new(parts.method, parts.uri, parts.headers, body)
-        .with_path_parameters(parameters);
+    let request =
+        Request::new(parts.method, parts.uri, parts.headers, body).with_path_parameters(parameters);
     let mut context = RequestContext::new(request);
 
     let execution = std::panic::AssertUnwindSafe(application.execute(&route, &mut context))
@@ -453,22 +468,23 @@ async fn execute_route(
     }
 }
 
-fn framework_response(response: FrameworkResponse) -> Response {
+fn framework_response(response: Response) -> AxumResponse {
     let (status, headers, body) = response.into_parts();
     let body = match body {
-        FrameworkBody::Empty => Body::empty(),
-        FrameworkBody::Bytes(bytes) => Body::from(bytes),
+        Body::Empty => AxumBody::empty(),
+        Body::Bytes(bytes) => AxumBody::from(bytes),
+        Body::Stream(bytes) => AxumBody::from(bytes.as_ref().clone()),
     };
-    let mut response = Response::new(body);
+    let mut response = AxumResponse::new(body);
     *response.status_mut() = status;
     *response.headers_mut() = headers;
     response
 }
 
-fn error_response(error: HttpError) -> Response {
+fn error_response(error: HttpError) -> AxumResponse {
     match error.into_framework_response() {
         Ok(response) => framework_response(response),
-        Err(_) => framework_response(FrameworkResponse::empty(HttpStatus::INTERNAL_SERVER_ERROR)),
+        Err(_) => framework_response(Response::empty(HttpStatus::INTERNAL_SERVER_ERROR)),
     }
 }
 
@@ -617,11 +633,11 @@ mod tests {
         Arc::new(CompiledHttpApplication::new(container.build(), routes))
     }
 
-    async fn request(path: &str) -> Response {
+    async fn request(path: &str) -> AxumResponse {
         let application = AxumAdapter::new().build(application()).unwrap();
         application
             .into_router()
-            .oneshot(Request::get(path).body(Body::empty()).unwrap())
+            .oneshot(Request::get(path).body(AxumBody::empty()).unwrap())
             .await
             .unwrap()
     }
@@ -667,7 +683,7 @@ mod tests {
             .unwrap();
         let response = application
             .into_router()
-            .oneshot(Request::get("/native").body(Body::empty()).unwrap())
+            .oneshot(Request::get("/native").body(AxumBody::empty()).unwrap())
             .await
             .unwrap();
         assert_eq!(response.status(), HttpStatus::OK);
@@ -683,7 +699,7 @@ mod tests {
         let response = router
             .oneshot(
                 Request::get("/users/1")
-                    .body(Body::from("too large"))
+                    .body(AxumBody::from("too large"))
                     .unwrap(),
             )
             .await
@@ -726,7 +742,7 @@ mod tests {
             .into_router();
 
         let response = router
-            .oneshot(Request::get("/slow").body(Body::empty()).unwrap())
+            .oneshot(Request::get("/slow").body(AxumBody::empty()).unwrap())
             .await
             .unwrap();
         assert_eq!(response.status(), HttpStatus::REQUEST_TIMEOUT);
@@ -786,7 +802,7 @@ mod tests {
             .into_router();
 
         let response = router
-            .oneshot(Request::get("/panic").body(Body::empty()).unwrap())
+            .oneshot(Request::get("/panic").body(AxumBody::empty()).unwrap())
             .await
             .unwrap();
         assert_eq!(response.status(), HttpStatus::INTERNAL_SERVER_ERROR);
@@ -868,7 +884,7 @@ mod tests {
             .clone()
             .oneshot(
                 Request::get("/v1/users/profile")
-                    .body(Body::empty())
+                    .body(AxumBody::empty())
                     .unwrap(),
             )
             .await
@@ -879,7 +895,11 @@ mod tests {
 
         // Non-versioned path should 404
         let response = router
-            .oneshot(Request::get("/users/profile").body(Body::empty()).unwrap())
+            .oneshot(
+                Request::get("/users/profile")
+                    .body(AxumBody::empty())
+                    .unwrap(),
+            )
             .await
             .unwrap();
         assert_eq!(response.status(), HttpStatus::NOT_FOUND);
@@ -924,7 +944,7 @@ mod tests {
             .oneshot(
                 Request::get("/api/resource")
                     .header("accept-version", "2")
-                    .body(Body::empty())
+                    .body(AxumBody::empty())
                     .unwrap(),
             )
             .await
@@ -937,7 +957,7 @@ mod tests {
             .oneshot(
                 Request::get("/api/resource")
                     .header("accept-version", "3")
-                    .body(Body::empty())
+                    .body(AxumBody::empty())
                     .unwrap(),
             )
             .await
@@ -946,7 +966,11 @@ mod tests {
 
         // Missing header should 404
         let response = router
-            .oneshot(Request::get("/api/resource").body(Body::empty()).unwrap())
+            .oneshot(
+                Request::get("/api/resource")
+                    .body(AxumBody::empty())
+                    .unwrap(),
+            )
             .await
             .unwrap();
         assert_eq!(response.status(), HttpStatus::NOT_FOUND);
@@ -991,7 +1015,7 @@ mod tests {
             .oneshot(
                 Request::get("/svc/data")
                     .header("accept", "application/vnd.api.v1+json")
-                    .body(Body::empty())
+                    .body(AxumBody::empty())
                     .unwrap(),
             )
             .await
@@ -1004,7 +1028,7 @@ mod tests {
             .oneshot(
                 Request::get("/svc/data")
                     .header("accept", "application/vnd.api.v2+json")
-                    .body(Body::empty())
+                    .body(AxumBody::empty())
                     .unwrap(),
             )
             .await
@@ -1013,7 +1037,7 @@ mod tests {
 
         // Missing header should 404
         let response = router
-            .oneshot(Request::get("/svc/data").body(Body::empty()).unwrap())
+            .oneshot(Request::get("/svc/data").body(AxumBody::empty()).unwrap())
             .await
             .unwrap();
         assert_eq!(response.status(), HttpStatus::NOT_FOUND);
@@ -1095,7 +1119,11 @@ mod tests {
         // v1 response
         let response = router
             .clone()
-            .oneshot(Request::get("/v1/api/items").body(Body::empty()).unwrap())
+            .oneshot(
+                Request::get("/v1/api/items")
+                    .body(AxumBody::empty())
+                    .unwrap(),
+            )
             .await
             .unwrap();
         assert_eq!(response.status(), HttpStatus::OK);
@@ -1105,7 +1133,11 @@ mod tests {
         // v2 response
         let response = router
             .clone()
-            .oneshot(Request::get("/v2/api/items").body(Body::empty()).unwrap())
+            .oneshot(
+                Request::get("/v2/api/items")
+                    .body(AxumBody::empty())
+                    .unwrap(),
+            )
             .await
             .unwrap();
         assert_eq!(response.status(), HttpStatus::OK);
@@ -1154,7 +1186,7 @@ mod tests {
             .oneshot(
                 Request::get("/api/data")
                     .header("Accept-Encoding", "gzip")
-                    .body(Body::empty())
+                    .body(AxumBody::empty())
                     .unwrap(),
             )
             .await
@@ -1210,7 +1242,7 @@ mod tests {
 
         // Request without Accept-Encoding
         let response = router
-            .oneshot(Request::get("/api/data").body(Body::empty()).unwrap())
+            .oneshot(Request::get("/api/data").body(AxumBody::empty()).unwrap())
             .await
             .unwrap();
 
@@ -1256,7 +1288,7 @@ mod tests {
             .oneshot(
                 Request::get("/api/data")
                     .header("Accept-Encoding", "gzip")
-                    .body(Body::empty())
+                    .body(AxumBody::empty())
                     .unwrap(),
             )
             .await

@@ -72,7 +72,7 @@ pub struct MultipartFormData<T> {
 /// #[post("/upload")]
 /// async fn upload(
 ///     &self,
-///     #[custom(MultipartForm<UploadDto>)]
+///     #[decorator(MultipartForm<UploadDto>)]
 ///     form: MultipartFormData<UploadDto>,
 /// ) -> Result<Json<()>, HttpError> {
 ///     let fields = form.fields;

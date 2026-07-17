@@ -5,7 +5,7 @@ use std::marker::PhantomData;
 use serde::{Serialize, de::DeserializeOwned};
 
 use super::{AuthError, AuthenticationFuture, Authenticator, bearer_token};
-use crate::FrameworkRequest;
+use crate::Request;
 
 /// The upstream `jsonwebtoken` API.
 pub use ::jsonwebtoken as driver;
@@ -102,7 +102,7 @@ where
     P: Send + Sync + 'static,
     F: Fn(C) -> Result<P, AuthError> + Send + Sync + 'static,
 {
-    fn authenticate<'a>(&'a self, request: &'a FrameworkRequest) -> AuthenticationFuture<'a, P> {
+    fn authenticate<'a>(&'a self, request: &'a Request) -> AuthenticationFuture<'a, P> {
         Box::pin(async move {
             let Some(token) = bearer_token(request)? else {
                 return Ok(None);

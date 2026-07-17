@@ -38,7 +38,7 @@ Implement production-readiness improvements: multipart upload, Redis session per
 - (none)
 
 ## Key Decisions
-- Multipart parsed from buffered `Vec<u8>` via `futures_util::stream::once` — avoids changing `FrameworkRequest`.
+- Multipart parsed from buffered `Vec<u8>` via `futures_util::stream::once` — avoids changing `Request`.
 - `RedisSessionStore` serializes JSON manually to avoid touching `Session`/`SessionId` types.
 - `ConcurrencyLimitService` is infallible (`Error = Infallible`) for `Router::layer()` compatibility.
 - OAuth2 `exchange_code()` is generic over `AsyncHttpClient` — no `reqwest` dependency.
@@ -66,4 +66,4 @@ Implement production-readiness improvements: multipart upload, Redis session per
 - `crates/ironic/benches/overhead.rs`
 - `crates/ironic/benches/metrics.rs`
 - `scripts/release.sh`: pushes commit only (no tag); tag created by CI after publish succeeds. CI auto-detects version bumps via `maybe-release` job in ci.yml (compares Cargo.toml version to latest git tag) and triggers release.yml automatically.
-- `crates/ironic-cli/src/generators/project.rs`: `manifest()` uses semver range (`"0.4"`) instead of exact unpublished version; `example_controller()` stripped `#[api]`/`#[resp]`/`#[req_body]` (not in published versions)
+- `crates/ironic-cli/src/generators/project.rs`: `manifest()` uses semver range (`"0.4"`) instead of exact unpublished version; `example_controller()` stripped `#[api]`/`#[resp]`/`#[body]` (not in published versions)

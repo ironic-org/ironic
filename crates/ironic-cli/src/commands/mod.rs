@@ -6,6 +6,7 @@ mod generate;
 mod inspect;
 mod migrate;
 mod new;
+mod uninstall;
 mod update;
 
 use std::io::Write;
@@ -31,6 +32,7 @@ pub(crate) fn execute(command: Cli, output: &mut impl Write) -> Result<(), CliEr
         Command::Generate(arguments) => generate::execute(arguments, output),
         Command::Doctor => doctor::execute(output),
         Command::Update => update::execute(output),
+        Command::Uninstall => uninstall::execute(output),
         Command::Workspace(arguments) => inspect::workspace(&arguments.path, output),
         Command::Routes(arguments) => inspect::routes(&arguments.path, output),
         Command::Graph(arguments) => inspect::graph(&arguments.path, output),

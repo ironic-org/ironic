@@ -1,7 +1,7 @@
 use std::{future::Future, net::SocketAddr, pin::Pin, sync::Arc};
 
 use ironic_di::{Container, ProviderDefinition, ProviderKey, ProviderValue, ResolveError};
-use ironic_http::Middleware;
+use ironic_http::{Middleware, RequestLogging};
 use ironic_platform::{HttpPlatformAdapter, HttpPlatformApplication, Shutdown, ShutdownSignal};
 
 use crate::{
@@ -72,11 +72,12 @@ impl From<ModuleError> for ApplicationError {
 }
 
 /// Starts application construction from a root module and platform adapter.
-pub struct FrameworkApplicationBuilder<A = MissingPlatform> {
+pub struct ApplicationBuilder<A = MissingPlatform> {
     root: Option<RootModule>,
     overrides: Vec<ironic_di::ProviderDefinition>,
     middlewares: Vec<Arc<dyn Middleware>>,
     adapter: A,
+    disable_request_logging: bool,
 }
 
 type ModuleConfigurationFuture =
@@ -104,18 +105,19 @@ impl ModuleConfigurationError {
     }
 }
 
-impl Default for FrameworkApplicationBuilder<MissingPlatform> {
+impl Default for ApplicationBuilder<MissingPlatform> {
     fn default() -> Self {
         Self {
             root: None,
             overrides: Vec::new(),
             middlewares: Vec::new(),
             adapter: MissingPlatform,
+            disable_request_logging: false,
         }
     }
 }
 
-impl<A> FrameworkApplicationBuilder<A> {
+impl<A> ApplicationBuilder<A> {
     /// Sets the explicit root module definition.
     #[must_use]
     pub fn module(mut self, module: ModuleDefinition) -> Self {
@@ -155,19 +157,30 @@ impl<A> FrameworkApplicationBuilder<A> {
         self
     }
 
+    /// Disables the default [`RequestLogging`] middleware.
+    ///
+    /// By default, every request is logged as a structured tracing event. Call
+    /// this method to opt out.
+    #[must_use]
+    pub fn without_request_logging(mut self) -> Self {
+        self.disable_request_logging = true;
+        self
+    }
+
     /// Selects a concrete HTTP platform adapter.
     #[must_use]
-    pub fn platform<B>(self, adapter: B) -> FrameworkApplicationBuilder<B> {
-        FrameworkApplicationBuilder {
+    pub fn platform<B>(self, adapter: B) -> ApplicationBuilder<B> {
+        ApplicationBuilder {
             root: self.root,
             overrides: self.overrides,
             middlewares: self.middlewares,
             adapter,
+            disable_request_logging: self.disable_request_logging,
         }
     }
 }
 
-impl<A> FrameworkApplicationBuilder<A>
+impl<A> ApplicationBuilder<A>
 where
     A: HttpPlatformAdapter,
 {
@@ -178,7 +191,7 @@ where
     /// Returns [`ApplicationError`] when graph compilation, provider initialization, lifecycle
     /// callbacks, or platform construction fails. Successfully initialized lifecycle providers are
     /// destroyed before an error is returned.
-    pub async fn build(self) -> Result<FrameworkApplication<A::Application>, ApplicationError> {
+    pub async fn build(self) -> Result<Application<A::Application>, ApplicationError> {
         let root = match self.root.ok_or(ApplicationError::MissingRootModule)? {
             RootModule::Ready(module) => module,
             RootModule::Deferred(module) => {
@@ -198,9 +211,15 @@ where
             self.overrides,
         )?
         .extend_middleware(self.middlewares);
+        let http = if self.disable_request_logging {
+            http
+        } else {
+            http.middleware(RequestLogging::new())
+        };
         let container = http.container().clone();
         module_ref.set_container(container.clone());
 
+        configure_modules(&graph, &container).await?;
         initialize_eager_providers(&graph, &container).await?;
         let mut initialized = Vec::new();
         if let Err(error) = initialize_lifecycle(&graph, &container, &mut initialized).await {
@@ -208,6 +227,10 @@ where
             return Err(error);
         }
         if let Err(error) = bootstrap_application(&initialized).await {
+            let _ = destroy_modules(&initialized).await;
+            return Err(error);
+        }
+        if let Err(error) = server_ready(&initialized).await {
             let _ = destroy_modules(&initialized).await;
             return Err(error);
         }
@@ -222,7 +245,7 @@ where
             }
         };
 
-        Ok(FrameworkApplication {
+        Ok(Application {
             graph,
             container,
             platform,
@@ -232,22 +255,22 @@ where
 }
 
 /// A compiled and initialized application ready to listen.
-pub struct FrameworkApplication<P = ()> {
+pub struct Application<P = ()> {
     graph: CompiledApplicationGraph,
     container: Container,
     platform: P,
     initialized: Vec<InitializedLifecycle>,
 }
 
-impl FrameworkApplication<()> {
+impl Application<()> {
     /// Creates an empty application builder.
     #[must_use]
-    pub fn builder() -> FrameworkApplicationBuilder<MissingPlatform> {
-        FrameworkApplicationBuilder::default()
+    pub fn builder() -> ApplicationBuilder<MissingPlatform> {
+        ApplicationBuilder::default()
     }
 }
 
-impl<P> FrameworkApplication<P> {
+impl<P> Application<P> {
     /// Returns the validated application graph.
     #[must_use]
     pub const fn graph(&self) -> &CompiledApplicationGraph {
@@ -279,7 +302,7 @@ impl<P> FrameworkApplication<P> {
     }
 }
 
-impl<P> FrameworkApplication<P>
+impl<P> Application<P>
 where
     P: HttpPlatformApplication,
 {
@@ -315,12 +338,26 @@ where
     where
         F: Future<Output = ShutdownSignal> + Send + 'static,
     {
-        let FrameworkApplication {
+        let Application {
             platform,
             initialized,
             ..
         } = self;
-        let serving = platform.listen(address, Shutdown::new(shutdown)).await;
+
+        // Wrap the shutdown future so BeforeShutdown callbacks run
+        // BEFORE the server stops accepting connections.
+        let init_for_shutdown = initialized.clone();
+        let wrapped = async move {
+            let signal = shutdown.await;
+            for lifecycle in &init_for_shutdown {
+                if let Some(callback) = &lifecycle.definition.before_shutdown {
+                    let _ = callback(Arc::clone(&lifecycle.provider), signal).await;
+                }
+            }
+            signal
+        };
+
+        let serving = platform.listen(address, Shutdown::new(wrapped)).await;
         let signal = match &serving {
             Ok(signal) => *signal,
             Err(_) => ShutdownSignal::Custom("platform-error"),
@@ -417,6 +454,9 @@ async fn shutdown_application(
     initialized: &[InitializedLifecycle],
     signal: ShutdownSignal,
 ) -> Result<(), ApplicationError> {
+    // BeforeShutdown already ran in listen_with_shutdown before server stopped.
+    // Continue with application shutdown and module destruction.
+
     let mut first_error = None;
     for lifecycle in initialized.iter().rev() {
         if let Some(callback) = &lifecycle.definition.application_shutdown
@@ -430,6 +470,14 @@ async fn shutdown_application(
     if let Err(error) = destroy_modules(initialized).await {
         first_error.get_or_insert(error);
     }
+
+    // AfterShutdown: final cleanup after all destroy callbacks
+    for lifecycle in initialized.iter().rev() {
+        if let Some(callback) = &lifecycle.definition.after_shutdown {
+            let _ = callback(Arc::clone(&lifecycle.provider)).await;
+        }
+    }
+
     first_error.map_or(Ok(()), Err)
 }
 
@@ -461,6 +509,48 @@ fn lifecycle_error(
 
 fn resolution_message(error: &ResolveError) -> String {
     error.to_string()
+}
+
+async fn configure_modules(
+    graph: &CompiledApplicationGraph,
+    container: &Container,
+) -> Result<(), ApplicationError> {
+    for module_id in graph.initialization_order() {
+        let module = graph
+            .module(*module_id)
+            .expect("initialization order references a compiled module");
+        let module_name = format!("{:?}", module.id());
+        for definition in module.lifecycle() {
+            if let Some(callback) = &definition.module_configure {
+                let provider = container
+                    .resolve_key(definition.key())
+                    .await
+                    .map_err(|error| ApplicationError::EagerProvider {
+                        provider: definition.key(),
+                        message: resolution_message(&error),
+                    })?;
+                callback(provider, module_name.clone())
+                    .await
+                    .map_err(|error| {
+                        lifecycle_error(definition.key(), "module configuration", &error)
+                    })?;
+            }
+        }
+    }
+    Ok(())
+}
+
+async fn server_ready(initialized: &[InitializedLifecycle]) -> Result<(), ApplicationError> {
+    for lifecycle in initialized {
+        if let Some(callback) = &lifecycle.definition.server_ready {
+            callback(Arc::clone(&lifecycle.provider))
+                .await
+                .map_err(|error| {
+                    lifecycle_error(lifecycle.definition.key(), "server ready", &error)
+                })?;
+        }
+    }
+    Ok(())
 }
 
 #[cfg(test)]
@@ -662,7 +752,7 @@ mod tests {
     #[tokio::test]
     async fn runs_complete_lifecycle_in_deterministic_order() {
         let events = Arc::new(Mutex::new(Vec::new()));
-        let application = FrameworkApplication::builder()
+        let application = Application::builder()
             .module(test_module(&events, false))
             .platform(FakeAdapter {
                 events: Arc::clone(&events),
@@ -715,7 +805,7 @@ mod tests {
     #[tokio::test]
     async fn cleans_up_partially_initialized_applications() {
         let events = Arc::new(Mutex::new(Vec::new()));
-        let result = FrameworkApplication::builder()
+        let result = Application::builder()
             .module(test_module(&events, true))
             .platform(FakeAdapter {
                 events: Arc::clone(&events),
@@ -741,7 +831,7 @@ mod tests {
     #[tokio::test]
     async fn cleans_up_when_platform_build_fails() {
         let events = Arc::new(Mutex::new(Vec::new()));
-        let result = FrameworkApplication::builder()
+        let result = Application::builder()
             .module(test_module(&events, false))
             .platform(FakeAdapter {
                 events: Arc::clone(&events),
@@ -760,7 +850,7 @@ mod tests {
     #[tokio::test]
     async fn rejects_builders_without_a_root_module() {
         let events = Arc::new(Mutex::new(Vec::new()));
-        let result = FrameworkApplication::builder()
+        let result = Application::builder()
             .platform(FakeAdapter {
                 events,
                 fail_build: false,
@@ -773,7 +863,7 @@ mod tests {
     #[tokio::test]
     async fn asynchronously_configures_the_root_module() {
         let events = Arc::new(Mutex::new(Vec::new()));
-        let application = FrameworkApplication::builder()
+        let application = Application::builder()
             .module_async(async {
                 tokio::task::yield_now().await;
                 Ok(TestModule::definition())
@@ -793,7 +883,7 @@ mod tests {
     #[tokio::test]
     async fn reports_async_module_configuration_failures() {
         let events = Arc::new(Mutex::new(Vec::new()));
-        let result = FrameworkApplication::builder()
+        let result = Application::builder()
             .module_async(async {
                 Err(ModuleConfigurationError::new(
                     "remote configuration is unavailable",

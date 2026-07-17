@@ -553,7 +553,7 @@ pub struct AuthController { service: Arc<AuthService> }
 impl AuthController {
     #[post("/register")]
     #[api(summary = "Register a new user", tag = "Auth")]
-    #[req_body(json = RegisterDto)]
+    #[body(json = RegisterDto)]
     #[resp(200, "User registered successfully", json = PublicUser)]
     #[resp(400, "Validation error or email already exists")]
     async fn register(&self, #[body] dto: RegisterDto) -> Result<Json<PublicUser>, HttpError> {
@@ -562,7 +562,7 @@ impl AuthController {
 
     #[post("/login")]
     #[api(summary = "Log in with email and password", tag = "Auth")]
-    #[req_body(json = LoginDto)]
+    #[body(json = LoginDto)]
     #[resp(200, "JWT tokens issued", json = TokenResponse)]
     #[resp(401, "Invalid email or password")]
     async fn login(&self, #[body] dto: LoginDto) -> Result<Json<TokenResponse>, HttpError> {
@@ -571,7 +571,7 @@ impl AuthController {
 
     #[post("/refresh")]
     #[api(summary = "Refresh an access token", tag = "Auth")]
-    #[req_body(json = RefreshDto)]
+    #[body(json = RefreshDto)]
     #[resp(200, "New tokens issued", json = TokenResponse)]
     #[resp(401, "Invalid refresh token")]
     async fn refresh(&self, #[body] dto: RefreshDto) -> Result<Json<TokenResponse>, HttpError> {
@@ -582,7 +582,7 @@ impl AuthController {
     #[api(summary = "Get current user profile", tag = "Auth", security = "bearer")]
     #[resp(200, "Current user profile", json = PublicUser)]
     #[resp(401, "Unauthorized")]
-    #[use_guard(AuthGuard)]
+    #[guard(AuthGuard)]
     async fn me(&self, #[custom(current_user)] user_id: u64) -> Result<Json<PublicUser>, HttpError> {
         Ok(Json(self.service.me(user_id)?.public_view()))
     }
@@ -605,7 +605,7 @@ pub struct AuthController { service: Arc<AuthService> }
 impl AuthController {
     #[post("/register")]
     #[api(summary = "Register a new user", tag = "Auth")]
-    #[req_body(json = RegisterDto)]
+    #[body(json = RegisterDto)]
     #[resp(200, "User registered successfully", json = PublicUser)]
     #[resp(400, "Validation error or email already exists")]
     async fn register(&self, #[body] dto: RegisterDto) -> Result<Json<PublicUser>, HttpError> {
@@ -614,7 +614,7 @@ impl AuthController {
 
     #[post("/login")]
     #[api(summary = "Log in with email and password", tag = "Auth")]
-    #[req_body(json = LoginDto)]
+    #[body(json = LoginDto)]
     #[resp(200, "User authenticated", json = PublicUser)]
     #[resp(401, "Invalid email or password")]
     async fn login(&self, #[body] dto: LoginDto) -> Result<Json<PublicUser>, HttpError> {
@@ -660,7 +660,7 @@ impl AuthController {
     #[get("/me")]
     #[api(summary = "Get current user profile", tag = "Auth", security = "bearer")]
     #[resp(200, "Current user profile", json = PublicUser)]
-    #[use_guard(AuthGuard)]
+    #[guard(AuthGuard)]
     async fn me(&self, #[custom(current_user)] user_id: u64) -> Result<Json<PublicUser>, HttpError> {
         Ok(Json(PublicUser { id: user_id, email: "oauth@user.com".into(), name: "OAuth User".into(), role: crate::modules::auth::entities::role::Role::User, provider: "oauth".into() }))
     }
@@ -824,11 +824,11 @@ fn unit_auth_test() -> &'static str {
 }
 #[allow(dead_code)]
 fn unit_guard_test() -> &'static str {
-    "//! Unit tests for AuthGuard and RoleGuard.\n\nuse std::sync::Arc;\nuse crate::modules::auth::guards::auth_guard::AuthGuard;\nuse crate::modules::auth::guards::role_guard::RoleGuard;\nuse ironic::{Guard, GuardDecision, FrameworkRequest, GuardFuture, RequestContext};\n\n#[ironic::test]\nasync fn auth_guard_denies_missing_header() {\n    let mut ctx = RequestContext::new(FrameworkRequest::new(ironic::HttpMethod::GET, \"/\".parse().unwrap(), ironic::HeaderMap::new(), vec![]));\n    let decision = AuthGuard.can_activate(&mut ctx).await.unwrap();\n    assert!(matches!(decision, GuardDecision::Deny(_)));\n}\n\n#[ironic::test]\nasync fn role_guard_denies_wrong_role() {\n    let mut ctx = RequestContext::new(FrameworkRequest::new(ironic::HttpMethod::GET, \"/\".parse().unwrap(), ironic::HeaderMap::new(), vec![]));\n    ctx.insert_extension(\"user\".to_string());\n    let guard = RoleGuard::new(&[\"admin\"]);\n    let decision = guard.can_activate(&mut ctx).await.unwrap();\n    assert!(matches!(decision, GuardDecision::Deny(_)));\n}\n"
+    "//! Unit tests for AuthGuard and RoleGuard.\n\nuse std::sync::Arc;\nuse crate::modules::auth::guards::auth_guard::AuthGuard;\nuse crate::modules::auth::guards::role_guard::RoleGuard;\nuse ironic::{Guard, GuardDecision, Request, GuardFuture, RequestContext};\n\n#[ironic::test]\nasync fn auth_guard_denies_missing_header() {\n    let mut ctx = RequestContext::new(Request::new(ironic::HttpMethod::GET, \"/\".parse().unwrap(), ironic::HeaderMap::new(), vec![]));\n    let decision = AuthGuard.can_activate(&mut ctx).await.unwrap();\n    assert!(matches!(decision, GuardDecision::Deny(_)));\n}\n\n#[ironic::test]\nasync fn role_guard_denies_wrong_role() {\n    let mut ctx = RequestContext::new(Request::new(ironic::HttpMethod::GET, \"/\".parse().unwrap(), ironic::HeaderMap::new(), vec![]));\n    ctx.insert_extension(\"user\".to_string());\n    let guard = RoleGuard::new(&[\"admin\"]);\n    let decision = guard.can_activate(&mut ctx).await.unwrap();\n    assert!(matches!(decision, GuardDecision::Deny(_)));\n}\n"
 }
 
 fn unit_tests_full() -> String {
-    "//! Unit tests for the auth module.\n\nuse std::sync::Arc;\nuse crate::modules::auth::dto::{LoginDto, RegisterDto};\nuse crate::modules::auth::services::auth_service::AuthService;\nuse crate::modules::auth::services::password_service::PasswordService;\nuse crate::modules::auth::guards::auth_guard::AuthGuard;\nuse crate::modules::auth::guards::role_guard::RoleGuard;\nuse ironic::{Guard, GuardDecision, FrameworkRequest, RequestContext};\n\n// ── PasswordService ──────────────────────────────────────────────\n\n#[test]\nfn hash_and_verify() {\n    let svc = PasswordService;\n    let hash = svc.hash(\"password123\").unwrap();\n    assert!(svc.verify(\"password123\", &hash).unwrap());\n    assert!(!svc.verify(\"wrong\", &hash).unwrap());\n}\n\n#[test]\nfn unique_salts() {\n    let svc = PasswordService;\n    let h1 = svc.hash(\"password123\").unwrap();\n    let h2 = svc.hash(\"password123\").unwrap();\n    assert_ne!(h1, h2);\n}\n\n// ── AuthService ───────────────────────────────────────────────────\n\n#[test]\nfn register_and_login() {\n    let svc = AuthService { password: Arc::new(PasswordService) };\n    let user = svc.register(RegisterDto { email: \"test@test.com\".into(), password: \"pass123\".into(), name: \"Test\".into() }).unwrap();\n    assert_eq!(user.email, \"test@test.com\");\n    let tokens = svc.login(LoginDto { email: \"test@test.com\".into(), password: \"pass123\".into() }).unwrap();\n    assert!(!tokens.access_token.is_empty());\n}\n\n#[test]\nfn duplicate_email_rejected() {\n    let svc = AuthService { password: Arc::new(PasswordService) };\n    svc.register(RegisterDto { email: \"dup@test.com\".into(), password: \"pass\".into(), name: \"A\".into() }).unwrap();\n    assert!(svc.register(RegisterDto { email: \"dup@test.com\".into(), password: \"pass\".into(), name: \"B\".into() }).is_err());\n}\n\n#[test]\nfn wrong_password_rejected() {\n    let svc = AuthService { password: Arc::new(PasswordService) };\n    svc.register(RegisterDto { email: \"x@test.com\".into(), password: \"correct\".into(), name: \"X\".into() }).unwrap();\n    assert!(svc.login(LoginDto { email: \"x@test.com\".into(), password: \"wrong\".into() }).is_err());\n}\n\n// ── Guards ────────────────────────────────────────────────────────\n\n#[ironic::test]\nasync fn auth_guard_denies_missing_header() {\n    let mut ctx = RequestContext::new(FrameworkRequest::new(ironic::HttpMethod::GET, \"/\".parse().unwrap(), ironic::HeaderMap::new(), vec![]));\n    let decision = AuthGuard.can_activate(&mut ctx).await.unwrap();\n    assert!(matches!(decision, GuardDecision::Deny));\n}\n\n#[ironic::test]\nasync fn role_guard_denies_wrong_role() {\n    let mut ctx = RequestContext::new(FrameworkRequest::new(ironic::HttpMethod::GET, \"/\".parse().unwrap(), ironic::HeaderMap::new(), vec![]));\n    ctx.insert_extension(\"user\".to_string());\n    let guard = RoleGuard::new(&[\"admin\"]);\n    let decision = guard.can_activate(&mut ctx).await.unwrap();\n    assert!(matches!(decision, GuardDecision::Deny));\n}\n".to_string()
+    "//! Unit tests for the auth module.\n\nuse std::sync::Arc;\nuse crate::modules::auth::dto::{LoginDto, RegisterDto};\nuse crate::modules::auth::services::auth_service::AuthService;\nuse crate::modules::auth::services::password_service::PasswordService;\nuse crate::modules::auth::guards::auth_guard::AuthGuard;\nuse crate::modules::auth::guards::role_guard::RoleGuard;\nuse ironic::{Guard, GuardDecision, Request, RequestContext};\n\n// ── PasswordService ──────────────────────────────────────────────\n\n#[test]\nfn hash_and_verify() {\n    let svc = PasswordService;\n    let hash = svc.hash(\"password123\").unwrap();\n    assert!(svc.verify(\"password123\", &hash).unwrap());\n    assert!(!svc.verify(\"wrong\", &hash).unwrap());\n}\n\n#[test]\nfn unique_salts() {\n    let svc = PasswordService;\n    let h1 = svc.hash(\"password123\").unwrap();\n    let h2 = svc.hash(\"password123\").unwrap();\n    assert_ne!(h1, h2);\n}\n\n// ── AuthService ───────────────────────────────────────────────────\n\n#[test]\nfn register_and_login() {\n    let svc = AuthService { password: Arc::new(PasswordService) };\n    let user = svc.register(RegisterDto { email: \"test@test.com\".into(), password: \"pass123\".into(), name: \"Test\".into() }).unwrap();\n    assert_eq!(user.email, \"test@test.com\");\n    let tokens = svc.login(LoginDto { email: \"test@test.com\".into(), password: \"pass123\".into() }).unwrap();\n    assert!(!tokens.access_token.is_empty());\n}\n\n#[test]\nfn duplicate_email_rejected() {\n    let svc = AuthService { password: Arc::new(PasswordService) };\n    svc.register(RegisterDto { email: \"dup@test.com\".into(), password: \"pass\".into(), name: \"A\".into() }).unwrap();\n    assert!(svc.register(RegisterDto { email: \"dup@test.com\".into(), password: \"pass\".into(), name: \"B\".into() }).is_err());\n}\n\n#[test]\nfn wrong_password_rejected() {\n    let svc = AuthService { password: Arc::new(PasswordService) };\n    svc.register(RegisterDto { email: \"x@test.com\".into(), password: \"correct\".into(), name: \"X\".into() }).unwrap();\n    assert!(svc.login(LoginDto { email: \"x@test.com\".into(), password: \"wrong\".into() }).is_err());\n}\n\n// ── Guards ────────────────────────────────────────────────────────\n\n#[ironic::test]\nasync fn auth_guard_denies_missing_header() {\n    let mut ctx = RequestContext::new(Request::new(ironic::HttpMethod::GET, \"/\".parse().unwrap(), ironic::HeaderMap::new(), vec![]));\n    let decision = AuthGuard.can_activate(&mut ctx).await.unwrap();\n    assert!(matches!(decision, GuardDecision::Deny));\n}\n\n#[ironic::test]\nasync fn role_guard_denies_wrong_role() {\n    let mut ctx = RequestContext::new(Request::new(ironic::HttpMethod::GET, \"/\".parse().unwrap(), ironic::HeaderMap::new(), vec![]));\n    ctx.insert_extension(\"user\".to_string());\n    let guard = RoleGuard::new(&[\"admin\"]);\n    let decision = guard.can_activate(&mut ctx).await.unwrap();\n    assert!(matches!(decision, GuardDecision::Deny));\n}\n".to_string()
 }
 
 fn unit_tests_basic() -> String {
@@ -836,7 +836,7 @@ fn unit_tests_basic() -> String {
 }
 
 fn unit_tests_jwt() -> String {
-    "//! Unit tests for the auth module (JWT).\n\nuse std::sync::Arc;\nuse crate::modules::auth::dto::{LoginDto, RegisterDto};\nuse crate::modules::auth::services::auth_service::AuthService;\nuse crate::modules::auth::services::password_service::PasswordService;\nuse crate::modules::auth::guards::auth_guard::AuthGuard;\nuse crate::modules::auth::guards::role_guard::RoleGuard;\nuse ironic::{Guard, GuardDecision, FrameworkRequest, RequestContext};\n\n#[test]\nfn register_and_login() {\n    let svc = AuthService { password: Arc::new(PasswordService) };\n    let user = svc.register(RegisterDto { email: \"test@test.com\".into(), password: \"pass123\".into(), name: \"Test\".into() }).unwrap();\n    assert_eq!(user.email, \"test@test.com\");\n    let tokens = svc.login(LoginDto { email: \"test@test.com\".into(), password: \"pass123\".into() }).unwrap();\n    assert!(!tokens.access_token.is_empty());\n}\n\n#[test]\nfn duplicate_email_rejected() {\n    let svc = AuthService { password: Arc::new(PasswordService) };\n    svc.register(RegisterDto { email: \"dup@test.com\".into(), password: \"pass\".into(), name: \"A\".into() }).unwrap();\n    assert!(svc.register(RegisterDto { email: \"dup@test.com\".into(), password: \"pass\".into(), name: \"B\".into() }).is_err());\n}\n\n#[test]\nfn wrong_password_rejected() {\n    let svc = AuthService { password: Arc::new(PasswordService) };\n    svc.register(RegisterDto { email: \"x@test.com\".into(), password: \"correct\".into(), name: \"X\".into() }).unwrap();\n    assert!(svc.login(LoginDto { email: \"x@test.com\".into(), password: \"wrong\".into() }).is_err());\n}\n\n#[ironic::test]\nasync fn auth_guard_denies_missing_header() {\n    let mut ctx = RequestContext::new(FrameworkRequest::new(ironic::HttpMethod::GET, \"/\".parse().unwrap(), ironic::HeaderMap::new(), vec![]));\n    let decision = AuthGuard.can_activate(&mut ctx).await.unwrap();\n    assert!(matches!(decision, GuardDecision::Deny));\n}\n\n#[ironic::test]\nasync fn role_guard_denies_wrong_role() {\n    let mut ctx = RequestContext::new(FrameworkRequest::new(ironic::HttpMethod::GET, \"/\".parse().unwrap(), ironic::HeaderMap::new(), vec![]));\n    ctx.insert_extension(\"user\".to_string());\n    let guard = RoleGuard::new(&[\"admin\"]);\n    let decision = guard.can_activate(&mut ctx).await.unwrap();\n    assert!(matches!(decision, GuardDecision::Deny));\n}\n".to_string()
+    "//! Unit tests for the auth module (JWT).\n\nuse std::sync::Arc;\nuse crate::modules::auth::dto::{LoginDto, RegisterDto};\nuse crate::modules::auth::services::auth_service::AuthService;\nuse crate::modules::auth::services::password_service::PasswordService;\nuse crate::modules::auth::guards::auth_guard::AuthGuard;\nuse crate::modules::auth::guards::role_guard::RoleGuard;\nuse ironic::{Guard, GuardDecision, Request, RequestContext};\n\n#[test]\nfn register_and_login() {\n    let svc = AuthService { password: Arc::new(PasswordService) };\n    let user = svc.register(RegisterDto { email: \"test@test.com\".into(), password: \"pass123\".into(), name: \"Test\".into() }).unwrap();\n    assert_eq!(user.email, \"test@test.com\");\n    let tokens = svc.login(LoginDto { email: \"test@test.com\".into(), password: \"pass123\".into() }).unwrap();\n    assert!(!tokens.access_token.is_empty());\n}\n\n#[test]\nfn duplicate_email_rejected() {\n    let svc = AuthService { password: Arc::new(PasswordService) };\n    svc.register(RegisterDto { email: \"dup@test.com\".into(), password: \"pass\".into(), name: \"A\".into() }).unwrap();\n    assert!(svc.register(RegisterDto { email: \"dup@test.com\".into(), password: \"pass\".into(), name: \"B\".into() }).is_err());\n}\n\n#[test]\nfn wrong_password_rejected() {\n    let svc = AuthService { password: Arc::new(PasswordService) };\n    svc.register(RegisterDto { email: \"x@test.com\".into(), password: \"correct\".into(), name: \"X\".into() }).unwrap();\n    assert!(svc.login(LoginDto { email: \"x@test.com\".into(), password: \"wrong\".into() }).is_err());\n}\n\n#[ironic::test]\nasync fn auth_guard_denies_missing_header() {\n    let mut ctx = RequestContext::new(Request::new(ironic::HttpMethod::GET, \"/\".parse().unwrap(), ironic::HeaderMap::new(), vec![]));\n    let decision = AuthGuard.can_activate(&mut ctx).await.unwrap();\n    assert!(matches!(decision, GuardDecision::Deny));\n}\n\n#[ironic::test]\nasync fn role_guard_denies_wrong_role() {\n    let mut ctx = RequestContext::new(Request::new(ironic::HttpMethod::GET, \"/\".parse().unwrap(), ironic::HeaderMap::new(), vec![]));\n    ctx.insert_extension(\"user\".to_string());\n    let guard = RoleGuard::new(&[\"admin\"]);\n    let decision = guard.can_activate(&mut ctx).await.unwrap();\n    assert!(matches!(decision, GuardDecision::Deny));\n}\n".to_string()
 }
 
 fn integration_auth_test() -> &'static str {

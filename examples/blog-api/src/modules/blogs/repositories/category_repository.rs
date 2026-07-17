@@ -12,7 +12,6 @@ static CATEGORIES: std::sync::LazyLock<Mutex<HashMap<Uuid, Category>>> =
 #[derive(Injectable)]
 pub struct CategoryRepository;
 
-#[allow(dead_code)]
 impl CategoryRepository {
     pub fn list(&self) -> Result<Vec<Category>, HttpError> {
         let cats = CATEGORIES
@@ -38,14 +37,6 @@ impl CategoryRepository {
     }
 
     pub fn create(&self, category: Category) -> Result<Category, HttpError> {
-        let mut cats = CATEGORIES
-            .lock()
-            .map_err(|e| HttpError::internal("LOCK_ERROR", e.to_string()))?;
-        cats.insert(category.id, category.clone());
-        Ok(category)
-    }
-
-    pub fn update(&self, category: Category) -> Result<Category, HttpError> {
         let mut cats = CATEGORIES
             .lock()
             .map_err(|e| HttpError::internal("LOCK_ERROR", e.to_string()))?;

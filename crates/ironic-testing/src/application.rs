@@ -1,6 +1,6 @@
 use std::{convert::Infallible, future::Future, net::SocketAddr, sync::Arc};
 
-use ironic_core::{ApplicationError, FrameworkApplication, Module};
+use ironic_core::{Application, ApplicationError, Module};
 use ironic_di::{Dependency, ProviderDefinition, ResolveError, Scope};
 use ironic_http::{CompiledHttpApplication, HttpMethod};
 use ironic_platform::{
@@ -55,7 +55,7 @@ impl TestApplicationBuilder {
     /// Returns [`ApplicationError`] when the graph, overrides, eager providers, routes, or
     /// lifecycle hooks fail.
     pub async fn build(self) -> Result<TestApplication, ApplicationError> {
-        let mut builder = FrameworkApplication::builder()
+        let mut builder = Application::builder()
             .module(self.root)
             .platform(InProcessAdapter);
         for provider in self.overrides {
@@ -69,7 +69,7 @@ impl TestApplicationBuilder {
 
 /// A complete application that dispatches requests without binding a network port.
 pub struct TestApplication {
-    application: Option<FrameworkApplication<InProcessApplication>>,
+    application: Option<Application<InProcessApplication>>,
 }
 
 impl TestApplication {
@@ -152,7 +152,7 @@ impl TestApplication {
             .await
     }
 
-    fn application(&self) -> &FrameworkApplication<InProcessApplication> {
+    fn application(&self) -> &Application<InProcessApplication> {
         self.application
             .as_ref()
             .expect("test application has not been shut down")

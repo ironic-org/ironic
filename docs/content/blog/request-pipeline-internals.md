@@ -54,7 +54,7 @@ pub async fn execute(
     &self,
     route: &CompiledRoute,
     context: &mut RequestContext,
-) -> Result<FrameworkResponse, HttpError> {
+) -> Result<Response, HttpError> {
     if context.extension::<crate::RequestScope>().is_none() {
         context.insert_extension(self.container.request_scope());
     }
@@ -77,7 +77,7 @@ pub(crate) async fn execute(
     application: &CompiledHttpApplication,
     route: &CompiledRoute,
     context: &mut RequestContext,
-) -> Result<FrameworkResponse, HttpError> {
+) -> Result<Response, HttpError> {
     context.set_route_metadata(route.metadata().clone());
     let state = ExecutionState { application, route };
     match run_middleware(&state, 0, context).await {
@@ -177,7 +177,7 @@ The `PipelineFuture` type at line 9 is a boxed, pinned future:
 
 ```rust
 pub type PipelineFuture<'a> =
-    Pin<Box<dyn Future<Output = Result<FrameworkResponse, HttpError>> + Send + 'a>>;
+    Pin<Box<dyn Future<Output = Result<Response, HttpError>> + Send + 'a>>;
 ```
 
 Every stage returns this same type. The whole pipeline is one big async call tree.
@@ -330,7 +330,7 @@ pub(crate) async fn invoke_handler(
     &self,
     controller: ProviderValue,
     context: &mut RequestContext,
-) -> Result<FrameworkResponse, HttpError> {
+) -> Result<Response, HttpError> {
     let mut arguments = Vec::with_capacity(self.parameters.len());
     for parameter in &self.parameters {
         let mut value = parameter.extractor.extract(context).await?;
@@ -397,7 +397,7 @@ Mounted on controller `/users`. Here's what happens step by step:
 
 **8. Handler.** The erased handler's `.call()` method (`handler.rs:68`) downcasts the `ProviderValue` to `Arc<UserController>`, builds `HandlerArguments` from the extracted values, and invokes your closure. Your handler calls `arguments.take::<u64>(0)` to pull out the parsed ID, does its work, and returns `Json(User { ... })`.
 
-**9. Response conversion.** `IntoFrameworkResponse` converts the return value into a `FrameworkResponse` with proper status code and headers.
+**9. Response conversion.** `IntoResponse` converts the return value into a `Response` with proper status code and headers.
 
 **10. Unwind.** The response propagates back through each interceptor's after-hook, then each middleware's after-hook — in reverse order. The test at line 685 documents the exact event order:
 

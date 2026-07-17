@@ -28,6 +28,8 @@ highlight = "all"
 skip = [
     # ring uses an older getrandom; newer crates use 0.4
     { name = "getrandom", version = "0.2" },
+    # cron 0.17 depends on winnow 0.7; config 0.15 depends on winnow 1.x
+    { name = "winnow", version = "0.7" },
 ]
 skip-tree = [
     # notify depends on an older windows-sys ecosystem

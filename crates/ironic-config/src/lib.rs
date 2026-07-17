@@ -428,6 +428,13 @@ impl FeatureToggle {
     }
 }
 
+/// Creates an empty feature toggle with all flags disabled.
+impl Default for FeatureToggle {
+    fn default() -> Self {
+        Self::new(std::collections::HashMap::new())
+    }
+}
+
 /// A sensitive configuration value whose formatting and serialization are redacted.
 #[derive(Clone, Deserialize, Eq, PartialEq)]
 #[serde(transparent)]
@@ -476,6 +483,35 @@ impl<T> Serialize for Secret<T> {
 
 /// A secret UTF-8 string.
 pub type SecretString = Secret<String>;
+
+/// A hot-reloadable configuration value backed by a `tokio::sync::watch`.
+///
+/// Use with `ConfigWatcher` to receive live updates when config files change.
+/// Inject `Reloadable<AppConfig>` into providers instead of `AppConfig` directly
+/// to respond to runtime configuration changes without restarting.
+#[derive(Clone, Debug)]
+pub struct Reloadable<T> {
+    rx: tokio::sync::watch::Receiver<T>,
+}
+
+impl<T: Clone> Reloadable<T> {
+    /// Wraps an existing watch receiver.
+    #[must_use]
+    pub fn new(rx: tokio::sync::watch::Receiver<T>) -> Self {
+        Self { rx }
+    }
+
+    /// Returns the latest configuration value.
+    #[must_use]
+    pub fn latest(&self) -> T {
+        self.rx.borrow().clone()
+    }
+
+    /// Returns a receiver for the updated value stream.
+    pub fn receiver(&self) -> tokio::sync::watch::Receiver<T> {
+        self.rx.clone()
+    }
+}
 
 #[cfg(test)]
 mod tests {

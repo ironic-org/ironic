@@ -161,7 +161,7 @@ ironic = { features = ["cache", "redis"] }
 Configure Redis in your application builder:
 
 ```rust
-FrameworkApplication::builder()
+Application::builder()
     .cache(RedisCache::new("redis://localhost:6379").await?)
     .build().await.unwrap();
 ```

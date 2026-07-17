@@ -14,8 +14,11 @@ use std::{
 };
 
 use ironic_http::{
-    FrameworkResponse, HttpStatus, Middleware, MiddlewareNext, PipelineFuture, RequestContext,
+    HttpStatus, Middleware, MiddlewareNext, PipelineFuture, RequestContext, Response,
 };
+
+/// Type alias for rate limit key resolver functions.
+pub type RateLimitKeyResolver = Arc<dyn Fn(&RequestContext) -> String + Send + Sync>;
 
 // ---------------------------------------------------------------------------
 // Public API
@@ -244,6 +247,7 @@ pub struct RateLimitMiddleware {
     backend: Arc<dyn RateLimitBackend>,
     max_requests: u64,
     window_secs: u64,
+    key_resolver: Option<RateLimitKeyResolver>,
 }
 
 impl RateLimitMiddleware {
@@ -254,6 +258,7 @@ impl RateLimitMiddleware {
             backend: Arc::new(InMemoryRateLimiter::new()),
             max_requests,
             window_secs,
+            key_resolver: None,
         }
     }
 
@@ -268,6 +273,7 @@ impl RateLimitMiddleware {
             backend,
             max_requests,
             window_secs,
+            key_resolver: None,
         }
     }
 }
@@ -279,15 +285,19 @@ impl Middleware for RateLimitMiddleware {
         next: MiddlewareNext<'a>,
     ) -> PipelineFuture<'a> {
         Box::pin(async move {
-            let key = context
-                .request()
-                .headers()
-                .get("x-forwarded-for")
-                .and_then(|v| v.to_str().ok())
-                .and_then(|all| all.split(',').next_back().map(str::trim))
-                .filter(|ip| !ip.is_empty())
-                .unwrap_or("127.0.0.1")
-                .to_owned();
+            let key = if let Some(ref r) = self.key_resolver {
+                r(context)
+            } else {
+                context
+                    .request()
+                    .headers()
+                    .get("x-forwarded-for")
+                    .and_then(|v| v.to_str().ok())
+                    .and_then(|all| all.split(',').next_back().map(str::trim))
+                    .filter(|ip| !ip.is_empty())
+                    .unwrap_or("127.0.0.1")
+                    .to_owned()
+            };
 
             let result = self
                 .backend
@@ -295,7 +305,7 @@ impl Middleware for RateLimitMiddleware {
                 .await;
 
             if !result.allowed {
-                let mut response = FrameworkResponse::error(
+                let mut response = Response::error(
                     HttpStatus::TOO_MANY_REQUESTS,
                     ironic_core::error_codes::codes::RATE_LIMIT_EXCEEDED,
                     "Too many requests, please try again later",

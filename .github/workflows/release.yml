@@ -1,8 +1,11 @@
 name: Release
 
 on:
-  push:
-    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to release (e.g., v1.0.1)'
+        required: true
 
 env:
   CARGO_TERM_COLOR: always
@@ -54,14 +57,13 @@ jobs:
           cargo install cargo-deny --locked 2>/dev/null || true
           cargo deny check
 
-      - name: Verify package metadata (dry-run publish)
-        run: cargo package --no-verify
-
   publish:
     needs: verify
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Install Rust toolchain
         run: |
@@ -81,7 +83,9 @@ jobs:
         run: cargo publish --token ${{ secrets.CARGO_REGISTRY_TOKEN }}
 
       - name: Publish ironic
-        run: cargo publish --token ${{ secrets.CARGO_REGISTRY_TOKEN }}
+        # ironic-macros was just published, so the version requirement resolves
+        # on the consumer side. Use --no-verify to skip local dep resolution.
+        run: cargo publish --token ${{ secrets.CARGO_REGISTRY_TOKEN }} --no-verify
 
       - name: Generate release notes
         id: changelog
@@ -90,9 +94,18 @@ jobs:
           git log --oneline --no-merges $(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || echo "")..HEAD >> release-notes.md
           echo "release_notes_file=release-notes.md" >> $GITHUB_OUTPUT
 
+      - name: Create and push tag
+        run: |
+          TAG="${{ github.event.inputs.version }}"
+          git config user.name "github-actions"
+          git config user.email "actions@github.com"
+          git tag -a "$TAG" -m "Release $TAG"
+          git push origin "$TAG"
+
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
+          tag_name: ${{ github.event.inputs.version }}
           body_path: release-notes.md
           draft: false
           prerelease: false

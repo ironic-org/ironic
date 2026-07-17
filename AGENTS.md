@@ -65,5 +65,5 @@ Implement production-readiness improvements: multipart upload, Redis session per
 - `docs/content/docs/migrations/v0.3.x.md`
 - `crates/ironic/benches/overhead.rs`
 - `crates/ironic/benches/metrics.rs`
-- `scripts/release.sh`: no crates.io publish; doc sync auto-discovers files; SUMMARY uses formatted changelog; BlogIndex.tsx badge auto-updated
+- `scripts/release.sh`: pushes commit only (no tag); tag created by CI after publish succeeds. Trigger release workflow manually at github.com/ironic-org/ironic/actions/workflows/release.yml with version `vX.Y.Z`
 - `crates/ironic-cli/src/generators/project.rs`: `manifest()` uses semver range (`"0.4"`) instead of exact unpublished version; `example_controller()` stripped `#[api]`/`#[resp]`/`#[req_body]` (not in published versions)

@@ -491,10 +491,12 @@ cargo test --all-features
 echo "  • bun run build (docs)"
 bun install --frozen-lockfile --cwd "$ROOT/docs" && bun run --cwd "$ROOT/docs" build
 
-# ── step 7: commit, tag & push ──────────────────────────────────────
-# (crates.io publish is handled by GitHub Actions when the tag is pushed)
+# ── step 7: commit & push (no tag) ──────────────────────────────────
+# The tag is created and pushed by the CI release workflow
+# (triggered manually via workflow_dispatch) only after verification
+# and publish succeed.
 
-echo "→ Committing, tagging and pushing v$NEW..."
+echo "→ Committing and pushing v$NEW (tag will be created by CI)..."
 
 cd "$ROOT"
 
@@ -513,19 +515,11 @@ if ! git push origin HEAD; then
     exit 1
 fi
 
-echo "→ Creating and pushing tag v$NEW..."
-git tag -d "v$NEW" 2>/dev/null || true
-git tag -a "v$NEW" -m "Release v$NEW"
-if git push origin "v$NEW" 2>&1; then
-    echo -e "  ${GREEN}✓${NC} tag pushed"
-else
-    echo -e "  ${CYAN}!${NC} tag already exists on remote — force pushing..."
-    git push --force origin "v$NEW"
-    echo -e "  ${GREEN}✓${NC} tag force-pushed"
-fi
-
 echo ""
 echo -e "${GREEN}╔══════════════════════════════════════════════════════════════════╗${NC}"
-echo -e "${GREEN}║${NC}  🚀 Released ${CYAN}v$NEW${NC}"
-echo -e "${GREEN}║${NC}  https://github.com/ironic-org/ironic/releases/tag/v$NEW"
+echo -e "${GREEN}║${NC}  🚀 Prepared ${CYAN}v$NEW${NC} for release"
+echo -e "${GREEN}║${NC}  Commit pushed to main. Tag will be created by CI."
+echo -e "${GREEN}║${NC}  Next: trigger the release workflow manually at:"
+echo -e "${GREEN}║${NC}  https://github.com/ironic-org/ironic/actions/workflows/release.yml"
+echo -e "${GREEN}║${NC}  with version: ${CYAN}v$NEW${NC}"
 echo -e "${GREEN}╚══════════════════════════════════════════════════════════════════╝${NC}"

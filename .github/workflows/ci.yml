@@ -102,3 +102,33 @@ jobs:
 
       - name: Fuzz test (60s smoke check)
         run: cargo +nightly fuzz run http_parse -- -max_total_time=60 2>&1 || echo "::warning::fuzz test found crashes or failed to run"
+
+  maybe-release:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: [check, security]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Trigger release if version bumped
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          CURRENT_VER=$(grep '^version = ' Cargo.toml | head -1 | sed 's/.*"\(.*\)".*/\1/')
+          LATEST_TAG=$(git tag --list 'v*' --sort=-version:refname | head -1 | sed 's/^v//')
+          echo "Cargo.toml version: $CURRENT_VER"
+          echo "Latest git tag:     ${LATEST_TAG:-<none>}"
+          if [ -z "$LATEST_TAG" ]; then
+            echo "No previous tags — triggering release for v$CURRENT_VER"
+            gh workflow run release.yml -f version="v$CURRENT_VER"
+            exit 0
+          fi
+          HIGHER=$(printf '%s\n%s' "$CURRENT_VER" "$LATEST_TAG" | sort -V | tail -1)
+          if [ "$HIGHER" = "$CURRENT_VER" ] && [ "$CURRENT_VER" != "$LATEST_TAG" ]; then
+            echo "Version bumped to v$CURRENT_VER — triggering release workflow"
+            gh workflow run release.yml -f version="v$CURRENT_VER"
+          else
+            echo "Version unchanged (v$CURRENT_VER) — no release needed"
+          fi

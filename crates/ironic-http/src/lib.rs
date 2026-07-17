@@ -20,8 +20,8 @@ pub use error::HttpError;
 pub(crate) use exception_filter::ExceptionFilterSet;
 pub use exception_filter::{ExceptionFilter, FilterContext};
 pub use extract::{
-    ExtractFuture, ExtractedValue, HeaderParameter, JsonBody, ParameterExtractor, PathParameter,
-    QueryParameters,
+    ExtractFuture, ExtractedValue, FormBody, HeaderParameter, JsonBody, ParameterExtractor,
+    PathParameter, QueryParameters,
 };
 pub use handler::{ErasedHandler, HandlerArguments, HandlerFuture, handler_fn};
 pub use metadata::{CacheMetadata, VersionMetadata, VersioningStrategy};

@@ -141,6 +141,12 @@ async fn create(
     #[header("x-api-key")] key: String, // Request header
 ) -> Result<Json<User>, HttpError> { ... }
 
+#[post("/login")]
+async fn login(
+    &self,
+    #[form] credentials: LoginForm,     // application/x-www-form-urlencoded
+) -> Result<Json<Token>, HttpError> { ... }
+
 #[get("/users/:id")]
 async fn show(
     &self,
@@ -152,12 +158,14 @@ async fn show(
 |-----------|--------|---------|
 | `#[param]` | Path segment (`/:name`) | `/users/42` → `42` |
 | `#[body]` | Request body (JSON) | `POST` with `{"name":"Alice"}` |
+| `#[form]` | Request body (URL-encoded form) | `POST` with `name=Alice&age=30` |
 | `#[query]` | Query string | `?filter=active` |
 | `#[header("name")]` | Request header | `Authorization: Bearer ...` |
 
 **Common mistakes:**
 - Using `#[param]` on a route that doesn't declare the corresponding `:param` in its path — runtime panic.
 - Forgetting `#[body]` when you need the JSON payload — the argument gets the wrong extractor.
+- Using `#[form]` without `Content-Type: application/x-www-form-urlencoded` — the request is rejected with `400`.
 
 ---
 
@@ -252,7 +260,7 @@ The macro registers the WebSocket upgrade handler at the given path. Message han
 - [x] `#[derive(Injectable)]` with `#[injectable(...)]` controls scope and eager init
 - [x] `#[controller("/prefix")]` + `#[routes]` declare HTTP endpoints
 - [x] `#[get]`, `#[post]`, `#[put]`, `#[delete]`, `#[patch]`, `#[head]`, `#[options]` map HTTP verbs
-- [x] `#[param]`, `#[body]`, `#[query]`, `#[header]` extract request data
+- [x] `#[param]`, `#[body]`, `#[form]`, `#[query]`, `#[header]` extract request data
 - [x] `#[guard]` and `#[interceptor]` plug into the request pipeline
 - [x] `#[ironic::main]` sets up the async runtime
 - [x] `#[web_socket_gateway]` + `#[subscribe_message]` handle WebSocket connections

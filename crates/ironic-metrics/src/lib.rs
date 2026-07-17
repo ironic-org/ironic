@@ -493,7 +493,7 @@ pub fn scrape() -> String {
 
     scrape_custom(&mut out);
 
-    let _ = writeln!(out, "# HELP ironic_info Framework version");
+    let _ = writeln!(out, "# HELP ironic_info ironic version");
     let _ = writeln!(out, "# TYPE ironic_info gauge");
     let _ = writeln!(
         out,

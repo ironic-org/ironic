@@ -25,7 +25,7 @@ curl http://localhost:3000/api/blogs \
   -H "Authorization: Bearer $TOKEN"
 ```
 
-## All Framework Features
+## All ironic Features
 
 | # | Feature | Status | Where / Why Not |
 |---|---------|--------|-----------------|

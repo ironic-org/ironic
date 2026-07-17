@@ -25,10 +25,10 @@ impl OnModuleInit for BlogService {
             }
 
             let rust = self.create_category("Rust".into(), None);
-            let framework = self.create_category("Framework".into(), None);
+            let ironic = self.create_category("Ironic".into(), None);
             let tutorial = self.create_category("Tutorial".into(), None);
 
-            if let (Ok(rust_cat), Ok(fw_cat), Ok(tut_cat)) = (rust, framework, tutorial) {
+            if let (Ok(rust_cat), Ok(ironic_cat), Ok(tut_cat)) = (rust, ironic, tutorial) {
                 let _ = self.create(CreateBlogDto {
                     title: "Getting Started with Ironic".into(),
                     content: "Ironic is a type-safe Rust framework for building APIs with compile-time guarantees.".into(),
@@ -36,7 +36,7 @@ impl OnModuleInit for BlogService {
                     tags: Some(vec!["rust".into(), "framework".into()]),
                     author: Some("Ironic Team".into()),
                     publish: Some(true),
-                    category_ids: Some(vec![fw_cat.id, tut_cat.id]),
+                    category_ids: Some(vec![ironic_cat.id, tut_cat.id]),
                 });
 
                 let _ = self.create(CreateBlogDto {

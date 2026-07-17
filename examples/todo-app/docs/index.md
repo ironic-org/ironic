@@ -30,7 +30,7 @@ A production-ready Todo API built with [Ironic](https://github.com/ironic-org/ir
 ┌─────────────────────────────────────────┐
 │              todo-example                │
 ├─────────────────────────────────────────┤
-│  Ironic Framework (Axum adapter)        │
+│  Ironic (Axum adapter)        │
 ├─────────────────────────────────────────┤
 │  SQLx ORM → PostgreSQL                  │
 └─────────────────────────────────────────┘

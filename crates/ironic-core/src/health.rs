@@ -29,7 +29,7 @@ pub struct BuildInfo {
     pub rust_version: String,
     /// Active Cargo feature flags at compile time.
     pub features: Vec<String>,
-    /// Framework version (semver).
+    /// Ironic version (semver).
     pub version: String,
 }
 

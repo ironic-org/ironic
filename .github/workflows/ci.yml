@@ -13,12 +13,17 @@ env:
 jobs:
   check:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        rust: [stable, nightly]
+      fail-fast: false
     steps:
       - uses: actions/checkout@v4
 
       - name: Install Rust toolchain
         run: |
-          rustup show
+          rustup toolchain install ${{ matrix.rust }} --allow-downgrade
+          rustup override set ${{ matrix.rust }}
           rustc --version && cargo --version
 
       - name: Cache cargo registry and build
@@ -28,37 +33,66 @@ jobs:
             ~/.cargo/registry
             ~/.cargo/git
             target/
-          key: ${{ runner.os }}-cargo-${{ hashFiles('Cargo.lock') }}
+          key: ${{ runner.os }}-cargo-${{ matrix.rust }}-${{ hashFiles('Cargo.lock') }}
           restore-keys: |
-            ${{ runner.os }}-cargo-
+            ${{ runner.os }}-cargo-${{ matrix.rust }}-
 
       - name: Check formatting
+        if: matrix.rust == 'stable'
         run: cargo fmt --all -- --check
 
       - name: Clippy (all features)
+        if: matrix.rust == 'stable'
         run: cargo clippy --workspace --all-targets --all-features -- -D warnings
 
       - name: Test (all features)
         run: cargo test --all-features
 
       - name: Build docs
-        run: npm --prefix docs install && npm --prefix docs run build
+        if: matrix.rust == 'stable'
+        run: npm --prefix docs ci && npm --prefix docs run build
 
-      - name: cargo audit (advisory check)
-        if: success() || failure()
-        run: |
-          cargo install cargo-audit --locked 2>/dev/null || true
-          cargo audit 2>&1 || echo "::warning::cargo audit found advisories"
+  security:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
 
-      - name: cargo deny (license & duplicate check)
-        if: success() || failure()
+      - name: Cache cargo-audit and cargo-deny
+        uses: actions/cache@v4
+        with:
+          path: ~/.cargo/bin/cargo-audit
+          key: ${{ runner.os }}-cargo-audit
+
+      - name: Install cargo-audit
+        run: cargo install cargo-audit --locked 2>/dev/null || true
+
+      - name: cargo audit
+        run: cargo audit
+
+      - name: Cache cargo-deny
+        uses: actions/cache@v4
+        with:
+          path: ~/.cargo/bin/cargo-deny
+          key: ${{ runner.os }}-cargo-deny
+
+      - name: Install cargo-deny
+        run: cargo install cargo-deny --locked 2>/dev/null || true
+
+      - name: cargo deny
+        run: cargo deny check
+
+  fuzz:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install nightly toolchain
         run: |
-          cargo install cargo-deny --locked 2>/dev/null || true
-          cargo deny check 2>&1 || echo "::warning::cargo deny check failed"
+          rustup toolchain install nightly --allow-downgrade -c rust-src
+          rustc --version
+
+      - name: Install cargo-fuzz
+        run: cargo +nightly install cargo-fuzz --locked 2>/dev/null || true
 
       - name: Fuzz test (60s smoke check)
-        if: success() || failure()
-        run: |
-          rustup toolchain install nightly --allow-downgrade -c rust-src 2>/dev/null || true
-          cargo +nightly install cargo-fuzz --locked 2>/dev/null || true
-          cargo +nightly fuzz run http_parse -- -max_total_time=60 2>&1 || echo "::warning::fuzz test found crashes or failed to run"
+        run: cargo +nightly fuzz run http_parse -- -max_total_time=60 2>&1 || echo "::warning::fuzz test found crashes or failed to run"

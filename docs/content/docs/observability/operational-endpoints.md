@@ -40,7 +40,7 @@ The `GET /version` endpoint returns compile-time build metadata:
   "build_timestamp": "1719876543",
   "rust_version": "rustc 1.85.0 (1234abcd 2025-02-17)",
   "features": ["auth", "logging", "metrics", "openapi"],
-  "version": "0.4.8"
+  "version": "1.0.0"
 }
 ```
 

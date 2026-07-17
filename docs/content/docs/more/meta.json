@@ -1,4 +1,4 @@
 {
   "title": "More",
-  "pages": ["examples", "blog-api", "benchmarks", "deployment", "faq"]
+  "pages": ["examples", "blog-api", "production-release", "benchmarks", "deployment", "faq"]
 }

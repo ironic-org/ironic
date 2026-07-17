@@ -628,6 +628,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "blog-api"
+version = "1.0.0"
+dependencies = [
+ "chrono",
+ "dotenvy",
+ "garde",
+ "ironic",
+ "serde",
+ "serde_json",
+ "tokio",
+ "tracing",
+ "uuid",
+]
+
+[[package]]
 name = "brotli"
 version = "8.0.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2414,7 +2429,7 @@ dependencies = [
 
 [[package]]
 name = "ironic"
-version = "0.4.9"
+version = "1.0.0"
 dependencies = [
  "argon2",
  "async-graphql",
@@ -2469,7 +2484,7 @@ dependencies = [
 
 [[package]]
 name = "ironic-macros"
-version = "0.4.9"
+version = "1.0.0"
 dependencies = [
  "proc-macro2",
  "quote",

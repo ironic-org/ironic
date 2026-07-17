@@ -98,7 +98,7 @@ edition = "2024"
 rust-version = "1.97"
 
 [dependencies]
-ironic = { version = "0.4.1", features = ["security", "metrics", "validation"] }
+ironic = { version = "1.0", features = ["security", "metrics", "validation"] }
 serde = { version = "1", features = ["derive"] }
 garde = "0.23"
 dotenvy = "0.15"

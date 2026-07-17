@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v1.0.0] - 2026-07-17
+
+### Added
+- GitHub Actions CI with matrix testing across stable and nightly Rust (e3e863c)
+- Separate security job for cargo audit and cargo deny checks (4872ed8)
+- crates.io publishing workflow in release pipeline (e3e863c)
+- Fuzz testing job (60s smoke check with cargo-fuzz on nightly) (4872ed8)
+- Production release guide with pre-flight checklist, versioning policy, hotfix process, and rollback plan (e3e863c)
+- Blog API example demonstrating cross-module DI, categories, slug management, and stats (e3e863c)
+- SECURITY.md updated for 1.0.x supported versions (4872ed8)
+- Dependabot configuration for automated dependency updates (e3e863c)
+
+### Changed
+- Version bumped from 0.4.9 to 1.0.0 (e3e863c)
+- CI workflow restructured with separate check, security, and fuzz jobs (4872ed8)
+- Releases index updated with 1.0 versioning policy (e3e863c)
+- All documentation references updated to 1.0.0 (4872ed8)
+- v0.5.x series marked as legacy (e3e863c)
+
 ## [v0.5.0] - 2026-07-16
 
 ### Fixed

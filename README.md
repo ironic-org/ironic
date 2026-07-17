@@ -84,10 +84,91 @@ async fn main() {
 
 ## Contributing
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) for setup instructions, coding conventions, and PR workflow.
+We welcome contributions! Here's how to get started.
 
-- [Good First Issues](https://github.com/ironic-org/ironic/labels/good%20first%20issue)
-- [Help Wanted](https://github.com/ironic-org/ironic/labels/help%20wanted)
+### First Time
+
+1. Find an issue tagged [good first issue](https://github.com/ironic-org/ironic/labels/good%20first%20issue) or [help wanted](https://github.com/ironic-org/ironic/labels/help%20wanted)
+2. Comment on the issue that you're working on it
+3. Follow the steps below to open a PR
+
+### Setup
+
+```bash
+git clone https://github.com/ironic-org/ironic.git
+cd ironic
+cargo build
+cargo test
+```
+
+### Branch Naming
+
+```
+feat/description     # new features
+fix/description      # bug fixes
+chore/description    # tooling, CI, deps
+docs/description     # documentation
+refactor/description # code restructuring
+```
+
+### Commit Messages
+
+Follow [Conventional Commits](https://www.conventionalcommits.org/):
+
+```
+feat: add #[ironic::test] proc-macro
+fix: resolve DI cycle detection panic
+chore: bump axum to 0.8.10
+docs: update release workflow guide
+```
+
+### PR Workflow
+
+1. Create a branch from `main`: `git checkout -b feat/my-feature`
+2. Make your changes
+3. Run checks locally:
+   ```bash
+   cargo build
+   cargo test --all-features
+   cargo clippy --workspace --all-targets --all-features -- -D warnings
+   cargo fmt --all -- --check
+   ```
+4. Commit and push: `git push origin feat/my-feature`
+5. Open a PR against `main` with:
+   - Clear title matching commit conventions
+   - Description explaining what and why
+   - `Closes #N` to link the issue
+6. Ensure CI passes on your PR
+7. Address reviewer feedback with additional commits
+
+### CI Pipeline
+
+| Check | Description |
+|-------|-------------|
+| Formatting | `cargo fmt --check` |
+| Clippy | `cargo clippy -D warnings` (all features) |
+| Test | `cargo test --all-features` (stable + nightly) |
+| Audit | `cargo audit` (vulnerability scan) |
+| Deny | `cargo deny` (license + duplicate check) |
+| Docs | Build docs site |
+| Fuzz | 60s smoke test on nightly |
+
+### Code Style (Enforced — PRs Must Comply)
+
+PRs that violate these rules **will not be merged**:
+
+- **Patterns** — follow existing conventions in the codebase
+- **No comments** — code should be self-documenting. Comments only for non-obvious logic
+- **Small functions** — each function should have a single responsibility
+- **Document all public APIs** — every public type, method, and module export needs a doc comment
+- **Tests required** — new features must include tests; bug fixes must include a regression test
+
+All items are checked via the PR template checklist. CI enforces what it can (fmt, clippy, tests); the rest is enforced during review.
+
+### Need Help?
+
+- [Discord](https://discord.gg/ironic-community)
+- [Discussions](https://github.com/ironic-org/ironic/discussions)
 - [Code of Conduct](CODE_OF_CONDUCT.md)
 
 ## License

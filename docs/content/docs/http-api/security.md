@@ -37,7 +37,7 @@ use ironic::security::{
 use std::sync::Arc;
 use std::time::Duration;
 
-FrameworkApplication::builder()
+Application::builder()
     .module(AppModule::definition())
     .middleware(SecurityHeadersMiddleware::new(SecurityHeadersConfig::default()))
     .middleware(CorsMiddleware::new(

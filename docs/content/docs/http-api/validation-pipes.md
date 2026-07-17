@@ -362,9 +362,9 @@ impl ExceptionFilter for ValidationErrorFilter {
         &self,
         error: &HttpError,
         _ctx: &FilterContext,
-    ) -> Result<FrameworkResponse, HttpError> {
+    ) -> Result<Response, HttpError> {
         if error.code() == "VALIDATION_FAILED" {
-            Ok(FrameworkResponse::json(
+            Ok(Response::json(
                 HttpStatus::BAD_REQUEST,
                 &serde_json::json!({
                     "error": "VALIDATION_FAILED",

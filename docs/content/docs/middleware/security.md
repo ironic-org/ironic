@@ -24,7 +24,7 @@ Sets browser security headers on every response — HSTS, CSP, X-Frame-Options, 
 ```rust
 use ironic::security::security_headers::{SecurityHeadersConfig, SecurityHeadersMiddleware};
 
-FrameworkApplication::builder()
+Application::builder()
     .module(AppModule::definition())
     .middleware(SecurityHeadersMiddleware::new(SecurityHeadersConfig::default()))
     .platform(AxumAdapter::new())
@@ -38,7 +38,7 @@ Controls which origins can access your API.
 ```rust
 use ironic::security::cors::{CorsConfig, CorsMiddleware};
 
-FrameworkApplication::builder()
+Application::builder()
     .module(AppModule::definition())
     .middleware(CorsMiddleware::new(
         CorsConfig::new()
@@ -58,7 +58,7 @@ use ironic::security::rate_limit::{InMemoryRateLimiter, RateLimitConfig, RateLim
 use std::sync::Arc;
 use std::time::Duration;
 
-FrameworkApplication::builder()
+Application::builder()
     .module(AppModule::definition())
     .middleware(RateLimitMiddleware::new(
         Arc::new(InMemoryRateLimiter::new()),
@@ -85,7 +85,7 @@ Protects form submissions with synchronizer tokens. Returns 403 on mismatch.
 ```rust
 use ironic::security::csrf::{CsrfConfig, CsrfMiddleware};
 
-FrameworkApplication::builder()
+Application::builder()
     .module(AppModule::definition())
     .middleware(CsrfMiddleware::new(
         CsrfConfig::new()

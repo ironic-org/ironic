@@ -89,7 +89,7 @@ impl OnError for ErrorMetrics {
 | | OnError | ExceptionFilter |
 |---|---|---|
 | Purpose | Observe/report errors | Transform errors into responses |
-| Return type | `Result<(), LifecycleError>` | `Result<FrameworkResponse, HttpError>` |
+| Return type | `Result<(), LifecycleError>` | `Result<Response, HttpError>` |
 | Can change response? | No | Yes |
 | Runs before filters? | Yes | After |
 | Best for | Logging, metrics, alerting | 404 → nice JSON, 500 → safe message |

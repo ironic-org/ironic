@@ -33,7 +33,7 @@ ironic = { features = ["compression"] }
 Add one line to enable:
 
 ```rust
-FrameworkApplication::builder()
+Application::builder()
     .platform(AxumAdapter::new().compression())
     .build().await.unwrap();
 ```

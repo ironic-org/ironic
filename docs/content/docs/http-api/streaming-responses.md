@@ -15,10 +15,10 @@ When building large responses (file downloads, report exports, bulk data), cloni
 use std::sync::Arc;
 use ironic::prelude::*;
 
-fn export_csv() -> FrameworkResponse {
+fn export_csv() -> Response {
     let csv_data: Vec<u8> = generate_large_csv_report();
     let shared_body = Arc::new(csv_data);
-    FrameworkResponse::from_stream(HttpStatus::OK, shared_body)
+    Response::from_stream(HttpStatus::OK, shared_body)
 }
 ```
 
@@ -26,9 +26,9 @@ fn export_csv() -> FrameworkResponse {
 
 | Body size | Use |
 |-----------|-----|
-| < 10 KB | `FrameworkResponse::bytes()` — simple |
-| 10 KB - 1 MB | `FrameworkResponse::json()` — standard JSON |
-| > 1 MB | `FrameworkResponse::from_stream()` — shared ownership |
+| < 10 KB | `Response::bytes()` — simple |
+| 10 KB - 1 MB | `Response::json()` — standard JSON |
+| > 1 MB | `Response::from_stream()` — shared ownership |
 
 ## How it works
 

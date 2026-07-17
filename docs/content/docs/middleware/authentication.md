@@ -56,7 +56,7 @@ impl Authorizable for User {
 }
 
 // Register middleware + guards
-FrameworkApplication::builder()
+Application::builder()
     .module(AppModule::definition())
     .middleware(AuthenticationMiddleware::new(MyAuthenticator))
     .platform(AxumAdapter::new())
@@ -72,7 +72,7 @@ struct AdminController;
 ## Accessing the authenticated user in handlers
 
 ```rust
-fn profile(context: RequestContext) -> impl IntoFrameworkResponse {
+fn profile(context: RequestContext) -> impl IntoResponse {
     let auth = context.extension::<AuthContext<User>>().unwrap();
     match auth.principal() {
         Some(user) => format!("Hello, {}", user.email),
@@ -96,7 +96,7 @@ Middleware runs before guards. `AuthenticationMiddleware` must be registered bef
 
 ```rust
 // ✅ Correct — middleware before guards
-FrameworkApplication::builder()
+Application::builder()
     .module(AppModule::definition())
     .middleware(AuthenticationMiddleware::new(MyAuthenticator))
     .platform(AxumAdapter::new())

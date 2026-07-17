@@ -94,7 +94,7 @@ impl BlogsController {
 For interceptors that apply to every route in the application:
 
 ```rust
-FrameworkApplication::builder()
+Application::builder()
     .interceptor(TimingInterceptor)
     .build().await.unwrap();
 ```
@@ -125,7 +125,7 @@ TimingInterceptor::after    (log elapsed)
 Wrap every JSON response in `{ data, meta }`:
 
 ```rust
-use ironic::{Interceptor, InterceptorNext, PipelineFuture, RequestContext, FrameworkResponse};
+use ironic::{Interceptor, InterceptorNext, PipelineFuture, RequestContext, Response};
 
 pub struct EnvelopeInterceptor;
 
@@ -142,7 +142,7 @@ impl Interceptor for EnvelopeInterceptor {
                 "data": serde_json::from_slice::<serde_json::Value>(&body).unwrap_or_default(),
                 "meta": { "status": response.status().as_u16() }
             });
-            Ok(FrameworkResponse::json(
+            Ok(Response::json(
                 response.status(),
                 &envelope,
             )?)

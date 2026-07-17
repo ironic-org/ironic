@@ -77,17 +77,17 @@ Three things happen per route:
 
 ## Request/response conversion at the boundary
 
-`execute_route()` at line 297 is where the type translation happens. An Axum `Request<Body>` arrives. The adapter reads the body into bytes (enforcing `body_limit`), then constructs a protocol-neutral `FrameworkRequest`:
+`execute_route()` at line 297 is where the type translation happens. An Axum `Request<Body>` arrives. The adapter reads the body into bytes (enforcing `body_limit`), then constructs a protocol-neutral `Request`:
 
 ```rust
-let request = FrameworkRequest::new(parts.method, parts.uri, parts.headers, body)
+let request = Request::new(parts.method, parts.uri, parts.headers, body)
     .with_path_parameters(parameters);
 let mut context = RequestContext::new(request);
 ```
 
-`FrameworkRequest` uses `http::Method`, `http::Uri`, and `HeaderMap` — the types from the `http` crate that most Rust HTTP libraries already share. The adapter doesn't invent its own request type; it leans on a common denominator.
+`Request` uses `http::Method`, `http::Uri`, and `HeaderMap` — the types from the `http` crate that most Rust HTTP libraries already share. The adapter doesn't invent its own request type; it leans on a common denominator.
 
-After the framework executes the handler, the response flows back the other way. `framework_response()` at line 332 destructures `FrameworkResponse` into status, headers, and body — then maps `FrameworkBody::Empty` to `Body::empty()` and `FrameworkBody::Bytes` to `Body::from(bytes)`. The conversion is zero-copy for bytes, heap-allocated only for the status and header clones.
+After the framework executes the handler, the response flows back the other way. `framework_response()` at line 332 destructures `Response` into status, headers, and body — then maps `FrameworkBody::Empty` to `Body::empty()` and `FrameworkBody::Bytes` to `Body::from(bytes)`. The conversion is zero-copy for bytes, heap-allocated only for the status and header clones.
 
 Handler panics are caught with `AssertUnwindSafe` and `catch_unwind`, converting them into `RF_HTTP_HANDLER_PANICKED` errors rather than crashing the server. Every error path — body too large, timeout, panicked handler, domain error — produces a structured JSON error response through `error_response()`.
 
@@ -132,7 +132,7 @@ Once `build()` produces an `AxumApplication` wrapping an Axum `Router`, the `Htt
 3. Calls `axum::serve(listener, self.router).with_graceful_shutdown(graceful)`
 4. Returns the `ShutdownSignal` (Interrupt, Terminate, or Custom) to the caller
 
-The `FrameworkApplication::listen_with_shutdown()` at `crates/ironic-core/src/application.rs:310` is the orchestrator. It delegates to the platform's `listen()`, then runs all shutdown lifecycle hooks in reverse initialization order — `application_shutdown` callbacks followed by `module_destroy` callbacks. Even if serving fails, cleanup still runs.
+The `Application::listen_with_shutdown()` at `crates/ironic-core/src/application.rs:310` is the orchestrator. It delegates to the platform's `listen()`, then runs all shutdown lifecycle hooks in reverse initialization order — `application_shutdown` callbacks followed by `module_destroy` callbacks. Even if serving fails, cleanup still runs.
 
 ---
 
@@ -143,7 +143,7 @@ The architecture diagram:
 ```
 ┌─────────────────────────────────┐
 │         Ironic Core              │
-│  FrameworkApplication::listen()  │
+│  Application::listen()  │
 │  compiled routes + DI container  │
 └──────────────┬──────────────────┘
                │
@@ -170,7 +170,7 @@ The architecture diagram:
 └─────────────────────────────────┘
 ```
 
-`ironic-platform` depends only on `ironic-http` for `CompiledHttpApplication` and `FrameworkRequest`/`FrameworkResponse`. It doesn't import Axum, Hyper, or any HTTP server crate. `ironic-platform-axum` depends on `axum`, `tower`, and `tokio` — but those are adapter-internal details invisible to the framework.
+`ironic-platform` depends only on `ironic-http` for `CompiledHttpApplication` and `Request`/`Response`. It doesn't import Axum, Hyper, or any HTTP server crate. `ironic-platform-axum` depends on `axum`, `tower`, and `tokio` — but those are adapter-internal details invisible to the framework.
 
 ---
 
@@ -219,12 +219,12 @@ impl HttpPlatformApplication for ActixApplication {
 }
 ```
 
-The framework doesn't change. The `FrameworkApplication` struct stores a generic `P: HttpPlatformApplication` at `application.rs:235`. No code in `ironic-core` or `ironic-http` needs to know which HTTP runtime is handling the bytes.
+The framework doesn't change. The `Application` struct stores a generic `P: HttpPlatformApplication` at `application.rs:235`. No code in `ironic-core` or `ironic-http` needs to know which HTTP runtime is handling the bytes.
 
 ---
 
 ## What the trait boundary costs
 
-The adapter layer isn't free. Each route registration allocates a closure. Path syntax conversion does string allocation per segment. The `into_parts()` / `FrameworkRequest::new()` round-trip clones header maps. For Axum, which already uses `http::Method` and `http::HeaderMap` internally, some of this is unavoidable boilerplate. A `From` impl between `axum::http::Request<Body>` and `FrameworkRequest` could reduce it — and that's an optimization the adapter author controls, not the framework.
+The adapter layer isn't free. Each route registration allocates a closure. Path syntax conversion does string allocation per segment. The `into_parts()` / `Request::new()` round-trip clones header maps. For Axum, which already uses `http::Method` and `http::HeaderMap` internally, some of this is unavoidable boilerplate. A `From` impl between `axum::http::Request<Body>` and `Request` could reduce it — and that's an optimization the adapter author controls, not the framework.
 
 But the architectural benefit is real. Ironic can target WebAssembly servers via `wasm-bindgen`-based adapters. It can target embedded devices with minimal HTTP stacks. It can be tested without binding a TCP port — the tests at lines 496-503 use `oneshot()` on the raw Axum router, never touching a socket. The trait boundary makes all of this possible without a single `#[cfg]` in core.

@@ -29,7 +29,7 @@ All notable changes to Ironic are documented here. The project follows [Semantic
 | [v0.4.0](/blog/v0.4.0) | 2026-07-15 | Multipart uploads, Redis sessions, OAuth2 callback handler, backpressure, config hot-reload, error backtraces, and 15+ documentation pages |
 | [v0.3.9](/blog/v0.3.9) | 2026-07-15 | Release script now auto-generates blog posts, updates BlogIndex, and syncs releases pages on every release. |
 | [v0.3.8](/blog/v0.3.8) | 2026-07-15 | Production-ready defaults ship with every new project. Security headers, rate limiting, CORS, and a fixed Dockerfile out of the box. |
-| [v0.3.7](/blog/v0.3.7) | 2026-07-15 | The FrameworkApplicationBuilder now supports .middleware() for registering global middleware from main.rs. |
+| [v0.3.7](/blog/v0.3.7) | 2026-07-15 | The ApplicationBuilder now supports .middleware() for registering global middleware from main.rs. |
 | [v0.3.6](/blog/v0.3.6) | 2026-07-15 | Deeper validation docs, new auth/basic CRUD example apps, and expanded project scaffolding. |
 | [v0.3.5](/blog/v0.3.5) | 2026-07-15 | Refactored auth test file structure for better module organization. |
 | [v0.3.4](/blog/v0.3.4) | 2026-07-15 | Documentation site deployed with SPA fallback, integration test paths fixed. |

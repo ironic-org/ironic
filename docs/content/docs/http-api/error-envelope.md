@@ -40,7 +40,7 @@ fn handler(context: &mut RequestContext) -> Result<Json<User>, HttpError> {
 
     Err(HttpError::not_found("USER_NOT_FOUND", "User not found"))
         .map_err(|e| {
-            FrameworkResponse::error_with_tracing(
+            Response::error_with_tracing(
                 IronStatus::NOT_FOUND,
                 e.code(),
                 e.message(),

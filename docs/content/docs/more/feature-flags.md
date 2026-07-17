@@ -113,8 +113,8 @@ These are always available (no feature flag required):
 
 | Feature | API |
 |---------|-----|
-| Error envelope | `FrameworkResponse::error_with_tracing()` — includes `request_id`, `timestamp_ms` |
-| Paginated response | `FrameworkResponse::paginated()` — `{"items","total","offset","limit"}` |
+| Error envelope | `Response::error_with_tracing()` — includes `request_id`, `timestamp_ms` |
+| Paginated response | `Response::paginated()` — `{"items","total","offset","limit"}` |
 | Per-route timeout | `RouteDefinition::timeout(duration)` — overrides global adapter timeout |
 | Feature gate guard | `FeatureGateGuard::new("feature-name")` — gates routes behind runtime toggles |
 | Cache prefix invalidation | `Cache::remove_by_prefix(prefix)` — invalidates all keys starting with prefix |
@@ -129,5 +129,5 @@ These are always available (no feature flag required):
 | Per-endpoint status metrics | `ironic_http_endpoint_status_total{status="2xx/4xx/5xx"}` |
 | Hot-reload config injection | `Reloadable<T>` — watch channel for runtime config updates |
 | Post-bootstrap overrides | `Container::with_override(provider)` — hot-swap providers |
-| Streaming body | `FrameworkBody::Stream(Arc<Vec<u8>>)` + `FrameworkResponse::from_stream()` |
+| Streaming body | `FrameworkBody::Stream(Arc<Vec<u8>>)` + `Response::from_stream()` |
 | Dynamic module hooks | `OnModuleLoad` / `OnModuleUnload` — runtime module lifecycle |

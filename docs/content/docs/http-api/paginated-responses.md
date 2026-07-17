@@ -1,13 +1,13 @@
 ---
 title: Paginated Responses
-description: Standardized pagination with items, total, offset, limit — built into FrameworkResponse.
+description: Standardized pagination with items, total, offset, limit — built into Response.
 ---
 
 # Paginated Responses
 
 ## What is it?
 
-Every list endpoint needs pagination. Without it, returning all records at once overwhelms the client and the database. `FrameworkResponse::paginated()` gives you a standardized envelope.
+Every list endpoint needs pagination. Without it, returning all records at once overwhelms the client and the database. `Response::paginated()` gives you a standardized envelope.
 
 ## How to use
 
@@ -27,7 +27,7 @@ async fn list(
     let items = self.service.list(offset, size)?;
     let total = self.service.count()?;
 
-    FrameworkResponse::paginated(&items, total, offset, size)
+    Response::paginated(&items, total, offset, size)
 }
 ```
 

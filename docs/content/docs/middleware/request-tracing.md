@@ -21,7 +21,7 @@ use ironic::prelude::*;
 // No registration needed — it's auto-registered
 
 // Access the request ID in your handler
-fn handler(context: RequestContext) -> impl IntoFrameworkResponse {
+fn handler(context: RequestContext) -> impl IntoResponse {
     if let Some(id) = context.extension::<RequestId>() {
         tracing::info!(%id, "processing request");
         format!("request_id: {id}")

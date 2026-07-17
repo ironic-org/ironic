@@ -30,7 +30,7 @@ These require a feature flag and manual `.middleware(...)` registration:
 
 ```rust
 // Global — applies to every request
-FrameworkApplication::builder()
+Application::builder()
     .module(AppModule::definition())
     .middleware(MyMiddleware)
     .platform(AxumAdapter::new())

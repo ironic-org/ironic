@@ -26,7 +26,7 @@ Add to your app:
 
 ```rust
 use ironic::metrics::{MetricsConfig, MetricsLayer, MetricsModule};
-use ironic::{AxumAdapter, FrameworkApplication};
+use ironic::{AxumAdapter, Application};
 
 #[derive(Module)]
 #[module(imports = [MetricsModule])]      // ← Exposes GET /metrics
@@ -34,7 +34,7 @@ struct AppModule;
 
 #[ironic::main]
 async fn main() {
-    FrameworkApplication::builder()
+    Application::builder()
         .module(AppModule::definition())
         .platform(AxumAdapter::new().configure_router(|r| {
             r.layer(MetricsLayer::new(MetricsConfig::default()));

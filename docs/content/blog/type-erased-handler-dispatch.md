@@ -117,7 +117,7 @@ Here is the full lifecycle of a single parameter through the system:
 
 **5. Downcast.** `arguments.take::<u64>(0)` takes the boxed value, downcasts it, and returns `Ok(42u64)`. The handler function receives `42u64` — exactly the type it expects.
 
-**6. Response.** The handler returns `Json<User>`, which gets converted to `FrameworkResponse` via `into_framework_response()`, and the bytes hit the wire.
+**6. Response.** The handler returns `Json<User>`, which gets converted to `Response` via `into_framework_response()`, and the bytes hit the wire.
 
 ---
 

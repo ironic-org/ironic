@@ -254,7 +254,7 @@ const posts: Post[] = [
     },
     {
         slug: 'response-serialization-contract',
-        title: 'FrameworkResponse and IntoFrameworkResponse — the protocol-neutral boundary',
+        title: 'Response and IntoResponse — the protocol-neutral boundary',
         description: 'How handler return values become responses, the structured error JSON format, and why the adapter never knows about Ironic error codes.',
         date: 'Jul 15, 2026',
         tag: 'deep-dive',
@@ -343,7 +343,7 @@ const posts: Post[] = [
     {
         slug: 'provider-override-system',
         title: 'Provider Override System — how test mocks and production config swaps work',
-        description: 'How ProviderKey matching, three override strategies (provider/value/factory), and the shared Vec<ProviderDefinition> pipeline work identically across TestApplicationBuilder, FrameworkApplicationBuilder, and TestModuleBuilder.',
+        description: 'How ProviderKey matching, three override strategies (provider/value/factory), and the shared Vec<ProviderDefinition> pipeline work identically across TestApplicationBuilder, ApplicationBuilder, and TestModuleBuilder.',
         date: 'Jul 15, 2026',
         tag: 'deep-dive',
         readTime: '6 min',
@@ -454,7 +454,7 @@ const posts: Post[] = [
     },
     {
         slug: 'v0.3.7',
-        title: 'Global middleware arrives on FrameworkApplicationBuilder',
+        title: 'Global middleware arrives on ApplicationBuilder',
         description: 'The .middleware() builder method lets you register any impl Middleware from main.rs. No more per-controller registration for app-wide concerns.',
         date: 'Jul 15, 2026',
         tag: 'feature',

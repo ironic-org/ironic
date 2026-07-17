@@ -22,7 +22,7 @@ The server should respond accordingly. `RequestContext` provides helpers to read
 use ironic::prelude::*;
 
 #[get("/users")]
-async fn list(&self, context: &mut RequestContext) -> Result<FrameworkResponse, HttpError> {
+async fn list(&self, context: &mut RequestContext) -> Result<Response, HttpError> {
     match context.preferred_content_type() {
         Some("application/xml") => self.render_xml(),
         _ => self.render_json(),
@@ -41,9 +41,9 @@ async fn list(&self, context: &mut RequestContext) -> Result<FrameworkResponse, 
 
 ```rust
 if context.accepts_json() {
-    FrameworkResponse::json(HttpStatus::OK, &data)
+    Response::json(HttpStatus::OK, &data)
 } else {
-    FrameworkResponse::bytes(HttpStatus::OK, xml_data)
+    Response::bytes(HttpStatus::OK, xml_data)
 }
 ```
 

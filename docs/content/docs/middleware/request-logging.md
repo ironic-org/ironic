@@ -55,7 +55,7 @@ async fn sensitive(&self) -> Result<Json<()>, HttpError> {
 ## Opting out
 
 ```rust
-FrameworkApplication::builder()
+Application::builder()
     .module(AppModule::definition())
     .platform(AxumAdapter::new())
     .without_request_logging()

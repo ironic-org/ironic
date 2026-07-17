@@ -205,7 +205,7 @@ async fn main() {
     dotenvy::dotenv().ok();
     platform::telemetry::init_tracing();
 
-    let application = FrameworkApplication::builder()
+    let application = Application::builder()
         .module(AppModule::definition())
         .middleware(SecurityHeadersMiddleware::new(...))
         .middleware(RateLimitMiddleware::new(...))

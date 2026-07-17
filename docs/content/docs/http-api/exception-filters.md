@@ -50,7 +50,7 @@ An exception filter implements the `ExceptionFilter` trait with one method — `
 
 ```rust
 use std::sync::Arc;
-use ironic::{ExceptionFilter, FilterContext, FrameworkResponse, HttpError, HttpStatus};
+use ironic::{ExceptionFilter, FilterContext, Response, HttpError, HttpStatus};
 
 pub struct NotFoundFilter;
 
@@ -59,14 +59,14 @@ impl ExceptionFilter for NotFoundFilter {
         &self,
         error: &HttpError,
         _ctx: &FilterContext,
-    ) -> Result<FrameworkResponse, HttpError> {
+    ) -> Result<Response, HttpError> {
         if error.status() == HttpStatus::NOT_FOUND {
             let body = ironic::json::json!({
                 "error": error.code(),
                 "message": error.message(),
                 "status": 404,
             });
-            Ok(FrameworkResponse::json(HttpStatus::NOT_FOUND, &body)?)
+            Ok(Response::json(HttpStatus::NOT_FOUND, &body)?)
         } else {
             Err(error.clone())   // ← Pass through errors we don't handle
         }
@@ -94,7 +94,7 @@ let route = RouteDefinition::new(
     "show",
     handler_fn(|_controller: Arc<MyService>, _arguments| {
         async move {
-            Err::<FrameworkResponse, HttpError>(HttpError::not_found(
+            Err::<Response, HttpError>(HttpError::not_found(
                 "POST_NOT_FOUND",
                 "Post 42 was not found",
             ))
@@ -131,7 +131,7 @@ impl Middleware for GlobalErrorMiddleware {
                         "message": error.message(),
                         "status": error.status().as_u16(),
                     });
-                    ironic::FrameworkResponse::json(error.status(), &body)
+                    ironic::Response::json(error.status(), &body)
                 }
             }
         })
@@ -139,7 +139,7 @@ impl Middleware for GlobalErrorMiddleware {
 }
 
 // In main():
-let application = FrameworkApplication::builder()
+let application = Application::builder()
     .module(AppModule::definition())
     .middleware(GlobalErrorMiddleware)  // ← outermost, catches everything
     .middleware(SecurityHeadersMiddleware::new(...))

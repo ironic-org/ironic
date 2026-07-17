@@ -38,11 +38,19 @@ impl BuildInfo {
     #[must_use]
     pub fn capture() -> Self {
         Self {
-            git_sha: env!("IRONIC_GIT_SHA").to_string(),
-            build_timestamp: env!("IRONIC_BUILD_TIMESTAMP").to_string(),
-            rust_version: env!("IRONIC_RUST_VERSION").to_string(),
+            git_sha: option_env!("IRONIC_GIT_SHA")
+                .unwrap_or("unknown")
+                .to_string(),
+            build_timestamp: option_env!("IRONIC_BUILD_TIMESTAMP")
+                .unwrap_or("unknown")
+                .to_string(),
+            rust_version: option_env!("IRONIC_RUST_VERSION")
+                .unwrap_or("unknown")
+                .to_string(),
             features: Self::active_features(),
-            version: env!("CARGO_PKG_VERSION").to_string(),
+            version: option_env!("CARGO_PKG_VERSION")
+                .unwrap_or("unknown")
+                .to_string(),
         }
     }
 

@@ -265,6 +265,30 @@ use ironic::security::{{
 
 use app::AppModule;
 
+struct GlobalExceptionMiddleware;
+
+impl ironic::Middleware for GlobalExceptionMiddleware {{
+    fn handle<'a>(
+        &'a self,
+        context: &'a mut ironic::RequestContext,
+        next: ironic::MiddlewareNext<'a>,
+    ) -> ironic::PipelineFuture<'a> {{
+        Box::pin(async move {{
+            match next.run(context).await {{
+                Ok(response) => Ok(response),
+                Err(error) => {{
+                    let body = ironic::json::json!({{
+                        "error": error.code(),
+                        "message": error.message(),
+                        "status": error.status().as_u16(),
+                    }});
+                    ironic::FrameworkResponse::json(error.status(), &body)
+                }}
+            }}
+        }})
+    }}
+}}
+
 #[ironic::main]
 async fn main() {{
     dotenvy::dotenv().ok();
@@ -280,6 +304,7 @@ async fn main() {{
 
     let application = FrameworkApplication::builder()
         .module(AppModule::definition())
+        .middleware(GlobalExceptionMiddleware)
         .middleware(SecurityHeadersMiddleware::new(SecurityHeadersConfig::default()))
         .middleware(RateLimitMiddleware::new(rate_limit_max, 60))
         .middleware(CorsMiddleware::new(CorsConfig::new().allowed_origins(cors_origins)))

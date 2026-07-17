@@ -1,4 +1,4 @@
 {
   "title": "Core",
-  "pages": ["fundamentals", "configuration", "dependency-management", "lifecycle", "macros", "lifetimes"]
+  "pages": ["fundamentals", "configuration", "dependency-management", "lifecycle", "application-bootstrap", "macros", "lifetimes"]
 }

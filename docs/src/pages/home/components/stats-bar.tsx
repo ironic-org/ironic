@@ -1,8 +1,9 @@
 import { Download, Github, Sparkles } from 'lucide-react';
 import FadeUp from './fade-up';
+import { CURRENT_VERSION } from '@/lib/constants';
 
 const stats = [
-    { icon: <Download className='w-5 h-5' />, value: '0.4.6', label: 'Latest version' },
+    { icon: <Download className='w-5 h-5' />, value: CURRENT_VERSION, label: 'Latest version' },
     { icon: <Github className='w-5 h-5' />, value: 'MIT', label: 'Open source license' },
     { icon: <Sparkles className='w-5 h-5' />, value: 'Rust 1.97+', label: 'Minimum Rust version' },
 ];

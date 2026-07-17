@@ -1,5 +1,6 @@
 import { ArrowRight, Calendar, Clock, GitBranch, Layers, Sparkles, Star } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { LATEST_VERSION_LABEL } from '@/lib/constants';
 
 type Post = {
     slug: string;
@@ -519,7 +520,7 @@ export default function BlogIndex() {
                                 <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-500 opacity-75" />
                                 <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-500" />
                             </span>
-                            Latest: v1.0.0
+                            {LATEST_VERSION_LABEL}
                         </div>
                         <h1 className="text-4xl md:text-5xl lg:text-6xl font-extrabold text-fd-foreground tracking-tight leading-[1.1] mb-6">
                             The Ironic

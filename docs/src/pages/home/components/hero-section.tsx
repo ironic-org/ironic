@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import FadeUp from './fade-up';
 import { GitHubStarButton } from './github-stars';
+import { CURRENT_VERSION_TAG } from '@/lib/constants';
 
 const HeroSection = () => {
     const [copied, setCopied] = useState(false);
@@ -32,7 +33,7 @@ const HeroSection = () => {
                         <span className='absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-500 opacity-75' />
                         <span className='relative inline-flex h-2 w-2 rounded-full bg-emerald-500' />
                     </span>
-                    v0.4.6 — available on GitHub
+                    {CURRENT_VERSION_TAG} — available on GitHub
                     <ArrowRight className='w-3 h-3 group-hover:translate-x-0.5 transition-transform' />
                 </a>
             </FadeUp>

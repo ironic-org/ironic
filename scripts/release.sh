@@ -193,24 +193,8 @@ fi
 
 # ── step 4: sync current-version references in docs ───────────────────
 
-echo "→ Syncing docs to v$NEW"
-
-# Only update files that display the CURRENT version (not historical release notes/blogs)
-while IFS= read -r -d '' f; do
-    OLD_VER=$(grep -oE '[0-9]+\.[0-9]+\.[0-9]+' "$f" | head -1 || true)
-    if [[ -n "$OLD_VER" ]] && [[ "$OLD_VER" != "$NEW" ]] && [[ "$OLD_VER" == "$CURRENT" ]]; then
-        sync_file "$OLD_VER" "$NEW" "$f"
-    fi
-done < <(
-    grep -rlE '[0-9]+\.[0-9]+\.[0-9]+' "$ROOT/docs" \
-        --include='*.md' --include='*.tsx' --include='*.mdx' \
-        --exclude-dir='blog' --exclude-dir='releases' 2>/dev/null || true
-    # Also pick up the home page components (tsx not always in docs/)
-    for f in "$ROOT/docs/src/pages/home/components/hero-section.tsx" \
-             "$ROOT/docs/src/pages/home/components/stats-bar.tsx"; do
-        if [[ -f "$f" ]]; then echo "$f"; fi
-    done
-) | sort -u | tr '\n' '\0'
+echo "→ Syncing version constant to v$NEW"
+sync_file "$CURRENT" "$NEW" "$ROOT/docs/lib/constants.ts"
 
 # ── step 5: create blog post and update releases ────────────────────
 
@@ -266,16 +250,6 @@ $BLOG_BODY
 BLOGEOF
 
     echo -e "  ${GREEN}✓${NC} blog post created: $BLOG_FILE"
-fi
-
-# Update BlogIndex.tsx — bump "Latest: vX.Y.Z" badge
-if grep -q "Latest: v[0-9]" "$BLOG_INDEX" 2>/dev/null; then
-    if [[ "$(uname)" == "Darwin" ]]; then
-        sed -i '' "s/Latest: v[0-9.]*/Latest: v$NEW/" "$BLOG_INDEX"
-    else
-        sed -i "s/Latest: v[0-9.]*/Latest: v$NEW/" "$BLOG_INDEX"
-    fi
-    echo -e "  ${GREEN}✓${NC} BlogIndex.tsx latest badge updated"
 fi
 
 # Update BlogIndex.tsx — insert new post after the opening array bracket, skip if exists

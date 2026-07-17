@@ -5,12 +5,13 @@ description: Version history and release notes for the Ironic framework.
 
 # Releases
 
-## Current version: v1.0.4
+## Current version: v1.0.5
 
 All notable changes to Ironic are documented here. The project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 | Version | Date | Highlights |
 |---------|------|-----------|
+| [v1.0.5](/blog/v1.0.5) | 2026-07-18 | implement feature gate guard for runtime feature toggling and enhance lifecycle hooks with module load/unload callbacks |
 | [v1.0.4](/blog/v1.0.4) | 2026-07-17 | add async test macro to simplify testing without external dependencies |
 | [v1.0.3](/blog/v1.0.3) | 2026-07-17 | add async test macro to simplify testing without external dependencies |
 | [v1.0.2](/blog/v1.0.2) | 2026-07-17 | enhance release workflow with version detection and conditional execution |

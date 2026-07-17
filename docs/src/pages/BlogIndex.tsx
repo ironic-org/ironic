@@ -13,6 +13,14 @@ type Post = {
 
 const posts: Post[] = [
     {
+        slug: 'v1.0.5',
+        title: 'v1.0.5 — implement feature gate guard for runtime feature toggling and enhance lifecycle hooks with module load/unload callbacks',
+        description: 'implement feature gate guard for runtime feature toggling and enhance lifecycle hooks with module load/unload callbacks',
+        date: '2026-07-18',
+        tag: 'release',
+        readTime: '2 min',
+    },
+    {
         slug: 'v1.0.4',
         title: 'v1.0.4 — add async test macro to simplify testing without external dependencies',
         description: 'add async test macro to simplify testing without external dependencies',

@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use chrono::Utc;
+use ironic::time::Utc;
 use ironic::{LifecycleFuture, OnModuleInit};
 use ironic::prelude::*;
 use uuid::Uuid;

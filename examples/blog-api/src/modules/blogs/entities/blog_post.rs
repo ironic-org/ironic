@@ -1,4 +1,4 @@
-use chrono::{DateTime, Utc};
+use ironic::time::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 

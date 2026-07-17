@@ -22,7 +22,7 @@ impl AuthController {
     #[post("/refresh")]
     async fn refresh(
         &self,
-        #[body] payload: serde_json::Value,
+        #[body] payload: Value,
     ) -> Result<Json<TokenResponse>, HttpError> {
         let refresh_token = payload["refresh_token"]
             .as_str()
@@ -35,10 +35,10 @@ impl AuthController {
     async fn me(
         &self,
         #[header("authorization")] auth_header: String,
-    ) -> Result<Json<serde_json::Value>, HttpError> {
+    ) -> Result<Json<Value>, HttpError> {
         let token = auth_header.strip_prefix("Bearer ").unwrap_or(&auth_header);
         let claims = self.auth.validate(token)?;
-        Ok(Json(serde_json::json!({
+        Ok(Json(ironic::json::json!({
             "username": claims.username,
             "exp": claims.exp,
         })))

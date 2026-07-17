@@ -22,7 +22,7 @@ async fn main() {
     let addr = platform::config::server_address();
     let cors_origins: Vec<String> = std::env::var("CORS_ORIGINS")
         .ok()
-        .and_then(|v| serde_json::from_str(&v).ok())
+        .and_then(|v| ironic::json::from_str(&v).ok())
         .unwrap_or_default();
     let rate_limit_max: u64 = std::env::var("RATE_LIMIT_MAX")
         .ok()

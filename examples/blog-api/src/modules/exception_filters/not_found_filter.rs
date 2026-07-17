@@ -9,7 +9,7 @@ impl ExceptionFilter for NotFoundFilter {
         _ctx: &FilterContext,
     ) -> Result<FrameworkResponse, HttpError> {
         if error.status() == HttpStatus::NOT_FOUND {
-            let body = serde_json::json!({
+            let body = ironic::json::json!({
                 "error": error.code(),
                 "message": error.message(),
                 "status": 404,

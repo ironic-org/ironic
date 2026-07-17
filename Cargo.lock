@@ -631,13 +631,11 @@ dependencies = [
 name = "blog-api"
 version = "1.0.4"
 dependencies = [
- "chrono",
  "dotenvy",
  "garde",
  "ironic",
  "jsonwebtoken",
  "serde",
- "serde_json",
  "uuid",
 ]
 

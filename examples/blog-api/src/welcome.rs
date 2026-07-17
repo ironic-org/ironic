@@ -7,8 +7,8 @@ struct WelcomeController;
 #[routes]
 impl WelcomeController {
     #[get]
-    async fn index(&self) -> Result<Json<serde_json::Value>, HttpError> {
-        Ok(Json(serde_json::json!({
+    async fn index(&self) -> Result<Json<Value>, HttpError> {
+        Ok(Json(ironic::json::json!({
             "name": "blog-api",
             "framework": "Ironic",
             "version": env!("CARGO_PKG_VERSION"),

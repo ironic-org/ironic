@@ -114,6 +114,19 @@ pub use {
 ))]
 pub use cache_interceptor::CacheInterceptor;
 
+/// Convenience re-exports of [`serde_json`] types and macros.
+pub mod json {
+    pub use serde_json::{from_slice, from_str, from_value, json, to_string, to_value, to_vec, Value};
+}
+
+pub use json::Value;
+
+/// Convenience re-exports of [`chrono`] types.
+#[cfg(any(feature = "cron", feature = "logging"))]
+pub mod time {
+    pub use chrono::{DateTime, Duration, Utc};
+}
+
 /// Implementation details used by generated code.
 #[doc(hidden)]
 pub mod __private {
@@ -191,7 +204,7 @@ pub mod prelude {
         ParameterPipe, PathParameter, PipelineFuture, ProviderDefinition, QueryParameters,
         RequestContext, RequestId, RequestLogging, RequestScope, RequestTracing, RouteDefinition, RouteMetadata,
         Scope, Secret, SecretString, Serializable, ShutdownSignal, ValidateConfiguration,
-        VersionMetadata, VersioningStrategy, WsGatewayDefinition, api, body, cache, controller,
+        Value, VersionMetadata, VersioningStrategy, WsGatewayDefinition, api, body, cache, controller,
         create_param_decorator, cron, decorator, delete, exception, form, get, guard, handler_fn, head, header, interceptor, interval,
         middleware, options, param, patch, pipe, pipe_fn, post, put, query, resp, routes,
         subscribe_message, timeout, web_socket_gateway,

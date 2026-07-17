@@ -14,14 +14,14 @@ pub struct StatsController {
 impl StatsController {
     #[get("/blog")]
     #[cache(ttl_secs = 30)]
-    async fn blog_stats(&self) -> Result<Json<serde_json::Value>, HttpError> {
+    async fn blog_stats(&self) -> Result<Json<Value>, HttpError> {
         let stats = self.service.blog_summary()?;
         Ok(Json(stats))
     }
 
     #[get("/blog/tags")]
     #[cache(ttl_secs = 30)]
-    async fn tag_breakdown(&self) -> Result<Json<serde_json::Value>, HttpError> {
+    async fn tag_breakdown(&self) -> Result<Json<Value>, HttpError> {
         let breakdown = self.service.tag_breakdown()?;
         Ok(Json(breakdown))
     }

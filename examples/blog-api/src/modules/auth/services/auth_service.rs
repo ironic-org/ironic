@@ -1,4 +1,4 @@
-use chrono::Utc;
+use ironic::time::Utc;
 use ironic::prelude::*;
 use jsonwebtoken::{DecodingKey, EncodingKey, Header, Validation, decode, encode};
 use serde::{Deserialize, Serialize};
@@ -51,14 +51,14 @@ impl AuthService {
         let access_claims = Claims {
             sub: username.to_string(),
             username: username.to_string(),
-            exp: (now + chrono::Duration::hours(1)).timestamp() as usize,
+            exp: (now + ironic::time::Duration::hours(1)).timestamp() as usize,
             iat: now.timestamp() as usize,
             jti: uuid::Uuid::new_v4().to_string(),
         };
         let refresh_claims = Claims {
             sub: username.to_string(),
             username: username.to_string(),
-            exp: (now + chrono::Duration::days(7)).timestamp() as usize,
+            exp: (now + ironic::time::Duration::days(7)).timestamp() as usize,
             iat: now.timestamp() as usize,
             jti: uuid::Uuid::new_v4().to_string(),
         };

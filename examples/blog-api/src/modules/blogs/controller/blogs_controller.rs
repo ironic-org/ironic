@@ -98,9 +98,9 @@ impl BlogsController {
     #[get("/stats")]
     #[cache(ttl_secs = 120)]
     #[api(summary = "Blog statistics", tag = "Blogs")]
-    async fn stats(&self) -> Result<Json<serde_json::Value>, HttpError> {
+    async fn stats(&self) -> Result<Json<Value>, HttpError> {
         let stats = self.service.stats()?;
-        Ok(Json(serde_json::to_value(stats).unwrap()))
+        Ok(Json(ironic::json::to_value(stats).unwrap()))
     }
 
     #[get("/:id/categories")]

@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use std::sync::Mutex;
 
-use chrono::Utc;
+use ironic::time::Utc;
 use ironic::prelude::*;
 use uuid::Uuid;
 

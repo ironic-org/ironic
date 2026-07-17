@@ -629,7 +629,7 @@ dependencies = [
 
 [[package]]
 name = "blog-api"
-version = "1.0.3"
+version = "1.0.4"
 dependencies = [
  "chrono",
  "dotenvy",
@@ -2428,7 +2428,7 @@ dependencies = [
 
 [[package]]
 name = "ironic"
-version = "1.0.3"
+version = "1.0.4"
 dependencies = [
  "argon2",
  "async-graphql",
@@ -2483,7 +2483,7 @@ dependencies = [
 
 [[package]]
 name = "ironic-macros"
-version = "1.0.3"
+version = "1.0.4"
 dependencies = [
  "proc-macro2",
  "quote",

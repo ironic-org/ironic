@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v1.0.4] - 2026-07-17
+
+### Added
+- add async test macro to simplify testing without external dependencies (5b03b7f)\n- add workflow documentation for CI/CD release process (a9ccd2e)\n
+### Fixed
+- handle missing environment variables in BuildInfo (39e64f1)\n- update CURRENT_VERSION to 1.0.3 (42468f6)\n- remove duplicate entry for 'r#test' in public use declarations (7491b26)\n- remove workflow_run trigger from release workflow to simplify event handling (0302fe6)\n- remove push event from CI workflow to streamline triggers (13f19fb)\n- update CI workflow to ignore specific paths on push and pull request events (869728d)\n- update CURRENT_VERSION to 1.0.2 (ce80e1b)\n- update CURRENT_VERSION to 1.0.1 (6802169)\n
+### Changed
+- release v1.0.3 (051991f)\n- update PR template and README to enforce code style and testing requirements (e8418cb)\n- enhance contributing guidelines with setup, branch naming, and commit message formats (ccf11cf)\n- Update issue templates (1f33ad5)\n
+
 ## [v1.0.3] - 2026-07-17
 
 ### Added

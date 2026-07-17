@@ -7,6 +7,7 @@
 [![License](https://img.shields.io/badge/license-MIT%2FApache--2.0-blue)](LICENSE-MIT)
 [![Rust](https://img.shields.io/badge/rust-1.97+-orange)](rust-toolchain.toml)
 [![Discord](https://img.shields.io/discord/ironic?label=discord&logo=discord)](https://discord.gg/ironic-community)
+[![Sponsor](https://img.shields.io/badge/sponsor-30363D?logo=GitHub-Sponsors&logoColor=#EA54AE)](https://github.com/sponsors/morshedulmunna)
 
 A batteries-included, type-safe application framework for building structured Rust APIs on top of Axum. Inspired by NestJS's modular architecture, grounded in Rust's type system.
 
@@ -170,6 +171,10 @@ All items are checked via the PR template checklist. CI enforces what it can (fm
 - [Discord](https://discord.gg/ironic-community)
 - [Discussions](https://github.com/ironic-org/ironic/discussions)
 - [Code of Conduct](CODE_OF_CONDUCT.md)
+
+## Support
+
+If Ironic helps you build something awesome, consider [sponsoring](https://github.com/sponsors/morshedulmunna) the project. Your support covers hosting, tooling, and development time.
 
 ## License
 

@@ -1,5 +1,5 @@
 [workspace.package]
-version = "1.0.3"
+version = "1.0.4"
 edition = "2024"
 rust-version = "1.97"
 license = "MIT OR Apache-2.0"
@@ -248,9 +248,9 @@ opentelemetry = { version = "0.28", default-features = false, features = ["trace
 opentelemetry_sdk = { version = "0.28", default-features = false, features = ["trace", "rt-tokio"] }
 opentelemetry-otlp = { version = "0.28", default-features = false, features = ["trace", "grpc-tonic"] }
 tracing-opentelemetry = { version = "0.29", default-features = false }
-ironic = { path = ".", version = "1.0.3" }
+ironic = { path = ".", version = "1.0.4" }
 
-ironic-macros = { path = "crates/ironic-macros", version = "1.0.3" }
+ironic-macros = { path = "crates/ironic-macros", version = "1.0.4" }
 
 [workspace.lints.rust]
 unsafe_code = "forbid"

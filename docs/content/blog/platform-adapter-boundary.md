@@ -87,7 +87,7 @@ let mut context = RequestContext::new(request);
 
 `Request` uses `http::Method`, `http::Uri`, and `HeaderMap` — the types from the `http` crate that most Rust HTTP libraries already share. The adapter doesn't invent its own request type; it leans on a common denominator.
 
-After the framework executes the handler, the response flows back the other way. `framework_response()` at line 332 destructures `Response` into status, headers, and body — then maps `FrameworkBody::Empty` to `Body::empty()` and `FrameworkBody::Bytes` to `Body::from(bytes)`. The conversion is zero-copy for bytes, heap-allocated only for the status and header clones.
+After the framework executes the handler, the response flows back the other way. `framework_response()` at line 332 destructures `Response` into status, headers, and body — then maps `Body::Empty` to `Body::empty()` and `Body::Bytes` to `Body::from(bytes)`. The conversion is zero-copy for bytes, heap-allocated only for the status and header clones.
 
 Handler panics are caught with `AssertUnwindSafe` and `catch_unwind`, converting them into `RF_HTTP_HANDLER_PANICKED` errors rather than crashing the server. Every error path — body too large, timeout, panicked handler, domain error — produces a structured JSON error response through `error_response()`.
 

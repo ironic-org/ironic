@@ -120,7 +120,7 @@ Every standard HTTP verb is available as an attribute macro. Each accepts a path
 
 All verbs support path parameters with the `:` syntax (e.g. `"/users/:user_id/posts/:post_id"`). The path is appended to the controller's prefix from `#[controller("/prefix")]`.
 
-> Route handlers must be **async** and return `Result<T, HttpError>` where `T` implements `IntoResponse`.
+> Route handlers must be **async** and return `Result<T, HttpError>` where `T` implements `IntoFrameworkResponse`.
 
 **Common mistakes:**
 - Returning a bare type instead of `Result<T, HttpError>` — the framework won't accept it.

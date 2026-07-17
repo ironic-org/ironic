@@ -52,7 +52,7 @@ Code before `next.run()` executes inbound. Code after it executes outbound. If y
 | Check if the user is allowed (yes/no) | `#[guard]` |
 | Run code before AND after the handler | `#[interceptor]` |
 | Wrap every request (even errors) | `#[middleware]` |
-| Catch errors from the handler | `#[exception]` |
+| Catch errors from the handler | `.exception_filter(Arc::new(...))` |
 | Transform/extract a parameter | `#[decorator]` |
 
 **Rule of thumb:** Interceptors are for cross-cutting logic that needs to see both the request *and* the response. Timing, response envelopes, header injection — these are classic interceptor use cases.

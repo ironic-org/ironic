@@ -49,59 +49,33 @@ ws.onmessage = (e) => console.log("Server says:", e.data);
 // → Server says: Echo: Hello!
 ```
 
-## Connection lifecycle
+## Message handlers
 
-Every WebSocket connection goes through three stages. You can hook into each one:
+Use `#[subscribe_message("event")]` to handle incoming messages:
 
 ```rust
 #[routes]
 impl ChatGateway {
-    #[on_open]
-    async fn handle_open(&self, client_id: String) {
-        println!("Client {client_id} connected");
-    }
-
     #[subscribe_message("message")]
     async fn on_message(&self, payload: String) -> Result<String, HttpError> {
         Ok(format!("Echo: {payload}"))
     }
-
-    #[on_close]
-    async fn handle_close(&self, client_id: String) {
-        println!("Client {client_id} disconnected");
-    }
 }
 ```
 
-| Hook | Decorator | When it fires |
-|------|-----------|---------------|
-| Open | `#[on_open]` | Client connects, before first message |
-| Message | `#[subscribe_message("event")]` | Client sends a matching event |
-| Close | `#[on_close]` | Client disconnects or times out |
+Each handler receives the JSON data field as its argument. The event name in the attribute must match the `"event"` field in the incoming JSON: `{"event": "message", "data": "Hello!"}`.
 
 ## Authentication
 
-Authenticate clients during the WebSocket upgrade by checking a token in the handshake request:
+Authenticate clients during the WebSocket upgrade by validating a token in the handshake request. Use a `Guard` on the gateway struct:
 
 ```rust
-#[routes]
-impl ChatGateway {
-    #[on_open]
-    async fn handle_open(&self, client_id: String, req: HttpRequest) -> Result<(), HttpError> {
-        let token = req.headers()
-            .get("Authorization")
-            .and_then(|v| v.to_str().ok())
-            .and_then(|v| v.strip_prefix("Bearer "));
-
-        match token {
-            Some(t) if self.auth.validate(t).is_ok() => Ok(()),
-            _ => Err(HttpError::unauthorized("WS_AUTH_FAILED", "Invalid token")),
-        }
-    }
-}
+#[web_socket_gateway("/chat")]
+#[guard(JwtGuard)]
+struct ChatGateway;
 ```
 
-The `HttpRequest` parameter gives you access to headers, query params, and the upgrade path. Reject the connection by returning an `Err(...)` from `on_open`.
+The guard runs during the HTTP upgrade handshake. If the guard returns `Deny`, the connection is rejected with 403 before the WebSocket is established.
 
 ## Rooms and broadcasting
 

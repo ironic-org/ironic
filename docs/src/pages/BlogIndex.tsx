@@ -13,6 +13,14 @@ type Post = {
 
 const posts: Post[] = [
     {
+        slug: 'v1.0.1',
+        title: 'v1.0.1 — single version source of truth in docs/lib/constants.ts',
+        description: 'single version source of truth in docs/lib/constants.ts',
+        date: '2026-07-17',
+        tag: 'release',
+        readTime: '2 min',
+    },
+    {
         slug: 'v1.0.0',
         title: 'v1.0.0 — release v1.0.0 with CI/CD improvements, matrix testing, and blog API example',
         description: 'release v1.0.0 with CI/CD improvements, matrix testing, and blog API example',

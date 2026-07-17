@@ -9,6 +9,16 @@ All versions in the v1.0.x series. Visit the [Blog](/blog) for detailed release 
 
 ---
 
+## v1.0.1 — 2026-07-17
+
+# v1.0.1
+
+### Added
+- single version source of truth in docs/lib/constants.ts (0f01d78)\n- integrate bun for dependency management and build process in CI and release workflows (e975249)\n
+### Fixed
+- update caching keys for cargo-audit and cargo-deny in CI configuration (69c0244)\n
+
+---
 ## v1.0.0 — 2026-07-17
 
 # v1.0.0

@@ -5,12 +5,13 @@ description: Version history and release notes for the Ironic framework.
 
 # Releases
 
-## Current version: v1.0.0
+## Current version: v1.0.1
 
 All notable changes to Ironic are documented here. The project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 | Version | Date | Highlights |
 |---------|------|-----------|
+| [v1.0.1](/blog/v1.0.1) | 2026-07-17 | single version source of truth in docs/lib/constants.ts |
 | [v1.0.0](/blog/v1.0.0) | 2026-07-17 | Ironic 1.0.0 is here — production-ready with comprehensive CI/CD pipelines, matrix testing across stable and nightly Rust, automated crates.io publishing, production release guide, blog-api cross-module DI example, and 200+ passing tests. |
 | [v0.5.0](/blog/v0.5.0) | 2026-07-16 | update alias for Decorator command from 'd' to 'de' |
 | [v0.4.9](/blog/v0.4.9) | 2026-07-16 | implement CI/CD pipeline, security auditing, and operational endpoints |

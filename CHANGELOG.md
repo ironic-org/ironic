@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v1.0.1] - 2026-07-17
+
+### Added
+- single version source of truth in docs/lib/constants.ts (0f01d78)\n- integrate bun for dependency management and build process in CI and release workflows (e975249)\n
+### Fixed
+- update caching keys for cargo-audit and cargo-deny in CI configuration (69c0244)\n
+
 ## [v1.0.0] - 2026-07-17
 
 ### Added

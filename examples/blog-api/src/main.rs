@@ -49,7 +49,11 @@ async fn main() {
         .await
         .expect("application must initialise");
 
-    tracing::info!("blog-api → http://{} (ironic v{})", addr, env!("CARGO_PKG_VERSION"));
+    tracing::info!(
+        "blog-api → http://{} (ironic v{})",
+        addr,
+        env!("CARGO_PKG_VERSION")
+    );
 
     application
         .listen(&addr)

@@ -16,9 +16,9 @@ pub struct BlogRepository;
 
 impl BlogRepository {
     pub fn list(&self, filter: &BlogFilterDto) -> Result<Vec<BlogPost>, HttpError> {
-        let posts = BLOG_POSTS.lock().map_err(|e| {
-            HttpError::internal("LOCK_ERROR", e.to_string())
-        })?;
+        let posts = BLOG_POSTS
+            .lock()
+            .map_err(|e| HttpError::internal("LOCK_ERROR", e.to_string()))?;
         let mut result: Vec<BlogPost> = posts.values().cloned().collect();
 
         if let Some(published) = filter.published {
@@ -38,7 +38,9 @@ impl BlogRepository {
             result.retain(|p| {
                 p.title.to_lowercase().contains(&q)
                     || p.content.to_lowercase().contains(&q)
-                    || p.excerpt.as_deref().is_some_and(|e| e.to_lowercase().contains(&q))
+                    || p.excerpt
+                        .as_deref()
+                        .is_some_and(|e| e.to_lowercase().contains(&q))
             });
         }
 
@@ -47,39 +49,39 @@ impl BlogRepository {
     }
 
     pub fn find(&self, id: Uuid) -> Result<Option<BlogPost>, HttpError> {
-        let posts = BLOG_POSTS.lock().map_err(|e| {
-            HttpError::internal("LOCK_ERROR", e.to_string())
-        })?;
+        let posts = BLOG_POSTS
+            .lock()
+            .map_err(|e| HttpError::internal("LOCK_ERROR", e.to_string()))?;
         Ok(posts.get(&id).cloned())
     }
 
     pub fn find_by_slug(&self, slug: &str) -> Result<Option<BlogPost>, HttpError> {
-        let posts = BLOG_POSTS.lock().map_err(|e| {
-            HttpError::internal("LOCK_ERROR", e.to_string())
-        })?;
+        let posts = BLOG_POSTS
+            .lock()
+            .map_err(|e| HttpError::internal("LOCK_ERROR", e.to_string()))?;
         Ok(posts.values().find(|p| p.slug == slug).cloned())
     }
 
     pub fn create(&self, post: BlogPost) -> Result<BlogPost, HttpError> {
-        let mut posts = BLOG_POSTS.lock().map_err(|e| {
-            HttpError::internal("LOCK_ERROR", e.to_string())
-        })?;
+        let mut posts = BLOG_POSTS
+            .lock()
+            .map_err(|e| HttpError::internal("LOCK_ERROR", e.to_string()))?;
         posts.insert(post.id, post.clone());
         Ok(post)
     }
 
     pub fn update(&self, post: BlogPost) -> Result<BlogPost, HttpError> {
-        let mut posts = BLOG_POSTS.lock().map_err(|e| {
-            HttpError::internal("LOCK_ERROR", e.to_string())
-        })?;
+        let mut posts = BLOG_POSTS
+            .lock()
+            .map_err(|e| HttpError::internal("LOCK_ERROR", e.to_string()))?;
         posts.insert(post.id, post.clone());
         Ok(post)
     }
 
     pub fn delete(&self, id: Uuid) -> Result<bool, HttpError> {
-        let mut posts = BLOG_POSTS.lock().map_err(|e| {
-            HttpError::internal("LOCK_ERROR", e.to_string())
-        })?;
+        let mut posts = BLOG_POSTS
+            .lock()
+            .map_err(|e| HttpError::internal("LOCK_ERROR", e.to_string()))?;
         Ok(posts.remove(&id).is_some())
     }
 
@@ -88,9 +90,9 @@ impl BlogRepository {
         id: Uuid,
         category_ids: &[Uuid],
     ) -> Result<BlogPost, HttpError> {
-        let mut posts = BLOG_POSTS.lock().map_err(|e| {
-            HttpError::internal("LOCK_ERROR", e.to_string())
-        })?;
+        let mut posts = BLOG_POSTS
+            .lock()
+            .map_err(|e| HttpError::internal("LOCK_ERROR", e.to_string()))?;
         let post = posts.get_mut(&id).ok_or_else(|| {
             HttpError::not_found("POST_NOT_FOUND", format!("Post {id} not found"))
         })?;
@@ -100,9 +102,9 @@ impl BlogRepository {
     }
 
     pub fn stats(&self) -> Result<BlogStats, HttpError> {
-        let posts = BLOG_POSTS.lock().map_err(|e| {
-            HttpError::internal("LOCK_ERROR", e.to_string())
-        })?;
+        let posts = BLOG_POSTS
+            .lock()
+            .map_err(|e| HttpError::internal("LOCK_ERROR", e.to_string()))?;
         let total = posts.len() as u64;
         let published = posts.values().filter(|p| p.published).count() as u64;
         let draft = total - published;

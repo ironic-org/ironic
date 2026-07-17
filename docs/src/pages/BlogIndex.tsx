@@ -12,6 +12,14 @@ type Post = {
 
 const posts: Post[] = [
     {
+        slug: 'v1.0.0',
+        title: 'v1.0.0 — release v1.0.0 with CI/CD improvements, matrix testing, and blog API example',
+        description: 'release v1.0.0 with CI/CD improvements, matrix testing, and blog API example',
+        date: '2026-07-17',
+        tag: 'release',
+        readTime: '2 min',
+    },
+    {
         slug: 'v0.5.0',
         title: 'v0.5.0 — update alias for Decorator command from "d to de",',
         description: 'update alias for Decorator command from "d to de",',
@@ -511,7 +519,7 @@ export default function BlogIndex() {
                                 <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-500 opacity-75" />
                                 <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-500" />
                             </span>
-                            Latest: v0.4.9
+                            Latest: v1.0.0
                         </div>
                         <h1 className="text-4xl md:text-5xl lg:text-6xl font-extrabold text-fd-foreground tracking-tight leading-[1.1] mb-6">
                             The Ironic

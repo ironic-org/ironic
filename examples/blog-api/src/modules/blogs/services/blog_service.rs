@@ -35,11 +35,7 @@ impl BlogService {
     }
 
     pub fn create(&self, dto: CreateBlogDto) -> Result<BlogPost, HttpError> {
-        if self
-            .blog_repo
-            .find_by_slug(&slugify(&dto.title))?
-            .is_some()
-        {
+        if self.blog_repo.find_by_slug(&slugify(&dto.title))?.is_some() {
             return Err(HttpError::bad_request(
                 "SLUG_CONFLICT",
                 "A post with this title already exists",
@@ -68,12 +64,7 @@ impl BlogService {
         let current = self.find(id)?;
 
         let title = dto.title.clone().unwrap_or_else(|| current.title.clone());
-        if title != current.title
-            && self
-                .blog_repo
-                .find_by_slug(&slugify(&title))?
-                .is_some()
-        {
+        if title != current.title && self.blog_repo.find_by_slug(&slugify(&title))?.is_some() {
             return Err(HttpError::bad_request(
                 "SLUG_CONFLICT",
                 "A post with this title already exists",
@@ -89,7 +80,9 @@ impl BlogService {
             tags: dto.tags.unwrap_or_else(|| current.tags.clone()),
             published: dto.published.unwrap_or(current.published),
             author: current.author.clone(),
-            category_ids: dto.category_ids.unwrap_or_else(|| current.category_ids.clone()),
+            category_ids: dto
+                .category_ids
+                .unwrap_or_else(|| current.category_ids.clone()),
             created_at: current.created_at,
             updated_at: Utc::now(),
         };
@@ -113,7 +106,10 @@ impl BlogService {
     pub fn publish(&self, id: Uuid) -> Result<BlogPost, HttpError> {
         let post = self.find(id)?;
         if post.published {
-            return Err(HttpError::bad_request("ALREADY_PUBLISHED", "Post is already published"));
+            return Err(HttpError::bad_request(
+                "ALREADY_PUBLISHED",
+                "Post is already published",
+            ));
         }
         self.blog_repo.update(BlogPost {
             published: true,
@@ -125,7 +121,10 @@ impl BlogService {
     pub fn unpublish(&self, id: Uuid) -> Result<BlogPost, HttpError> {
         let post = self.find(id)?;
         if !post.published {
-            return Err(HttpError::bad_request("ALREADY_DRAFT", "Post is already a draft"));
+            return Err(HttpError::bad_request(
+                "ALREADY_DRAFT",
+                "Post is already a draft",
+            ));
         }
         self.blog_repo.update(BlogPost {
             published: false,
@@ -178,11 +177,7 @@ impl BlogService {
         name: String,
         description: Option<String>,
     ) -> Result<Category, HttpError> {
-        if self
-            .category_repo
-            .find_by_slug(&slugify(&name))?
-            .is_some()
-        {
+        if self.category_repo.find_by_slug(&slugify(&name))?.is_some() {
             return Err(HttpError::bad_request(
                 "CATEGORY_EXISTS",
                 format!("Category '{name}' already exists"),
@@ -215,7 +210,13 @@ impl BlogService {
 fn slugify(text: &str) -> String {
     text.to_lowercase()
         .chars()
-        .map(|c| if c.is_alphanumeric() || c == '-' || c == ' ' { c } else { ' ' })
+        .map(|c| {
+            if c.is_alphanumeric() || c == '-' || c == ' ' {
+                c
+            } else {
+                ' '
+            }
+        })
         .collect::<String>()
         .split_whitespace()
         .collect::<Vec<&str>>()

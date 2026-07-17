@@ -16,10 +16,7 @@ pub struct BlogsController {
 #[routes]
 impl BlogsController {
     #[get]
-    async fn list(
-        &self,
-        #[query] filter: BlogFilterDto,
-    ) -> Result<Json<Vec<BlogPost>>, HttpError> {
+    async fn list(&self, #[query] filter: BlogFilterDto) -> Result<Json<Vec<BlogPost>>, HttpError> {
         let posts = self.service.list(&filter)?;
         Ok(Json(posts))
     }
@@ -78,7 +75,10 @@ impl BlogsController {
     // --- Category sub-resource ---
 
     #[get("/:id/categories")]
-    async fn post_categories(&self, #[param] id: Uuid) -> Result<Json<Vec<crate::modules::blogs::entities::Category>>, HttpError> {
+    async fn post_categories(
+        &self,
+        #[param] id: Uuid,
+    ) -> Result<Json<Vec<crate::modules::blogs::entities::Category>>, HttpError> {
         let post = self.service.find(id)?;
         let all = self.service.categories()?;
         let cats: Vec<crate::modules::blogs::entities::Category> = all

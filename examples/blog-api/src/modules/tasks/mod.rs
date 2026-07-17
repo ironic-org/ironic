@@ -18,20 +18,20 @@ impl OnApplicationBootstrap for StatsReporter {
                 async move {
                     match svc.stats() {
                         Ok(s) => {
-                            tracing::info!(
+                            ironic::logging::log::info!(
                                 total = s.total,
                                 published = s.published,
                                 "hourly blog stats (cron)"
                             );
                         }
                         Err(e) => {
-                            tracing::error!(error = %e, "failed to collect stats");
+                            ironic::logging::log::error!(error = %e, "failed to collect stats");
                         }
                     }
                 }
             });
 
-            tracing::info!("hourly stats cron reporter started");
+            ironic::logging::log::info!("hourly stats cron reporter started");
             Ok(())
         })
     }

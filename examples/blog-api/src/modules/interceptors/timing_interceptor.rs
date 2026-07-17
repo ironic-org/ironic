@@ -19,7 +19,7 @@ impl Interceptor for TimingInterceptor {
 
             let elapsed = start.elapsed();
             let status = response.status().as_u16();
-            tracing::info!(
+            ironic::logging::log::info!(
                 target: "ironic.http.timing",
                 http_method = %method,
                 http_path = %path,

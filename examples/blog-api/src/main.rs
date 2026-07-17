@@ -49,7 +49,7 @@ async fn main() {
         .await
         .expect("application must initialise");
 
-    tracing::info!(
+    ironic::logging::log::info!(
         "blog-api → http://{} (ironic v{})",
         addr,
         env!("CARGO_PKG_VERSION")

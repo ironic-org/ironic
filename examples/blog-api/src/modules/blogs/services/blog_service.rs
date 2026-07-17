@@ -20,7 +20,7 @@ impl OnModuleInit for BlogService {
         Box::pin(async move {
             let existing = self.blog_repo.list(&BlogFilterDto::default()).unwrap_or_default();
             if !existing.is_empty() {
-                tracing::info!("{} existing blog posts found — skipping seed", existing.len());
+                ironic::logging::log::info!("{} existing blog posts found — skipping seed", existing.len());
                 return Ok(());
             }
 
@@ -49,7 +49,7 @@ impl OnModuleInit for BlogService {
                     category_ids: Some(vec![rust_cat.id]),
                 });
 
-                tracing::info!("seeded 2 blog posts and 3 categories");
+                ironic::logging::log::info!("seeded 2 blog posts and 3 categories");
             }
 
             Ok(())
@@ -136,7 +136,7 @@ impl BlogService {
     pub fn delete(&self, id: Uuid) -> Result<(), HttpError> {
         let deleted = self.blog_repo.delete(id)?;
         if deleted {
-            tracing::info!(post_id = %id, "blog post deleted");
+            ironic::logging::log::info!(post_id = %id, "blog post deleted");
             Ok(())
         } else {
             Err(HttpError::not_found(

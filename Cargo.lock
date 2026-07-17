@@ -638,7 +638,6 @@ dependencies = [
  "jsonwebtoken",
  "serde",
  "serde_json",
- "tracing",
  "uuid",
 ]
 

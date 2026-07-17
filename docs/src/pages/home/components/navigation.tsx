@@ -1,7 +1,8 @@
 import { useState } from 'react';
-import { Github, Menu, X } from 'lucide-react';
+import { Github, Menu, X, GitBranch } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { GitHubStatsBadge } from './github-stars';
+import { GIT_BRANCH } from '@/lib/constants';
 
 const navLinks = [
     { label: 'Docs', href: '/docs/getting-started/getting-started', router: true },
@@ -36,6 +37,13 @@ const Navigation = () => {
                     </span>
                     <span className='text-lg font-bold tracking-tight text-fd-foreground'>
                         Ironic
+                    </span>
+                    <span className='inline-flex items-center gap-1 rounded-full border border-emerald-200 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-950/50 px-2 py-0.5 text-[10px] font-medium text-emerald-700 dark:text-emerald-300 max-md:hidden'>
+                        <span className='relative flex size-1.5'>
+                            <span className='absolute inline-flex size-full animate-ping rounded-full bg-emerald-400 opacity-75' />
+                            <span className='relative inline-flex size-1.5 rounded-full bg-emerald-500' />
+                        </span>
+                        {GIT_BRANCH}
                     </span>
                 </Link>
 

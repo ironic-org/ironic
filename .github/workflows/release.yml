@@ -36,8 +36,13 @@ jobs:
       - name: Test (all features)
         run: cargo test --all-features
 
+      - name: Setup bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
       - name: Build docs
-        run: npm --prefix docs ci && npm --prefix docs run build
+        run: bun install --frozen-lockfile --cwd docs && bun run --cwd docs build
 
       - name: cargo audit
         run: |

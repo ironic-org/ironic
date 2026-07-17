@@ -514,8 +514,8 @@ cargo clippy --workspace --all-targets --all-features -- -D warnings
 echo "  • cargo test --all-features"
 cargo test --all-features
 
-echo "  • npm run build (docs)"
-npm --prefix "$ROOT/docs" run build
+echo "  • bun run build (docs)"
+bun install --frozen-lockfile --cwd "$ROOT/docs" && bun run --cwd "$ROOT/docs" build
 
 # ── step 7: commit, tag & push ──────────────────────────────────────
 # (crates.io publish is handled by GitHub Actions when the tag is pushed)

@@ -93,7 +93,7 @@ pub use http_impl::{
 };
 pub use ironic_macros::{
     Injectable, Module, OpenApiSchema, Serializable, api, body, cache, controller, cron, custom,
-    delete, get, head, header, interval, main, options, param, patch, pipe, post, put, query,
+    delete, form, get, head, header, interval, main, options, param, patch, pipe, post, put, query,
     req_body, resp, routes, subscribe_message, r#test, timeout, use_guard, use_interceptor,
     web_socket_gateway,
 };
@@ -183,17 +183,17 @@ pub mod prelude {
     pub use crate::{
         AxumAdapter, BuildInfo, CacheMetadata, CompiledHttpApplication, ConfigurationError,
         ConfigurationLoader, ControllerDefinition, Dependency, ExceptionFilter, FeatureToggle,
-        FilterContext, FrameworkApplication, FrameworkError, FrameworkResult, Guard, GuardDecision,
-        GuardFuture, HeaderParameter, HealthModule, HealthStatus, HttpError, HttpMethod,
-        HttpPlatformAdapter, HttpPlatformApplication, Injectable, Interceptor, InterceptorNext,
-        Json, JsonBody, LifecycleDefinition, Middleware, Module, ModuleDefinition, ModuleRef,
-        OnApplicationBootstrap, OnApplicationShutdown, OnModuleDestroy, OnModuleInit,
+        FilterContext, FormBody, FrameworkApplication, FrameworkError, FrameworkResult, Guard,
+        GuardDecision, GuardFuture, HeaderParameter, HealthModule, HealthStatus, HttpError,
+        HttpMethod, HttpPlatformAdapter, HttpPlatformApplication, Injectable, Interceptor,
+        InterceptorNext, Json, JsonBody, LifecycleDefinition, Middleware, Module, ModuleDefinition,
+        ModuleRef, OnApplicationBootstrap, OnApplicationShutdown, OnModuleDestroy, OnModuleInit,
         ParameterPipe, PathParameter, PipelineFuture, ProviderDefinition, QueryParameters,
         RequestContext, RequestId, RequestScope, RequestTracing, RouteDefinition, RouteMetadata,
         Scope, Secret, SecretString, Serializable, ShutdownSignal, ValidateConfiguration,
         VersionMetadata, VersioningStrategy, WsGatewayDefinition, api, body, cache, controller,
-        create_param_decorator, cron, custom, delete, get, handler_fn, head, header, interval,
-        options, param, patch, pipe, pipe_fn, post, put, query, req_body, resp, routes,
+        create_param_decorator, cron, custom, delete, form, get, handler_fn, head, header,
+        interval, options, param, patch, pipe, pipe_fn, post, put, query, req_body, resp, routes,
         subscribe_message, timeout, use_guard, use_interceptor, web_socket_gateway,
     };
     #[cfg(feature = "serialization")]

@@ -35,8 +35,12 @@ The `#[controller(path)]` derive macro SHALL generate metadata associating the c
 - **THEN** a `RouteDefinition` SHALL be generated matching GET method and the path pattern
 
 ### Requirement: Parameter attribute macros SHALL generate extraction code
-`#[body]`, `#[param]`, `#[query]`, `#[header]` macros SHALL generate parameter extraction code for the annotated handler parameter.
+`#[body]`, `#[form]`, `#[param]`, `#[query]`, `#[header]` macros SHALL generate parameter extraction code for the annotated handler parameter.
 
 #### Scenario: Body attribute generates deserialization
 - **WHEN** a handler parameter is annotated with `#[body]`
-- **THEN** extraction code SHALL deserialize the request body into the parameter type
+- **THEN** extraction code SHALL deserialize the JSON request body into the parameter type
+
+#### Scenario: Form attribute generates URL-encoded deserialization
+- **WHEN** a handler parameter is annotated with `#[form]`
+- **THEN** extraction code SHALL deserialize an `application/x-www-form-urlencoded` body into the parameter type

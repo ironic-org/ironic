@@ -35,18 +35,39 @@ Ironic combines NestJS's batteries-included philosophy with Rust's performance a
 |---------|--------|------|-----------|------|------------|
 | **Language** | TypeScript | Rust | Rust | Rust | **Rust** |
 | **Architecture** | Decorator modules | Handler functions | Actor system | MVC (Rails) | **Module graph + DI** |
-| **Dependency Injection** | ✅ Built-in | — Third-party | — Third-party | ❌ | **✅ Built-in** |
-| **Scope-aware DI** | ✅ | ❌ | ❌ | ❌ | **✅** |
-| **Middleware pipeline** | ✅ Nest middleware | Tower layers | Middleware wrap | Tower layers | **✅ + Guards + Interceptors** |
+| **Dependency Injection** | ✅ Built-in | — Third-party | — Third-party | ❌ | **✅ Built-in (3 scopes)** |
+| **Module system** | ✅ | ❌ | ❌ | ❌ | **✅** |
+| **Attribute routing** | ✅ `@Get()` | ❌ | ❌ | ❌ | **✅ `#[get]`** |
+| **Guards (auth)** | ✅ | — Tower layer | — Middleware | — | **✅ `#[guard]`** |
+| **Interceptors** | ✅ | — Tower layer | — Middleware | — | **✅ `#[interceptor]`** |
+| **Exception filters** | ✅ | ❌ | ❌ | ❌ | **✅ `.exception_filter()`** |
+| **Middleware pipeline** | ✅ | Tower layers | Middleware wrap | Tower layers | **✅ + Guards + Interceptors** |
 | **CLI scaffolding** | ✅ | ❌ | ❌ | ✅ | **✅ `ironic generate`** |
-| **Rate limiting built-in** | ThrottlerModule | ❌ | ❌ | ❌ | **✅** |
-| **Security headers built-in** | Helmet | ❌ | ❌ | — | **✅** |
-| **Cron / scheduled tasks** | ✅ | ❌ | ❌ | ✅ | **✅** |
-| **OpenAPI generation** | ✅ | Utoipa | Utoipa | Utoipa | **✅** |
-| **WebSockets built-in** | ✅ | ✅ | ✅ | ✅ | **✅** |
-| **Feature flags** | ❌ | ❌ | ❌ | ❌ | **✅ Compile-time** |
+| **Rate limiting** | ThrottlerModule | ❌ | ❌ | ❌ | **✅ Per-user key** |
+| **Brute-force detection** | ❌ | ❌ | ❌ | ❌ | **✅ via OnGuardDenied** |
+| **Security headers** | Helmet | ❌ | ❌ | — | **✅ Built-in** |
+| **TCP connection limit** | ❌ | ❌ | ❌ | ❌ | **✅ `max_connections()`** |
+| **CORS** | ✅ | — tower-http | — actix-cors | — | **✅ Built-in** |
+| **Cron / scheduled tasks** | ✅ | ❌ | ❌ | ✅ | **✅ pause/resume** |
+| **Cache (built-in)** | ✅ CacheModule | ❌ | ❌ | ❌ | **✅ `#[cache]`** |
+| **Cache invalidation** | ❌ | ❌ | ❌ | ❌ | **✅ `remove_by_prefix()`** |
+| **OpenAPI generation** | ✅ | Utoipa | Utoipa | Utoipa | **✅ Built-in** |
+| **WebSockets** | ✅ | ✅ | ✅ | ✅ | **✅ Rooms + broadcast** |
+| **Events (pub/sub)** | ✅ EventEmitter | ❌ | ❌ | ❌ | **✅ `EventBus` + DLQ** |
+| **Compression** | ✅ compression | — tower-http | — | — | **✅ gzip/brotli/zstd** |
+| **Metrics (Prometheus)** | — prom-client | — tower-http | — | — | **✅ Error counter + per-endpoint** |
+| **Structured logging** | — pino/winston | — tracing | — tracing | — | **✅ JSON to file** |
+| **Health checks** | ✅ Terminus | ❌ | ❌ | ❌ | **✅ `HealthModule`** |
+| **Hot-reload config** | ❌ | ❌ | ❌ | ❌ | **✅ `Reloadable<T>`** |
+| **Feature flags** | ❌ | ❌ | ❌ | ❌ | **✅ Runtime + hot-reload** |
+| **Pagination** | ❌ | ❌ | ❌ | ❌ | **✅ `Response::paginated()`** |
+| **Content negotiation** | ✅ | ❌ | ❌ | ❌ | **✅ `Accept` header** |
+| **Streaming body** | ❌ | ✅ | ✅ | ✅ | **✅ `Body::Stream`** |
+| **Lifecycle hooks** | ✅ 4 hooks | ❌ | ❌ | ❌ | **✅ 15 hooks** |
+| **Graceful shutdown** | ✅ | ✅ | ✅ | ✅ | **✅ Drain + before/after hooks** |
+| **Per-route timeout** | ✅ | ❌ | ❌ | ❌ | **✅** |
 | **Learning curve** | Moderate | Low | Medium | Low | **Moderate** |
-| **Ecosystem maturity** | Mature (2017) | Growing (2021) | Mature (2017) | Growing (2023) | **Early (2026)** |
+| **Ecosystem** | Mature (2017) | Growing (2021) | Mature (2017) | Growing (2023) | **Early (2026)** |
 
 > ✅ = built-in  ·  — = needs third-party crate  ·  ❌ = not available
 

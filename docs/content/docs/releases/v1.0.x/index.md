@@ -9,6 +9,16 @@ All versions in the v1.0.x series. Visit the [Blog](/blog) for detailed release 
 
 ---
 
+## v1.0.2 — 2026-07-17
+
+# v1.0.2
+
+### Added
+- enhance release workflow with version detection and conditional execution (f79b4db)\n- auto-release pipeline — CI detects version bumps and triggers release (eea9041)\n
+### Fixed
+- update cargo publish commands to use env for CARGO_REGISTRY_TOKEN (aaa1b68)\n- maybe-release job needs actions:write permission to trigger release workflow (02c0dee)\n- release workflow now safe — tag only created by CI after publish (fde50af)\n
+
+---
 ## v1.0.1 — 2026-07-17
 
 # v1.0.1

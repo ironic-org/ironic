@@ -94,7 +94,7 @@ pub use http_impl::{
 pub use ironic_macros::{
     Injectable, Module, OpenApiSchema, Serializable, api, body, cache, controller, cron, custom,
     delete, get, head, header, interval, main, options, param, patch, pipe, post, put, query,
-    req_body, resp, routes, subscribe_message, timeout, use_guard, use_interceptor,
+    req_body, resp, routes, r#test, subscribe_message, timeout, use_guard, use_interceptor,
     web_socket_gateway,
 };
 #[cfg(feature = "openapi")]

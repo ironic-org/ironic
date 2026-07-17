@@ -1,15 +1,13 @@
 name: Release
 
 on:
+  push:
+    branches: [release]
   workflow_dispatch:
     inputs:
       version:
         description: 'Version to release (e.g., v1.0.1)'
         required: true
-  workflow_run:
-    workflows: ["CI"]
-    types: [completed]
-    branches: [main]
 
 permissions:
   contents: write
@@ -19,7 +17,6 @@ env:
 
 jobs:
   check-version:
-    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
     outputs:
       version: ${{ steps.detect.outputs.version }}
@@ -114,8 +111,6 @@ jobs:
         run: cargo publish
 
       - name: Publish ironic
-        # ironic-macros was just published, so the version requirement resolves
-        # on the consumer side. Use --no-verify to skip local dep resolution.
         env:
           CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
         run: cargo publish --no-verify

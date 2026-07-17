@@ -1,0 +1,21 @@
+[package]
+name = "blog-api"
+description = "Ironic blog API example — CRUD, categories, cross-module DI, search, stats"
+publish = false
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[dependencies]
+ironic = { workspace = true, features = ["security", "compression", "metrics", "validation"] }
+serde.workspace = true
+serde_json.workspace = true
+garde.workspace = true
+chrono.workspace = true
+uuid.workspace = true
+dotenvy = "0.15"
+tracing = "0.1"
+
+[dev-dependencies]
+tokio.workspace = true

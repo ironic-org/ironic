@@ -10,9 +10,9 @@ pub struct StatsService {
 }
 
 impl StatsService {
-    pub fn blog_summary(&self) -> Result<serde_json::Value, HttpError> {
+    pub fn blog_summary(&self) -> Result<Value, HttpError> {
         let stats = self.blog_service.stats()?;
-        Ok(serde_json::json!({
+        Ok(ironic::json::json!({
             "totalPosts": stats.total,
             "publishedPosts": stats.published,
             "draftPosts": stats.draft,
@@ -21,7 +21,7 @@ impl StatsService {
         }))
     }
 
-    pub fn tag_breakdown(&self) -> Result<serde_json::Value, HttpError> {
+    pub fn tag_breakdown(&self) -> Result<Value, HttpError> {
         let posts = self
             .blog_service
             .list(&crate::modules::blogs::dto::BlogFilterDto {
@@ -40,17 +40,17 @@ impl StatsService {
             }
         }
 
-        let tags: Vec<serde_json::Value> = tag_counts
+        let tags: Vec<Value> = tag_counts
             .into_iter()
             .map(|(tag, count)| {
-                serde_json::json!({
+                ironic::json::json!({
                     "tag": tag,
                     "count": count,
                 })
             })
             .collect();
 
-        Ok(serde_json::json!({
+        Ok(ironic::json::json!({
             "totalPosts": posts.len(),
             "tags": tags,
         }))

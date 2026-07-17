@@ -7,6 +7,7 @@
     "modules",
     "data-auth",
     "http-api",
+    "middleware",
     "performance",
     "advanced",
     "testing",

@@ -69,7 +69,7 @@ async fn main() {
     println!("Database: {}", config.database_url);
 
     // Pass config to your services...
-    FrameworkApplication::builder()
+    Application::builder()
         .module(AppModule::definition())
         .platform(AxumAdapter::new())
         .build().await.unwrap()

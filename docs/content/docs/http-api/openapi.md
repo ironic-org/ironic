@@ -7,7 +7,7 @@ description: Auto-generate OpenAPI 3.1 specs and Swagger UI from route attribute
 
 ## What you'll learn
 
-- Annotate handlers with `#[api]`, `#[resp]`, `#[req_body]` for full OpenAPI metadata
+- Annotate handlers with `#[api]`, `#[resp]`, `#[body]` for full OpenAPI metadata
 - Serve Swagger UI at `/docs`
 - Document request body, responses per status code, and parameters
 - Configure security schemes (Bearer JWT, API key, OAuth2)
@@ -19,7 +19,7 @@ description: Auto-generate OpenAPI 3.1 specs and Swagger UI from route attribute
 OpenAPI docs build from:
 
 1. **`#[derive(OpenApiSchema)]`** on your DTOs/entities → JSON Schema
-2. **`#[api]`, `#[resp]`, `#[req_body]`** on route handlers → operation metadata
+2. **`#[api]`, `#[resp]`, `#[body]`** on route handlers → operation metadata
 
 No separate route definition needed — everything stays on the handler method.
 
@@ -74,7 +74,7 @@ impl ExampleController {
 
     #[post]
     #[api(summary = "Create a new example", tag = "Examples")]
-    #[req_body(json = CreateExampleDto)]
+    #[body(json = CreateExampleDto)]
     #[resp(201, "Example created", json = Example)]
     #[resp(400, "Validation error")]
     async fn create(&self, #[body] dto: CreateExampleDto) -> Result<Json<Example>, HttpError> {
@@ -83,7 +83,7 @@ impl ExampleController {
 
     #[put("/:id")]
     #[api(summary = "Update an existing example", tag = "Examples")]
-    #[req_body(json = UpdateExampleDto)]
+    #[body(json = UpdateExampleDto)]
     #[resp(200, "Example updated", json = Example)]
     #[resp(404, "Example not found")]
     async fn update(&self, #[param] id: u64, #[body] dto: UpdateExampleDto) -> Result<Json<Example>, HttpError> {
@@ -100,7 +100,7 @@ impl ExampleController {
 }
 ```
 
-The `#[routes]` macro reads `#[api]`, `#[resp]`, `#[req_body]` and generates the `.openapi(...)` call automatically. Your handler methods stay clean.
+The `#[routes]` macro reads `#[api]`, `#[resp]`, `#[body]` and generates the `.openapi(...)` call automatically. Your handler methods stay clean.
 
 ---
 
@@ -128,10 +128,10 @@ First two args are required; `json = Type` is optional (for responses with a bod
 #[resp(404, "User not found")]
 ```
 
-### `#[req_body(json = Type)]`
+### `#[body(json = Type)]`
 
 ```rust
-#[req_body(json = CreateUser)]
+#[body(json = CreateUser)]
 ```
 
 ---
@@ -238,7 +238,7 @@ Routes without `security = "..."` are unauthenticated (public).
 `ironic new my-app` generates a full CRUD with:
 
 - `src/main.rs` — `with_openapi(...).swagger_ui("/docs")`
-- `src/modules/example/` — Handlers annotated with `#[api]`, `#[resp]`, `#[req_body]`
+- `src/modules/example/` — Handlers annotated with `#[api]`, `#[resp]`, `#[body]`
 - DTOs with `#[derive(OpenApiSchema)]`
 
 Visit `http://localhost:8080/docs` after starting the server.

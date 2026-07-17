@@ -5,7 +5,7 @@ use crate::modules::auth::guards::auth_guard::AuthGuard;
 use crate::modules::auth::guards::role_guard::RoleGuard;
 use crate::modules::auth::services::auth_service::AuthService;
 use crate::modules::auth::services::password_service::PasswordService;
-use ironic::{FrameworkRequest, Guard, GuardDecision, RequestContext};
+use ironic::{Request, Guard, GuardDecision, RequestContext};
 use std::sync::Arc;
 
 // ── PasswordService ──────────────────────────────────────────────
@@ -95,7 +95,7 @@ fn wrong_password_rejected() {
 
 #[ironic::test]
 async fn auth_guard_denies_missing_header() {
-    let mut ctx = RequestContext::new(FrameworkRequest::new(
+    let mut ctx = RequestContext::new(Request::new(
         ironic::HttpMethod::GET,
         "/".parse().unwrap(),
         ironic::HeaderMap::new(),
@@ -107,7 +107,7 @@ async fn auth_guard_denies_missing_header() {
 
 #[ironic::test]
 async fn role_guard_denies_wrong_role() {
-    let mut ctx = RequestContext::new(FrameworkRequest::new(
+    let mut ctx = RequestContext::new(Request::new(
         ironic::HttpMethod::GET,
         "/".parse().unwrap(),
         ironic::HeaderMap::new(),

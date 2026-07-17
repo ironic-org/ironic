@@ -34,7 +34,7 @@
 ## 4. HTTP Contracts and Axum Adapter
 
 - [x] 4.1 Define transport-neutral HTTP methods, statuses, requests, responses, and headers
-- [x] 4.2 Define IntoFrameworkResponse and structured rejection/error contracts
+- [x] 4.2 Define IntoResponse and structured rejection/error contracts
 - [x] 4.3 Define executable, type-erased route and handler representations
 - [x] 4.4 Define JSON body, path, and query extraction contracts
 - [x] 4.5 Define platform adapter traits

@@ -1,8 +1,8 @@
 use std::sync::Arc;
 
 use crate::http_impl::{
-    CacheMetadata, FrameworkResponse, HttpError, HttpStatus, Interceptor, InterceptorNext,
-    PipelineFuture, RequestContext,
+    CacheMetadata, HttpError, HttpStatus, Interceptor, InterceptorNext, PipelineFuture,
+    RequestContext, Response,
 };
 use crate::services::cache::Cache;
 
@@ -49,7 +49,7 @@ impl Interceptor for CacheInterceptor {
                     format!("cache lookup failed: {error}"),
                 )
             })? {
-                return Ok(FrameworkResponse::bytes(HttpStatus::OK, cached));
+                return Ok(Response::bytes(HttpStatus::OK, cached));
             }
 
             let response = next.run(context).await?;

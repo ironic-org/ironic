@@ -5,7 +5,7 @@
 use std::collections::HashSet;
 
 use ironic::{
-    FrameworkRequest, Guard, HeaderMap, HeaderValue, HttpMethod, RequestContext,
+    Guard, HeaderMap, HeaderValue, HttpMethod, Request, RequestContext,
     auth::{
         AuthContext, Authorizable, Principal, RequireAccess, bearer_token, hash_password,
         verify_password,
@@ -34,13 +34,13 @@ impl Authorizable for User {
     }
 }
 
-fn request_with_authorization(value: &str) -> FrameworkRequest {
+fn request_with_authorization(value: &str) -> Request {
     let mut headers = HeaderMap::new();
     headers.insert(
         http::header::AUTHORIZATION,
         HeaderValue::from_str(value).unwrap(),
     );
-    FrameworkRequest::new(HttpMethod::GET, "/".parse().unwrap(), headers, Vec::new())
+    Request::new(HttpMethod::GET, "/".parse().unwrap(), headers, Vec::new())
 }
 
 #[test]
@@ -63,7 +63,7 @@ fn passwords_are_hashed_with_unique_salts_and_verified() {
 
 #[tokio::test]
 async fn role_guards_use_request_authentication_state() {
-    let mut context = RequestContext::new(FrameworkRequest::new(
+    let mut context = RequestContext::new(Request::new(
         HttpMethod::GET,
         "/".parse().unwrap(),
         HeaderMap::new(),

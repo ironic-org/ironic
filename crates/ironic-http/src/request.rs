@@ -6,7 +6,7 @@ use crate::{HeaderMap, HttpMethod, RouteMetadata, Uri};
 
 /// An owned, transport-neutral HTTP request.
 #[derive(Debug)]
-pub struct FrameworkRequest {
+pub struct Request {
     method: HttpMethod,
     uri: Uri,
     headers: HeaderMap,
@@ -14,7 +14,7 @@ pub struct FrameworkRequest {
     body: Vec<u8>,
 }
 
-impl FrameworkRequest {
+impl Request {
     /// Creates a request from transport-owned parts.
     #[must_use]
     pub fn new(method: HttpMethod, uri: Uri, headers: HeaderMap, body: Vec<u8>) -> Self {
@@ -73,7 +73,7 @@ impl FrameworkRequest {
 
 /// Mutable request state passed through extraction and handler dispatch.
 pub struct RequestContext {
-    request: FrameworkRequest,
+    request: Request,
     extensions: Extensions,
     route_metadata: Option<RouteMetadata>,
 }
@@ -90,7 +90,7 @@ impl std::fmt::Debug for RequestContext {
 impl RequestContext {
     /// Creates a context for a framework request.
     #[must_use]
-    pub fn new(request: FrameworkRequest) -> Self {
+    pub fn new(request: Request) -> Self {
         Self {
             request,
             extensions: Extensions::new(),
@@ -111,13 +111,13 @@ impl RequestContext {
 
     /// Returns the transport-neutral request.
     #[must_use]
-    pub const fn request(&self) -> &FrameworkRequest {
+    pub const fn request(&self) -> &Request {
         &self.request
     }
 
     /// Returns mutable access to the transport-neutral request.
     #[must_use]
-    pub const fn request_mut(&mut self) -> &mut FrameworkRequest {
+    pub const fn request_mut(&mut self) -> &mut Request {
         &mut self.request
     }
 
@@ -130,5 +130,24 @@ impl RequestContext {
     #[must_use]
     pub fn extension<T: Clone + Send + Sync + 'static>(&self) -> Option<&T> {
         self.extensions.get::<T>()
+    }
+
+    /// Returns the client's preferred content type from the `Accept` header.
+    ///
+    /// Parses the header and returns the highest-weighted MIME type, or `None`
+    /// if the header is absent.
+    #[must_use]
+    pub fn preferred_content_type(&self) -> Option<&str> {
+        let accepting = self.request.headers().get("accept")?.to_str().ok()?;
+        // Simple parser: take the first type before comma or semicolon
+        let best = accepting.split(',').next()?.split(';').next()?.trim();
+        if best.is_empty() { None } else { Some(best) }
+    }
+
+    /// Returns `true` if the client prefers JSON responses.
+    #[must_use]
+    pub fn accepts_json(&self) -> bool {
+        self.preferred_content_type()
+            .is_some_and(|ct| ct.contains("json") || ct.contains("*/*"))
     }
 }

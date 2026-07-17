@@ -1,7 +1,8 @@
 use std::sync::Arc;
 
-use chrono::Utc;
 use ironic::prelude::*;
+use ironic::time::Utc;
+use ironic::{LifecycleFuture, OnModuleInit};
 use uuid::Uuid;
 
 use crate::modules::blogs::dto::{BlogFilterDto, CreateBlogDto, UpdateBlogDto};
@@ -12,6 +13,54 @@ use crate::modules::blogs::repositories::{BlogRepository, BlogStats, CategoryRep
 pub struct BlogService {
     pub(crate) blog_repo: Arc<BlogRepository>,
     pub(crate) category_repo: Arc<CategoryRepository>,
+}
+
+impl OnModuleInit for BlogService {
+    fn on_module_init(&self) -> LifecycleFuture<'_> {
+        Box::pin(async move {
+            let existing = self
+                .blog_repo
+                .list(&BlogFilterDto::default())
+                .unwrap_or_default();
+            if !existing.is_empty() {
+                ironic::logging::log::info!(
+                    "{} existing blog posts found — skipping seed",
+                    existing.len()
+                );
+                return Ok(());
+            }
+
+            let rust = self.create_category("Rust".into(), None);
+            let ironic = self.create_category("Ironic".into(), None);
+            let tutorial = self.create_category("Tutorial".into(), None);
+
+            if let (Ok(rust_cat), Ok(ironic_cat), Ok(tut_cat)) = (rust, ironic, tutorial) {
+                let _ = self.create(CreateBlogDto {
+                    title: "Getting Started with Ironic".into(),
+                    content: "Ironic is a type-safe Rust framework for building APIs with compile-time guarantees.".into(),
+                    excerpt: Some("Build fast APIs with Rust".into()),
+                    tags: Some(vec!["rust".into(), "framework".into()]),
+                    author: Some("Ironic Team".into()),
+                    publish: Some(true),
+                    category_ids: Some(vec![ironic_cat.id, tut_cat.id]),
+                });
+
+                let _ = self.create(CreateBlogDto {
+                    title: "Why Rust for APIs".into(),
+                    content: "Memory safety without garbage collection makes Rust ideal for high-throughput backend services.".into(),
+                    excerpt: Some("Rust's performance for backend".into()),
+                    tags: Some(vec!["rust".into()]),
+                    author: Some("Jane Developer".into()),
+                    publish: Some(true),
+                    category_ids: Some(vec![rust_cat.id]),
+                });
+
+                ironic::logging::log::info!("seeded 2 blog posts and 3 categories");
+            }
+
+            Ok(())
+        })
+    }
 }
 
 impl BlogService {
@@ -93,7 +142,7 @@ impl BlogService {
     pub fn delete(&self, id: Uuid) -> Result<(), HttpError> {
         let deleted = self.blog_repo.delete(id)?;
         if deleted {
-            tracing::info!(post_id = %id, "blog post deleted");
+            ironic::logging::log::info!(post_id = %id, "blog post deleted");
             Ok(())
         } else {
             Err(HttpError::not_found(
@@ -193,7 +242,6 @@ impl BlogService {
         self.category_repo.create(category)
     }
 
-    #[allow(dead_code)]
     pub fn delete_category(&self, id: Uuid) -> Result<(), HttpError> {
         let deleted = self.category_repo.delete(id)?;
         if deleted {

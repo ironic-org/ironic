@@ -111,11 +111,11 @@ Middleware error ──► Skips everything, returns error immediately
 
 | Component | App-level | Controller-level | Route-level |
 |-----------|-----------|-----------------|-------------|
-| **Middleware** | ✅ `.middleware()` | ✅ | ❌ |
-| **Guard** | ✅ `.guard()` | ✅ `#[use_guard]` | ✅ |
-| **Interceptor** | ✅ `.interceptor()` | ✅ `#[use_interceptor]` | ✅ |
+| **Middleware** | ✅ `.middleware()` | ✅ `#[middleware]` | ✅ `#[middleware]` |
+| **Guard** | ✅ `.guard()` | ✅ `#[guard]` | ✅ `#[guard]` |
+| **Interceptor** | ✅ `.interceptor()` | ✅ `#[interceptor]` | ✅ `#[interceptor]` |
+| **ExceptionFilter** | ✅ `.exception_filter()` | — | ✅ `.exception_filter()` |
 | **Pipe** | ✅ `.pipe()` | ✅ | ✅ `.parameter_with_pipe()` |
-| **ExceptionFilter** | ✅ `.exception_filter()` | ✅ | ✅ |
 
 ---
 

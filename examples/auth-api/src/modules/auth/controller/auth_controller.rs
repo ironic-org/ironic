@@ -31,7 +31,7 @@ impl AuthController {
     }
 
     #[get("/me")]
-    #[use_guard(AuthGuard)]
+    #[guard(AuthGuard)]
     async fn me(
         &self,
         #[custom(current_user)] user_id: u64,

@@ -190,13 +190,80 @@ where
     }
 }
 
+/// Deserializes an `application/x-www-form-urlencoded` request body into `T`.
+///
+/// Use with `#[form]` on controller methods, or construct manually for
+/// handwritten route definitions:
+///
+/// ```ignore
+/// RouteDefinition::post("/login")
+///     .parameter(FormBody::<LoginForm>::new())
+/// ```
+#[derive(Debug, Default)]
+pub struct FormBody<T>(PhantomData<fn() -> T>);
+
+impl<T> FormBody<T> {
+    /// Creates a URL-encoded form body extractor.
+    #[must_use]
+    pub const fn new() -> Self {
+        Self(PhantomData)
+    }
+}
+
+fn is_urlencoded_content_type(headers: &http::HeaderMap) -> bool {
+    headers
+        .get(http::header::CONTENT_TYPE)
+        .and_then(|value| value.to_str().ok())
+        .is_some_and(|value| {
+            value.split(';').next().is_some_and(|media_type| {
+                media_type
+                    .trim()
+                    .eq_ignore_ascii_case("application/x-www-form-urlencoded")
+            })
+        })
+}
+
+impl<T> ParameterExtractor for FormBody<T>
+where
+    T: DeserializeOwned + Send + Sync + 'static,
+{
+    fn extract<'a>(&'a self, context: &'a mut RequestContext) -> ExtractFuture<'a> {
+        Box::pin(async move {
+            if !is_urlencoded_content_type(context.request().headers()) {
+                return Err(HttpError::bad_request(
+                    "RF_HTTP_INVALID_FORM_CONTENT_TYPE",
+                    "Expected Content-Type application/x-www-form-urlencoded",
+                ));
+            }
+
+            let body = std::str::from_utf8(context.request().body()).map_err(|_| {
+                HttpError::bad_request(
+                    "RF_HTTP_INVALID_FORM_BODY",
+                    "Form request body must be valid UTF-8",
+                )
+            })?;
+            let value = serde_urlencoded::from_str::<T>(body).map_err(|error| {
+                HttpError::bad_request(
+                    "RF_HTTP_INVALID_FORM_BODY",
+                    format!("Invalid form request body: {error}"),
+                )
+            })?;
+            Ok(Box::new(value) as ExtractedValue)
+        })
+    }
+
+    fn description(&self) -> &'static str {
+        "URL-encoded form body"
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use http::Uri;
     use serde::Deserialize;
 
     use super::*;
-    use crate::{FrameworkRequest, HeaderMap, HttpMethod};
+    use crate::{HeaderMap, HttpMethod, Request};
 
     #[derive(Debug, Deserialize, Eq, PartialEq)]
     struct Query {
@@ -209,7 +276,7 @@ mod tests {
     }
 
     fn context(uri: &str, body: &[u8]) -> RequestContext {
-        RequestContext::new(FrameworkRequest::new(
+        RequestContext::new(Request::new(
             HttpMethod::POST,
             uri.parse::<Uri>().unwrap(),
             HeaderMap::new(),
@@ -262,5 +329,66 @@ mod tests {
             .downcast::<u32>()
             .unwrap();
         assert_eq!(*value, 7);
+    }
+
+    fn form_context(body: &str) -> RequestContext {
+        let mut request = context("/login", body.as_bytes());
+        request.request_mut().headers_mut().insert(
+            http::header::CONTENT_TYPE,
+            "application/x-www-form-urlencoded".parse().unwrap(),
+        );
+        request
+    }
+
+    #[tokio::test]
+    async fn extracts_form_bodies() {
+        let value = FormBody::<Payload>::new()
+            .extract(&mut form_context("name=Ada"))
+            .await
+            .unwrap()
+            .downcast::<Payload>()
+            .unwrap();
+        assert_eq!(value.name, "Ada");
+    }
+
+    #[tokio::test]
+    async fn accepts_form_content_type_with_charset() {
+        let mut request = context("/login", b"name=Ada");
+        request.request_mut().headers_mut().insert(
+            http::header::CONTENT_TYPE,
+            "application/x-www-form-urlencoded; charset=UTF-8"
+                .parse()
+                .unwrap(),
+        );
+        let value = FormBody::<Payload>::new()
+            .extract(&mut request)
+            .await
+            .unwrap()
+            .downcast::<Payload>()
+            .unwrap();
+        assert_eq!(value.name, "Ada");
+    }
+
+    #[tokio::test]
+    async fn rejects_wrong_form_content_type() {
+        let mut request = context("/login", b"name=Ada");
+        request.request_mut().headers_mut().insert(
+            http::header::CONTENT_TYPE,
+            "application/json".parse().unwrap(),
+        );
+        let error = FormBody::<Payload>::new()
+            .extract(&mut request)
+            .await
+            .unwrap_err();
+        assert_eq!(error.code(), "RF_HTTP_INVALID_FORM_CONTENT_TYPE");
+    }
+
+    #[tokio::test]
+    async fn rejects_malformed_form_bodies() {
+        let error = FormBody::<Payload>::new()
+            .extract(&mut form_context(""))
+            .await
+            .unwrap_err();
+        assert_eq!(error.code(), "RF_HTTP_INVALID_FORM_BODY");
     }
 }

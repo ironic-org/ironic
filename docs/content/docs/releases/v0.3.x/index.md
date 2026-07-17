@@ -81,7 +81,7 @@ All versions in the v0.3.x series. Visit the [Blog](/blog) for detailed release 
 ## v0.3.7 — July 15, 2026
 
 ### Added
-- `FrameworkApplication::builder().middleware()` public API for global middleware
+- `Application::builder().middleware()` public API for global middleware
 - `CompiledHttpApplication::extend_middleware()` for batch middleware registration
 - `ironic::security::*` flat re-exports for cleaner imports
 

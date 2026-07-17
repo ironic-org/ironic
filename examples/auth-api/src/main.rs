@@ -23,10 +23,10 @@ async fn main() {
     //
     // Security middleware (CORS, rate limiting, headers, CSRF) can be
     // applied per-controller or per-route:
-    //   #[use_guard(RoleGuard::new(&["admin"]))]
+    //   #[guard(RoleGuard::new(&["admin"]))]
     //   ControllerDefinition::new(...).middleware(CorsMiddleware::new(cors))
 
-    let application = FrameworkApplication::builder()
+    let application = Application::builder()
         .module(AppModule::definition())
         .platform(
             AxumAdapter::new()

@@ -87,7 +87,7 @@ pub struct ReportService {
 
 // ✅ Fix 1 — make ReportService also request-scoped
 #[derive(Injectable)]
-#[scope(request)]
+#[injectable(scope = "request")]
 pub struct ReportService {
     session: Arc<Session>,
 }

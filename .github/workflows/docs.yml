@@ -41,6 +41,7 @@ jobs:
       - run: bun run build
         env:
           VITE_CDN_URL: ${{ steps.pages.outputs.base_path || '/' }}
+          VITE_GIT_BRANCH: ${{ github.ref_name }}
       - name: Print base URL for debugging
         run: echo "Deploying to ${{ steps.pages.outputs.base_path || '/' }}"
       - name: Add .nojekyll and SPA fallback

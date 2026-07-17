@@ -29,7 +29,7 @@ The existing architecture makes these additions natural extensions:
 `garde` is a pure-Rust validation library with derive macros, no proc macros in the validation rules, and good performance. It's the Rust-idiomatic choice over trying to replicate NestJS's class-validator (which relies on TypeScript decorators and reflection).
 
 ### D2: Exception filters as a trait, not a decorator
-Rust's type system makes trait-based exception filtering more natural than NestJS's decorator approach. `ExceptionFilter<E>` trait with `catch(&self, exception: E, context: &FilterContext) -> Result<FrameworkResponse, FilterError>`. Global filters implement `ExceptionFilter<Box<dyn Error>>`, route-level filters specify concrete error types.
+Rust's type system makes trait-based exception filtering more natural than NestJS's decorator approach. `ExceptionFilter<E>` trait with `catch(&self, exception: E, context: &FilterContext) -> Result<Response, FilterError>`. Global filters implement `ExceptionFilter<Box<dyn Error>>`, route-level filters specify concrete error types.
 
 ### D3: API versioning via route metadata + adapter
 Versioning is implemented as route metadata (e.g., `ControllerDefinition::version("2024-01", VersioningStrategy::Header)`). The platform adapter (Axum) reads this metadata during route compilation to apply the versioning scheme. No runtime overhead per-request — the version check is compiled into the router.

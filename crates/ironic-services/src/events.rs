@@ -1,11 +1,11 @@
-//! Typed in-process publish/subscribe events.
+//! Typed in-process publish/subscribe events with dead-letter queue support.
 
 use std::{
     any::{Any, TypeId},
     collections::HashMap,
     sync::Arc,
 };
-use tokio::sync::{RwLock, mpsc};
+use tokio::sync::{Mutex, RwLock, mpsc};
 
 type ErasedEvent = Arc<dyn Any + Send + Sync>;
 
@@ -27,10 +27,20 @@ impl<E: Send + Sync + 'static> EventSubscription<E> {
     }
 }
 
-/// A cloneable typed event bus with bounded subscriber queues.
+/// An undelivered event captured by the dead-letter queue.
+#[derive(Clone, Debug)]
+pub struct DeadLetter {
+    /// The type name of the event.
+    pub type_name: &'static str,
+    /// The event data.
+    pub event: String,
+}
+
+/// A cloneable typed event bus with bounded subscriber queues and a dead-letter queue.
 #[derive(Clone, Default)]
 pub struct EventBus {
     subscribers: Arc<RwLock<HashMap<TypeId, Vec<mpsc::Sender<ErasedEvent>>>>>,
+    dead_letters: Arc<Mutex<Vec<DeadLetter>>>,
 }
 
 impl EventBus {
@@ -53,6 +63,7 @@ impl EventBus {
     }
 
     /// Publishes an event and returns the number of subscribers that accepted it.
+    /// Undelivered events are captured in the dead-letter queue.
     pub async fn publish<E: Send + Sync + 'static>(&self, event: E) -> usize {
         let event: ErasedEvent = Arc::new(event);
         let senders = self
@@ -66,6 +77,13 @@ impl EventBus {
         for sender in senders {
             if sender.send(Arc::clone(&event)).await.is_ok() {
                 delivered += 1;
+            } else {
+                // Store in dead-letter queue on failure
+                let entry = DeadLetter {
+                    type_name: std::any::type_name::<E>(),
+                    event: format!("{event:?}"),
+                };
+                self.dead_letters.lock().await.push(entry);
             }
         }
         self.subscribers
@@ -75,5 +93,11 @@ impl EventBus {
             .or_default()
             .retain(|sender| !sender.is_closed());
         delivered
+    }
+
+    /// Returns and clears all undelivered events from the dead-letter queue.
+    pub async fn drain_dead_letters(&self) -> Vec<DeadLetter> {
+        let mut queue = self.dead_letters.lock().await;
+        std::mem::take(&mut *queue)
     }
 }

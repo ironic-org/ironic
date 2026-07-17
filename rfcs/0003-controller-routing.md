@@ -50,7 +50,7 @@ Controller keys use concrete controller types. Controllers are constructed throu
 
 ```rust
 pub type HandlerFuture<'a> = Pin<Box<
-    dyn Future<Output = Result<FrameworkResponse, HandlerError>> + Send + 'a
+    dyn Future<Output = Result<Response, HandlerError>> + Send + 'a
 >>;
 
 pub trait ErasedHandler: Send + Sync + 'static {
@@ -68,7 +68,7 @@ An adapter generated for a controller method performs these steps:
 2. Run parameter extractors in declaration order.
 3. Downcast each extracted value to the method parameter type.
 4. Invoke the method.
-5. Convert the result through `IntoFrameworkResponse`.
+5. Convert the result through `IntoResponse`.
 
 Downcast failure is an internal framework-definition error, not a client error.
 
@@ -91,7 +91,7 @@ The implementation may refine builder names, but it must retain a single erased 
 
 ```rust
 pub struct RequestContext {
-    pub request: FrameworkRequest,
+    pub request: Request,
     pub extensions: Extensions,
     pub route: Arc<RouteMetadata>,
     pub controller: Arc<ControllerMetadata>,
@@ -142,9 +142,9 @@ Validation is a separate parameter stage applied after extraction and before han
 
 ## Responses
 
-Handlers return values implementing `IntoFrameworkResponse`. The core implementations cover:
+Handlers return values implementing `IntoResponse`. The core implementations cover:
 
-- `FrameworkResponse`.
+- `Response`.
 - `Result<T, E>` where `T` and `E` implement response conversion.
 - JSON response wrapper.
 - Empty response.

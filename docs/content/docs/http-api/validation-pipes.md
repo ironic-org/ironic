@@ -8,7 +8,7 @@ description: Complete guide to request validation with garde — DTO rules, cust
 ## What you'll learn
 
 - Add validation rules to DTOs using `#[garde]` attributes
-- Apply `ValidationPipe` in both macro-based and builder-based controllers
+- Apply `ValidationPipe` via attribute-based controllers, route-level pipes, and controller-level pipes
 - Write custom validation rules
 - Handle validation errors with proper HTTP responses
 - Validate path params, query params, and headers too
@@ -137,36 +137,71 @@ curl -X POST http://localhost:3000/products \
 
 ---
 
-## Approach 2: Builder-Based Controllers
+## Approach 2: Route-Level Pipe
 
-For full control over the validation pipeline:
+Attach `ValidationPipe` to a specific route handler's parameter:
 
 ```rust
-use ironic::{ValidationPipe, JsonBody, RouteDefinition, handler_fn};
+use ironic::prelude::*;
 use std::sync::Arc;
 
-let route = RouteDefinition::new(
-    HttpMethod::POST, "/", "create_product",
-    handler_fn(|_c: Arc<ProductsController>, mut args| async move {
-        let input = args.take::<CreateProductDto>(0)?;
-        Ok(Json(create_product(input)))
-    }),
-)
-.unwrap()
-.parameter_with_pipe(
-    JsonBody::<CreateProductDto>::new(),
-    Arc::new(ValidationPipe),
-);
+#[controller("/products")]
+#[derive(Injectable)]
+pub struct ProductsController {
+    service: Arc<ProductsService>,
+}
+
+#[routes]
+impl ProductsController {
+    #[post("/")]
+    async fn create(
+        &self,
+        #[body] #[pipe(ValidationPipe)] dto: CreateProductDto,
+    ) -> Result<Json<Product>, HttpError> {
+        Ok(Json(self.service.create(dto)))
+    }
+}
 ```
 
 ## Approach 3: Controller-Level Pipe
 
-Apply `ValidationPipe` to every route in a controller:
+Define the controller with `#[controller]` and register the pipe via builder:
 
 ```rust
-let controller = ControllerDefinition::new::<ProductsController>("/products", provider)
-    .unwrap()
-    .pipe(Arc::new(ValidationPipe));
+// Controller definition
+#[controller("/products")]
+#[derive(Injectable)]
+pub struct ProductsController {
+    service: Arc<ProductsService>,
+}
+
+#[routes]
+impl ProductsController {
+    #[post("/")]
+    async fn create(
+        &self,
+        #[body] dto: CreateProductDto,
+    ) -> Result<Json<Product>, HttpError> {
+        Ok(Json(self.service.create(dto)))
+    }
+}
+
+// Apply pipe to every route when registering the module:
+use ironic::{Module, ControllerDefinition};
+use std::sync::Arc;
+
+#[derive(Module)]
+#[module(custom_setup)]
+struct ProductsModule;
+
+impl ProductsModule {
+    fn custom_setup(definition: ModuleDefinition) -> ModuleDefinition {
+        definition.override_controller::<ProductsController>(
+            ControllerDefinition::from_type::<ProductsController>()
+                .pipe(Arc::new(ValidationPipe)),
+        )
+    }
+}
 ```
 
 ## Approach 4: Application-Level Pipe
@@ -327,9 +362,9 @@ impl ExceptionFilter for ValidationErrorFilter {
         &self,
         error: &HttpError,
         _ctx: &FilterContext,
-    ) -> Result<FrameworkResponse, HttpError> {
+    ) -> Result<Response, HttpError> {
         if error.code() == "VALIDATION_FAILED" {
-            Ok(FrameworkResponse::json(
+            Ok(Response::json(
                 HttpStatus::BAD_REQUEST,
                 &serde_json::json!({
                     "error": "VALIDATION_FAILED",
@@ -406,7 +441,7 @@ impl UserController {
 
 - [x] Add `#[garde]` rules to any DTO with `#[derive(Validate)]`
 - [x] Macro-based controllers auto-validate `#[body]` parameters
-- [x] Builder-based controllers use `.parameter_with_pipe()` for explicit control
+- [x] Route-level pipe via `#[pipe(ValidationPipe)]` on handler parameters
 - [x] Custom validators for business logic beyond struct rules
 - [x] Parse pipes for path/query params: `ParseIntPipe`, `ParseFloatPipe`, `ParseBoolPipe`
 - [x] Nested validation with `#[garde(dive)]`

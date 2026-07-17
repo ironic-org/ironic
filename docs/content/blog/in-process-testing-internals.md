@@ -102,7 +102,7 @@ If no route matches, `send()` returns a `404 Not Found` response with error code
 Once a route is matched, `send()` at line 131 builds the request:
 
 ```rust
-let request = FrameworkRequest::new(self.method, uri, self.headers, self.body)
+let request = Request::new(self.method, uri, self.headers, self.body)
     .with_path_parameters(parameters);
 let mut context = RequestContext::new(request);
 let response = self.application.execute(route, &mut context).await
@@ -110,7 +110,7 @@ let response = self.application.execute(route, &mut context).await
 TestResponse::new(response)
 ```
 
-`FrameworkRequest::with_path_parameters()` attaches the extracted `{id: "42"}` map. Then `RequestContext::new()` creates a fresh context — extensions, route metadata, and DI scope are all initially empty. The call to `CompiledHttpApplication::execute()` is the same entry point the production adapter uses. From here, the entire pipeline runs:
+`Request::with_path_parameters()` attaches the extracted `{id: "42"}` map. Then `RequestContext::new()` creates a fresh context — extensions, route metadata, and DI scope are all initially empty. The call to `CompiledHttpApplication::execute()` is the same entry point the production adapter uses. From here, the entire pipeline runs:
 
 - **Middleware** receives `context: &mut RequestContext` and a `MiddlewareNext` handle. Global, controller, and route-level middleware fire in order.
 - **Guards** iterate and call `can_activate(context)`. Any `Deny` short-circuits the pipeline with a forbidden error, and the middleware onion unwinds in reverse.
@@ -119,13 +119,13 @@ TestResponse::new(response)
 - **Pipes** transform extracted values. Global pipes run first, then controller, then route-level.
 - **Handler** calls your closure with the typed controller and extracted arguments.
 
-Everything runs synchronously within the test's Tokio runtime — the same thread that called `send().await`. There's no socket read, no byte serialization, no network round-trip. The request body is already in memory as `Vec<u8>`. The response body comes back as `FrameworkResponse` with no serialization overhead.
+Everything runs synchronously within the test's Tokio runtime — the same thread that called `send().await`. There's no socket read, no byte serialization, no network round-trip. The request body is already in memory as `Vec<u8>`. The response body comes back as `Response` with no serialization overhead.
 
 ---
 
 ## TestResponse: assertions that don't lie
 
-`TestResponse` at `response.rs` wraps `FrameworkResponse` and provides a focused assertion API:
+`TestResponse` at `response.rs` wraps `Response` and provides a focused assertion API:
 
 - **`.assert_status(200)`** — compares against the actual `HttpStatus::as_u16()`, panicking with the response body in the message so you can see what went wrong.
 - **`.assert_json(&expected)`** — deserializes the response body as `serde_json::Value`, serializes the expected value, and compares structurally. This avoids false positives from field ordering differences.
@@ -165,7 +165,7 @@ Both `TestApplicationBuilder` and `TestModuleBuilder` support three override met
 - **`override_value(my_mock)`** — shorthand for a singleton value. Internally calls `ProviderDefinition::value(value)`.
 - **`override_factory::<T>(scope, deps, |resolver| async { ... })`** — shorthand for an async factory with explicit dependencies. The closure receives a `Resolver` and returns `Result<T, ResolveError>`.
 
-Overrides are collected into a `Vec<ProviderDefinition>` during builder construction, then passed to `FrameworkApplication::builder().override_provider()` or `build_http_application_with_overrides()` during compilation. The DI container merges them into the provider graph — test overrides take precedence over module-registered providers of the same concrete type. This means you can replace a database connection pool with an in-memory mock without touching a line of production code.
+Overrides are collected into a `Vec<ProviderDefinition>` during builder construction, then passed to `Application::builder().override_provider()` or `build_http_application_with_overrides()` during compilation. The DI container merges them into the provider graph — test overrides take precedence over module-registered providers of the same concrete type. This means you can replace a database connection pool with an in-memory mock without touching a line of production code.
 
 ---
 

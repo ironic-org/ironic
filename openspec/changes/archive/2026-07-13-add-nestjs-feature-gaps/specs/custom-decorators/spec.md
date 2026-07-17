@@ -4,7 +4,7 @@
 The framework SHALL provide a declarative macro that allows users to define custom parameter decorators from an extraction function.
 
 #### Scenario: Custom decorator extracts header value
-- **WHEN** a user defines `create_param_decorator!(UserAgent, |req: &FrameworkRequest| { req.headers().get("user-agent").cloned() })`
+- **WHEN** a user defines `create_param_decorator!(UserAgent, |req: &Request| { req.headers().get("user-agent").cloned() })`
 - **AND** a handler includes `#[user_agent] agent: String`
 - **THEN** the `User-Agent` header value SHALL be extracted into the `agent` parameter
 

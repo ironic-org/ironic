@@ -31,8 +31,8 @@ struct Service;
 struct TransientService;
 
 #[controller("/items")]
-#[use_guard(Allow)]
-#[use_interceptor(Around)]
+#[guard(Allow)]
+#[interceptor(Around)]
 #[derive(Injectable)]
 struct ItemsController {
     service: Arc<Service>,
@@ -41,8 +41,8 @@ struct ItemsController {
 #[routes]
 impl ItemsController {
     #[get("/:id")]
-    #[use_guard(Allow)]
-    #[use_interceptor(Around)]
+    #[guard(Allow)]
+    #[interceptor(Around)]
     async fn get(&self, #[param] id: u64, #[header("x-name")] name: String) -> Result<String, HttpError> {
         let _ = &self.service;
         Ok(format!("{id}:{name}"))

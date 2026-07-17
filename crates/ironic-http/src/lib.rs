@@ -18,16 +18,16 @@ mod serialization;
 
 pub use error::HttpError;
 pub(crate) use exception_filter::ExceptionFilterSet;
-pub use exception_filter::{ExceptionFilter, FilterContext};
+pub use exception_filter::{ExceptionExt, ExceptionFilter, FilterContext};
 pub use extract::{
-    ExtractFuture, ExtractedValue, HeaderParameter, JsonBody, ParameterExtractor, PathParameter,
-    QueryParameters,
+    ExtractFuture, ExtractedValue, FormBody, HeaderParameter, JsonBody, ParameterExtractor,
+    PathParameter, QueryParameters,
 };
 pub use handler::{ErasedHandler, HandlerArguments, HandlerFuture, handler_fn};
 pub use metadata::{CacheMetadata, VersionMetadata, VersioningStrategy};
 #[cfg(feature = "multipart")]
 pub use multipart::{MultipartConfig, MultipartForm, MultipartFormData, UploadedFile};
-pub use observability::{RequestId, RequestTracing};
+pub use observability::{RequestId, RequestLogging, RequestTracing};
 pub use pipeline::{
     Guard, GuardDecision, GuardFuture, Interceptor, InterceptorNext, Middleware, MiddlewareNext,
     ParameterPipe, PipeFuture, PipelineComponents, PipelineFuture, pipe_fn,
@@ -37,8 +37,8 @@ pub use pipes::{ParseBoolPipe, ParseFloatPipe, ParseIntPipe, parse_bool, parse_f
 pub use pipes::{ParseUUIDPipe, parse_uuid};
 #[cfg(feature = "validation")]
 pub use pipes::{ValidationPipe, validate};
-pub use request::{FrameworkRequest, RequestContext};
-pub use response::{FrameworkBody, FrameworkResponse, IntoFrameworkResponse, Json};
+pub use request::{Request, RequestContext};
+pub use response::{Body, IntoResponse, Json, Response};
 pub use route::{
     CompiledHttpApplication, CompiledRoute, ControllerDefinition, RouteDefinition, RouteError,
     RouteMetadata, WsGatewayDefinition, compile_controller_routes,

@@ -265,6 +265,30 @@ use ironic::security::{{
 
 use app::AppModule;
 
+struct GlobalExceptionMiddleware;
+
+impl ironic::Middleware for GlobalExceptionMiddleware {{
+    fn handle<'a>(
+        &'a self,
+        context: &'a mut ironic::RequestContext,
+        next: ironic::MiddlewareNext<'a>,
+    ) -> ironic::PipelineFuture<'a> {{
+        Box::pin(async move {{
+            match next.run(context).await {{
+                Ok(response) => Ok(response),
+                Err(error) => {{
+                    let body = ironic::json::json!({{
+                        "error": error.code(),
+                        "message": error.message(),
+                        "status": error.status().as_u16(),
+                    }});
+                    ironic::Response::json(error.status(), &body)
+                }}
+            }}
+        }})
+    }}
+}}
+
 #[ironic::main]
 async fn main() {{
     dotenvy::dotenv().ok();
@@ -278,8 +302,9 @@ async fn main() {{
     let cors_origins = platform::config::env_json_array("CORS_ORIGINS");
     let rate_limit_max: u64 = platform::config::env_parsed("RATE_LIMIT_MAX", 100u64);
 
-    let application = FrameworkApplication::builder()
+    let application = Application::builder()
         .module(AppModule::definition())
+        .middleware(GlobalExceptionMiddleware)
         .middleware(SecurityHeadersMiddleware::new(SecurityHeadersConfig::default()))
         .middleware(RateLimitMiddleware::new(rate_limit_max, 60))
         .middleware(CorsMiddleware::new(CorsConfig::new().allowed_origins(cors_origins)))
@@ -427,7 +452,7 @@ impl ExampleController {
 
     #[post]
     #[api(summary = "Create a new example", tag = "Examples")]
-    #[req_body(json = CreateExampleDto)]
+    #[body(json = CreateExampleDto)]
     #[resp(201, "Example created", json = Example)]
     #[resp(400, "Validation error")]
     async fn create(&self, #[body] dto: CreateExampleDto) -> Result<Json<Example>, HttpError> {
@@ -436,7 +461,7 @@ impl ExampleController {
 
     #[put("/:id")]
     #[api(summary = "Update an existing example", tag = "Examples")]
-    #[req_body(json = UpdateExampleDto)]
+    #[body(json = UpdateExampleDto)]
     #[resp(200, "Example updated", json = Example)]
     #[resp(404, "Example not found")]
     async fn update(&self, #[param] id: u64, #[body] dto: UpdateExampleDto) -> Result<Json<Example>, HttpError> {

@@ -23,7 +23,7 @@ pub trait ExceptionFilter: Send + Sync + 'static {
         &self,
         error: &HttpError,
         context: &FilterContext,
-    ) -> Result<FrameworkResponse, HttpError>;
+    ) -> Result<Response, HttpError>;
 }
 ```
 
@@ -53,7 +53,7 @@ metadata.insert(RateLimit { max: 100 }); // a config struct
 And you retrieve it in your filter:
 
 ```rust
-fn catch(&self, error: &HttpError, ctx: &FilterContext) -> Result<FrameworkResponse, HttpError> {
+fn catch(&self, error: &HttpError, ctx: &FilterContext) -> Result<Response, HttpError> {
     if let Some(public) = ctx.route_metadata().get::<PublicEndpoint>() {
         // This route is public — return a friendlier error page
     }
@@ -72,7 +72,7 @@ pub(crate) fn catch(
     &self,
     error: &HttpError,
     context: &FilterContext,
-) -> Option<Result<FrameworkResponse, HttpError>> {
+) -> Option<Result<Response, HttpError>> {
     for filter in &self.filters {
         let result = filter.catch(error, context);
         if let Ok(ref _resp) = result {
@@ -126,7 +126,7 @@ Because `PipelineComponents::append` (pipeline.rs:177) adds the other set's filt
 
 ## Fallback to default — raw error through the onion
 
-If no filter at any scope catches the error, `execute` returns `Err(error)` (line 250). This `HttpError` unwinds back through the middleware onion — each middleware's `handle` returns `Err(...)`, which the caller's `?` propagates upward. Eventually it reaches the server adapter, which calls `IntoFrameworkResponse::into_framework_response` on it (`error.rs:87`), producing a minimal JSON body with `{ "status": 500, "code": "...", "message": "..." }`.
+If no filter at any scope catches the error, `execute` returns `Err(error)` (line 250). This `HttpError` unwinds back through the middleware onion — each middleware's `handle` returns `Err(...)`, which the caller's `?` propagates upward. Eventually it reaches the server adapter, which calls `IntoResponse::into_framework_response` on it (`error.rs:87`), producing a minimal JSON body with `{ "status": 500, "code": "...", "message": "..." }`.
 
 The bottom line: if you register no exception filters, every error hits the adapter as-is. Add a global filter and you intercept everything. Add route-level filters and you override per-endpoint.
 
@@ -143,7 +143,7 @@ This means you can use exception filters to add error handling _to existing midd
 Here's a filter that catches any 404 — whether from a missing route or a handler returning `HttpError::not_found(...)` — and replaces the default JSON with a structured error:
 
 ```rust
-use ironic_http::{ExceptionFilter, FilterContext, FrameworkResponse, HttpError, Json};
+use ironic_http::{ExceptionFilter, FilterContext, Response, HttpError, Json};
 
 struct NotFoundFilter;
 
@@ -152,7 +152,7 @@ impl ExceptionFilter for NotFoundFilter {
         &self,
         error: &HttpError,
         _ctx: &FilterContext,
-    ) -> Result<FrameworkResponse, HttpError> {
+    ) -> Result<Response, HttpError> {
         if error.status().is_not_found() {
             let body = serde_json::json!({
                 "error": {
@@ -161,7 +161,7 @@ impl ExceptionFilter for NotFoundFilter {
                     "type": "https://api.example.com/errors/not-found"
                 }
             });
-            Ok(FrameworkResponse::json(
+            Ok(Response::json(
                 ironic_http::HttpStatus::NOT_FOUND,
                 body,
             ))
@@ -176,20 +176,22 @@ The filter inspects `error.status()` rather than `error.code()` so it catches _a
 
 ## Registering filters at all three levels
 
-**Route level** (`route.rs:203`):
+**Route level** — use `.exception_filter(...)` on the route definition:
 
 ```rust
-RouteDefinition::new(HttpMethod::GET, "/users/:id", "show", handler_fn(show_user))?
-    .exception_filter(Arc::new(NotFoundFilter))
+.route(
+    RouteDefinition::new(HttpMethod::GET, "/users/:id", "show", handler_fn(show_user))?
+        .exception_filter(Arc::new(NotFoundFilter))
+)
 ```
 
-**Controller level** (`route.rs:351`):
+**Controller level** — use `#[exception(...)]` on the struct, applied to all routes:
 
 ```rust
-ControllerDefinition::new::<UserController>("/users/", user_provider())?
-    .exception_filter(Arc::new(NotFoundFilter))
-    .route(show_user_route)
-    .route(list_users_route)
+#[controller("/users")]
+#[exception(NotFoundFilter)]
+#[derive(Injectable)]
+struct UserController;
 ```
 
 Every route in the controller inherits this filter. During compilation, controller filters are merged into each route's pipeline as the first layer.

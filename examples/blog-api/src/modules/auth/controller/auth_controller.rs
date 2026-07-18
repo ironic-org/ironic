@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use ironic::prelude::*;
 
-use crate::modules::auth::dto::{LoginDto, RefreshDto, TokenResponse};
+use crate::modules::auth::dto::{LoginDto, TokenResponse};
 use crate::modules::auth::services::AuthService;
 
 #[controller("/api/auth")]
@@ -13,10 +13,6 @@ pub struct AuthController {
 
 #[routes]
 impl AuthController {
-    #[api(summary = "Login", tag = "Auth")]
-    #[body(json = LoginDto)]
-    #[resp(200, "Authentication successful", json = TokenResponse)]
-    #[resp(401, "Invalid credentials")]
     #[post("/login")]
     async fn login(&self, #[body] dto: LoginDto) -> Result<Json<TokenResponse>, HttpError> {
         let tokens = self
@@ -26,19 +22,15 @@ impl AuthController {
         Ok(Json(tokens))
     }
 
-    #[api(summary = "Refresh token", tag = "Auth")]
-    #[body(json = RefreshDto)]
-    #[resp(200, "Token refreshed", json = TokenResponse)]
-    #[resp(400, "Missing refresh token")]
     #[post("/refresh")]
-    async fn refresh(&self, #[body] dto: RefreshDto) -> Result<Json<TokenResponse>, HttpError> {
-        let tokens = self.auth.refresh(&dto.refresh_token)?;
+    async fn refresh(&self, #[body] payload: Value) -> Result<Json<TokenResponse>, HttpError> {
+        let refresh_token = payload["refresh_token"]
+            .as_str()
+            .ok_or_else(|| HttpError::bad_request("MISSING_TOKEN", "refresh_token is required"))?;
+        let tokens = self.auth.refresh(refresh_token)?;
         Ok(Json(tokens))
     }
 
-    #[api(summary = "Get current user", tag = "Auth", security = "bearer")]
-    #[resp(200, "Current user info")]
-    #[resp(401, "Invalid or expired token")]
     #[get("/me")]
     async fn me(
         &self,

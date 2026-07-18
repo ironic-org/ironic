@@ -1,3 +1,7 @@
+// ── TasksModule ────────────────────────────────────────────────
+// Demonstrates: OnApplicationBootstrap via lifecycle_bootstrap
+// Cron task starts after ALL modules are ready.
+
 use std::sync::Arc;
 
 use ironic::prelude::*;
@@ -13,6 +17,7 @@ impl OnApplicationBootstrap for StatsReporter {
     fn on_application_bootstrap(&self) -> ironic::LifecycleFuture<'_> {
         let svc = Arc::clone(&self.service);
         Box::pin(async move {
+            // cron("0 * * * * *") → fires every minute at second 0
             let _task = ironic::services::scheduling::cron("0 * * * * *", move || {
                 let svc = Arc::clone(&svc);
                 async move {
@@ -41,5 +46,6 @@ impl OnApplicationBootstrap for StatsReporter {
 #[module(
     imports = [crate::modules::blogs::BlogsModule],
     providers = [StatsReporter],
+    lifecycle_bootstrap = [StatsReporter],
 )]
 pub struct TasksModule;

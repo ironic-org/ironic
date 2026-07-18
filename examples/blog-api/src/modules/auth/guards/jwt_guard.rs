@@ -1,3 +1,7 @@
+// ── JwtGuard ────────────────────────────────────────────────────
+// Guard: validates Bearer token → Allow or Deny.
+// Usage: #[guard(JwtGuard)] on controllers.
+
 use ironic::{Guard, GuardDecision, GuardFuture, RequestContext};
 use jsonwebtoken::{DecodingKey, Validation, decode};
 

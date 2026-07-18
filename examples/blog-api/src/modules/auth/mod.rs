@@ -1,3 +1,7 @@
+// ── AuthModule ──────────────────────────────────────────────────
+// Demonstrates: providers, controllers, exports, guards
+// JwtGuard validates Bearer tokens on protected routes.
+
 pub mod controller;
 pub mod dto;
 pub mod guards;

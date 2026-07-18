@@ -1,5 +1,9 @@
 use ironic::prelude::*;
 
+// ── BlogsModule ──────────────────────────────────────────────────
+// Demonstrates: providers, controllers, exports, lifecycle_init
+// BlogService seeds data via OnModuleInit on first startup.
+
 pub mod controller;
 pub mod dto;
 pub mod entities;
@@ -18,5 +22,6 @@ pub use services::BlogService;
     providers = [BlogRepository, CategoryRepository, BlogService],
     controllers = [BlogsController, CategoriesController],
     exports = [BlogService],
+    lifecycle_init = [BlogService],
 )]
 pub struct BlogsModule;

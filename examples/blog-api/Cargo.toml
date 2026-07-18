@@ -1,31 +1,18 @@
 [package]
-name = "dev"
-version = "0.1.0"
+name = "blog-api"
+description = "Ironic blog API example — CRUD, categories, cross-module DI, search, stats"
+publish = false
+version = "1.0.4"
 edition = "2024"
 rust-version = "1.97"
-publish = false
+license = "MIT OR Apache-2.0"
 
 [dependencies]
-ironic = { features = ["security", "compression", "metrics", "validation", "versioning", "openapi", "logging", "sqlx-postgres", "scheduling", "cron"], version = "1.0" }
-serde = { version = "1", features = ["derive"] }
-serde_json = "1"
-garde = "0.23"
-sqlx = { version = "0.9", features = ["runtime-tokio", "postgres"] }
-tracing = { version = "0.1", features = ["attributes"] }
+ironic = { path = "../..", version = "1.0.5", features = ["security", "compression", "metrics", "validation", "cache", "logging", "scheduling", "cron", "openapi"] }
+serde = { version = "1.0.228", features = ["derive"] }
+garde = { version = "0.23.0", features = ["derive"] }
+uuid = { version = "1.16.0", features = ["v4", "serde"] }
 dotenvy = "0.15"
-tracing-subscriber = { version = "0.3", features = ["env-filter"] }
-tracing-appender = "0.2"
-jsonwebtoken = "10.4.0"
-uuid = "1.24.0"
-[dev-dependencies]
+jsonwebtoken = "9"
 
-# Available features (uncomment to enable):
-# serialization   — role-based field exposure
-# cache           — CacheInterceptor with InMemoryCache
-# scheduling      — Fixed-interval and cron background tasks
-# cron            — Cron expression scheduling
-# realtime        — WebSocket gateways with rooms/broadcasting
-# resilience      — Retry with backoff + circuit breaker
-# telemetry       — Distributed tracing (OTLP)
-# auth            — Password hashing, JWT, OAuth2, sessions
-# distributed     — Queues, microservices, CQRS, sagas, gRPC, GraphQL
+[dev-dependencies]

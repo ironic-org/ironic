@@ -2,6 +2,10 @@
   "title": "Lifecycle Hooks",
   "pages": [
     "overview",
+    "on-module-init",
+    "on-application-bootstrap",
+    "on-application-shutdown",
+    "on-module-destroy",
     "on-module-configure",
     "on-server-ready",
     "on-request-init",

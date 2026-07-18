@@ -5,12 +5,13 @@ description: Version history and release notes for the Ironic framework.
 
 # Releases
 
-## Current version: v1.0.7
+## Current version: v1.0.8
 
 All notable changes to Ironic are documented here. The project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 | Version | Date | Highlights |
 |---------|------|-----------|
+| [v1.0.8](/blog/v1.0.8) | 2026-07-18 | add pagination extractor and SQL error mapping utilities |
 | [v1.0.7](/blog/v1.0.7) | 2026-07-18 | add pagination extractor and SQL error mapping utilities |
 | [v1.0.6](/blog/v1.0.6) | 2026-07-18 | implement blog API example with CRUD operations and JWT authentication |
 | [v1.0.5](/blog/v1.0.5) | 2026-07-18 | implement feature gate guard for runtime feature toggling and enhance lifecycle hooks with module load/unload callbacks |

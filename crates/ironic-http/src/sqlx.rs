@@ -23,6 +23,11 @@ pub trait SqlxErrorExt {
 /// Extension trait that maps `Result<T, sqlx::Error>` to `Result<T, HttpError>`.
 pub trait SqlxResultExt<T> {
     /// Maps the error of a `Result` using [`SqlxErrorExt::map_db_err`].
+    ///
+    /// # Errors
+    ///
+    /// Maps the contained `sqlx::Error` into an `HttpError`. See
+    /// [`SqlxErrorExt::map_db_err`] for the error mapping rules.
     fn map_db_err(self, entity: &str, operation: &str) -> Result<T, HttpError>;
 }
 

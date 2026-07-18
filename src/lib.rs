@@ -87,12 +87,12 @@ pub use common::*;
 pub use config_impl::*;
 pub use core::*;
 pub use di::*;
-#[cfg(feature = "sqlx")]
-pub use http_impl::{SqlxErrorExt, SqlxResultExt};
 pub use http_impl::*;
 pub use http_impl::{
     CacheMetadata, ExceptionFilter, FilterContext, Pagination, VersionMetadata, VersioningStrategy,
 };
+#[cfg(feature = "sqlx")]
+pub use http_impl::{SqlxErrorExt, SqlxResultExt};
 #[cfg(any(
     feature = "sqlx-postgres",
     feature = "sqlx-mysql",
@@ -252,8 +252,6 @@ pub mod prelude {
     pub use crate::FromRow;
     #[cfg(feature = "openapi")]
     pub use crate::OpenApiSchema;
-    #[cfg(feature = "sqlx")]
-    pub use crate::{SqlxErrorExt, SqlxResultExt};
     #[cfg(feature = "validation")]
     pub use crate::ValidationPipe;
     #[cfg(all(
@@ -288,4 +286,6 @@ pub mod prelude {
     pub use crate::{FieldRule, FieldRules, SerializeInterceptor, set_current_roles};
     #[cfg(feature = "multipart")]
     pub use crate::{MultipartConfig, MultipartForm, MultipartFormData, UploadedFile};
+    #[cfg(feature = "sqlx")]
+    pub use crate::{SqlxErrorExt, SqlxResultExt};
 }

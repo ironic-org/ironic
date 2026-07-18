@@ -88,7 +88,7 @@ pub use config_impl::*;
 pub use core::*;
 pub use di::*;
 #[cfg(feature = "sqlx")]
-pub use http_impl::SqlxErrorExt;
+pub use http_impl::{SqlxErrorExt, SqlxResultExt};
 pub use http_impl::*;
 pub use http_impl::{
     CacheMetadata, ExceptionFilter, FilterContext, Pagination, VersionMetadata, VersioningStrategy,
@@ -253,7 +253,7 @@ pub mod prelude {
     #[cfg(feature = "openapi")]
     pub use crate::OpenApiSchema;
     #[cfg(feature = "sqlx")]
-    pub use crate::SqlxErrorExt;
+    pub use crate::{SqlxErrorExt, SqlxResultExt};
     #[cfg(feature = "validation")]
     pub use crate::ValidationPipe;
     #[cfg(all(

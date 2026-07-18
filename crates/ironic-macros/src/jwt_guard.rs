@@ -1,27 +1,3 @@
-//! Generates the complete JWT auth pipeline from a concise declaration.
-//!
-//! # Example
-//!
-//! ```ignore
-//! use ironic::jwt_guard;
-//!
-//! #[jwt_guard(
-//!     secret = "JWT_SECRET",
-//!     claims = UserClaims { sub: String, exp: u64 },
-//!     principal = User { id: String },
-//!     map = |c: UserClaims| -> Result<User, ironic::auth::AuthError> {
-//!         Ok(User { id: c.sub })
-//!     }
-//! )]
-//! pub struct Auth;
-//! ```
-//!
-//! This generates:
-//! - `UserClaims` struct with `Serialize + Deserialize`
-//! - `User` struct with `Principal` impl
-//! - `AuthGuard` type alias for `RequireAuthenticated<User>`
-//! - `auth_middleware()` convenience fn returning `AuthenticationMiddleware`
-
 use proc_macro2::{Span, TokenStream};
 use quote::quote;
 use syn::{Ident, ItemStruct, Token, parse::Parse, parse::ParseStream, parse2};
@@ -46,7 +22,6 @@ struct PrincipalDef {
     fields: syn::FieldsNamed,
 }
 
-// Parse a struct-like body: `Name { field: Type, ... }`
 fn parse_struct_body(input: syn::parse::ParseStream<'_>) -> syn::Result<(Ident, syn::FieldsNamed)> {
     let ident: Ident = input.parse()?;
     let fields: syn::FieldsNamed = if input.peek(syn::token::Brace) {
@@ -115,8 +90,10 @@ pub(crate) fn expand(attr: TokenStream, item: TokenStream) -> syn::Result<TokenS
     })?;
 
     let claims_ident = &claims_def.ident;
-    let claims_fields = &claims_def.fields;
     let principal_ident = &principal_def.ident;
+
+    // Make fields pub in the claims struct
+    let claims_fields_pub = make_fields_pub(&claims_def.fields);
     let principal_fields = &principal_def.fields;
 
     let principal_id_field = principal_fields
@@ -127,12 +104,11 @@ pub(crate) fn expand(attr: TokenStream, item: TokenStream) -> syn::Result<TokenS
         .unwrap_or_else(|| Ident::new("id", Span::call_site()));
 
     Ok(quote! {
-        #[derive(
-            ::ironic::__private::serde_json::ser::Serialize,
-            ::ironic::__private::serde_json::de::Deserialize,
-        )]
-        pub struct #claims_ident #claims_fields
+        #[derive(::serde::Serialize, ::serde::Deserialize)]
+        #[allow(missing_docs)]
+        pub struct #claims_ident #claims_fields_pub
 
+        #[allow(missing_docs)]
         pub struct #principal_ident #principal_fields
 
         impl ::ironic::auth::Principal for #principal_ident {
@@ -141,12 +117,50 @@ pub(crate) fn expand(attr: TokenStream, item: TokenStream) -> syn::Result<TokenS
             }
         }
 
-        /// JWT-based authentication guard for all routes.
-        pub type AuthGuard = ::ironic::auth::RequireAuthenticated<#principal_ident>;
+        pub struct AuthGuard;
 
-        /// Convenience function: creates the authentication middleware.
-        ///
-        /// Reads the secret from the expression provided in `#[jwt_guard(secret = ...)]`.
+        impl ::ironic::Guard for AuthGuard {
+            fn can_activate<'a>(
+                &'a self,
+                context: &'a mut ::ironic::RequestContext,
+            ) -> ::ironic::GuardFuture<'a> {
+                Box::pin(async move {
+                    let secret = (#secret_expr).to_owned();
+                    let token = ::ironic::auth::bearer_token(context.request())
+                        .ok()
+                        .flatten()
+                        .unwrap_or_default();
+
+                    if token.is_empty() {
+                        return ::std::result::Result::Ok(::ironic::GuardDecision::Deny);
+                    }
+
+                    let jwt_service = ::ironic::auth::jwt::JwtService::hmac(
+                        secret.as_bytes(),
+                        ::ironic::auth::jwt::driver::Algorithm::HS256,
+                    );
+                    let decode_result = jwt_service.decode::<#claims_ident>(token);
+
+                    match decode_result {
+                        ::std::result::Result::Ok(data) => {
+                            let map: &dyn ::std::ops::Fn(#claims_ident) -> ::std::result::Result<#principal_ident, ::ironic::auth::AuthError> = &#map_fn;
+                            match map(data.claims) {
+                                ::std::result::Result::Ok(_principal) => {
+                                    ::std::result::Result::Ok(::ironic::GuardDecision::Allow)
+                                }
+                                ::std::result::Result::Err(_) => {
+                                    ::std::result::Result::Ok(::ironic::GuardDecision::Deny)
+                                }
+                            }
+                        }
+                        ::std::result::Result::Err(_) => {
+                            ::std::result::Result::Ok(::ironic::GuardDecision::Deny)
+                        }
+                    }
+                })
+            }
+        }
+
         pub fn auth_middleware() -> ::ironic::auth::AuthenticationMiddleware<
             ::ironic::auth::jwt::JwtBearerAuthenticator<
                 #claims_ident,
@@ -169,4 +183,12 @@ pub(crate) fn expand(attr: TokenStream, item: TokenStream) -> syn::Result<TokenS
 
         #input
     })
+}
+
+fn make_fields_pub(fields: &syn::FieldsNamed) -> syn::FieldsNamed {
+    let mut cloned = fields.clone();
+    for field in &mut cloned.named {
+        field.vis = syn::Visibility::Public(syn::token::Pub::default());
+    }
+    cloned
 }

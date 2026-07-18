@@ -12,7 +12,11 @@ use ironic::security::{
     CorsConfig, CorsMiddleware, RateLimitMiddleware, SecurityHeadersConfig,
     SecurityHeadersMiddleware,
 };
+use ironic::{OpenApiAxumExt, OpenApiConfig, SecurityScheme};
 
+use crate::modules::auth::dto::{LoginDto, TokenResponse};
+use crate::modules::blogs::dto::{BlogFilterDto, CreateBlogDto, CreateCategoryDto, UpdateBlogDto};
+use crate::modules::blogs::entities::{BlogPost, Category};
 use app::AppModule;
 
 #[ironic::main]
@@ -29,6 +33,24 @@ async fn main() {
         .and_then(|v| v.parse().ok())
         .unwrap_or(100);
 
+    let openapi_config = OpenApiConfig::new("Blog API", env!("CARGO_PKG_VERSION"))
+        .description("Blog API — CRUD, categories, cross-module DI, search, stats")
+        .schema::<LoginDto>("LoginDto")
+        .schema::<TokenResponse>("TokenResponse")
+        .schema::<CreateBlogDto>("CreateBlogDto")
+        .schema::<UpdateBlogDto>("UpdateBlogDto")
+        .schema::<BlogFilterDto>("BlogFilterDto")
+        .schema::<CreateCategoryDto>("CreateCategoryDto")
+        .schema::<BlogPost>("BlogPost")
+        .schema::<Category>("Category")
+        .security_scheme(
+            "bearerAuth",
+            SecurityScheme::HttpBearer {
+                bearer_format: Some("JWT".to_owned()),
+            },
+        );
+
+
     let application = Application::builder()
         .module(AppModule::definition())
         .middleware(SecurityHeadersMiddleware::new(
@@ -43,7 +65,9 @@ async fn main() {
                 .compression()
                 .request_body_limit(5 * 1024 * 1024)
                 .request_timeout(Duration::from_secs(30))
-                .configure_router(|r| r.layer(MetricsLayer::new(MetricsConfig::default()))),
+                .configure_router(|r| r.layer(MetricsLayer::new(MetricsConfig::default())))
+                .with_openapi(openapi_config)
+                .swagger_ui("/docs"),
         )
         .build()
         .await
@@ -54,6 +78,8 @@ async fn main() {
         addr,
         env!("CARGO_PKG_VERSION")
     );
+    ironic::logging::log::info!("openapi json → http://{}/openapi.json", addr);
+    ironic::logging::log::info!("swagger ui  → http://{}/docs", addr);
 
     application
         .listen(&addr)

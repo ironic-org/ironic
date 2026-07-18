@@ -2,7 +2,9 @@ use std::sync::Arc;
 
 use ironic::prelude::*;
 
-use crate::modules::auth::dto::{LoginDto, TokenResponse};
+use crate::modules::auth::dto::LoginDto;
+use crate::modules::auth::dto::RefreshDto;
+use crate::modules::auth::dto::TokenResponse;
 use crate::modules::auth::services::AuthService;
 
 #[controller("/api/auth")]
@@ -14,6 +16,10 @@ pub struct AuthController {
 #[routes]
 impl AuthController {
     #[post("/login")]
+    #[api(summary = "Login", tag = "Auth")]
+    #[body(json = LoginDto)]
+    #[resp(200, "Login successful", json = TokenResponse)]
+    #[resp(401, "Invalid credentials")]
     async fn login(&self, #[body] dto: LoginDto) -> Result<Json<TokenResponse>, HttpError> {
         let tokens = self
             .auth
@@ -23,6 +29,10 @@ impl AuthController {
     }
 
     #[post("/refresh")]
+    #[api(summary = "Refresh token", tag = "Auth")]
+    #[body(json = RefreshDto)]
+    #[resp(200, "Token refreshed", json = TokenResponse)]
+    #[resp(401, "Invalid refresh token")]
     async fn refresh(&self, #[body] payload: Value) -> Result<Json<TokenResponse>, HttpError> {
         let refresh_token = payload["refresh_token"]
             .as_str()
@@ -32,6 +42,9 @@ impl AuthController {
     }
 
     #[get("/me")]
+    #[api(summary = "Get current user", tag = "Auth", security = "bearerAuth")]
+    #[resp(200, "Current user profile")]
+    #[resp(401, "Unauthorized")]
     async fn me(
         &self,
         #[header("authorization")] auth_header: String,

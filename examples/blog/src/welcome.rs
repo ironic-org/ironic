@@ -7,6 +7,8 @@ struct WelcomeController;
 #[routes]
 impl WelcomeController {
     #[get]
+    #[api(summary = "API root", tag = "System")]
+    #[resp(200, "API information")]
     async fn index(&self) -> Result<Json<Value>, HttpError> {
         Ok(Json(ironic::json::json!({
             "name": "blog-api",
@@ -15,6 +17,8 @@ impl WelcomeController {
             "status": "running",
             "endpoints": {
                 "api": "/api/blogs",
+                "docs": "/docs",
+                "swagger": "/swagger-json",
                 "categories": "/api/categories",
                 "stats": "/api/stats",
                 "health": "/health",

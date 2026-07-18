@@ -8,7 +8,7 @@ rust-version = "1.97"
 license = "MIT OR Apache-2.0"
 
 [dependencies]
-ironic = { path = "../..", version = "1.0.5", features = ["security", "compression", "metrics", "validation", "cache", "logging", "scheduling", "cron", "openapi"] }
+ironic = { version = "1.0.6", features = ["security", "compression", "metrics", "validation", "cache", "logging", "scheduling", "cron", "openapi"] }
 serde = { version = "1.0.228", features = ["derive"] }
 garde = { version = "0.23.0", features = ["derive"] }
 uuid = { version = "1.16.0", features = ["v4", "serde"] }

@@ -1,6 +1,7 @@
+use ironic::OpenApiSchema;
 use serde::Serialize;
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, OpenApiSchema)]
 pub struct TokenResponse {
     pub access_token: String,
     pub refresh_token: String,

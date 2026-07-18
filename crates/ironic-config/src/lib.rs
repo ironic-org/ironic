@@ -624,9 +624,7 @@ pub mod presets {
     impl ValidateConfiguration for AuthConfig {
         fn validate(&self) -> Result<(), String> {
             if self.jwt_secret.expose_secret().len() < 32 {
-                return Err(
-                    "auth.jwt_secret must be at least 32 characters (256 bits)".to_owned(),
-                );
+                return Err("auth.jwt_secret must be at least 32 characters (256 bits)".to_owned());
             }
             if self.jwt_expiry_secs == 0 {
                 return Err("auth.jwt_expiry_secs must be greater than zero".to_owned());

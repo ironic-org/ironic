@@ -29,7 +29,10 @@ pub(crate) fn expand(input: TokenStream) -> syn::Result<TokenStream> {
     let name = &input.ident;
 
     let Data::Struct(data) = input.data else {
-        return Err(syn::Error::new_spanned(name, "Merge can only be derived for structs"));
+        return Err(syn::Error::new_spanned(
+            name,
+            "Merge can only be derived for structs",
+        ));
     };
     let Fields::Named(fields) = data.fields else {
         return Err(syn::Error::new_spanned(name, "Merge requires named fields"));

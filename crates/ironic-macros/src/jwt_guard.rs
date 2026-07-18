@@ -24,9 +24,7 @@
 
 use proc_macro2::{Span, TokenStream};
 use quote::quote;
-use syn::{
-    Ident, ItemStruct, Token, parse::Parse, parse::ParseStream, parse2,
-};
+use syn::{Ident, ItemStruct, Token, parse::Parse, parse::ParseStream, parse2};
 
 #[derive(Default)]
 struct JwtGuardArgs {
@@ -103,12 +101,12 @@ pub(crate) fn expand(attr: TokenStream, item: TokenStream) -> syn::Result<TokenS
     let input = parse2::<ItemStruct>(item)?;
     let _config_name = &input.ident;
 
-    let secret_expr = attrs.secret_expr.ok_or_else(|| {
-        syn::Error::new(Span::call_site(), "`secret` is required for jwt_guard")
-    })?;
-    let claims_def = attrs.claims_struct.ok_or_else(|| {
-        syn::Error::new(Span::call_site(), "`claims` is required for jwt_guard")
-    })?;
+    let secret_expr = attrs
+        .secret_expr
+        .ok_or_else(|| syn::Error::new(Span::call_site(), "`secret` is required for jwt_guard"))?;
+    let claims_def = attrs
+        .claims_struct
+        .ok_or_else(|| syn::Error::new(Span::call_site(), "`claims` is required for jwt_guard"))?;
     let principal_def = attrs.principal_struct.ok_or_else(|| {
         syn::Error::new(Span::call_site(), "`principal` is required for jwt_guard")
     })?;

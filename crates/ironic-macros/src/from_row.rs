@@ -38,10 +38,16 @@ pub(crate) fn expand(input: TokenStream) -> syn::Result<TokenStream> {
 
     let name = &input.ident;
     let Data::Struct(data) = input.data else {
-        return Err(syn::Error::new_spanned(name, "FromRow can only be derived for structs"));
+        return Err(syn::Error::new_spanned(
+            name,
+            "FromRow can only be derived for structs",
+        ));
     };
     let Fields::Named(fields) = data.fields else {
-        return Err(syn::Error::new_spanned(name, "FromRow requires named fields"));
+        return Err(syn::Error::new_spanned(
+            name,
+            "FromRow requires named fields",
+        ));
     };
 
     let mut column_gets = Vec::new();
@@ -113,28 +119,30 @@ fn sqlx_column_name(attrs: &[syn::Attribute]) -> Option<String> {
 fn has_sqlx_json(attrs: &[syn::Attribute]) -> bool {
     attrs.iter().any(|attr| {
         attr.path().is_ident("sqlx")
-            && attr.parse_nested_meta(|meta| {
-                if meta.path.is_ident("json") {
-                    Ok(())
-                } else {
-                    Err(meta.error("expected `json`"))
-                }
-            })
-            .is_ok()
+            && attr
+                .parse_nested_meta(|meta| {
+                    if meta.path.is_ident("json") {
+                        Ok(())
+                    } else {
+                        Err(meta.error("expected `json`"))
+                    }
+                })
+                .is_ok()
     })
 }
 
 fn has_sqlx_default(attrs: &[syn::Attribute]) -> bool {
     attrs.iter().any(|attr| {
         attr.path().is_ident("sqlx")
-            && attr.parse_nested_meta(|meta| {
-                if meta.path.is_ident("default") {
-                    Ok(())
-                } else {
-                    Err(meta.error("expected `default`"))
-                }
-            })
-            .is_ok()
+            && attr
+                .parse_nested_meta(|meta| {
+                    if meta.path.is_ident("default") {
+                        Ok(())
+                    } else {
+                        Err(meta.error("expected `default`"))
+                    }
+                })
+                .is_ok()
     })
 }
 

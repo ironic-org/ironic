@@ -5,8 +5,8 @@ use ironic_http::{Middleware, RequestLogging};
 use ironic_platform::{HttpPlatformAdapter, HttpPlatformApplication, Shutdown, ShutdownSignal};
 
 use crate::{
-    CompiledApplicationGraph, HttpApplicationBuildError, LifecycleDefinition,
-    LifecycleError, ModuleDefinition, ModuleError, ModuleRef, build_http_application_with_extra_providers,
+    CompiledApplicationGraph, HttpApplicationBuildError, LifecycleDefinition, LifecycleError,
+    ModuleDefinition, ModuleError, ModuleRef, build_http_application_with_extra_providers,
     compile_module_graph,
 };
 

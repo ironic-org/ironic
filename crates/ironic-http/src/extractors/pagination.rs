@@ -43,6 +43,7 @@ impl Pagination {
     }
 
     /// Sets a maximum page size (clamped on extraction).
+    #[must_use]
     pub fn max_size(mut self, max: u64) -> Self {
         self.max_size = max;
         self
@@ -62,18 +63,15 @@ impl Pagination {
 impl ParameterExtractor for Pagination {
     fn extract<'a>(&'a self, context: &'a mut RequestContext) -> ExtractFuture<'a> {
         Box::pin(async move {
-            let query = context
-                .request()
-                .uri()
-                .query()
-                .unwrap_or_default();
+            let query = context.request().uri().query().unwrap_or_default();
 
             let mut page: u64 = 1;
             let mut size: u64 = 20;
             let max = self.max_size;
 
             for (key, value) in serde_urlencoded::from_str::<std::vec::Vec<(String, String)>>(query)
-                .unwrap_or_default() {
+                .unwrap_or_default()
+            {
                 match key.as_str() {
                     "page" => {
                         if let Ok(p) = value.parse::<u64>() {
@@ -110,12 +108,7 @@ mod tests {
 
     fn context(query: &str) -> RequestContext {
         let uri = format!("/items?{query}").parse::<Uri>().unwrap();
-        RequestContext::new(Request::new(
-            Method::GET,
-            uri,
-            HeaderMap::new(),
-            Vec::new(),
-        ))
+        RequestContext::new(Request::new(Method::GET, uri, HeaderMap::new(), Vec::new()))
     }
 
     #[tokio::test]

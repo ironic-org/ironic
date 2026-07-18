@@ -31,10 +31,7 @@ pub(crate) type ModuleLoadCallback =
 pub(crate) type ModuleUnloadCallback =
     Arc<dyn Fn(ProviderValue, String) -> LifecycleFuture<'static> + Send + Sync>;
 pub(crate) type AsyncInitCallback = Arc<
-    dyn Fn(
-            ProviderValue,
-            std::sync::Arc<ironic_di::Container>,
-        ) -> LifecycleFuture<'static>
+    dyn Fn(ProviderValue, std::sync::Arc<ironic_di::Container>) -> LifecycleFuture<'static>
         + Send
         + Sync,
 >;
@@ -203,10 +200,7 @@ pub trait AsyncModuleInit: Send + Sync + 'static {
     /// # Errors
     ///
     /// Return a `LifecycleError` with a safe message. Do not leak credentials.
-    fn async_init<'a>(
-        &'a self,
-        container: &'a ironic_di::Container,
-    ) -> LifecycleFuture<'a>;
+    fn async_init<'a>(&'a self, container: &'a ironic_di::Container) -> LifecycleFuture<'a>;
 }
 
 // ── LifecycleDefinition ─────────────────────────────────────────────

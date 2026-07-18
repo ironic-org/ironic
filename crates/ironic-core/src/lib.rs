@@ -15,7 +15,9 @@ use std::{
 
 use std::sync::OnceLock;
 
-use ironic_di::{ContainerBuilder, ProviderDefinition, ProviderKey, ProviderValue, Container, RegistrationError};
+use ironic_di::{
+    Container, ContainerBuilder, ProviderDefinition, ProviderKey, ProviderValue, RegistrationError,
+};
 use ironic_http::{
     CompiledHttpApplication, ControllerDefinition, RequestTracing, RouteError,
     compile_controller_routes,
@@ -29,10 +31,10 @@ pub use health::{
     configure as configure_health, register as register_health_indicator,
 };
 pub use lifecycle::{
-    AfterShutdown, AsyncModuleInit, BeforeShutdown, LifecycleDefinition, LifecycleDefinitionBuilder,
-    LifecycleError, LifecycleFuture, OnApplicationBootstrap, OnApplicationShutdown, OnError,
-    OnGuardDenied, OnModuleConfigure, OnModuleDestroy, OnModuleInit, OnModuleLoad, OnModuleUnload,
-    OnRequestDestroy, OnRequestInit, OnServerReady,
+    AfterShutdown, AsyncModuleInit, BeforeShutdown, LifecycleDefinition,
+    LifecycleDefinitionBuilder, LifecycleError, LifecycleFuture, OnApplicationBootstrap,
+    OnApplicationShutdown, OnError, OnGuardDenied, OnModuleConfigure, OnModuleDestroy,
+    OnModuleInit, OnModuleLoad, OnModuleUnload, OnRequestDestroy, OnRequestInit, OnServerReady,
 };
 
 /// A statically declared Ironic application module.
@@ -279,11 +281,11 @@ impl ModuleDefinitionBuilder {
             move |_provider: ProviderValue, container: std::sync::Arc<Container>| {
                 let container = std::sync::Arc::clone(&container);
                 Box::pin(async move {
-                    let resolved = container
-                        .resolve_key(key)
-                        .await
-                        .map_err(|e| LifecycleError::new(format!("async_init resolve failed: {e}")))?;
-                    let init = resolved.downcast_ref::<T>()
+                    let resolved = container.resolve_key(key).await.map_err(|e| {
+                        LifecycleError::new(format!("async_init resolve failed: {e}"))
+                    })?;
+                    let init = resolved
+                        .downcast_ref::<T>()
                         .ok_or_else(|| LifecycleError::new("async_init downcast failed"))?;
                     init.async_init(&container).await
                 })
@@ -328,11 +330,16 @@ impl std::fmt::Debug for CompiledModule {
             .field("id", &self.id)
             .field(
                 "imports",
-                &self.imports.iter().map(|i| i.type_name()).collect::<Vec<_>>(),
+                &self
+                    .imports
+                    .iter()
+                    .map(|i| i.type_name())
+                    .collect::<Vec<_>>(),
             )
             .field("providers", &self.providers.len())
             .field("controllers", &self.controllers.len())
             .field("exports", &self.exports.len())
+            .field("visible_providers", &self.visible_providers.len())
             .field("lifecycle", &self.lifecycle)
             .field("async_init_count", &self.async_init_callbacks.len())
             .finish()

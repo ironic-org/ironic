@@ -29,22 +29,14 @@ impl SqlxErrorExt for sqlx::Error {
     fn map_db_err(self, entity: &str, operation: &str) -> HttpError {
         match &self {
             sqlx::Error::RowNotFound => {
-                HttpError::not_found(
-                    "DB_ROW_NOT_FOUND",
-                    format!("{entity} not found"),
-                )
+                HttpError::not_found("DB_ROW_NOT_FOUND", format!("{entity} not found"))
             }
-            sqlx::Error::PoolClosed | sqlx::Error::PoolTimedOut => {
-                HttpError::new(
-                    crate::HttpStatus::SERVICE_UNAVAILABLE,
-                    "DB_UNAVAILABLE",
-                    format!("Database unavailable during {entity}:{operation}"),
-                )
-            }
-            _ => HttpError::internal(
-                "DB_ERROR",
-                format!("{entity}:{operation} failed: {self}"),
+            sqlx::Error::PoolClosed | sqlx::Error::PoolTimedOut => HttpError::new(
+                crate::HttpStatus::SERVICE_UNAVAILABLE,
+                "DB_UNAVAILABLE",
+                format!("Database unavailable during {entity}:{operation}"),
             ),
+            _ => HttpError::internal("DB_ERROR", format!("{entity}:{operation} failed: {self}")),
         }
     }
 }

@@ -1,3 +1,7 @@
+// ── StatsModule ────────────────────────────────────────────────
+// Demonstrates: cross-module DI via imports
+// StatsService receives Arc<BlogService> automatically.
+
 use ironic::prelude::*;
 
 pub mod controller;

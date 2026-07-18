@@ -1,3 +1,7 @@
+// ── Pagination Decorator ────────────────────────────────────────
+// Custom parameter extractor: ?page=1&size=20 → PaginationParams.
+// Usage: #[decorator(Pagination)] on handler arguments.
+
 use ironic::{ExtractFuture, ExtractedValue, ParameterExtractor, RequestContext};
 
 #[derive(Debug, Clone)]
@@ -39,10 +43,6 @@ impl ParameterExtractor for Pagination {
 fn get_param(query: &str, key: &str) -> Option<u64> {
     let prefix = format!("{key}=");
     query.split('&').find_map(|pair| {
-        if pair.starts_with(&prefix) {
-            pair[prefix.len()..].parse().ok()
-        } else {
-            None
-        }
+        if pair.starts_with(&prefix) { pair[prefix.len()..].parse().ok() } else { None }
     })
 }

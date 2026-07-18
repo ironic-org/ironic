@@ -1,0 +1,54 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" fill="none">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="128" y2="128" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#1e1b4b"/>
+      <stop offset="100%" stop-color="#0f172a"/>
+    </linearGradient>
+    <linearGradient id="accent1" x1="20" y1="20" x2="108" y2="108" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#a78bfa"/>
+      <stop offset="40%" stop-color="#7c3aed"/>
+      <stop offset="70%" stop-color="#f59e0b"/>
+      <stop offset="100%" stop-color="#f97316"/>
+    </linearGradient>
+    <linearGradient id="accent2" x1="64" y1="0" x2="64" y2="128" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#c4b5fd"/>
+      <stop offset="50%" stop-color="#a78bfa"/>
+      <stop offset="100%" stop-color="#fbbf24"/>
+    </linearGradient>
+    <filter id="glow">
+      <feGaussianBlur stdDeviation="3" result="blur"/>
+      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+  <!-- Background rounded square -->
+  <rect width="128" height="128" rx="24" fill="url(#bg)"/>
+  <!-- Subtle grid pattern -->
+  <g opacity="0.06">
+    <line x1="0" y1="32" x2="128" y2="32" stroke="#fff" stroke-width="0.5"/>
+    <line x1="0" y1="64" x2="128" y2="64" stroke="#fff" stroke-width="0.5"/>
+    <line x1="0" y1="96" x2="128" y2="96" stroke="#fff" stroke-width="0.5"/>
+    <line x1="32" y1="0" x2="32" y2="128" stroke="#fff" stroke-width="0.5"/>
+    <line x1="64" y1="0" x2="64" y2="128" stroke="#fff" stroke-width="0.5"/>
+    <line x1="96" y1="0" x2="96" y2="128" stroke="#fff" stroke-width="0.5"/>
+  </g>
+  <!-- Outer ring -->
+  <rect x="4" y="4" width="120" height="120" rx="20" fill="none" stroke="url(#accent1)" stroke-width="1" opacity="0.4"/>
+  <!-- Inner ring -->
+  <rect x="12" y="12" width="104" height="104" rx="14" fill="none" stroke="url(#accent2)" stroke-width="0.75" opacity="0.15"/>
+  <!-- Corner accents -->
+  <circle cx="24" cy="24" r="3" fill="url(#accent2)" opacity="0.3"/>
+  <circle cx="104" cy="24" r="3" fill="url(#accent2)" opacity="0.3"/>
+  <circle cx="24" cy="104" r="3" fill="url(#accent2)" opacity="0.3"/>
+  <circle cx="104" cy="104" r="3" fill="url(#accent2)" opacity="0.3"/>
+  <!-- "I" lettermark with glow -->
+  <g filter="url(#glow)">
+    <rect x="34" y="34" width="60" height="13" rx="6.5" fill="url(#accent1)"/>
+    <rect x="50" y="52" width="28" height="40" rx="14" fill="url(#accent1)"/>
+    <rect x="34" y="97" width="60" height="13" rx="6.5" fill="url(#accent1)"/>
+  </g>
+  <!-- Module dots (like DI graph nodes) -->
+  <circle cx="18" cy="64" r="2" fill="#c4b5fd" opacity="0.5"/>
+  <circle cx="110" cy="64" r="2" fill="#fbbf24" opacity="0.5"/>
+  <circle cx="64" cy="8" r="2" fill="#c4b5fd" opacity="0.3"/>
+  <circle cx="64" cy="120" r="2" fill="#fbbf24" opacity="0.3"/>
+</svg>

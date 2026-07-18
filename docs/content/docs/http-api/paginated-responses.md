@@ -56,3 +56,20 @@ async fn list(
 2. Test `?page=1&size=10` — see 10 items, total > 10
 3. Test `?page=99&size=10` — see empty items, same total
 4. Verify `total` stays consistent across pages
+
+## Built-in Pagination Extractor
+
+For zero-boilerplate query parsing, use the [`Pagination`](/docs/http-api/pagination-extractor) extractor:
+
+```rust
+use ironic::prelude::*;
+
+#[get("/users")]
+async fn list(&self, #[decorator(Pagination)] p: Pagination) -> Response {
+    let items = self.service.list(p.offset(), p.limit()).await?;
+    let total = self.service.count().await?;
+    Response::paginated(&items, total, p.offset(), p.limit())
+}
+```
+
+`#[decorator(Pagination)]` automatically parses `?page=N&size=M` with defaults (page=1, size=20, max 100). No manual extraction needed.

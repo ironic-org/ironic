@@ -1,4 +1,4 @@
 {
   "title": "Data & Auth",
-  "pages": ["database-integrations", "migrations", "authentication"]
+  "pages": ["database-integrations", "from-row", "migrations", "authentication", "quick-auth"]
 }

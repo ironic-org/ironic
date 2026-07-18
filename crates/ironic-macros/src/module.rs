@@ -10,6 +10,7 @@ struct ModuleArgs {
     providers: Vec<Type>,
     controllers: Vec<Type>,
     exports: Vec<Type>,
+    async_init: Vec<Type>,
     lifecycle_init: Vec<Type>,
     lifecycle_bootstrap: Vec<Type>,
     lifecycle_destroy: Vec<Type>,
@@ -43,6 +44,7 @@ impl Parse for ModuleArgs {
                 "providers" => args.providers = values,
                 "controllers" => args.controllers = values,
                 "exports" => args.exports = values,
+                "async_init" => args.async_init = values,
                 "lifecycle_init" => args.lifecycle_init = values,
                 "lifecycle_bootstrap" => args.lifecycle_bootstrap = values,
                 "lifecycle_destroy" => args.lifecycle_destroy = values,
@@ -110,6 +112,10 @@ pub(crate) fn expand(input: TokenStream) -> syn::Result<TokenStream> {
         .iter()
         .map(|ty| quote!(.controller(<#ty>::controller_definition())));
     let exports = args.exports.iter().map(|ty| quote!(.export::<#ty>()));
+    let async_init_calls = args
+        .async_init
+        .iter()
+        .map(|ty| quote!(.async_init::<#ty>()));
     let global_call = has_global.then(|| quote!(.global()));
 
     macro_rules! lifecycle_calls {
@@ -149,6 +155,7 @@ pub(crate) fn expand(input: TokenStream) -> syn::Result<TokenStream> {
                     #(#controllers)*
                     #(#exports)*
                     #global_call
+                    #(#async_init_calls)*
                     #(#lifecycle_all)*
                     .build()
             }

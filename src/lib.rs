@@ -87,10 +87,23 @@ pub use common::*;
 pub use config_impl::*;
 pub use core::*;
 pub use di::*;
+#[cfg(feature = "sqlx")]
+pub use http_impl::SqlxErrorExt;
 pub use http_impl::*;
 pub use http_impl::{
-    CacheMetadata, ExceptionFilter, FilterContext, VersionMetadata, VersioningStrategy,
+    CacheMetadata, ExceptionFilter, FilterContext, Pagination, VersionMetadata, VersioningStrategy,
 };
+#[cfg(any(
+    feature = "sqlx-postgres",
+    feature = "sqlx-mysql",
+    feature = "sqlx-sqlite",
+    feature = "sqlx"
+))]
+pub use ironic_macros::FromRow;
+pub use ironic_macros::Merge;
+#[cfg(feature = "jwt")]
+pub use ironic_macros::jwt_guard;
+
 pub use ironic_macros::{
     Injectable, Module, OpenApiSchema, Serializable, api, body, cache, controller, cron, decorator,
     delete, form, get, guard, head, header, interceptor, interval, main, middleware, options,
@@ -150,6 +163,55 @@ pub mod __private {
     }
 }
 
+/// Wraps the body of a `Guard::can_activate` implementation so you don't
+/// need to write `Box::pin(async move { ... })` by hand.
+///
+/// # Example
+///
+/// ```ignore
+/// use ironic::{Guard, GuardDecision, GuardFuture, guard_fn};
+///
+/// impl Guard for JwtGuard {
+///     fn can_activate(&self, context: &mut RequestContext) -> GuardFuture {
+///         guard_fn!({
+///             // context is moved into the async block automatically
+///             GuardDecision::Allow
+///         })
+///     }
+/// }
+/// ```
+#[macro_export]
+macro_rules! guard_fn {
+    ($body:block) => {
+        Box::pin(async move $body)
+    };
+}
+
+/// Wraps the body of an `Interceptor::intercept` implementation so you don't
+/// need to write `Box::pin(async move { ... })` by hand.
+///
+/// # Example
+///
+/// ```ignore
+/// use ironic::{Interceptor, InterceptorNext, intercept_fn};
+///
+/// impl Interceptor for TimingInterceptor {
+///     fn intercept(&self, context: &mut RequestContext, next: InterceptorNext) -> PipelineFuture {
+///         intercept_fn!({
+///             let start = std::time::Instant::now();
+///             let result = next.run(context).await;
+///             result
+///         })
+///     }
+/// }
+/// ```
+#[macro_export]
+macro_rules! intercept_fn {
+    ($body:block) => {
+        Box::pin(async move $body)
+    };
+}
+
 /// Creates a custom parameter decorator that can be used with `#[decorator(DecoratorName)]`
 /// in route handler signatures.
 ///
@@ -186,8 +248,12 @@ macro_rules! create_param_decorator {
 pub mod prelude {
     #[cfg(feature = "hot-reload")]
     pub use crate::ConfigWatcher;
+    #[cfg(feature = "sqlx")]
+    pub use crate::FromRow;
     #[cfg(feature = "openapi")]
     pub use crate::OpenApiSchema;
+    #[cfg(feature = "sqlx")]
+    pub use crate::SqlxErrorExt;
     #[cfg(feature = "validation")]
     pub use crate::ValidationPipe;
     #[cfg(all(
@@ -200,23 +266,23 @@ pub mod prelude {
         LogEntry, LogStorage, StorageError, TimeSeriesConfig, TimeSeriesModule,
     };
     pub use crate::{
-        AfterShutdown, AppError, AppResult, Application, AxumAdapter, BeforeShutdown, BuildInfo,
-        CacheMetadata, CompiledHttpApplication, ConfigurationError, ConfigurationLoader,
-        ControllerDefinition, Dependency, ExceptionExt, ExceptionFilter, FeatureGateGuard,
-        FeatureToggle, FilterContext, FormBody, Guard, GuardDecision, GuardFuture, HeaderParameter,
-        HealthModule, HealthStatus, HttpError, HttpMethod, HttpPlatformAdapter,
-        HttpPlatformApplication, Injectable, Interceptor, InterceptorNext, Json, JsonBody,
-        LifecycleDefinition, Middleware, Module, ModuleDefinition, ModuleRef,
-        OnApplicationBootstrap, OnApplicationShutdown, OnError, OnGuardDenied, OnModuleConfigure,
-        OnModuleDestroy, OnModuleInit, OnModuleLoad, OnModuleUnload, OnRequestDestroy,
-        OnRequestInit, OnServerReady, ParameterPipe, PathParameter, PipelineFuture,
-        ProviderDefinition, QueryParameters, RequestContext, RequestId, RequestLogging,
-        RequestScope, RequestTracing, Response, RouteDefinition, RouteMetadata, Scope, Secret,
-        SecretString, Serializable, ShutdownSignal, ValidateConfiguration, Value, VersionMetadata,
-        VersioningStrategy, WsGatewayDefinition, api, body, cache, controller,
-        create_param_decorator, cron, decorator, delete, form, get, guard, handler_fn, head,
-        header, interceptor, interval, middleware, options, param, patch, pipe, pipe_fn, post, put,
-        query, resp, routes, subscribe_message, timeout, web_socket_gateway,
+        AfterShutdown, AppError, AppResult, Application, AsyncModuleInit, AxumAdapter,
+        BeforeShutdown, BuildInfo, CacheMetadata, CompiledHttpApplication, ConfigurationError,
+        ConfigurationLoader, ControllerDefinition, Dependency, ExceptionExt, ExceptionFilter,
+        FeatureGateGuard, FeatureToggle, FilterContext, FormBody, Guard, GuardDecision,
+        GuardFuture, HeaderParameter, HealthModule, HealthStatus, HttpError, HttpMethod,
+        HttpPlatformAdapter, HttpPlatformApplication, Injectable, Interceptor, InterceptorNext,
+        Json, JsonBody, LifecycleDefinition, Merge, Middleware, Module, ModuleDefinition,
+        ModuleRef, OnApplicationBootstrap, OnApplicationShutdown, OnError, OnGuardDenied,
+        OnModuleConfigure, OnModuleDestroy, OnModuleInit, OnModuleLoad, OnModuleUnload,
+        OnRequestDestroy, OnRequestInit, OnServerReady, Pagination, ParameterPipe, PathParameter,
+        PipelineFuture, ProviderDefinition, QueryParameters, RequestContext, RequestId,
+        RequestLogging, RequestScope, RequestTracing, Response, RouteDefinition, RouteMetadata,
+        Scope, Secret, SecretString, Serializable, ShutdownSignal, ValidateConfiguration, Value,
+        VersionMetadata, VersioningStrategy, WsGatewayDefinition, api, body, cache, controller,
+        create_param_decorator, cron, decorator, delete, form, get, guard, guard_fn, handler_fn,
+        head, header, intercept_fn, interceptor, interval, middleware, options, param, patch, pipe,
+        pipe_fn, post, put, query, resp, routes, subscribe_message, timeout, web_socket_gateway,
     };
     #[cfg(feature = "serialization")]
     pub use crate::{FieldRule, FieldRules, SerializeInterceptor, set_current_roles};

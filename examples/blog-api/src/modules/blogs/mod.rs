@@ -18,5 +18,6 @@ pub use services::BlogService;
     providers = [BlogRepository, CategoryRepository, BlogService],
     controllers = [BlogsController, CategoriesController],
     exports = [BlogService],
+    lifecycle_init = [BlogService],
 )]
 pub struct BlogsModule;

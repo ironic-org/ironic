@@ -41,5 +41,6 @@ impl OnApplicationBootstrap for StatsReporter {
 #[module(
     imports = [crate::modules::blogs::BlogsModule],
     providers = [StatsReporter],
+    lifecycle_bootstrap = [StatsReporter],
 )]
 pub struct TasksModule;

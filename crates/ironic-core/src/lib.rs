@@ -15,7 +15,9 @@ use std::{
 
 use std::sync::OnceLock;
 
-use ironic_di::{ContainerBuilder, ProviderDefinition, ProviderKey, RegistrationError};
+use ironic_di::{
+    Container, ContainerBuilder, ProviderDefinition, ProviderKey, ProviderValue, RegistrationError,
+};
 use ironic_http::{
     CompiledHttpApplication, ControllerDefinition, RequestTracing, RouteError,
     compile_controller_routes,
@@ -29,10 +31,10 @@ pub use health::{
     configure as configure_health, register as register_health_indicator,
 };
 pub use lifecycle::{
-    AfterShutdown, BeforeShutdown, LifecycleDefinition, LifecycleDefinitionBuilder, LifecycleError,
-    LifecycleFuture, OnApplicationBootstrap, OnApplicationShutdown, OnError, OnGuardDenied,
-    OnModuleConfigure, OnModuleDestroy, OnModuleInit, OnModuleLoad, OnModuleUnload,
-    OnRequestDestroy, OnRequestInit, OnServerReady,
+    AfterShutdown, AsyncModuleInit, BeforeShutdown, LifecycleDefinition,
+    LifecycleDefinitionBuilder, LifecycleError, LifecycleFuture, OnApplicationBootstrap,
+    OnApplicationShutdown, OnError, OnGuardDenied, OnModuleConfigure, OnModuleDestroy,
+    OnModuleInit, OnModuleLoad, OnModuleUnload, OnRequestDestroy, OnRequestInit, OnServerReady,
 };
 
 /// A statically declared Ironic application module.
@@ -114,7 +116,7 @@ impl fmt::Debug for ModuleDefinitionFactory {
 }
 
 /// The complete static declaration of one module.
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 pub struct ModuleDefinition {
     id: ModuleId,
     imports: Vec<ModuleDefinitionFactory>,
@@ -122,8 +124,24 @@ pub struct ModuleDefinition {
     controllers: Vec<ControllerDefinition>,
     exports: Vec<ProviderKey>,
     lifecycle: Vec<LifecycleDefinition>,
+    async_init_callbacks: Vec<lifecycle::AsyncInitCallback>,
     /// When true, this module's exports are visible to every other module.
     global: bool,
+}
+
+impl std::fmt::Debug for ModuleDefinition {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("ModuleDefinition")
+            .field("id", &self.id)
+            .field("imports", &self.imports.len())
+            .field("providers", &self.providers.len())
+            .field("controllers", &self.controllers.len())
+            .field("exports", &self.exports.len())
+            .field("lifecycle", &self.lifecycle)
+            .field("async_init_count", &self.async_init_callbacks.len())
+            .field("global", &self.global)
+            .finish()
+    }
 }
 
 impl ModuleDefinition {
@@ -137,8 +155,15 @@ impl ModuleDefinition {
             controllers: Vec::new(),
             exports: Vec::new(),
             lifecycle: Vec::new(),
+            async_init_callbacks: Vec::new(),
             global: false,
         }
+    }
+
+    /// Returns async initialization callbacks in declaration order.
+    #[must_use]
+    pub fn async_init_callbacks(&self) -> &[lifecycle::AsyncInitCallback] {
+        &self.async_init_callbacks
     }
 
     /// Returns the module identity.
@@ -156,6 +181,7 @@ pub struct ModuleDefinitionBuilder {
     controllers: Vec<ControllerDefinition>,
     exports: Vec<ProviderKey>,
     lifecycle: Vec<LifecycleDefinition>,
+    async_init_callbacks: Vec<lifecycle::AsyncInitCallback>,
     global: bool,
 }
 
@@ -242,6 +268,33 @@ impl ModuleDefinitionBuilder {
         self
     }
 
+    /// Registers a provider for async initialization.
+    ///
+    /// The provider type must implement [`AsyncModuleInit`]. During
+    /// `Application::build()`, the provider is resolved from the
+    /// container and its `async_init()` method is called with access
+    /// to the full container.
+    #[must_use]
+    pub fn async_init<T: AsyncModuleInit>(mut self) -> Self {
+        let key = ProviderKey::of::<T>();
+        let callback: lifecycle::AsyncInitCallback = std::sync::Arc::new(
+            move |_provider: ProviderValue, container: std::sync::Arc<Container>| {
+                let container = std::sync::Arc::clone(&container);
+                Box::pin(async move {
+                    let resolved = container.resolve_key(key).await.map_err(|e| {
+                        LifecycleError::new(format!("async_init resolve failed: {e}"))
+                    })?;
+                    let init = resolved
+                        .downcast_ref::<T>()
+                        .ok_or_else(|| LifecycleError::new("async_init downcast failed"))?;
+                    init.async_init(&container).await
+                })
+            },
+        );
+        self.async_init_callbacks.push(callback);
+        self
+    }
+
     /// Completes the definition.
     #[must_use]
     pub fn build(self) -> ModuleDefinition {
@@ -252,13 +305,14 @@ impl ModuleDefinitionBuilder {
             controllers: self.controllers,
             exports: self.exports,
             lifecycle: self.lifecycle,
+            async_init_callbacks: self.async_init_callbacks,
             global: self.global,
         }
     }
 }
 
 /// A validated application module with precomputed provider visibility.
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 pub struct CompiledModule {
     id: ModuleId,
     imports: Vec<ModuleId>,
@@ -267,6 +321,29 @@ pub struct CompiledModule {
     exports: Vec<ProviderKey>,
     visible_providers: HashMap<ProviderKey, ModuleId>,
     lifecycle: Vec<LifecycleDefinition>,
+    async_init_callbacks: Vec<lifecycle::AsyncInitCallback>,
+}
+
+impl std::fmt::Debug for CompiledModule {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("CompiledModule")
+            .field("id", &self.id)
+            .field(
+                "imports",
+                &self
+                    .imports
+                    .iter()
+                    .map(|i| i.type_name())
+                    .collect::<Vec<_>>(),
+            )
+            .field("providers", &self.providers.len())
+            .field("controllers", &self.controllers.len())
+            .field("exports", &self.exports.len())
+            .field("visible_providers", &self.visible_providers.len())
+            .field("lifecycle", &self.lifecycle)
+            .field("async_init_count", &self.async_init_callbacks.len())
+            .finish()
+    }
 }
 
 impl CompiledModule {
@@ -310,6 +387,12 @@ impl CompiledModule {
     #[must_use]
     pub fn lifecycle(&self) -> &[LifecycleDefinition] {
         &self.lifecycle
+    }
+
+    /// Returns async initialization callbacks in declaration order.
+    #[must_use]
+    pub fn async_init_callbacks(&self) -> &[lifecycle::AsyncInitCallback] {
+        &self.async_init_callbacks
     }
 }
 
@@ -841,6 +924,7 @@ fn compile_module(
         exports: definition.exports.clone(),
         visible_providers: visible,
         lifecycle: definition.lifecycle.clone(),
+        async_init_callbacks: definition.async_init_callbacks.clone(),
     })
 }
 

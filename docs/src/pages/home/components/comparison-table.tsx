@@ -222,7 +222,7 @@ const ComparisonTable = () => {
             </div>
 
             <FadeUp className='text-center max-w-2xl mx-auto mb-16 relative'>
-                <h2 className='text-3xl md:text-4xl font-bold text-fd-foreground tracking-tight mb-4'>
+                <h2 className='font-display text-3xl md:text-4xl font-bold text-fd-foreground tracking-tight mb-4'>
                     How <span className='text-brand'>Ironic</span> compares
                 </h2>
                 <p className='text-fd-muted-foreground text-base font-medium leading-relaxed'>

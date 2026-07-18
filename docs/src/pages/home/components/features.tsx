@@ -49,7 +49,7 @@ const Features = () => {
             </div>
 
             <FadeUp className='text-center max-w-2xl mx-auto mb-16 relative'>
-                <h2 className='text-3xl md:text-4xl font-bold text-fd-foreground tracking-tight mb-4'>
+                <h2 className='font-display text-3xl md:text-4xl font-bold text-fd-foreground tracking-tight mb-4'>
                     Everything you need to build{' '}
                     <span className='text-brand'>production APIs</span>
                 </h2>

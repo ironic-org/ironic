@@ -1,4 +1,4 @@
-import { Github, Layers } from 'lucide-react';
+import { Github } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 const footerLinks = {
@@ -28,11 +28,15 @@ const Footer = () => {
             <div className='mx-auto max-w-7xl px-6 py-16'>
                 <div className='grid grid-cols-1 gap-10 sm:grid-cols-2 lg:grid-cols-4'>
                     <div>
-                        <div className='flex items-center gap-2 mb-4'>
-                            <span className='flex items-center justify-center rounded-lg border border-brand/20 bg-brand/10 p-1.5 text-brand'>
-                                <Layers className='h-5 w-5' />
-                            </span>
-                            <span className='text-lg font-bold tracking-tight text-fd-foreground'>
+                        <div className='mb-4 flex items-center gap-2.5'>
+                            <img
+                                src='/logo.svg'
+                                alt=''
+                                width={28}
+                                height={28}
+                                className='size-7 rounded-lg'
+                            />
+                            <span className='font-display text-lg font-bold tracking-tight text-fd-foreground'>
                                 Ironic
                             </span>
                         </div>

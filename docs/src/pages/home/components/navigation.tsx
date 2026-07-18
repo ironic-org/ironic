@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Github, Menu, X, GitBranch } from 'lucide-react';
+import { Github, Menu, X } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { GitHubStatsBadge } from './github-stars';
 import { GIT_BRANCH } from '@/lib/constants';
@@ -31,11 +31,15 @@ const Navigation = () => {
     return (
         <nav className='sticky top-0 z-50 w-full border-b border-fd-border bg-fd-background/80 backdrop-blur-md'>
             <div className='mx-auto flex h-16 max-w-7xl items-center justify-between px-6'>
-                <Link to='/' className='flex items-center gap-2'>
-                    <span className='flex items-center justify-center rounded-lg border border-brand/20 bg-brand/10 p-1.5'>
-                        <img src='/logo.svg' alt='Ironic' width='20' height='20' className='size-5' />
-                    </span>
-                    <span className='text-lg font-bold tracking-tight text-fd-foreground'>
+                <Link to='/' className='flex items-center gap-2.5'>
+                    <img
+                        src='/logo.svg'
+                        alt='Ironic'
+                        width={28}
+                        height={28}
+                        className='size-7 rounded-lg shadow-sm'
+                    />
+                    <span className='font-display text-lg font-bold tracking-tight text-fd-foreground'>
                         Ironic
                     </span>
                     <span className='inline-flex items-center gap-1 rounded-full border border-emerald-200 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-950/50 px-2 py-0.5 text-[10px] font-medium text-emerald-700 dark:text-emerald-300 max-md:hidden'>

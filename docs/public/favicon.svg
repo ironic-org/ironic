@@ -1,28 +1,14 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" fill="none">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" fill="none" role="img" aria-label="Ironic">
   <defs>
-    <linearGradient id="bg" x1="0" y1="0" x2="32" y2="32" gradientUnits="userSpaceOnUse">
-      <stop offset="0%" stop-color="#1e1b4b"/>
-      <stop offset="100%" stop-color="#0f172a"/>
-    </linearGradient>
-    <linearGradient id="accent" x1="4" y1="4" x2="28" y2="28" gradientUnits="userSpaceOnUse">
-      <stop offset="0%" stop-color="#a78bfa"/>
-      <stop offset="30%" stop-color="#7c3aed"/>
-      <stop offset="70%" stop-color="#f59e0b"/>
-      <stop offset="100%" stop-color="#f97316"/>
-    </linearGradient>
-    <linearGradient id="glow" x1="8" y1="8" x2="24" y2="24" gradientUnits="userSpaceOnUse">
-      <stop offset="0%" stop-color="#c4b5fd" stop-opacity="0.6"/>
-      <stop offset="100%" stop-color="#fbbf24" stop-opacity="0.3"/>
+    <linearGradient id="f-mark" x1="4" y1="4" x2="28" y2="28" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#F0A36A"/>
+      <stop offset="100%" stop-color="#E07840"/>
     </linearGradient>
   </defs>
-  <!-- Background -->
-  <rect width="32" height="32" rx="8" fill="url(#bg)"/>
-  <!-- Glow ring -->
-  <rect x="1" y="1" width="30" height="30" rx="7" fill="none" stroke="url(#accent)" stroke-width="0.5" opacity="0.5"/>
-  <!-- "I" lettermark -->
-  <rect x="9" y="6" width="14" height="3.5" rx="1.75" fill="url(#accent)"/>
-  <rect x="13.25" y="10.5" width="5.5" height="11" rx="2.75" fill="url(#accent)"/>
-  <rect x="9" y="22.5" width="14" height="3.5" rx="1.75" fill="url(#accent)"/>
-  <!-- Subtle dot accent bottom-right -->
-  <circle cx="26" cy="26" r="1.5" fill="url(#accent)" opacity="0.4"/>
+  <rect width="32" height="32" rx="8" fill="#0B101A"/>
+  <rect x="9" y="6" width="14" height="3.5" rx="1.75" fill="url(#f-mark)"/>
+  <rect x="12.5" y="10.5" width="7" height="11" rx="3.5" fill="url(#f-mark)"/>
+  <rect x="9" y="22.5" width="14" height="3.5" rx="1.75" fill="url(#f-mark)"/>
+  <circle cx="6" cy="8" r="1.2" fill="#7DD3C0"/>
+  <circle cx="26" cy="24" r="1.2" fill="#7DD3C0"/>
 </svg>

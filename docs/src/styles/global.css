@@ -53,6 +53,9 @@
     --animate-spin-slow: spin 8s linear infinite;
     --animate-float: float 6s ease-in-out infinite;
     --animate-glow: glow 4s ease-in-out infinite;
+    --animate-drift: drift 18s ease-in-out infinite;
+    --animate-node-pulse: node-pulse 3.5s ease-in-out infinite;
+    --font-display: var(--theme-font-display);
 
     @keyframes beam {
         0% { top: -200px; opacity: 0; }
@@ -75,6 +78,16 @@
     @keyframes glow {
         0%, 100% { opacity: 0.3; }
         50% { opacity: 0.7; }
+    }
+
+    @keyframes drift {
+        0%, 100% { transform: translate3d(0, 0, 0) scale(1); }
+        50% { transform: translate3d(2%, -3%, 0) scale(1.04); }
+    }
+
+    @keyframes node-pulse {
+        0%, 100% { opacity: 0.35; transform: scale(1); }
+        50% { opacity: 0.9; transform: scale(1.15); }
     }
 }
 
@@ -131,6 +144,11 @@
 
     body {
         @apply bg-fd-background text-foreground;
+        font-family: var(--font-sans);
+    }
+
+    .font-display {
+        font-family: var(--font-display), var(--font-sans);
     }
 
     #nd-sidebar .nd-sidebar-item[data-active='true'] {

@@ -15,7 +15,7 @@ const CodeShowcase = () => {
         <section className='relative py-24 px-6 max-w-7xl mx-auto border-t border-fd-border'>
             <div className='grid grid-cols-1 lg:grid-cols-2 gap-12 items-center'>
                 <FadeUp>
-                    <h2 className='text-3xl md:text-4xl font-bold text-fd-foreground tracking-tight mb-6'>
+                    <h2 className='font-display text-3xl md:text-4xl font-bold text-fd-foreground tracking-tight mb-6'>
                         APIs that feel{' '}
                         <span className='text-brand'>natural</span>
                     </h2>

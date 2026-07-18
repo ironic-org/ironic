@@ -4,8 +4,8 @@
   "description": "A batteries-included, type-safe application framework for Rust",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#ffffff",
-  "theme_color": "#f59e0b",
+  "background_color": "#0b101a",
+  "theme_color": "#e07840",
   "icons": [
     {
       "src": "/favicon.svg",

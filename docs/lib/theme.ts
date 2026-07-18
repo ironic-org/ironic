@@ -121,9 +121,10 @@ function createAccentVariables(
 }
 
 const shared: ThemeVariables = {
-  '--theme-font-sans': '"Inter", "Segoe UI", sans-serif',
-  '--theme-font-mono': '"SFMono-Regular", "Consolas", monospace',
-  '--theme-font-serif': '"Iowan Old Style", "Palatino Linotype", "Book Antiqua", serif',
+  '--theme-font-sans': '"DM Sans", "Segoe UI", sans-serif',
+  '--theme-font-mono': '"IBM Plex Mono", "SFMono-Regular", "Consolas", monospace',
+  '--theme-font-serif': '"Fraunces", "Iowan Old Style", "Palatino Linotype", serif',
+  '--theme-font-display': '"Syne", "DM Sans", sans-serif',
   '--theme-radius': '0.625rem',
 };
 
@@ -227,7 +228,7 @@ export const DOCS_THEME_STORAGE_KEYS = {
 } as const;
 
 export const DEFAULT_DOCS_THEME_ACCENT: DocsThemeAccent = 'custom';
-export const DEFAULT_DOCS_CUSTOM_ACCENT = '#64748b';
+export const DEFAULT_DOCS_CUSTOM_ACCENT = '#e07840';
 
 export const DOCS_THEME_ACCENTS: Record<PresetDocsThemeAccent, AccentPreset> = {
   amber: {

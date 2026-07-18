@@ -2,7 +2,7 @@
 //!
 //! Usage:
 //! ```ignore
-//! use ironic::http::SqlxErrorExt;
+//! use ironic::SqlxErrorExt;
 //!
 //! let row = sqlx::query("SELECT ...")
 //!     .fetch_optional(&pool)
@@ -14,15 +14,21 @@
 
 use crate::HttpError;
 
-/// Extension trait that maps `sqlx::Error` to an `HttpError` with descriptive
-/// codes based on the entity name and operation.
+/// Extension trait that maps sqlx errors to `HttpError`.
 pub trait SqlxErrorExt {
     /// Maps a `sqlx::Error` to an `HttpError`.
-    ///
-    /// - `RowNotFound` → `NOT_FOUND` (404)
-    /// - `PoolClosed | PoolTimedOut` → `SERVICE_UNAVAILABLE` (503)
-    /// - Everything else → `INTERNAL_SERVER_ERROR` (500)
     fn map_db_err(self, entity: &str, operation: &str) -> HttpError;
+}
+
+/// Extension trait that maps `Result<T, sqlx::Error>` to `Result<T, HttpError>`.
+pub trait SqlxResultExt<T> {
+    /// Maps the error of a `Result` using [`SqlxErrorExt::map_db_err`].
+    ///
+    /// # Errors
+    ///
+    /// Maps the contained `sqlx::Error` into an `HttpError`. See
+    /// [`SqlxErrorExt::map_db_err`] for the error mapping rules.
+    fn map_db_err(self, entity: &str, operation: &str) -> Result<T, HttpError>;
 }
 
 impl SqlxErrorExt for sqlx::Error {
@@ -38,5 +44,11 @@ impl SqlxErrorExt for sqlx::Error {
             ),
             _ => HttpError::internal("DB_ERROR", format!("{entity}:{operation} failed: {self}")),
         }
+    }
+}
+
+impl<T> SqlxResultExt<T> for Result<T, sqlx::Error> {
+    fn map_db_err(self, entity: &str, operation: &str) -> Result<T, HttpError> {
+        self.map_err(|e| e.map_db_err(entity, operation))
     }
 }

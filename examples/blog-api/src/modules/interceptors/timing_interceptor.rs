@@ -1,5 +1,8 @@
-use std::time::Instant;
+// ── TimingInterceptor ───────────────────────────────────────────
+// Interceptor: wraps handler — logs method, path, status, duration.
+// Usage: #[interceptor(TimingInterceptor)] on routes.
 
+use std::time::Instant;
 use ironic::{Interceptor, InterceptorNext, PipelineFuture, RequestContext};
 
 pub struct TimingInterceptor;
@@ -26,7 +29,6 @@ impl Interceptor for TimingInterceptor {
                 http_status = status,
                 duration_ms = (elapsed.as_secs_f64() * 1000.0 * 100.0).round() / 100.0,
             );
-
             Ok(response)
         })
     }

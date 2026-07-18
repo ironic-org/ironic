@@ -1,7 +1,6 @@
-use ironic::OpenApiSchema;
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 
-#[derive(Debug, Deserialize, Serialize, OpenApiSchema)]
+#[derive(Debug, Deserialize)]
 pub struct LoginDto {
     pub username: String,
     pub password: String,

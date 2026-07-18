@@ -513,6 +513,212 @@ impl<T: Clone> Reloadable<T> {
     }
 }
 
+/// Pre-built configuration structs for common infrastructure components.
+///
+/// Use these as a starting point or embed them into your own `AppConfig`:
+///
+/// ```ignore
+/// use ironic::config::presets::{DatabaseConfig, AuthConfig, ServerConfig};
+///
+/// #[derive(Deserialize)]
+/// pub struct AppConfig {
+///     pub database: DatabaseConfig,
+///     pub auth: AuthConfig,
+///     pub server: ServerConfig,
+/// }
+///
+/// impl ValidateConfiguration for AppConfig {
+///     fn validate(&self) -> Result<(), String> {
+///         self.database.validate()?;
+///         self.auth.validate()?;
+///         self.server.validate()?;
+///         Ok(())
+///     }
+/// }
+/// ```
+pub mod presets {
+    use serde::Deserialize;
+
+    use super::{SecretString, ValidateConfiguration};
+
+    /// Database connection configuration.
+    ///
+    /// ```toml
+    /// [database]
+    /// url = "postgres://localhost:5432/myapp"
+    /// max_connections = 10
+    /// min_connections = 2
+    /// ```
+    #[derive(Clone, Debug, Deserialize)]
+    pub struct DatabaseConfig {
+        /// The database connection URL. Wrap in `SecretString` to prevent
+        /// accidental logging of credentials.
+        pub url: SecretString,
+        /// Maximum number of connections in the pool (default: 10).
+        #[serde(default = "default_max_connections")]
+        pub max_connections: u32,
+        /// Minimum number of idle connections (default: 2).
+        #[serde(default = "default_min_connections")]
+        pub min_connections: u32,
+    }
+
+    impl Default for DatabaseConfig {
+        fn default() -> Self {
+            Self {
+                url: SecretString::new(String::new()),
+                max_connections: default_max_connections(),
+                min_connections: default_min_connections(),
+            }
+        }
+    }
+
+    impl ValidateConfiguration for DatabaseConfig {
+        fn validate(&self) -> Result<(), String> {
+            if self.url.expose_secret().is_empty() {
+                return Err("database.url must not be empty".to_owned());
+            }
+            if self.max_connections == 0 {
+                return Err("database.max_connections must be greater than zero".to_owned());
+            }
+            Ok(())
+        }
+    }
+
+    const fn default_max_connections() -> u32 {
+        10
+    }
+    const fn default_min_connections() -> u32 {
+        2
+    }
+
+    /// Authentication configuration.
+    ///
+    /// ```toml
+    /// [auth]
+    /// jwt_secret = "your-256-bit-secret"
+    /// jwt_expiry_secs = 3600
+    /// refresh_expiry_secs = 86400
+    /// ```
+    #[derive(Clone, Debug, Deserialize)]
+    pub struct AuthConfig {
+        /// The JWT signing secret. Wrap in `SecretString` for safety.
+        pub jwt_secret: SecretString,
+        /// Access token lifetime in seconds (default: 3600 = 1 hour).
+        #[serde(default = "default_jwt_expiry")]
+        pub jwt_expiry_secs: u64,
+        /// Refresh token lifetime in seconds (default: 86400 = 24 hours).
+        #[serde(default = "default_refresh_expiry")]
+        pub refresh_expiry_secs: u64,
+    }
+
+    impl Default for AuthConfig {
+        fn default() -> Self {
+            Self {
+                jwt_secret: SecretString::new(String::new()),
+                jwt_expiry_secs: default_jwt_expiry(),
+                refresh_expiry_secs: default_refresh_expiry(),
+            }
+        }
+    }
+
+    impl ValidateConfiguration for AuthConfig {
+        fn validate(&self) -> Result<(), String> {
+            if self.jwt_secret.expose_secret().len() < 32 {
+                return Err(
+                    "auth.jwt_secret must be at least 32 characters (256 bits)".to_owned(),
+                );
+            }
+            if self.jwt_expiry_secs == 0 {
+                return Err("auth.jwt_expiry_secs must be greater than zero".to_owned());
+            }
+            Ok(())
+        }
+    }
+
+    const fn default_jwt_expiry() -> u64 {
+        3600
+    }
+    const fn default_refresh_expiry() -> u64 {
+        86400
+    }
+
+    /// HTTP server configuration.
+    ///
+    /// ```toml
+    /// [server]
+    /// host = "0.0.0.0"
+    /// port = 3000
+    /// ```
+    #[derive(Clone, Debug, Deserialize)]
+    pub struct ServerConfig {
+        /// The host to bind to (default: "0.0.0.0").
+        #[serde(default = "default_host")]
+        pub host: String,
+        /// The port to listen on (default: 3000).
+        #[serde(default = "default_port")]
+        pub port: u16,
+    }
+
+    impl Default for ServerConfig {
+        fn default() -> Self {
+            Self {
+                host: default_host(),
+                port: default_port(),
+            }
+        }
+    }
+
+    impl ValidateConfiguration for ServerConfig {
+        fn validate(&self) -> Result<(), String> {
+            if self.port == 0 {
+                return Err("server.port must be greater than zero".to_owned());
+            }
+            Ok(())
+        }
+    }
+
+    fn default_host() -> String {
+        "0.0.0.0".to_owned()
+    }
+    const fn default_port() -> u16 {
+        3000
+    }
+
+    /// Redis connection configuration.
+    ///
+    /// Only available when the `redis` feature is enabled.
+    ///
+    /// ```toml
+    /// [redis]
+    /// url = "redis://localhost:6379"
+    /// ```
+    #[cfg(feature = "redis")]
+    #[derive(Clone, Debug, Deserialize)]
+    pub struct RedisConfig {
+        /// The Redis connection URL.
+        pub url: String,
+    }
+
+    #[cfg(feature = "redis")]
+    impl Default for RedisConfig {
+        fn default() -> Self {
+            Self {
+                url: "redis://localhost:6379".to_owned(),
+            }
+        }
+    }
+
+    #[cfg(feature = "redis")]
+    impl ValidateConfiguration for RedisConfig {
+        fn validate(&self) -> Result<(), String> {
+            if self.url.is_empty() {
+                return Err("redis.url must not be empty".to_owned());
+            }
+            Ok(())
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

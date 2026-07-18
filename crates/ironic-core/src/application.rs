@@ -5,8 +5,8 @@ use ironic_http::{Middleware, RequestLogging};
 use ironic_platform::{HttpPlatformAdapter, HttpPlatformApplication, Shutdown, ShutdownSignal};
 
 use crate::{
-    CompiledApplicationGraph, HttpApplicationBuildError, LifecycleDefinition, LifecycleError,
-    ModuleDefinition, ModuleError, ModuleRef, build_http_application_with_extra_providers,
+    CompiledApplicationGraph, HttpApplicationBuildError, LifecycleDefinition,
+    LifecycleError, ModuleDefinition, ModuleError, ModuleRef, build_http_application_with_extra_providers,
     compile_module_graph,
 };
 
@@ -220,6 +220,7 @@ where
         module_ref.set_container(container.clone());
 
         configure_modules(&graph, &container).await?;
+        run_async_module_init(&graph, &container).await?;
         initialize_eager_providers(&graph, &container).await?;
         let mut initialized = Vec::new();
         if let Err(error) = initialize_lifecycle(&graph, &container, &mut initialized).await {
@@ -377,6 +378,33 @@ where
 struct InitializedLifecycle {
     definition: LifecycleDefinition,
     provider: ProviderValue,
+}
+
+async fn run_async_module_init(
+    graph: &CompiledApplicationGraph,
+    container: &Container,
+) -> Result<(), ApplicationError> {
+    let container = std::sync::Arc::new(container.clone());
+    let dummy_key = ironic_di::ProviderKey::of::<()>();
+    let dummy_provider: ironic_di::ProviderValue = std::sync::Arc::new(());
+    for module_id in graph.initialization_order() {
+        let module = graph
+            .module(*module_id)
+            .expect("initialization order references a compiled module");
+        for callback in module.async_init_callbacks() {
+            callback(
+                std::sync::Arc::clone(&dummy_provider),
+                std::sync::Arc::clone(&container),
+            )
+            .await
+            .map_err(|error| ApplicationError::Lifecycle {
+                provider: dummy_key,
+                stage: "async_module_init",
+                message: error.to_string(),
+            })?;
+        }
+    }
+    Ok(())
 }
 
 async fn initialize_eager_providers(

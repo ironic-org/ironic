@@ -3,6 +3,7 @@
 mod error;
 mod exception_filter;
 mod extract;
+mod extractors;
 mod handler;
 mod metadata;
 #[cfg(feature = "multipart")]
@@ -15,6 +16,8 @@ mod response;
 mod route;
 #[cfg(feature = "serialization")]
 mod serialization;
+#[cfg(feature = "sqlx")]
+mod sqlx;
 
 pub use error::HttpError;
 pub(crate) use exception_filter::ExceptionFilterSet;
@@ -23,6 +26,7 @@ pub use extract::{
     ExtractFuture, ExtractedValue, FormBody, HeaderParameter, JsonBody, ParameterExtractor,
     PathParameter, QueryParameters,
 };
+pub use extractors::Pagination;
 pub use handler::{ErasedHandler, HandlerArguments, HandlerFuture, handler_fn};
 pub use metadata::{CacheMetadata, VersionMetadata, VersioningStrategy};
 #[cfg(feature = "multipart")]
@@ -45,6 +49,8 @@ pub use route::{
 };
 #[cfg(feature = "serialization")]
 pub use serialization::{FieldRule, FieldRules, SerializeInterceptor, set_current_roles};
+#[cfg(feature = "sqlx")]
+pub use sqlx::SqlxErrorExt;
 
 /// The HTTP method used in route metadata.
 pub use http::Method as HttpMethod;

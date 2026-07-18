@@ -3,7 +3,10 @@
 use proc_macro::TokenStream;
 
 mod controller;
+mod from_row;
 mod injectable;
+mod jwt_guard;
+mod merge;
 mod module;
 mod openapi;
 mod routes;
@@ -27,10 +30,59 @@ pub fn derive_module(input: TokenStream) -> TokenStream {
         .into()
 }
 
-#[proc_macro_derive(OpenApiSchema, attributes(serde))]
+#[proc_macro_derive(FromRow, attributes(sqlx))]
+/// Derives `sqlx::FromRow` for a named-field struct with optional column rename,
+/// JSON-deserialization, and default-value support.
+pub fn derive_from_row(input: TokenStream) -> TokenStream {
+    from_row::expand(input.into())
+        .unwrap_or_else(syn::Error::into_compile_error)
+        .into()
+}
+
+#[proc_macro_derive(Merge)]
+/// Derives a `merge_into(&mut self)` method that applies `Option<T>` values
+/// from `self` onto a target of the same type.
+pub fn derive_merge(input: TokenStream) -> TokenStream {
+    merge::expand(input.into())
+        .unwrap_or_else(syn::Error::into_compile_error)
+        .into()
+}
+
+#[proc_macro_derive(OpenApiSchema, attributes(serde, garde))]
 /// Derives an `OpenAPI` schema for a named-field struct.
+///
+/// Reads `#[serde(rename)]`, `#[serde(skip)]`, `#[serde(default)]`, and
+/// `#[garde(...)]` attributes to produce richer schema metadata.
 pub fn derive_openapi_schema(input: TokenStream) -> TokenStream {
     openapi::expand(syn::parse_macro_input!(input as syn::DeriveInput))
+        .unwrap_or_else(syn::Error::into_compile_error)
+        .into()
+}
+
+#[proc_macro_attribute]
+/// Generates the complete JWT auth pipeline (claims, principal, authenticator,
+/// guard, and middleware) from a concise declaration.
+///
+/// # Example
+///
+/// ```ignore
+/// #[ironic::jwt_guard(
+///     secret = std::env::var("JWT_SECRET").expect("JWT_SECRET must be set"),
+///     claims = UserClaims { sub: String, exp: u64 },
+///     principal = User { id: String },
+///     map = |c: UserClaims| -> Result<User, ironic::auth::AuthError> {
+///         Ok(User { id: c.sub })
+///     }
+/// )]
+/// pub struct Auth;
+///
+/// // Use in application setup:
+/// app.middleware(Auth::auth_middleware());
+/// // And on controllers:
+/// #[guard(Auth::AuthGuard)]
+/// ```
+pub fn jwt_guard(attribute: TokenStream, item: TokenStream) -> TokenStream {
+    jwt_guard::expand(attribute.into(), item.into())
         .unwrap_or_else(syn::Error::into_compile_error)
         .into()
 }

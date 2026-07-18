@@ -30,6 +30,14 @@ pub(crate) type ModuleLoadCallback =
     Arc<dyn Fn(ProviderValue, String) -> LifecycleFuture<'static> + Send + Sync>;
 pub(crate) type ModuleUnloadCallback =
     Arc<dyn Fn(ProviderValue, String) -> LifecycleFuture<'static> + Send + Sync>;
+pub(crate) type AsyncInitCallback = Arc<
+    dyn Fn(
+            ProviderValue,
+            std::sync::Arc<ironic_di::Container>,
+        ) -> LifecycleFuture<'static>
+        + Send
+        + Sync,
+>;
 
 /// A safe lifecycle callback failure.
 #[derive(Clone, Debug, Eq, PartialEq, thiserror::Error)]
@@ -158,6 +166,47 @@ pub trait OnModuleLoad: Send + Sync + 'static {
 pub trait OnModuleUnload: Send + Sync + 'static {
     /// `module_name` identifies the unloaded module for diagnostics.
     fn on_module_unload(&self, module_name: &str) -> LifecycleFuture<'_>;
+}
+
+/// Runs after the DI container is built but before any lifecycle hooks fire.
+///
+/// Use for: connecting to databases, running migrations, or any async
+/// initialization that requires the container to be available but must
+/// complete before providers are constructed.
+///
+/// Unlike `OnModuleInit` (which runs on a per-provider basis), this trait
+/// runs once per-module and receives access to the full container so it can
+/// resolve other providers during initialization.
+///
+/// # Example
+///
+/// ```ignore
+/// use ironic::AsyncModuleInit;
+///
+/// struct DatabaseModule;
+///
+/// impl AsyncModuleInit for DatabaseModule {
+///     async fn async_init(&self, container: &ironic::Container) -> Result<(), ironic::AppError> {
+///         let pool = sqlx::PgPool::connect(&std::env::var("DATABASE_URL").unwrap()).await?;
+///         // Register the pool as an eager provider, run migrations, etc.
+///         Ok(())
+///     }
+/// }
+/// ```
+pub trait AsyncModuleInit: Send + Sync + 'static {
+    /// Performs async initialization with access to the DI container.
+    ///
+    /// The container is fully built at this point and providers may be
+    /// resolved. Use this for database connections, migrations, or any
+    /// async startup that must complete before the HTTP server starts.
+    ///
+    /// # Errors
+    ///
+    /// Return a `LifecycleError` with a safe message. Do not leak credentials.
+    fn async_init<'a>(
+        &'a self,
+        container: &'a ironic_di::Container,
+    ) -> LifecycleFuture<'a>;
 }
 
 // ── LifecycleDefinition ─────────────────────────────────────────────

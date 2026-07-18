@@ -13,6 +13,14 @@ type Post = {
 
 const posts: Post[] = [
     {
+        slug: 'v1.0.8',
+        title: 'v1.0.8 — add pagination extractor and SQL error mapping utilities',
+        description: 'add pagination extractor and SQL error mapping utilities',
+        date: '2026-07-18',
+        tag: 'release',
+        readTime: '2 min',
+    },
+    {
         slug: 'v1.0.7',
         title: 'v1.0.7 — add pagination extractor and SQL error mapping utilities',
         description: 'add pagination extractor and SQL error mapping utilities',

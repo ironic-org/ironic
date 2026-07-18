@@ -50,7 +50,7 @@ pub use route::{
 #[cfg(feature = "serialization")]
 pub use serialization::{FieldRule, FieldRules, SerializeInterceptor, set_current_roles};
 #[cfg(feature = "sqlx")]
-pub use sqlx::SqlxErrorExt;
+pub use sqlx::{SqlxErrorExt, SqlxResultExt};
 
 /// The HTTP method used in route metadata.
 pub use http::Method as HttpMethod;

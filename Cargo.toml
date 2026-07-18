@@ -210,7 +210,6 @@ resolver = "3"
 members = [
     ".",
     "crates/ironic-macros",
-    "examples/blog-api",
 ]
 exclude = ["fuzz"]
 

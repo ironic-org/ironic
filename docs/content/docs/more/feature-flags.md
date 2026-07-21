@@ -49,10 +49,10 @@ Every feature flag in `Cargo.toml` (58 total), organized by category.
 ## Distributed Systems
 | Flag | Enables |
 |------|---------|
-| `queues` | Message queue abstractions |
+| `queues` | Message queue abstractions — [`Queues`](../performance/queues) |
 | `microservices` | Microservice patterns |
 | `cqrs` | Command Query Responsibility Segregation |
-| `sagas` | Saga orchestration patterns |
+| `sagas` | Saga orchestration patterns — [`Sagas`](../performance/sagas) |
 | `grpc` | gRPC server/client (via `tonic`) |
 | `graphql` | GraphQL server (via `async-graphql`) |
 | `distributed` | Bundled: `queues`, `microservices`, `cqrs`, `sagas`, `grpc`, `graphql` |
@@ -105,13 +105,13 @@ Every feature flag in `Cargo.toml` (58 total), organized by category.
 | Flag | Enables |
 |------|---------|
 | `hot-reload` | `ConfigurationLoader::watch()`, `ConfigWatcher<T>`, `FeatureToggle` |
-| `backtrace` | `std::backtrace::Backtrace` capture on `HttpError` |
-| `uuid` | `ParseUUIDPipe`, `parse_uuid()` for UUID path parameters |
+| `backtrace` | `std::backtrace::Backtrace` capture on `HttpError` — [`Backtrace`](../http-api/backtrace) |
+| `uuid` | `ParseUUIDPipe`, `parse_uuid()` for UUID path parameters — [`UUID Parsing`](../http-api/uuid) |
 | `validation` | `ValidationPipe`, request body validation |
 | `versioning` | `VersionMetadata`, `VersioningStrategy` for API versioning |
 | `serialization` | `Serializable`, `SerializeInterceptor`, field-level role rules |
 | `cron` | Cron expression support in scheduling (`cron()`, `cron_schedule()`) |
-| `custom-decorators` | `create_param_decorator!` macro (note: custom decorators work without this flag) |
+| `custom-decorators` | `create_param_decorator!` macro — [`Custom Decorators`](../modules/custom-decorators) |
 
 ## Production Features
 

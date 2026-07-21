@@ -1,4 +1,4 @@
 {
   "title": "Performance",
-  "pages": ["cache-decorators", "scheduling", "distributed", "message-transports"]
+  "pages": ["cache-decorators", "scheduling", "distributed", "message-transports", "queues", "sagas"]
 }

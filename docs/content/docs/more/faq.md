@@ -264,7 +264,7 @@ Use `ironic generate rr auth` for a pre-built authentication module, or enable t
 
 ```toml
 [dependencies]
-ironic = { version = "0", features = ["authentication"] }
+ironic = { version = "1.0", features = ["authentication"] }
 ```
 
 See [Authentication](../data-auth/authentication) for JWT, OAuth, and session-based setups.

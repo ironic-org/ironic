@@ -1,7 +1,7 @@
 import { useState } from 'react';
-import { Github, Menu, X, GitBranch } from 'lucide-react';
+import { Menu, X, GitBranch } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { GitHubStatsBadge } from './github-stars';
+import { GitHubNavBadge } from './github-stars';
 import { GIT_BRANCH } from '@/lib/constants';
 
 const navLinks = [
@@ -10,20 +10,6 @@ const navLinks = [
     { label: 'Examples', href: '/docs/more/examples', router: true },
     { label: 'Releases', href: '/docs/releases', router: true },
 ];
-
-function GitHubBadge() {
-    return (
-        <a
-            href='https://github.com/ironic-org/ironic'
-            target='_blank'
-            rel='noopener noreferrer'
-            className='inline-flex items-center gap-1.5 text-fd-muted-foreground hover:text-fd-foreground transition-colors group'
-        >
-            <Github className='h-5 w-5 group-hover:scale-110 transition-transform' />
-            <GitHubStatsBadge />
-        </a>
-    );
-}
 
 const Navigation = () => {
     const [open, setOpen] = useState(false);
@@ -65,7 +51,7 @@ const Navigation = () => {
                             </a>
                         ),
                     )}
-                    <GitHubBadge />
+                    <GitHubNavBadge />
                 </div>
 
                 <button
@@ -98,7 +84,7 @@ const Navigation = () => {
                         ),
                     )}
                     <div className='pt-2 border-t border-fd-border/50'>
-                        <GitHubBadge />
+                        <GitHubNavBadge />
                     </div>
                 </div>
             )}

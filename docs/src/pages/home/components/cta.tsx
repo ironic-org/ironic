@@ -1,3 +1,4 @@
+import { GITHUB_URL } from '@/lib/constants';
 import { Button } from '@/components/ui/button';
 import { ArrowRight, Github, Terminal } from 'lucide-react';
 import { Link } from 'react-router-dom';
@@ -38,7 +39,7 @@ const CTA = () => {
                         size='lg'
                         className='h-12 px-8 rounded-full border-fd-border hover:bg-fd-accent font-semibold text-sm transition-all'>
                         <a
-                            href='https://github.com/ironic-org/ironic'
+                            href={GITHUB_URL}
                             target='_blank'
                             rel='noopener noreferrer'
                             className='inline-flex items-center'>

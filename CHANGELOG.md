@@ -17,6 +17,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - add-changelog-entry.sh: prevent duplicate category insertion
 - Changelog entries use real newlines instead of literal backslash-n in markdown output
 
+### Changed
+- Docs: redesigned GitHub star/fork badges with polished inline pill design
+- Docs: consolidated duplicated GitHubStarsBadge into shared component
+- Docs: added live GitHub stars and forks to StatsBar and Footer
+- Docs: extracted GITHUB_OWNER/GITHUB_REPO/GITHUB_URL to constants
+
 ## [v1.0.9] - 2026-07-21
 
 ### Added

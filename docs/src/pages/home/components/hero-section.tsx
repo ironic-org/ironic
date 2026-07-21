@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import FadeUp from './fade-up';
 import { GitHubStarButton } from './github-stars';
-import { CURRENT_VERSION_TAG } from '@/lib/constants';
+import { CURRENT_VERSION_TAG, GITHUB_URL } from '@/lib/constants';
 
 const HeroSection = () => {
     const [copied, setCopied] = useState(false);
@@ -25,7 +25,7 @@ const HeroSection = () => {
 
             <FadeUp>
                 <a
-                    href='https://github.com/ironic-org/ironic'
+                    href={GITHUB_URL}
                     target='_blank'
                     rel='noopener noreferrer'
                     className='group relative inline-flex items-center gap-3 rounded-full border border-fd-border bg-fd-card/50 px-4 py-1.5 text-xs font-medium text-fd-muted-foreground hover:border-fd-accent hover:text-fd-foreground transition-all mb-8'>
@@ -73,7 +73,7 @@ const HeroSection = () => {
                     variant='outline'
                     size='lg'
                     className='h-12 px-8 rounded-full border-fd-border hover:bg-fd-accent hover:text-fd-accent-foreground font-semibold text-sm transition-all'>
-                    <a href='https://github.com/ironic-org/ironic' target='_blank' rel='noopener noreferrer' className='inline-flex items-center'>
+                    <a href={GITHUB_URL} target='_blank' rel='noopener noreferrer' className='inline-flex items-center'>
                         <Github className='mr-2 w-4 h-4' />
                         View on GitHub
                         <GitHubStarButton />

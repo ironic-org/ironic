@@ -1,48 +1,89 @@
-import { GitFork, Star } from 'lucide-react';
+import { GitFork, Star, Github } from 'lucide-react';
 import { useEffect, useState } from 'react';
+import { GITHUB_API_URL, GITHUB_URL } from '@/lib/constants';
 
 function formatCount(n: number): string {
-    if (n >= 1000) {
-        return `${(n / 1000).toFixed(1)}k`;
-    }
+    if (n >= 1000) return `${(n / 1000).toFixed(1)}k`;
     return n.toString();
 }
 
-export function useGitHubStars() {
-    const [stars, setStars] = useState<number | null>(null);
-    const [forks, setForks] = useState<number | null>(null);
+type GitHubData = { stars: number | null; forks: number | null };
+
+const cache = { stars: null as number | null, forks: null as number | null };
+
+export function useGitHubStars(): GitHubData {
+    const [data, setData] = useState<GitHubData>({ stars: cache.stars, forks: cache.forks });
 
     useEffect(() => {
-        fetch('https://api.github.com/repos/ironic-org/ironic')
+        if (cache.stars !== null && cache.forks !== null) return;
+        fetch(GITHUB_API_URL)
             .then((res) => res.json())
-            .then((data) => {
-                setStars(data.stargazers_count ?? null);
-                setForks(data.forks_count ?? null);
+            .then((d) => {
+                const s = d.stargazers_count ?? null;
+                const f = d.forks_count ?? null;
+                cache.stars = s;
+                cache.forks = f;
+                setData({ stars: s, forks: f });
             })
             .catch(() => { });
     }, []);
 
-    return { stars, forks };
+    return data;
 }
 
-export function GitHubStatsBadge({ className }: { className?: string }) {
+function Pill({ icon, count, bg, text, iconClass }: {
+    icon: React.ReactNode;
+    count: number | null;
+    bg: string;
+    text: string;
+    iconClass: string;
+}) {
+    return (
+        <span className={`inline-flex items-center gap-1 rounded-full ${bg} px-2 py-0.5`}>
+            <span className={iconClass}>{icon}</span>
+            <span className={`text-xs font-semibold tabular-nums ${text}`}>
+                {count !== null ? formatCount(count) : '—'}
+            </span>
+        </span>
+    );
+}
+
+export function GitHubStatsBadge({ className, showFork = true }: { className?: string; showFork?: boolean }) {
     const { stars, forks } = useGitHubStars();
 
     return (
-        <div className={`inline-flex items-center gap-0.5 rounded-full border border-fd-border bg-fd-card/60 px-0.5 py-0.5 text-xs font-medium ${className ?? ''}`}>
-            <div className='inline-flex items-center gap-1 rounded-full bg-linear-to-br from-amber-400/15 to-yellow-500/10 px-2 py-1'>
-                <Star className='size-3 fill-amber-400 stroke-amber-500' />
-                <span className='text-amber-900 dark:text-amber-200 tabular-nums'>
-                    {stars !== null ? formatCount(stars) : '—'}
-                </span>
-            </div>
-            <div className='inline-flex items-center gap-1 rounded-full bg-linear-to-br from-sky-400/10 to-blue-500/10 px-2 py-1'>
-                <GitFork className='size-3 stroke-sky-500' />
-                <span className='text-sky-700 dark:text-sky-300 tabular-nums'>
-                    {forks !== null ? formatCount(forks) : '—'}
-                </span>
-            </div>
-        </div>
+        <span className={`inline-flex items-center gap-1 rounded-full border border-fd-border bg-fd-card/60 px-1 py-1 text-xs font-medium ${className ?? ''}`}>
+            <Pill
+                icon={<Star className='size-3' />}
+                count={stars}
+                bg='bg-linear-to-br from-amber-400/15 to-yellow-500/10'
+                text='text-amber-800 dark:text-amber-200'
+                iconClass='fill-amber-400 stroke-amber-500'
+            />
+            {showFork && (
+                <Pill
+                    icon={<GitFork className='size-3' />}
+                    count={forks}
+                    bg='bg-linear-to-br from-sky-400/10 to-blue-500/10'
+                    text='text-sky-700 dark:text-sky-300'
+                    iconClass='stroke-sky-500'
+                />
+            )}
+        </span>
+    );
+}
+
+export function GitHubNavBadge({ className }: { className?: string }) {
+    return (
+        <a
+            href={GITHUB_URL}
+            target='_blank'
+            rel='noopener noreferrer'
+            className={`inline-flex items-center gap-1.5 text-fd-muted-foreground hover:text-fd-foreground transition-colors group ${className ?? ''}`}
+        >
+            <Github className='size-5 group-hover:scale-110 transition-transform' />
+            <GitHubStatsBadge />
+        </a>
     );
 }
 

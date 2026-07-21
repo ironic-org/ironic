@@ -1,5 +1,7 @@
-import { Github, Layers } from 'lucide-react';
+import { Layers } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { GITHUB_URL } from '@/lib/constants';
+import { GitHubStatsBadge } from './github-stars';
 
 const footerLinks = {
     Docs: [
@@ -15,10 +17,10 @@ const footerLinks = {
         { label: 'WebSockets', href: '/docs/advanced/websocket-gateways' },
     ],
     Resources: [
-        { label: 'GitHub', href: 'https://github.com/ironic-org/ironic' },
+        { label: 'GitHub', href: GITHUB_URL },
         { label: 'Benchmarks', href: '/docs/more/benchmarks' },
         { label: 'Examples', href: '/docs/more/examples' },
-        { label: 'CHANGELOG', href: 'https://github.com/ironic-org/ironic/blob/main/CHANGELOG.md' },
+        { label: 'CHANGELOG', href: `${GITHUB_URL}/blob/main/CHANGELOG.md` },
     ],
 };
 
@@ -41,12 +43,13 @@ const Footer = () => {
                             Built on Axum, designed for production.
                         </p>
                         <a
-                            href='https://github.com/ironic-org/ironic'
+                            href={GITHUB_URL}
                             target='_blank'
                             rel='noopener noreferrer'
-                            className='inline-flex items-center gap-2 text-sm text-fd-muted-foreground hover:text-fd-foreground transition-colors'>
-                            <Github className='w-4 h-4' />
-                            ironic-org/ironic
+                            className='inline-flex flex-col items-start gap-1 text-sm text-fd-muted-foreground hover:text-fd-foreground transition-colors group'
+                        >
+                            <span className='font-mono text-xs'>ironic-org/ironic</span>
+                            <GitHubStatsBadge />
                         </a>
                     </div>
 

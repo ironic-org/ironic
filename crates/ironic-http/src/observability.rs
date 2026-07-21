@@ -3,6 +3,21 @@ use std::{
     time::{SystemTime, UNIX_EPOCH},
 };
 
+fn iso_timestamp() -> String {
+    #[cfg(any(feature = "cron", feature = "logging"))]
+    {
+        ::chrono::Utc::now()
+            .to_rfc3339_opts(::chrono::SecondsFormat::Millis, true)
+    }
+    #[cfg(not(any(feature = "cron", feature = "logging")))]
+    {
+        let secs = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .map_or(0.0, |d| d.as_secs_f64());
+        format!("{secs:.3}")
+    }
+}
+
 use tracing::Instrument;
 
 use crate::{HeaderName, HeaderValue, Middleware, MiddlewareNext, PipelineFuture, RequestContext};
@@ -30,9 +45,9 @@ impl RequestId {
     fn generate() -> Self {
         let timestamp = SystemTime::now()
             .duration_since(UNIX_EPOCH)
-            .map_or(0, |duration| duration.as_nanos());
+            .map_or(0, |duration| duration.as_secs());
         let sequence = REQUEST_SEQUENCE.fetch_add(1, Ordering::Relaxed);
-        Self(format!("rf-{timestamp:032x}-{sequence:016x}"))
+        Self(format!("r{timestamp:x}{sequence:x}"))
     }
 }
 
@@ -127,39 +142,35 @@ impl Middleware for RequestLogging {
 
             let result = next.run(context).await;
             let duration = start.elapsed();
-            let duration_ms = (duration.as_secs_f64() * 1000.0 * 100.0).round() / 100.0;
+            let duration_s = (duration.as_secs_f64() * 1000.0).round() / 1000.0;
+            let ts = iso_timestamp();
 
             match &result {
                 Ok(response) => {
                     let status = response.status().as_u16();
                     let resp_body_size = response.body().as_bytes().len() as u64;
-                    let event_level = match status {
-                        500..=599 => "error",
-                        400..=499 => "warn",
-                        _ => "info",
-                    };
                     tracing::info!(
                         target: "ironic.http.access",
-                        event_level,
-                        http_method = %method,
-                        http_uri = %uri,
-                        http_status_code = status,
-                        http_request_body_size = req_body_size,
-                        http_response_body_size = resp_body_size,
-                        http_duration_ms = duration_ms,
+                        ts = %ts,
+                        method = %method,
+                        path = %uri,
+                        status,
+                        req_bytes = req_body_size,
+                        res_bytes = resp_body_size,
+                        dur_s = duration_s,
                     );
                 }
                 Err(error) => {
                     tracing::info!(
                         target: "ironic.http.access",
-                        event_level = "error",
-                        http_method = %method,
-                        http_uri = %uri,
-                        http_status_code = 500i64,
-                        http_request_body_size = req_body_size,
-                        http_response_body_size = 0u64,
-                        http_duration_ms = duration_ms,
-                        http_error_code = error.code(),
+                        ts = %ts,
+                        method = %method,
+                        path = %uri,
+                        status = 500i64,
+                        req_bytes = req_body_size,
+                        res_bytes = 0u64,
+                        dur_s = duration_s,
+                        err_code = error.code(),
                     );
                 }
             }

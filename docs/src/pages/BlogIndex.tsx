@@ -13,6 +13,14 @@ type Post = {
 
 const posts: Post[] = [
     {
+        slug: 'v1.0.9',
+        title: 'v1.0.9 — add documentation for backtrace and UUID features, and implement message queues and saga orchestration',
+        description: 'add documentation for backtrace and UUID features, and implement message queues and saga orchestration',
+        date: '2026-07-21',
+        tag: 'release',
+        readTime: '2 min',
+    },
+    {
         slug: 'v1.0.8',
         title: 'v1.0.8 — add pagination extractor and SQL error mapping utilities',
         description: 'add pagination extractor and SQL error mapping utilities',

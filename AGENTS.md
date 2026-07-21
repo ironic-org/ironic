@@ -45,6 +45,22 @@ Implement production-readiness improvements: multipart upload, Redis session per
 - `watch()` stores sources separately for rebuild; runs on blocking thread; communicates via tokio watch.
 - `FeatureToggle` polls live config watcher on each `is_enabled()` call.
 
+## Changelog Workflow
+
+When making changes during development:
+1. Run `./scripts/add-changelog-entry.sh <Category> "Description"` for each meaningful change
+   - Categories: `Added`, `Fixed`, `Changed`, `Security` (case-insensitive)
+   - Keep entries concise (one line, no trailing period)
+2. The entry is appended under the `[Unreleased]` section of `CHANGELOG.md`
+
+At release time:
+- `scripts/release.sh` checks if `[Unreleased]` has content
+- **If non-empty**: uses that content as the changelog entry (skips git log parsing)
+- **If empty**: falls back to parsing `git log --oneline` since last tag (existing behavior)
+- The `[Unreleased]` section body is automatically cleared during the insert
+
+Always update `[Unreleased]` entries as you work — the release script will pick them up verbatim.
+
 ## Critical Context
 - `ironic-http/src/multipart.rs` uses `multer::Multipart::with_constraints()`. `is_size_limit_error()` matches `FieldSizeExceeded`/`StreamSizeExceeded`.
 - `ironic-auth/src/sessions.rs`: `redis::AsyncCommands` behind `#[cfg(all(feature = "redis", feature = "sessions"))]`.

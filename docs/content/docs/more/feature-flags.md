@@ -5,7 +5,7 @@ description: Every feature flag in Ironic — what it enables, what it pulls in,
 
 # Feature Flag Reference
 
-Every feature flag in `Cargo.toml` (51 total), organized by category.
+Every feature flag in `Cargo.toml` (58 total), organized by category.
 
 ## Default
 | Flag | What it enables |
@@ -16,8 +16,14 @@ Every feature flag in `Cargo.toml` (51 total), organized by category.
 | Flag | Enables | Extra |
 |------|---------|-------|
 | `database` | Bundled: `sqlx`, `seaorm`, `diesel`, `mongodb`, `redis` | |
-| `sqlx` | SQLx async PostgreSQL/MySQL/SQLite | Use `sqlx-postgres`, `sqlx-mysql`, `sqlx-sqlite` for drivers |
-| `seaorm` | SeaORM async ORM | Use `seaorm-postgres`, etc. |
+| `sqlx` | SQLx async PostgreSQL/MySQL/SQLite | Base flag; pair with a driver below |
+| `sqlx-postgres` | SQLx + PostgreSQL driver | Combines `sqlx` + `sqlx/postgres` |
+| `sqlx-mysql` | SQLx + MySQL driver | Combines `sqlx` + `sqlx/mysql` |
+| `sqlx-sqlite` | SQLx + SQLite driver | Combines `sqlx` + `sqlx/sqlite` |
+| `seaorm` | SeaORM async ORM | Base flag; pair with a driver below |
+| `seaorm-postgres` | SeaORM + PostgreSQL driver | Combines `seaorm` + `sea-orm/sqlx-postgres` |
+| `seaorm-mysql` | SeaORM + MySQL driver | Combines `seaorm` + `sea-orm/sqlx-mysql` |
+| `seaorm-sqlite` | SeaORM + SQLite driver | Combines `seaorm` + `sea-orm/sqlx-sqlite` |
 | `diesel` | Diesel sync ORM with r2d2 pooling | |
 | `mongodb` | MongoDB Rust driver with TLS | |
 | `redis` | Redis async client (`aio`, `tokio-comp`, `connection-manager`) | Enables `RedisCache`, `RedisSessionStore`, `RedisRateLimiter` |
@@ -43,10 +49,10 @@ Every feature flag in `Cargo.toml` (51 total), organized by category.
 ## Distributed Systems
 | Flag | Enables |
 |------|---------|
-| `queues` | Message queue abstractions |
+| `queues` | Message queue abstractions — [`Queues`](../performance/queues) |
 | `microservices` | Microservice patterns |
 | `cqrs` | Command Query Responsibility Segregation |
-| `sagas` | Saga orchestration patterns |
+| `sagas` | Saga orchestration patterns — [`Sagas`](../performance/sagas) |
 | `grpc` | gRPC server/client (via `tonic`) |
 | `graphql` | GraphQL server (via `async-graphql`) |
 | `distributed` | Bundled: `queues`, `microservices`, `cqrs`, `sagas`, `grpc`, `graphql` |
@@ -99,13 +105,13 @@ Every feature flag in `Cargo.toml` (51 total), organized by category.
 | Flag | Enables |
 |------|---------|
 | `hot-reload` | `ConfigurationLoader::watch()`, `ConfigWatcher<T>`, `FeatureToggle` |
-| `backtrace` | `std::backtrace::Backtrace` capture on `HttpError` |
-| `uuid` | `ParseUUIDPipe`, `parse_uuid()` for UUID path parameters |
+| `backtrace` | `std::backtrace::Backtrace` capture on `HttpError` — [`Backtrace`](../http-api/backtrace) |
+| `uuid` | `ParseUUIDPipe`, `parse_uuid()` for UUID path parameters — [`UUID Parsing`](../http-api/uuid) |
 | `validation` | `ValidationPipe`, request body validation |
 | `versioning` | `VersionMetadata`, `VersioningStrategy` for API versioning |
 | `serialization` | `Serializable`, `SerializeInterceptor`, field-level role rules |
 | `cron` | Cron expression support in scheduling (`cron()`, `cron_schedule()`) |
-| `custom-decorators` | `create_param_decorator!` macro (note: custom decorators work without this flag) |
+| `custom-decorators` | `create_param_decorator!` macro — [`Custom Decorators`](../modules/custom-decorators) |
 
 ## Production Features
 

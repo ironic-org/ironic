@@ -8,9 +8,11 @@ description: Complete changelog and release notes for the Ironic v0.4.x stable s
 # v0.4.9
 
 ### Added
-- implement CI/CD pipeline, security auditing, and operational endpoints (e5537f2)\n- enhance observability with operational endpoints and health checks (0082bdb)\n
+- implement CI/CD pipeline, security auditing, and operational endpoints (e5537f2)
+- enhance observability with operational endpoints and health checks (0082bdb)
+
 ### Fixed
-- improve documentation and formatting in build script and tests (5226611)\n
+- improve documentation and formatting in build script and tests (5226611)
 
 ---
 ## v0.4.8 — 2026-07-16
@@ -18,11 +20,16 @@ description: Complete changelog and release notes for the Ironic v0.4.x stable s
 # v0.4.8
 
 ### Added
-- add database migration commands and update documentation (1e3db79)\n
+- add database migration commands and update documentation (1e3db79)
+
 ### Fixed
-- improve formatting and readability in migration and project generation code (37a696c)\n- enhance API documentation for authentication endpoints (acdf3d1)\n- enhance OpenAPI attributes and improve controller documentation (e27518d)\n
+- improve formatting and readability in migration and project generation code (37a696c)
+- enhance API documentation for authentication endpoints (acdf3d1)
+- enhance OpenAPI attributes and improve controller documentation (e27518d)
+
 ### Changed
-- Add robots.txt and site.webmanifest for SEO and PWA support (d21bb8f)\n- Implement code changes to enhance functionality and improve performance (57a33f2)\n
+- Add robots.txt and site.webmanifest for SEO and PWA support (d21bb8f)
+- Implement code changes to enhance functionality and improve performance (57a33f2)
 
 ---
 ## v0.4.7 — 2026-07-16
@@ -30,7 +37,7 @@ description: Complete changelog and release notes for the Ironic v0.4.x stable s
 # v0.4.7
 
 ### Fixed
-- enhance release script and project generator for better version handling and documentation sync (a8e859e)\n
+- enhance release script and project generator for better version handling and documentation sync (a8e859e)
 
 ---
 ## v0.4.6 — 2026-07-16
@@ -38,9 +45,10 @@ description: Complete changelog and release notes for the Ironic v0.4.x stable s
 # v0.4.6
 
 ### Added
-- update version to 0.4.6 and enhance OpenAPI support with new attributes (f088ce6)\n
+- update version to 0.4.6 and enhance OpenAPI support with new attributes (f088ce6)
+
 ### Fixed
-- comment out database module by default with setup guide (a0612d4)\n
+- comment out database module by default with setup guide (a0612d4)
 
 ---
 ## v0.4.5 — 2026-07-16
@@ -53,7 +61,7 @@ description: Complete changelog and release notes for the Ironic v0.4.x stable s
 # v0.4.4
 
 ### Added
-- enhance update command to automatically upgrade to the latest version (24228b6)\n
+- enhance update command to automatically upgrade to the latest version (24228b6)
 
 ---
 ## v0.4.3 — 2026-07-16
@@ -61,7 +69,8 @@ description: Complete changelog and release notes for the Ironic v0.4.x stable s
 # v0.4.3
 
 ### Fixed
-- update default server host to 0.0.0.0 in multiple examples (435807c)\n- update latest version in BlogIndex to v0.4.2 (2ca67ef)\n
+- update default server host to 0.0.0.0 in multiple examples (435807c)
+- update latest version in BlogIndex to v0.4.2 (2ca67ef)
 
 ---
 ## v0.4.2 — 2026-07-16
@@ -69,9 +78,12 @@ description: Complete changelog and release notes for the Ironic v0.4.x stable s
 # v0.4.2
 
 ### Fixed
-- enable hot-reload feature in Cargo.toml (a87a424)\n- remove redundant command for cleaning stale test cache artifacts (e560244)\n- update release script to check if version is published on crates.io before proceeding (d188dfc)\n
+- enable hot-reload feature in Cargo.toml (a87a424)
+- remove redundant command for cleaning stale test cache artifacts (e560244)
+- update release script to check if version is published on crates.io before proceeding (d188dfc)
+
 ### Changed
-- enhance getting started guide with project structure details (eb6ebeb)\n
+- enhance getting started guide with project structure details (eb6ebeb)
 
 ---
 ## v0.4.1 — 2026-07-15
@@ -79,11 +91,25 @@ description: Complete changelog and release notes for the Ironic v0.4.x stable s
 # v0.4.1
 
 ### Added
-- add repository generation support in CLI and refactor todo app (09f74f4)\n- Add comprehensive documentation for Todo API, database migrations, schema, architecture, deployment, and development setup (5034e24)\n- initialize todo application with Ironic framework (4b19726)\n- Enhance database integration documentation with setup instructions and examples (afea150)\n- Add S3 upload documentation and update meta.json to include new page (630047e)\n- Add configuration and migrations metadata, update advanced pages (16d2473)\n- Update blog post for v0.4.0 with production readiness and enterprise features (b5790de)\n- Update release notes for v0.4.0 with detailed features and improvements (336c954)\n- Refactor imports in error and lib modules for better organization (199bc4f)\n
+- add repository generation support in CLI and refactor todo app (09f74f4)
+- Add comprehensive documentation for Todo API, database migrations, schema, architecture, deployment, and development setup (5034e24)
+- initialize todo application with Ironic framework (4b19726)
+- Enhance database integration documentation with setup instructions and examples (afea150)
+- Add S3 upload documentation and update meta.json to include new page (630047e)
+- Add configuration and migrations metadata, update advanced pages (16d2473)
+- Update blog post for v0.4.0 with production readiness and enterprise features (b5790de)
+- Update release notes for v0.4.0 with detailed features and improvements (336c954)
+- Refactor imports in error and lib modules for better organization (199bc4f)
+
 ### Fixed
-- Update configuration file names in tests for consistency (cc98918)\n- Ensure stale cache artifacts are cleaned on non-Windows runners (4840653)\n- Update actions/checkout version to v5 in CI workflow (e4c9e5d)\n- Clean stale cache artifacts in CI workflow (56a9b2c)\n- Remove redundant import and reorganize imports for clarity (1a4349d)\n
+- Update configuration file names in tests for consistency (cc98918)
+- Ensure stale cache artifacts are cleaned on non-Windows runners (4840653)
+- Update actions/checkout version to v5 in CI workflow (e4c9e5d)
+- Clean stale cache artifacts in CI workflow (56a9b2c)
+- Remove redundant import and reorganize imports for clarity (1a4349d)
+
 ### Changed
-- streamline code structure and improve readability across multiple files (3b7b0a2)\n
+- streamline code structure and improve readability across multiple files (3b7b0a2)
 
 ---
 ## v0.4.0 — 2026-07-15

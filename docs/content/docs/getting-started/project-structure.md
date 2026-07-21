@@ -1,9 +1,9 @@
 ---
-title: Project Structure & Organization
+title: Project Structure
 description: A complete guide to every file and folder in an Ironic project — what they do, how they connect, and best practices for scaling your codebase.
 ---
 
-# Project Structure & Organization
+# Project Structure
 
 ## What you'll learn
 

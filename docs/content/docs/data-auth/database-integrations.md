@@ -27,7 +27,7 @@ ironic = { features = ["security", "compression", "metrics", "validation"] }
 
 # After — PostgreSQL via SQLx
 ironic = { features = ["security", "compression", "metrics", "validation", "sqlx-postgres"] }
-sqlx = { version = "0.8", features = ["runtime-tokio", "tls-rustls", "postgres", "uuid", "chrono"] }
+sqlx = { version = "0.9", features = ["runtime-tokio", "tls-rustls", "postgres", "uuid", "chrono"] }
 ```
 
 Other options:

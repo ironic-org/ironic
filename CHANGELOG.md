@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- release.sh: prefer [Unreleased] content over git log when non-empty
+- add-changelog-entry.sh: helper script for quick [Unreleased] entries
+
+### Fixed
+- release.sh: macOS compat — replace head -n -1 with sed '$d'
+- add-changelog-entry.sh: handle pipefail grep exits with || true
+- add-changelog-entry.sh: prevent duplicate category insertion
+
 ## [v1.0.9] - 2026-07-21
 
 ### Added

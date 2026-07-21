@@ -99,76 +99,89 @@ echo "→ Generating changelog for v$NEW"
 
 TODAY=$(date +%Y-%m-%d)
 CHANGELOG="$ROOT/CHANGELOG.md"
-PREV_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
 
-if [[ -n "$PREV_TAG" ]]; then
-    COMMITS=$(git log --oneline --no-merges "${PREV_TAG}..HEAD" 2>/dev/null || echo "")
+# Extract [Unreleased] section content (everything between ## [Unreleased] and next ## [ header)
+UNRELEASED_RAW=$(sed -n '/^## \[Unreleased\]/,/^## \[/p' "$CHANGELOG" 2>/dev/null || echo "")
+UNRELEASED_BODY=$(echo "$UNRELEASED_RAW" | tail -n +2 | sed '$d' | sed '/^$/d')
+
+if [[ -n "$(echo "$UNRELEASED_BODY" | tr -d '[:space:]')" ]]; then
+    echo "  • Using [Unreleased] section content (skipping git log)"
+    ENTRY="## [v${NEW}] - ${TODAY}
+${UNRELEASED_BODY}"
+    USING_UNRELEASED=true
 else
-    COMMITS=$(git log --oneline --no-merges 2>/dev/null || echo "")
-fi
+    PREV_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
 
-# Parse commits into categories. Strips conventional commit prefix for clean output.
-added=""
-fixed=""
-changed=""
-security=""
+    if [[ -n "$PREV_TAG" ]]; then
+        COMMITS=$(git log --oneline --no-merges "${PREV_TAG}..HEAD" 2>/dev/null || echo "")
+    else
+        COMMITS=$(git log --oneline --no-merges 2>/dev/null || echo "")
+    fi
 
-strip_prefix() {
-    sed -E 's/^[a-z]+(\([^)]*\))?:[[:space:]]*//' <<< "$1"
-}
+    # Parse commits into categories. Strips conventional commit prefix for clean output.
+    added=""
+    fixed=""
+    changed=""
+    security=""
 
-format_entry() {
-    local msg="$1" hash="$2"
-    local clean; clean=$(strip_prefix "$msg")
-    echo "- ${clean} (${hash:0:7})"
-}
+    strip_prefix() {
+        sed -E 's/^[a-z]+(\([^)]*\))?:[[:space:]]*//' <<< "$1"
+    }
 
-while IFS= read -r line; do
-    [[ -z "$line" ]] && continue
-    msg=$(echo "$line" | sed 's/^[a-f0-9]* //')
-    hash=$(echo "$line" | awk '{print $1}')
+    format_entry() {
+        local msg="$1" hash="$2"
+        local clean; clean=$(strip_prefix "$msg")
+        echo "- ${clean} (${hash:0:7})"
+    }
 
-    case "$msg" in
-        feat:*)     added="${added}$(format_entry "$msg" "$hash")\n" ;;
-        feat\(*:*)  added="${added}$(format_entry "$msg" "$hash")\n" ;;
-        fix:*)      fixed="${fixed}$(format_entry "$msg" "$hash")\n" ;;
-        fix\(*:*)   fixed="${fixed}$(format_entry "$msg" "$hash")\n" ;;
-        docs:*)     changed="${changed}$(format_entry "$msg" "$hash")\n" ;;
-        docs\(*:*)  changed="${changed}$(format_entry "$msg" "$hash")\n" ;;
-        chore:*)    changed="${changed}$(format_entry "$msg" "$hash")\n" ;;
-        chore\(*:*) changed="${changed}$(format_entry "$msg" "$hash")\n" ;;
-        refactor:*) changed="${changed}$(format_entry "$msg" "$hash")\n" ;;
-        refactor\(*:*) changed="${changed}$(format_entry "$msg" "$hash")\n" ;;
-        test:*)     changed="${changed}$(format_entry "$msg" "$hash")\n" ;;
-        test\(*:*)  changed="${changed}$(format_entry "$msg" "$hash")\n" ;;
-        perf:*)     changed="${changed}$(format_entry "$msg" "$hash")\n" ;;
-        perf\(*:*)  changed="${changed}$(format_entry "$msg" "$hash")\n" ;;
-        security:*) security="${security}$(format_entry "$msg" "$hash")\n" ;;
-        security\(*:*) security="${security}$(format_entry "$msg" "$hash")\n" ;;
-        *)          changed="${changed}$(format_entry "$msg" "$hash")\n" ;;
-    esac
-done <<< "$COMMITS"
+    while IFS= read -r line; do
+        [[ -z "$line" ]] && continue
+        msg=$(echo "$line" | sed 's/^[a-f0-9]* //')
+        hash=$(echo "$line" | awk '{print $1}')
 
-# Build new changelog entry with real newlines
-ENTRY="## [v${NEW}] - ${TODAY}
+        case "$msg" in
+            feat:*)     added="${added}$(format_entry "$msg" "$hash")\n" ;;
+            feat\(*:*)  added="${added}$(format_entry "$msg" "$hash")\n" ;;
+            fix:*)      fixed="${fixed}$(format_entry "$msg" "$hash")\n" ;;
+            fix\(*:*)   fixed="${fixed}$(format_entry "$msg" "$hash")\n" ;;
+            docs:*)     changed="${changed}$(format_entry "$msg" "$hash")\n" ;;
+            docs\(*:*)  changed="${changed}$(format_entry "$msg" "$hash")\n" ;;
+            chore:*)    changed="${changed}$(format_entry "$msg" "$hash")\n" ;;
+            chore\(*:*) changed="${changed}$(format_entry "$msg" "$hash")\n" ;;
+            refactor:*) changed="${changed}$(format_entry "$msg" "$hash")\n" ;;
+            refactor\(*:*) changed="${changed}$(format_entry "$msg" "$hash")\n" ;;
+            test:*)     changed="${changed}$(format_entry "$msg" "$hash")\n" ;;
+            test\(*:*)  changed="${changed}$(format_entry "$msg" "$hash")\n" ;;
+            perf:*)     changed="${changed}$(format_entry "$msg" "$hash")\n" ;;
+            perf\(*:*)  changed="${changed}$(format_entry "$msg" "$hash")\n" ;;
+            security:*) security="${security}$(format_entry "$msg" "$hash")\n" ;;
+            security\(*:*) security="${security}$(format_entry "$msg" "$hash")\n" ;;
+            *)          changed="${changed}$(format_entry "$msg" "$hash")\n" ;;
+        esac
+    done <<< "$COMMITS"
+
+    # Build new changelog entry with real newlines
+    ENTRY="## [v${NEW}] - ${TODAY}
 "
-[[ -n "$added" ]] && ENTRY="${ENTRY}
+    [[ -n "$added" ]] && ENTRY="${ENTRY}
 ### Added
 ${added}"
-[[ -n "$fixed" ]] && ENTRY="${ENTRY}
+    [[ -n "$fixed" ]] && ENTRY="${ENTRY}
 ### Fixed
 ${fixed}"
-[[ -n "$changed" ]] && ENTRY="${ENTRY}
+    [[ -n "$changed" ]] && ENTRY="${ENTRY}
 ### Changed
 ${changed}"
-[[ -n "$security" ]] && ENTRY="${ENTRY}
+    [[ -n "$security" ]] && ENTRY="${ENTRY}
 ### Security
 ${security}"
 
-if [[ -z "$added" && -z "$fixed" && -z "$changed" && -z "$security" ]]; then
-    ENTRY="${ENTRY}
+    if [[ -z "$added" && -z "$fixed" && -z "$changed" && -z "$security" ]]; then
+        ENTRY="${ENTRY}
 - Initial release
 "
+    fi
+    USING_UNRELEASED=false
 fi
 
 # Check for duplicate entry before inserting
@@ -178,12 +191,29 @@ else
     # Insert after the [Unreleased] section header using temp file
     if grep -q "## \[Unreleased\]" "$CHANGELOG" 2>/dev/null; then
         head_line=$(grep -n "## \[Unreleased\]" "$CHANGELOG" | head -1 | cut -d: -f1)
-        {
-            head -n "$head_line" "$CHANGELOG"
-            echo ""
-            echo "$ENTRY"
-            tail -n +$((head_line + 1)) "$CHANGELOG"
-        } > "${CHANGELOG}.tmp"
+        if [[ "$USING_UNRELEASED" == "true" ]]; then
+            # Skip stale Unreleased body — find the next version header
+            next_line=$(tail -n +$((head_line + 1)) "$CHANGELOG" \
+                | grep -n '^## \[' | head -1 | cut -d: -f1)
+            if [[ -n "$next_line" ]]; then
+                tail_start=$((head_line + next_line))
+            else
+                tail_start=$((head_line + 1))
+            fi
+            {
+                head -n "$head_line" "$CHANGELOG"
+                echo ""
+                echo "$ENTRY"
+                tail -n +"$tail_start" "$CHANGELOG"
+            } > "${CHANGELOG}.tmp"
+        else
+            {
+                head -n "$head_line" "$CHANGELOG"
+                echo ""
+                echo "$ENTRY"
+                tail -n +$((head_line + 1)) "$CHANGELOG"
+            } > "${CHANGELOG}.tmp"
+        fi
         mv "${CHANGELOG}.tmp" "$CHANGELOG"
         echo -e "  ${GREEN}✓${NC} CHANGELOG.md updated"
     else
@@ -219,18 +249,30 @@ format_blog_section() {
     fi
 }
 
-BLOG_BODY=""
-BLOG_BODY="${BLOG_BODY}$(format_blog_section "Added" "$added")"
-BLOG_BODY="${BLOG_BODY}$(format_blog_section "Fixed" "$fixed")"
-BLOG_BODY="${BLOG_BODY}$(format_blog_section "Changed" "$changed")"
-BLOG_BODY="${BLOG_BODY}$(format_blog_section "Security" "$security")"
-
-# Generate a summary from the first meaningful changelog entry
-FIRST_ENTRY=$( (echo -e "${added}${fixed}${changed}") | grep -oE '^- .+' | head -1 | sed 's/^- //' | sed 's/ ([a-f0-9]\{7\})$//' || true)
-if [[ -z "$FIRST_ENTRY" ]]; then
-    SUMMARY="Release v$NEW"
+if [[ "$USING_UNRELEASED" == "true" ]]; then
+    # Derive blog body and summary from ENTRY (no git log variables available)
+    ENTRY_BODY=$(echo "$ENTRY" | tail -n +2)  # skip "## [vX.Y.Z] - date" header
+    BLOG_BODY="$ENTRY_BODY"
+    FIRST_ENTRY=$(echo "$ENTRY_BODY" | grep -oE '^- .+' | head -1 | sed 's/^- //' || true)
+    if [[ -z "$FIRST_ENTRY" ]]; then
+        SUMMARY="Release v$NEW"
+    else
+        SUMMARY="${FIRST_ENTRY:0:120}"
+    fi
 else
-    SUMMARY="${FIRST_ENTRY:0:120}"
+    BLOG_BODY=""
+    BLOG_BODY="${BLOG_BODY}$(format_blog_section "Added" "$added")"
+    BLOG_BODY="${BLOG_BODY}$(format_blog_section "Fixed" "$fixed")"
+    BLOG_BODY="${BLOG_BODY}$(format_blog_section "Changed" "$changed")"
+    BLOG_BODY="${BLOG_BODY}$(format_blog_section "Security" "$security")"
+
+    # Generate a summary from the first meaningful changelog entry
+    FIRST_ENTRY=$( (echo -e "${added}${fixed}${changed}") | grep -oE '^- .+' | head -1 | sed 's/^- //' | sed 's/ ([a-f0-9]\{7\})$//' || true)
+    if [[ -z "$FIRST_ENTRY" ]]; then
+        SUMMARY="Release v$NEW"
+    else
+        SUMMARY="${FIRST_ENTRY:0:120}"
+    fi
 fi
 
 # Create blog post only if it doesn't already exist

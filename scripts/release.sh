@@ -140,23 +140,23 @@ else
         hash=$(echo "$line" | awk '{print $1}')
 
         case "$msg" in
-            feat:*)     added="${added}$(format_entry "$msg" "$hash")\n" ;;
-            feat\(*:*)  added="${added}$(format_entry "$msg" "$hash")\n" ;;
-            fix:*)      fixed="${fixed}$(format_entry "$msg" "$hash")\n" ;;
-            fix\(*:*)   fixed="${fixed}$(format_entry "$msg" "$hash")\n" ;;
-            docs:*)     changed="${changed}$(format_entry "$msg" "$hash")\n" ;;
-            docs\(*:*)  changed="${changed}$(format_entry "$msg" "$hash")\n" ;;
-            chore:*)    changed="${changed}$(format_entry "$msg" "$hash")\n" ;;
-            chore\(*:*) changed="${changed}$(format_entry "$msg" "$hash")\n" ;;
-            refactor:*) changed="${changed}$(format_entry "$msg" "$hash")\n" ;;
-            refactor\(*:*) changed="${changed}$(format_entry "$msg" "$hash")\n" ;;
-            test:*)     changed="${changed}$(format_entry "$msg" "$hash")\n" ;;
-            test\(*:*)  changed="${changed}$(format_entry "$msg" "$hash")\n" ;;
-            perf:*)     changed="${changed}$(format_entry "$msg" "$hash")\n" ;;
-            perf\(*:*)  changed="${changed}$(format_entry "$msg" "$hash")\n" ;;
-            security:*) security="${security}$(format_entry "$msg" "$hash")\n" ;;
-            security\(*:*) security="${security}$(format_entry "$msg" "$hash")\n" ;;
-            *)          changed="${changed}$(format_entry "$msg" "$hash")\n" ;;
+            feat:*)     added="${added}$(format_entry "$msg" "$hash")"$'\n' ;;
+            feat\(*:*)  added="${added}$(format_entry "$msg" "$hash")"$'\n' ;;
+            fix:*)      fixed="${fixed}$(format_entry "$msg" "$hash")"$'\n' ;;
+            fix\(*:*)   fixed="${fixed}$(format_entry "$msg" "$hash")"$'\n' ;;
+            docs:*)     changed="${changed}$(format_entry "$msg" "$hash")"$'\n' ;;
+            docs\(*:*)  changed="${changed}$(format_entry "$msg" "$hash")"$'\n' ;;
+            chore:*)    changed="${changed}$(format_entry "$msg" "$hash")"$'\n' ;;
+            chore\(*:*) changed="${changed}$(format_entry "$msg" "$hash")"$'\n' ;;
+            refactor:*) changed="${changed}$(format_entry "$msg" "$hash")"$'\n' ;;
+            refactor\(*:*) changed="${changed}$(format_entry "$msg" "$hash")"$'\n' ;;
+            test:*)     changed="${changed}$(format_entry "$msg" "$hash")"$'\n' ;;
+            test\(*:*)  changed="${changed}$(format_entry "$msg" "$hash")"$'\n' ;;
+            perf:*)     changed="${changed}$(format_entry "$msg" "$hash")"$'\n' ;;
+            perf\(*:*)  changed="${changed}$(format_entry "$msg" "$hash")"$'\n' ;;
+            security:*) security="${security}$(format_entry "$msg" "$hash")"$'\n' ;;
+            security\(*:*) security="${security}$(format_entry "$msg" "$hash")"$'\n' ;;
+            *)          changed="${changed}$(format_entry "$msg" "$hash")"$'\n' ;;
         esac
     done <<< "$COMMITS"
 

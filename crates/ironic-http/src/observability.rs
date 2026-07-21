@@ -6,8 +6,7 @@ use std::{
 fn iso_timestamp() -> String {
     #[cfg(any(feature = "cron", feature = "logging"))]
     {
-        ::chrono::Utc::now()
-            .to_rfc3339_opts(::chrono::SecondsFormat::Millis, true)
+        ::chrono::Utc::now().to_rfc3339_opts(::chrono::SecondsFormat::Millis, true)
     }
     #[cfg(not(any(feature = "cron", feature = "logging")))]
     {

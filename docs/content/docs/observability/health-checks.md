@@ -23,7 +23,7 @@ description: Built-in health endpoint, custom health indicators, and Docker HEAL
 Import `HealthModule` to get health and version endpoints out of the box:
 
 ```rust
-use ironic::health::HealthModule;
+use ironic::HealthModule;
 
 #[derive(Module)]
 #[module(imports = [HealthModule])]
@@ -83,8 +83,9 @@ aggregated status and per-component detail:
 ## HealthIndicator trait
 
 ```rust
-use ironic::health::{HealthIndicator, HealthStatus};
+use std::pin::Pin;
 use std::future::Future;
+use ironic::{HealthIndicator, HealthStatus};
 
 pub trait HealthIndicator: Send + Sync {
     /// Name of this component, shown in the health response.
@@ -92,17 +93,18 @@ pub trait HealthIndicator: Send + Sync {
 
     /// Runs a health check (deprecated, use `check_readiness` instead).
     #[deprecated(since = "0.5.0", note = "use `check_readiness` instead")]
-    fn check(&self) -> impl Future<Output = HealthStatus> + Send;
+    fn check(&self) -> Pin<Box<dyn Future<Output = HealthStatus> + Send + '_>>;
 
     /// Reports whether the component's process is alive.
     /// Default: always returns `HealthStatus::Ok`.
-    fn check_liveness(&self) -> impl Future<Output = HealthStatus> + Send {
-        async { HealthStatus::Ok }
+    fn check_liveness(&self) -> Pin<Box<dyn Future<Output = HealthStatus> + Send + '_>> {
+        Box::pin(std::future::ready(HealthStatus::Ok))
     }
 
     /// Reports whether the component is ready to serve traffic.
     /// Default: delegates to `check()` for backward compatibility.
-    fn check_readiness(&self) -> impl Future<Output = HealthStatus> + Send {
+    fn check_readiness(&self) -> Pin<Box<dyn Future<Output = HealthStatus> + Send + '_>> {
+        #[allow(deprecated)]
         self.check()
     }
 }
@@ -137,26 +139,9 @@ pub enum HealthStatus {
     /// Component is functioning correctly.
     Ok,
     /// Component is working but degraded (e.g., high latency, reduced capacity).
-    Degraded { message: String },
+    Degraded { message: Option<String> },
     /// Component is not working (e.g., connection refused, timeout).
     Unhealthy { error: String },
-}
-```
-
-### Helper methods
-
-```rust
-impl HealthStatus {
-    /// Creates an `Ok` status.
-    pub fn up() -> Self { Self::Ok }
-
-    /// Creates an `Unhealthy` status.
-    pub fn down(error: impl Into<String>) -> Self {
-        Self::Unhealthy { error: error.into() }
-    }
-
-    /// Attaches a detail message to a `Degraded` or `Unhealthy` status.
-    pub fn with_detail(self, key: &str, value: String) -> Self { /* ... */ }
 }
 ```
 
@@ -165,8 +150,10 @@ impl HealthStatus {
 ### PostgreSQL database
 
 ```rust
+use std::pin::Pin;
+use std::future::Future;
 use sqlx::PgPool;
-use ironic::health::{HealthIndicator, HealthStatus};
+use ironic::{HealthIndicator, HealthStatus};
 
 struct DatabaseHealth {
     pool: PgPool,
@@ -175,11 +162,14 @@ struct DatabaseHealth {
 impl HealthIndicator for DatabaseHealth {
     fn name(&self) -> &str { "database" }
 
-    async fn check(&self) -> HealthStatus {
-        match sqlx::query("SELECT 1").execute(&self.pool).await {
-            Ok(_) => HealthStatus::up(),
-            Err(e) => HealthStatus::down(format!("PostgreSQL query failed: {e}")),
-        }
+    #[allow(deprecated)]
+    fn check(&self) -> Pin<Box<dyn Future<Output = HealthStatus> + Send + '_>> {
+        Box::pin(async {
+            match sqlx::query("SELECT 1").execute(&self.pool).await {
+                Ok(_) => HealthStatus::Ok,
+                Err(e) => HealthStatus::Unhealthy { error: format!("PostgreSQL query failed: {e}") },
+            }
+        })
     }
 }
 ```
@@ -187,8 +177,10 @@ impl HealthIndicator for DatabaseHealth {
 ### Redis cache
 
 ```rust
+use std::pin::Pin;
+use std::future::Future;
 use redis::aio::ConnectionManager;
-use ironic::health::{HealthIndicator, HealthStatus};
+use ironic::{HealthIndicator, HealthStatus};
 
 struct RedisHealth {
     conn: ConnectionManager,
@@ -197,12 +189,15 @@ struct RedisHealth {
 impl HealthIndicator for RedisHealth {
     fn name(&self) -> &str { "redis" }
 
-    async fn check(&self) -> HealthStatus {
-        match redis::cmd("PING").query_async::<String>(&self.conn.clone()).await {
-            Ok(ref reply) if reply == "PONG" => HealthStatus::up(),
-            Ok(reply) => HealthStatus::degraded(format!("Unexpected PING response: {reply}")),
-            Err(e) => HealthStatus::down(format!("Redis connection failed: {e}")),
-        }
+    #[allow(deprecated)]
+    fn check(&self) -> Pin<Box<dyn Future<Output = HealthStatus> + Send + '_>> {
+        Box::pin(async {
+            match redis::cmd("PING").query_async::<String>(&self.conn.clone()).await {
+                Ok(ref reply) if reply == "PONG" => HealthStatus::Ok,
+                Ok(reply) => HealthStatus::Degraded { message: Some(format!("Unexpected PING response: {reply}")) },
+                Err(e) => HealthStatus::Unhealthy { error: format!("Redis connection failed: {e}") },
+            }
+        })
     }
 }
 ```
@@ -210,7 +205,10 @@ impl HealthIndicator for RedisHealth {
 ### External HTTP API
 
 ```rust
-use ironic::health::{HealthIndicator, HealthStatus};
+use std::pin::Pin;
+use std::future::Future;
+use std::time::Duration;
+use ironic::{HealthIndicator, HealthStatus};
 
 struct ExternalApiHealth {
     url: String,
@@ -220,12 +218,15 @@ struct ExternalApiHealth {
 impl HealthIndicator for ExternalApiHealth {
     fn name(&self) -> &str { "payment_api" }
 
-    async fn check(&self) -> HealthStatus {
-        match self.client.get(&self.url).timeout(Duration::from_secs(5)).send().await {
-            Ok(resp) if resp.status().is_success() => HealthStatus::up(),
-            Ok(resp) => HealthStatus::degraded(format!("API returned {}", resp.status())),
-            Err(e) => HealthStatus::down(format!("API unreachable: {e}")),
-        }
+    #[allow(deprecated)]
+    fn check(&self) -> Pin<Box<dyn Future<Output = HealthStatus> + Send + '_>> {
+        Box::pin(async {
+            match self.client.get(&self.url).timeout(Duration::from_secs(5)).send().await {
+                Ok(resp) if resp.status().is_success() => HealthStatus::Ok,
+                Ok(resp) => HealthStatus::Degraded { message: Some(format!("API returned {}", resp.status())) },
+                Err(e) => HealthStatus::Unhealthy { error: format!("API unreachable: {e}") },
+            }
+        })
     }
 }
 ```
@@ -233,6 +234,10 @@ impl HealthIndicator for ExternalApiHealth {
 ### Disk space
 
 ```rust
+use std::pin::Pin;
+use std::future::Future;
+use ironic::{HealthIndicator, HealthStatus};
+
 struct DiskHealth {
     path: &'static str,
     min_free_bytes: u64,
@@ -241,17 +246,20 @@ struct DiskHealth {
 impl HealthIndicator for DiskHealth {
     fn name(&self) -> &str { "disk" }
 
-    async fn check(&self) -> HealthStatus {
-        let free = tokio::task::spawn_blocking(move || {
-            std::fs::metadata(self.path)
-                .and_then(|_| /* platform-specific free space check */ Ok(0u64))
-        }).await.unwrap_or(0);
+    #[allow(deprecated)]
+    fn check(&self) -> Pin<Box<dyn Future<Output = HealthStatus> + Send + '_>> {
+        Box::pin(async {
+            let free = tokio::task::spawn_blocking(move || {
+                std::fs::metadata(self.path)
+                    .and_then(|_| /* platform-specific free space check */ Ok(0u64))
+            }).await.unwrap_or(0);
 
-        if free >= self.min_free_bytes {
-            HealthStatus::up()
-        } else {
-            HealthStatus::degraded(format!("Low disk space: {free} bytes free"))
-        }
+            if free >= self.min_free_bytes {
+                HealthStatus::Ok
+            } else {
+                HealthStatus::Degraded { message: Some(format!("Low disk space: {free} bytes free")) }
+            }
+        })
     }
 }
 ```
@@ -261,25 +269,28 @@ impl HealthIndicator for DiskHealth {
 Register indicators for each dependency your app needs:
 
 ```rust
-use ironic::health::{HealthIndicator, HealthStatus};
+use std::pin::Pin;
+use std::future::Future;
+use ironic::{HealthIndicator, HealthStatus};
 use ironic::Inject;
 
 struct DatabaseHealth {
     pool: Inject<DbPool>,
 }
 
-#[async_trait]
 impl HealthIndicator for DatabaseHealth {
     fn name(&self) -> &str {
         "database"
     }
 
-    async fn check(&self) -> HealthStatus {
-        match self.pool.acquire().await {
-            Ok(_) => HealthStatus::up(),
-            Err(e) => HealthStatus::down()
-                .with_detail("error", e.to_string()),
-        }
+    #[allow(deprecated)]
+    fn check(&self) -> Pin<Box<dyn Future<Output = HealthStatus> + Send + '_>> {
+        Box::pin(async {
+            match self.pool.acquire().await {
+                Ok(_) => HealthStatus::Ok,
+                Err(e) => HealthStatus::Unhealthy { error: e.to_string() },
+            }
+        })
     }
 }
 ```
@@ -287,18 +298,16 @@ impl HealthIndicator for DatabaseHealth {
 Register indicators in your module:
 
 ```rust
-use ironic::health::{HealthModule, HealthRegistry};
+use std::sync::Arc;
+use ironic::HealthModule;
 
 #[ironic::module(imports = [HealthModule])]
 struct AppModule;
 
-impl AppModule {
-    fn configure(registry: Inject<HealthRegistry>) {
-        registry.register(DatabaseHealth::new());
-        registry.register(RedisHealth::new());
-        registry.register(ExternalApiHealth::new());
-    }
-}
+// Register indicators at startup
+ironic::register(Arc::new(DatabaseHealth::new()));
+ironic::register(Arc::new(RedisHealth::new()));
+ironic::register(Arc::new(ExternalApiHealth::new()));
 ```
 
 Response with custom indicators:
@@ -318,7 +327,7 @@ Response with custom indicators:
 
 Database and Redis integrations automatically provide health indicators when
 their feature flags are enabled.  No manual wiring is needed — the integration
-modules register themselves with the `HealthRegistry` at startup.
+modules call `register()` at startup.
 
 | Integration | Feature flag | Indicator name |
 |-------------|-------------|----------------|
@@ -335,7 +344,12 @@ Indicators that exceed the timeout are reported as `unhealthy` rather than
 blocking the health endpoint.
 
 ```rust
-HealthModule::with_timeout(Duration::from_secs(3))
+use ironic::HealthConfig;
+use std::time::Duration;
+
+ironic::health::configure(HealthConfig {
+    check_timeout: Duration::from_secs(3),
+});
 ```
 
 ## Health check aggregation
@@ -370,37 +384,35 @@ fn aggregate(results: &[HealthStatus]) -> (&'static str, u16) {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ironic::health::HealthRegistry;
+    use std::pin::Pin;
+    use std::future::Future;
 
     #[tokio::test]
     async fn test_database_health_ok() {
         let pool = PgPool::connect("postgres://localhost/testdb").await.unwrap();
         let indicator = DatabaseHealth { pool };
+        #[allow(deprecated)]
         let status = indicator.check().await;
         assert!(matches!(status, HealthStatus::Ok));
     }
 
     #[tokio::test]
-    async fn test_health_endpoint_aggregation() {
-        let mut registry = HealthRegistry::new(Duration::from_secs(5));
-        registry.register(MockIndicator { name: "db", status: HealthStatus::Ok });
-        registry.register(MockIndicator { name: "redis", status: HealthStatus::Ok });
-
-        let response = registry.check_all().await;
-        assert_eq!(response.status, "ok");
+    async fn test_health_indicator_ok() {
+        let indicator = MockIndicator { name: "db", status: HealthStatus::Ok };
+        #[allow(deprecated)]
+        let status = indicator.check().await;
+        assert!(matches!(status, HealthStatus::Ok));
     }
 
     #[tokio::test]
-    async fn test_health_endpoint_degraded_when_one_fails() {
-        let mut registry = HealthRegistry::new(Duration::from_secs(5));
-        registry.register(MockIndicator { name: "db", status: HealthStatus::Ok });
-        registry.register(MockIndicator {
+    async fn test_health_indicator_unhealthy() {
+        let indicator = MockIndicator {
             name: "redis",
             status: HealthStatus::Unhealthy { error: "connection refused".into() },
-        });
-
-        let response = registry.check_all().await;
-        assert_eq!(response.status, "unhealthy");
+        };
+        #[allow(deprecated)]
+        let status = indicator.check().await;
+        assert!(matches!(status, HealthStatus::Unhealthy { .. }));
     }
 }
 
@@ -411,7 +423,10 @@ struct MockIndicator {
 
 impl HealthIndicator for MockIndicator {
     fn name(&self) -> &str { self.name }
-    async fn check(&self) -> HealthStatus { self.status.clone() }
+    #[allow(deprecated)]
+    fn check(&self) -> Pin<Box<dyn Future<Output = HealthStatus> + Send + '_>> {
+        Box::pin(std::future::ready(self.status.clone()))
+    }
 }
 ```
 
@@ -451,7 +466,7 @@ readinessProbe:
 | Mistake | Fix |
 |---------|-----|
 | Indicator blocks the async runtime | Avoid `.unwrap()` or blocking I/O inside `check()` |
-| Forgetting to register indicators | Call `registry.register()` in `configure()` |
+| Forgetting to register indicators | Call `register()` at startup |
 | Health check is slow | Keep `check()` under 1 second. Use timeouts for external calls |
 | Not importing `HealthModule` | Add `HealthModule` to the module's `imports` |
 

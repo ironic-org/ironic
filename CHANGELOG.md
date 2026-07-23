@@ -19,6 +19,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - add-changelog-entry.sh: handle pipefail grep exits with || true
 - add-changelog-entry.sh: prevent duplicate category insertion
 - Changelog entries use real newlines instead of literal backslash-n in markdown output
+- Critical API doc mismatches — health paths, HealthRegistry/PasswordHasher/MetricsRegistry constructors, inject_trace_context, metric signatures, key_resolver name
 
 ### Changed
 - Added comprehensive doc comments and test modules across all 22 crates

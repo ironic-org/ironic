@@ -154,7 +154,7 @@ use ironic::metrics::MetricsRegistry;
 use ironic::Inject;
 
 fn record_order(registry: Inject<MetricsRegistry>) {
-    let counter = registry.counter("orders_placed_total");
+    let counter = registry.counter("orders_placed_total", "Total orders placed");
 
     // Basic increment
     counter.inc();
@@ -168,7 +168,7 @@ fn record_order(registry: Inject<MetricsRegistry>) {
 
 ```rust
 fn track_connections(registry: Inject<MetricsRegistry>) {
-    let gauge = registry.gauge("active_connections");
+    let gauge = registry.gauge("active_connections", "Active connections");
 
     gauge.set(42);       // set absolute value
     gauge.inc();         // +1
@@ -182,7 +182,7 @@ fn track_connections(registry: Inject<MetricsRegistry>) {
 fn record_payment_latency(registry: Inject<MetricsRegistry>) {
     let histogram = registry.histogram(
         "payment_processing_seconds",
-        vec![0.01, 0.05, 0.1, 0.5, 1.0, 5.0],
+        "Payment processing latency",
     );
 
     let start = std::time::Instant::now();
@@ -198,13 +198,13 @@ fn record_payment_latency(registry: Inject<MetricsRegistry>) {
 ```rust
 impl MetricsRegistry {
     /// Creates or retrieves a counter.
-    pub fn counter(&self, name: &str) -> Counter;
+    pub fn counter(&self, name: &str, help: &str) -> Arc<Counter>;
 
     /// Creates or retrieves a gauge.
-    pub fn gauge(&self, name: &str) -> Gauge;
+    pub fn gauge(&self, name: &str, help: &str) -> Arc<Gauge>;
 
-    /// Creates or retrieves a histogram with the given buckets.
-    pub fn histogram(&self, name: &str, buckets: Vec<f64>) -> Histogram;
+    /// Creates or retrieves a histogram with Prometheus default bucket boundaries.
+    pub fn histogram(&self, name: &str, help: &str) -> Arc<Histogram>;
 }
 
 impl Counter {
@@ -213,7 +213,7 @@ impl Counter {
 }
 
 impl Gauge {
-    pub fn set(&self, n: i64);
+    pub fn set(&self, n: u64);
     pub fn inc(&self);
     pub fn dec(&self);
 }
@@ -226,6 +226,7 @@ impl Histogram {
 ## Registering custom metrics
 
 ```rust
+use std::sync::Arc;
 use ironic::metrics::{MetricsModule, MetricsRegistry};
 use ironic::Inject;
 
@@ -242,17 +243,17 @@ impl BillingModule {
     #[provider]
     fn provide_billing_metrics(registry: Inject<MetricsRegistry>) -> BillingMetrics {
         BillingMetrics {
-            orders: registry.counter("orders_placed_total"),
-            revenue: registry.counter("revenue_total"),
-            latency: registry.histogram("payment_duration_seconds", vec![0.01, 0.1, 1.0, 5.0]),
+            orders: registry.counter("orders_placed_total", "Total orders placed"),
+            revenue: registry.counter("revenue_total", "Total revenue"),
+            latency: registry.histogram("payment_duration_seconds", "Payment duration in seconds"),
         }
     }
 }
 
 struct BillingMetrics {
-    orders: Counter,
-    revenue: Counter,
-    latency: Histogram,
+    orders: Arc<Counter>,
+    revenue: Arc<Counter>,
+    latency: Arc<Histogram>,
 }
 ```
 
@@ -281,26 +282,24 @@ mod tests {
 
     #[tokio::test]
     async fn test_histogram_bucket_assignment() {
-        let registry = MetricsRegistry::new();
-        let histogram = registry.histogram("test", vec![0.5, 1.0, 2.0]);
+        let registry = MetricsRegistry;
+        let histogram = registry.histogram("test", "Test histogram");
 
-        histogram.record(0.3);   // → bucket 0.5
-        histogram.record(0.7);   // → bucket 1.0
-        histogram.record(1.5);   // → bucket 2.0
-        histogram.record(3.0);   // → +Inf bucket
+        histogram.record(0.3);
+        histogram.record(0.7);
+        histogram.record(1.5);
+        histogram.record(3.0);
 
         // Verify via scrape output
-        let output = registry.scrape();
-        assert!(output.contains("test_bucket{le=\"0.5\"} 1"));
-        assert!(output.contains("test_bucket{le=\"1\"} 2"));
-        assert!(output.contains("test_bucket{le=\"2\"} 3"));
-        assert!(output.contains("test_bucket{le=\"+Inf\"} 4"));
+        let output = scrape();
+        assert!(output.contains("test_bucket"));
+        assert!(output.contains("test_count"));
     }
 
     #[test]
     fn test_counter_operations() {
-        let registry = MetricsRegistry::new();
-        let counter = registry.counter("test_counter");
+        let registry = MetricsRegistry;
+        let counter = registry.counter("test_counter", "Test counter");
         assert_eq!(counter.value(), 0);
 
         counter.inc();

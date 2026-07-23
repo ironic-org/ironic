@@ -53,6 +53,40 @@ impl CacheMetadata {
     }
 }
 
+/// Metadata attached when a route parameter is annotated with `#[cache_key]`.
+#[derive(Clone, Debug)]
+pub struct CacheKeyMetadata {
+    /// The name of the parameter that forms part of the cache key.
+    pub param_name: String,
+}
+
+impl CacheKeyMetadata {
+    /// Creates new cache-key metadata for a named parameter.
+    #[must_use]
+    pub fn new(param_name: impl Into<String>) -> Self {
+        Self {
+            param_name: param_name.into(),
+        }
+    }
+}
+
+/// Metadata attached when a route parameter is annotated with `#[cache_ttl]`.
+#[derive(Clone, Debug)]
+pub struct CacheTtlMetadata {
+    /// The name of the parameter that provides the TTL override.
+    pub param_name: String,
+}
+
+impl CacheTtlMetadata {
+    /// Creates new cache-ttl metadata for a named parameter.
+    #[must_use]
+    pub fn new(param_name: impl Into<String>) -> Self {
+        Self {
+            param_name: param_name.into(),
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

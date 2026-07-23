@@ -3,6 +3,7 @@
 use proc_macro::TokenStream;
 
 mod controller;
+mod event_handler;
 mod from_row;
 mod injectable;
 mod jwt_guard;
@@ -115,6 +116,31 @@ pub fn mcp_tool(attribute: TokenStream, item: TokenStream) -> TokenStream {
 }
 
 #[proc_macro_attribute]
+/// Registers an async function as an event handler on the application's `EventBus`.
+///
+/// The event type is inferred from the method's single parameter (supports `Arc<E>`).
+///
+/// # Example
+///
+/// ```ignore
+/// use std::sync::Arc;
+/// use ironic::services::events::{EventBus, EventSubscription};
+///
+/// #[event_handler(capacity = 64)]
+/// async fn handle_order_placed(event: Arc<String>) {
+///     tracing::info!("received event: {event}");
+/// }
+///
+/// let bus = EventBus::default();
+/// __event_handler_reg_handle_order_placed(&bus);
+/// ```
+pub fn event_handler(attribute: TokenStream, item: TokenStream) -> TokenStream {
+    event_handler::expand(attribute.into(), item.into())
+        .unwrap_or_else(syn::Error::into_compile_error)
+        .into()
+}
+
+#[proc_macro_attribute]
 /// Declares a controller and its path prefix.
 pub fn controller(attribute: TokenStream, item: TokenStream) -> TokenStream {
     controller::expand(attribute.into(), item.into())
@@ -177,11 +203,14 @@ marker_attribute!(
     interceptor,
     middleware,
     cache,
+    cache_key,
+    cache_ttl,
     cron,
     interval,
     timeout,
     api,
     resp,
+    sse,
 );
 
 /// Wraps an async test function with Ironic's Tokio runtime, removing the

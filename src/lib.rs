@@ -78,7 +78,8 @@ pub mod security;
     feature = "cache",
     feature = "scheduling",
     feature = "events",
-    feature = "realtime"
+    feature = "realtime",
+    feature = "sse"
 ))]
 #[path = "../crates/ironic-services/src/lib.rs"]
 pub mod services;
@@ -102,13 +103,15 @@ pub use ironic_macros::FromRow;
 pub use ironic_macros::jwt_guard;
 
 pub use ironic_macros::{
-    Injectable, Merge, Module, OpenApiSchema, Serializable, api, body, cache, controller, cron,
-    decorator, delete, form, get, guard, head, header, interceptor, interval, main, middleware,
-    options, param, patch, pipe, post, put, query, resp, routes, subscribe_message, r#test,
-    timeout, web_socket_gateway,
+    Injectable, Merge, Module, OpenApiSchema, Serializable, api, body, cache, cache_key, cache_ttl,
+    controller, cron, decorator, delete, form, get, guard, head, header, interceptor, interval,
+    main, middleware, options, param, patch, pipe, post, put, query, resp, routes, sse,
+    subscribe_message, r#test, timeout, web_socket_gateway,
 };
 #[cfg(feature = "mcp")]
 pub use ironic_macros::mcp_tool;
+#[cfg(feature = "events")]
+pub use ironic_macros::event_handler;
 #[cfg(feature = "openapi")]
 pub use openapi::*;
 #[cfg(feature = "mcp")]
@@ -261,7 +264,8 @@ pub mod prelude {
     };
     pub use crate::{
         AfterShutdown, AppError, AppResult, Application, AsyncModuleInit, AxumAdapter,
-        BeforeShutdown, BuildInfo, CacheMetadata, CompiledHttpApplication, ConfigurationError,
+        BeforeShutdown, BuildInfo, CacheKeyMetadata, CacheMetadata, CacheTtlMetadata,
+        CompiledHttpApplication, ConfigurationError,
         ConfigurationLoader, ControllerDefinition, Dependency, ExceptionExt, ExceptionFilter,
         FeatureGateGuard, FeatureToggle, FilterContext, FormBody, Guard, GuardDecision,
         GuardFuture, HeaderParameter, HealthModule, HealthStatus, HttpError, HttpMethod,
@@ -273,13 +277,22 @@ pub mod prelude {
         PipelineFuture, ProviderDefinition, QueryParameters, RequestContext, RequestId,
         RequestLogging, RequestScope, RequestTracing, Response, RouteDefinition, RouteMetadata,
         Scope, Secret, SecretString, Serializable, ShutdownSignal, ValidateConfiguration, Value,
-        VersionMetadata, VersioningStrategy, WsGatewayDefinition, api, body, cache, controller,
-        create_param_decorator, cron, decorator, delete, form, get, guard, guard_fn, handler_fn,
-        head, header, intercept_fn, interceptor, interval, middleware, options, param, patch, pipe,
-        pipe_fn, post, put, query, resp, routes, subscribe_message, timeout, web_socket_gateway,
+        VersionMetadata, VersioningStrategy, WsGatewayDefinition, api, body, cache, cache_key,
+        cache_ttl, controller, create_param_decorator, cron, decorator, delete, form, get, guard,
+        guard_fn, handler_fn, head, header, intercept_fn, interceptor, interval, middleware,
+        options, param, patch, pipe, pipe_fn, post, put, query, resp, routes, subscribe_message,
+        timeout, web_socket_gateway,
     };
     #[cfg(feature = "mcp")]
     pub use crate::mcp_tool;
+    #[cfg(feature = "events")]
+    pub use crate::event_handler;
+    #[cfg(feature = "sse")]
+    pub use crate::services::sse::{SseConfig, SseError, SseRoute};
+    #[cfg(feature = "sse")]
+    pub use crate::EventBroadcaster;
+    #[cfg(feature = "sse")]
+    pub use crate::sse;
     #[cfg(feature = "serialization")]
     pub use crate::{FieldRule, FieldRules, SerializeInterceptor, set_current_roles};
     #[cfg(feature = "multipart")]
@@ -288,4 +301,8 @@ pub mod prelude {
     pub use crate::{McpConfig, McpRouter, McpServer, McpTool};
     #[cfg(feature = "sqlx")]
     pub use crate::{SqlxErrorExt, SqlxResultExt};
+    #[cfg(all(feature = "queues", feature = "redis"))]
+    pub use crate::distributed::queues::{QueueConfig, RedisQueue};
+    #[cfg(all(feature = "cache", feature = "redis"))]
+    pub use crate::services::cache::RedisCache;
 }

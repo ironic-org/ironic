@@ -6,6 +6,8 @@ pub mod cache;
 pub mod events;
 #[cfg(feature = "realtime")]
 pub mod realtime;
+#[cfg(feature = "sse")]
+pub mod sse;
 #[cfg(feature = "scheduling")]
 pub mod scheduling;
 #[cfg(feature = "realtime")]

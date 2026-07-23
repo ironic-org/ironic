@@ -32,7 +32,9 @@ pub use extract::{
 };
 pub use extractors::Pagination;
 pub use handler::{ErasedHandler, HandlerArguments, HandlerFuture, handler_fn};
-pub use metadata::{CacheMetadata, VersionMetadata, VersioningStrategy};
+pub use metadata::{
+    CacheKeyMetadata, CacheMetadata, CacheTtlMetadata, VersionMetadata, VersioningStrategy,
+};
 #[cfg(feature = "multipart")]
 pub use multipart::{MultipartConfig, MultipartForm, MultipartFormData, UploadedFile};
 pub use observability::{RequestId, RequestLogging, RequestTracing};

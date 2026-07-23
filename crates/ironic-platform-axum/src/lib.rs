@@ -71,9 +71,30 @@ pub struct AxumAdapter {
     max_connections: Option<usize>,
     #[cfg(feature = "mcp")]
     mcp: Option<crate::mcp::McpRouter>,
+    #[cfg(feature = "sse")]
+    sse_broadcasters: Vec<SseBroadcasterEntry>,
 }
 
 type RouterConfigurator = Box<dyn FnOnce(Router) -> Router + Send + 'static>;
+
+/// A broadcast-based SSE route entry.
+///
+/// Each HTTP GET to this route creates a new SSE stream subscribed to
+/// the broadcast sender. Every event sent via the sender is delivered
+/// to all connected clients.
+#[cfg(feature = "sse")]
+struct SseBroadcasterEntry {
+    path: String,
+    tx: tokio::sync::broadcast::Sender<axum::response::sse::Event>,
+}
+
+/// A [`broadcast::Sender`] that can be used to push events to all SSE clients
+/// connected to a route registered via [`AxumAdapter::sse_route`].
+///
+/// Create one with [`tokio::sync::broadcast::channel`] and pass the sender
+/// to [`AxumAdapter::sse_route`]. Use the returned handle to push events.
+#[cfg(feature = "sse")]
+pub type EventBroadcaster = tokio::sync::broadcast::Sender<axum::response::sse::Event>;
 
 /// Default maximum buffered request body: 1 MiB.
 pub const DEFAULT_REQUEST_BODY_LIMIT: usize = 1024 * 1024;
@@ -108,6 +129,8 @@ impl AxumAdapter {
             max_connections: None,
             #[cfg(feature = "mcp")]
             mcp: None,
+            #[cfg(feature = "sse")]
+            sse_broadcasters: Vec::new(),
         }
     }
 
@@ -175,6 +198,37 @@ impl AxumAdapter {
     #[must_use]
     pub fn mcp(mut self, mcp: crate::mcp::McpRouter) -> Self {
         self.mcp = Some(mcp);
+        self
+    }
+
+    /// Registers a broadcast-based SSE endpoint.
+    ///
+    /// Every HTTP `GET` to `path` opens a new SSE stream that receives all
+    /// events sent through `tx`.  Drop all senders (or call
+    /// [`broadcast::Sender::closed`](tokio::sync::broadcast::Sender::closed))
+    /// to signal end-of-stream to connected clients.
+    ///
+    /// Requires the `sse` feature.
+    ///
+    /// # Example
+    ///
+    /// ```rust,ignore
+    /// use tokio::sync::broadcast;
+    /// use axum::response::sse::Event;
+    ///
+    /// let (tx, _) = broadcast::channel::<Event>(256);
+    /// let adapter = AxumAdapter::new()
+    ///     .sse_route("/events", tx.clone());
+    /// // Later …
+    /// let _ = tx.send(Event::default().data("hello".into()));
+    /// ```
+    #[cfg(feature = "sse")]
+    #[must_use]
+    pub fn sse_route(mut self, path: &str, tx: tokio::sync::broadcast::Sender<axum::response::sse::Event>) -> Self {
+        self.sse_broadcasters.push(SseBroadcasterEntry {
+            path: path.to_owned(),
+            tx,
+        });
         self
     }
 
@@ -261,6 +315,40 @@ impl HttpPlatformAdapter for AxumAdapter {
         if let Some(mcp) = self.mcp {
             let mcp_server = mcp.build();
             router = router.merge(mcp_server.into_router());
+        }
+        #[cfg(feature = "sse")]
+        for entry in self.sse_broadcasters {
+            let path = entry.path;
+            let tx = entry.tx;
+            router = router.route(
+                &path,
+                axum::routing::get(move || {
+                    let rx = tx.subscribe();
+                    let stream = futures_util::stream::unfold(rx, |mut rx| async move {
+                        loop {
+                            match rx.recv().await {
+                                Ok(event) => {
+                                    return Some((
+                                        Ok::<_, std::convert::Infallible>(event),
+                                        rx,
+                                    ))
+                                }
+                                Err(
+                                    tokio::sync::broadcast::error::RecvError::Closed,
+                                ) => {
+                                    return None;
+                                }
+                                Err(
+                                    tokio::sync::broadcast::error::RecvError::Lagged(
+                                        _,
+                                    ),
+                                ) => {},
+                            }
+                        }
+                    });
+                    async { axum::response::sse::Sse::new(Box::pin(stream)) }
+                }),
+            );
         }
         for configure in self.configure_router {
             router = configure(router);

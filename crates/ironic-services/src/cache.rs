@@ -182,18 +182,17 @@ impl Cache for InMemoryCache {
 
 /// A Redis-backed cache implementation.
 ///
-/// Requires the `redis` feature and a running Redis instance.
+/// Requires both the `cache` and `redis` features and a running Redis instance.
 /// The cache holds a connection manager reference but does not perform
 /// automatic reconnection — use a connection manager for production use.
-#[cfg(feature = "redis")]
+#[cfg(all(feature = "cache", feature = "redis"))]
 #[derive(Clone)]
-#[allow(dead_code)]
 pub struct RedisCache {
     client: ::redis::aio::ConnectionManager,
     key_prefix: String,
 }
 
-#[cfg(feature = "redis")]
+#[cfg(all(feature = "cache", feature = "redis"))]
 impl std::fmt::Debug for RedisCache {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("RedisCache")
@@ -203,7 +202,7 @@ impl std::fmt::Debug for RedisCache {
     }
 }
 
-#[cfg(feature = "redis")]
+#[cfg(all(feature = "cache", feature = "redis"))]
 impl RedisCache {
     /// Creates a new Redis cache from an existing connection manager.
     #[must_use]
@@ -221,7 +220,6 @@ impl RedisCache {
         self
     }
 
-    #[allow(dead_code)]
     fn prefixed(&self, key: &str) -> String {
         if self.key_prefix.is_empty() {
             key.to_owned()
@@ -231,65 +229,117 @@ impl RedisCache {
     }
 }
 
-#[cfg(feature = "redis")]
+#[cfg(all(feature = "cache", feature = "redis"))]
 impl Cache for RedisCache {
-    fn get<'a>(&'a self, _key: &'a str) -> CacheFuture<'a, Option<Vec<u8>>> {
+    fn get<'a>(&'a self, key: &'a str) -> CacheFuture<'a, Option<Vec<u8>>> {
+        let full_key = self.prefixed(key);
         Box::pin(async move {
-            Err(CacheError::Backend(
-                "Redis cache requires a live connection; initialize with `new(client)` first"
-                    .into(),
-            ))
+            use ::redis::AsyncCommands;
+            let mut conn = self.client.clone();
+            conn.get(&full_key)
+                .await
+                .map_err(|e| CacheError::Backend(e.to_string()))
         })
     }
 
     fn set<'a>(
         &'a self,
-        _key: &'a str,
-        _value: Vec<u8>,
-        _ttl: Option<std::time::Duration>,
+        key: &'a str,
+        value: Vec<u8>,
+        ttl: Option<std::time::Duration>,
     ) -> CacheFuture<'a, ()> {
+        let full_key = self.prefixed(key);
         Box::pin(async move {
-            Err(CacheError::Backend(
-                "Redis cache requires a live connection; initialize with `new(client)` first"
-                    .into(),
-            ))
+            use ::redis::AsyncCommands;
+            let mut conn = self.client.clone();
+            if let Some(duration) = ttl {
+                    conn.set_ex(&full_key, value, duration.as_secs())
+                    .await
+                    .map_err(|e| CacheError::Backend(e.to_string()))
+            } else {
+                conn.set(&full_key, value)
+                    .await
+                    .map_err(|e| CacheError::Backend(e.to_string()))
+            }
         })
     }
 
-    fn remove<'a>(&'a self, _key: &'a str) -> CacheFuture<'a, bool> {
+    fn remove<'a>(&'a self, key: &'a str) -> CacheFuture<'a, bool> {
+        let full_key = self.prefixed(key);
         Box::pin(async move {
-            Err(CacheError::Backend(
-                "Redis cache requires a live connection; initialize with `new(client)` first"
-                    .into(),
-            ))
+            use ::redis::AsyncCommands;
+            let mut conn = self.client.clone();
+            let deleted: i32 = conn
+                .del(&full_key)
+                .await
+                .map_err(|e| CacheError::Backend(e.to_string()))?;
+            Ok(deleted > 0)
         })
     }
 
     fn clear(&self) -> CacheFuture<'_, ()> {
         Box::pin(async move {
-            Err(CacheError::Backend(
-                "Redis cache does not support clear across all keys without a prefix scan".into(),
-            ))
+            use ::redis::AsyncCommands;
+            let mut conn = self.client.clone();
+            let mut cursor: u64 = 0;
+            loop {
+                let (next_cursor, keys): (u64, Vec<String>) = ::redis::cmd("SCAN")
+                    .arg(cursor)
+                    .arg("COUNT")
+                    .arg(100)
+                    .query_async(&mut conn)
+                    .await
+                    .map_err(|e| CacheError::Backend(e.to_string()))?;
+                cursor = next_cursor;
+                if !keys.is_empty() {
+                    let _: () = conn
+                        .del(&keys)
+                        .await
+                        .map_err(|e| CacheError::Backend(format!("clear del: {e}")))?;
+                }
+                if cursor == 0 {
+                    break;
+                }
+            }
+            Ok(())
         })
     }
 
     fn remove_by_prefix<'a>(&'a self, prefix: &'a str) -> CacheFuture<'a, usize> {
-        let full_prefix = format!("{}:{}", self.key_prefix, prefix);
+        let full_prefix = if self.key_prefix.is_empty() {
+            format!("{prefix}*")
+        } else {
+            format!("{}:{}*", self.key_prefix, prefix)
+        };
         Box::pin(async move {
-            use redis::AsyncCommands;
+            use ::redis::AsyncCommands;
             let mut conn = self.client.clone();
-            let keys: Vec<String> = conn
-                .keys(format!("{full_prefix}*"))
-                .await
-                .map_err(|e| CacheError::Backend(e.to_string()))?;
-            let count = keys.len();
-            if !keys.is_empty() {
-                let _: () = conn
-                    .del(&keys)
+            let mut total = 0usize;
+            let mut cursor: u64 = 0;
+            loop {
+                let (next_cursor, keys): (u64, Vec<String>) = ::redis::cmd("SCAN")
+                    .arg(cursor)
+                    .arg("MATCH")
+                    .arg(&full_prefix)
+                    .arg("COUNT")
+                    .arg(100)
+                    .query_async(&mut conn)
                     .await
-                    .map_err(|e| CacheError::Backend(format!("failed to delete keys: {e}")))?;
+                    .map_err(|e| CacheError::Backend(e.to_string()))?;
+                cursor = next_cursor;
+                let count = keys.len();
+                if count > 0 {
+                    let _: () = conn
+                        .del(&keys)
+                        .await
+                        .map_err(|e| CacheError::Backend(format!("prefix del: {e}")))?;
+                    total += count;
+                }
+                if cursor == 0 {
+                    break;
+                }
             }
-            Ok(count)
+            Ok(total)
         })
     }
 }

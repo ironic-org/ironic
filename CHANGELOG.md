@@ -7,6 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v1.1.0] - 2026-07-23
 ### Added
 - release.sh: prefer [Unreleased] content over git log when non-empty
 - add-changelog-entry.sh: helper script for quick [Unreleased] entries
@@ -21,26 +22,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - #[event_handler] proc-macro that generates EventBus subscriber registration with configurable capacity
 - SSE framework integration with SseRoute, SseConfig, SseError, reconnection support, and #[sse] marker attribute
 - EventBroadcaster type alias and AxumAdapter::sse_route() for broadcast-based SSE endpoints
-
 ### Fixed
 - release.sh: macOS compat — replace head -n -1 with sed '$d'
 - add-changelog-entry.sh: handle pipefail grep exits with || true
 - add-changelog-entry.sh: prevent duplicate category insertion
 - Changelog entries use real newlines instead of literal backslash-n in markdown output
 - Critical API doc mismatches — health paths, HealthRegistry/PasswordHasher/MetricsRegistry constructors, inject_trace_context, metric signatures, key_resolver name
-
 ### Changed
 - Added comprehensive doc comments and test modules across all 22 crates
 - Fixed 12 failing unit tests and 4 broken doctests
 - Consolidated docs: removed core/hooks/ (duplicate of lifecycle/), deduplicated caching/scheduling/websocket pages, added 3 orphaned getting-started pages to sidebar
 - Standardized changelog format across all release docs — consistent bullet points, dates, deduplicated headings, fixed n artifacts
-
 ### Changed
 - Docs: redesigned GitHub star/fork badges with polished inline pill design
 - Docs: consolidated duplicated GitHubStarsBadge into shared component
 - Docs: added live GitHub stars and forks to StatsBar and Footer
 - Docs: extracted GITHUB_OWNER/GITHUB_REPO/GITHUB_URL to constants
-
 ## [v1.0.9] - 2026-07-21
 
 ### Added

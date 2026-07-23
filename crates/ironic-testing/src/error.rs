@@ -109,11 +109,10 @@ mod tests {
 
     #[test]
     fn from_http() {
-        let inner = HttpApplicationBuildError::ProviderRegistration(
-            RegistrationError::DuplicateProvider {
+        let inner =
+            HttpApplicationBuildError::ProviderRegistration(RegistrationError::DuplicateProvider {
                 key: ProviderKey::of::<String>(),
-            },
-        );
+            });
         let err: TestBuildError = inner.into();
         assert!(matches!(err, TestBuildError::Http(_)));
     }

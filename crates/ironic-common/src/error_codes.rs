@@ -83,11 +83,11 @@ pub mod codes {
 ///
 /// # Examples
 ///
-    /// ```ignore
-    /// let resp = example();
-    /// assert_eq!(resp.data, vec![1, 2, 3]);
-    /// assert!(resp.total.is_none());
-    /// ```
+/// ```ignore
+/// let resp = example();
+/// assert_eq!(resp.data, vec![1, 2, 3]);
+/// assert!(resp.total.is_none());
+/// ```
 ///
 /// ```json
 /// { "data": [...], "total": 42, "page": 1 }

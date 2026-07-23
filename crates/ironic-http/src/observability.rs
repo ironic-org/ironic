@@ -225,29 +225,27 @@ mod tests {
     #[test]
     fn request_tracing_new() {
         let rt = RequestTracing::new();
-        let _default: RequestTracing = Default::default();
+        let _ = RequestTracing;
         let _ = rt;
     }
 
     #[test]
     fn request_tracing_is_copy() {
         let a = RequestTracing::new();
-        let _b = a;
-        let _c = a;
+        let _ = a;
     }
 
     #[test]
     fn request_logging_new() {
         let rl = RequestLogging::new();
-        let _default: RequestLogging = Default::default();
+        let _ = RequestLogging;
         let _ = rl;
     }
 
     #[test]
     fn request_logging_is_copy() {
         let a = RequestLogging::new();
-        let _b = a;
-        let _c = a;
+        let _ = a;
     }
 
     #[test]

@@ -191,6 +191,43 @@ impl Drop for TestApplication {
     }
 }
 
+struct InProcessAdapter;
+
+impl HttpPlatformAdapter for InProcessAdapter {
+    type Application = InProcessApplication;
+    type Error = Infallible;
+
+    fn build(
+        self,
+        application: Arc<CompiledHttpApplication>,
+    ) -> Result<Self::Application, Self::Error> {
+        Ok(InProcessApplication { application })
+    }
+}
+
+/// Platform state used only by the test application.
+pub(crate) struct InProcessApplication {
+    application: Arc<CompiledHttpApplication>,
+}
+
+impl InProcessApplication {
+    pub(crate) fn http(&self) -> &CompiledHttpApplication {
+        &self.application
+    }
+}
+
+impl HttpPlatformApplication for InProcessApplication {
+    type Error = Infallible;
+
+    fn listen(
+        self,
+        _address: SocketAddr,
+        shutdown: Shutdown,
+    ) -> PlatformFuture<Result<ShutdownSignal, Self::Error>> {
+        Box::pin(async move { Ok(shutdown.wait().await) })
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use ironic_core::{Module, ModuleDefinition, ModuleId};
@@ -215,26 +252,22 @@ mod tests {
     #[tokio::test]
     async fn override_provider_chains() {
         let provider = ProviderDefinition::value(42u64);
-        let builder = TestApplication::builder::<EmptyTestModule>()
-            .override_provider(provider);
+        let builder = TestApplication::builder::<EmptyTestModule>().override_provider(provider);
         assert_eq!(builder.overrides.len(), 1);
     }
 
     #[tokio::test]
     async fn override_value_chains() {
-        let builder = TestApplication::builder::<EmptyTestModule>()
-            .override_value("test-value");
+        let builder = TestApplication::builder::<EmptyTestModule>().override_value("test-value");
         assert_eq!(builder.overrides.len(), 1);
     }
 
     #[tokio::test]
     async fn override_factory_chains() {
         let builder = TestApplication::builder::<EmptyTestModule>()
-            .override_factory::<String, _, _>(
-                Scope::Transient,
-                Vec::new(),
-                |_resolver| async { Ok("factory-value".to_string()) },
-            );
+            .override_factory::<String, _, _>(Scope::Transient, Vec::new(), |_resolver| async {
+                Ok("factory-value".to_string())
+            });
         assert_eq!(builder.overrides.len(), 1);
     }
 
@@ -290,42 +323,5 @@ mod tests {
     async fn shutdown_is_idempotent() {
         let app = TestApplication::new::<EmptyTestModule>().await.unwrap();
         app.shutdown().await.unwrap();
-    }
-}
-
-struct InProcessAdapter;
-
-impl HttpPlatformAdapter for InProcessAdapter {
-    type Application = InProcessApplication;
-    type Error = Infallible;
-
-    fn build(
-        self,
-        application: Arc<CompiledHttpApplication>,
-    ) -> Result<Self::Application, Self::Error> {
-        Ok(InProcessApplication { application })
-    }
-}
-
-/// Platform state used only by the test application.
-pub(crate) struct InProcessApplication {
-    application: Arc<CompiledHttpApplication>,
-}
-
-impl InProcessApplication {
-    pub(crate) fn http(&self) -> &CompiledHttpApplication {
-        &self.application
-    }
-}
-
-impl HttpPlatformApplication for InProcessApplication {
-    type Error = Infallible;
-
-    fn listen(
-        self,
-        _address: SocketAddr,
-        shutdown: Shutdown,
-    ) -> PlatformFuture<Result<ShutdownSignal, Self::Error>> {
-        Box::pin(async move { Ok(shutdown.wait().await) })
     }
 }

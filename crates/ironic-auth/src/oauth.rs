@@ -166,7 +166,7 @@ pub fn validate_state(callback_state: Option<&str>, stored_csrf: &CsrfToken) -> 
 ///
 /// Returns a session error if JSON serialization fails.
 #[cfg(feature = "sessions")]
-    pub fn store_tokens_in_session(
+pub fn store_tokens_in_session(
     session: &mut crate::auth::sessions::Session,
     tokens: &ProviderTokenResponse,
 ) -> Result<(), crate::auth::sessions::SessionError> {
@@ -266,7 +266,7 @@ mod tests {
             access_token: "at".into(),
             refresh_token: Some("rt".into()),
             token_type: "Bearer".into(),
-            expires_in: Some(std::time::Duration::from_secs(3600)),
+            expires_in: Some(std::time::Duration::from_hours(1)),
             scopes: vec!["openid".into()],
         };
         assert_eq!(resp.access_token, "at");

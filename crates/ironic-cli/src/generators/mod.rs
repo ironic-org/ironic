@@ -546,7 +546,12 @@ mod tests {
         let report = super::generate_controller(dir.path(), "products").unwrap();
         assert!(!report.created.is_empty());
         assert!(dir.path().join("src/modules/products/controller").is_dir());
-        assert!(report.manual_instructions.iter().any(|i| i.contains("ProductsController")));
+        assert!(
+            report
+                .manual_instructions
+                .iter()
+                .any(|i| i.contains("ProductsController"))
+        );
     }
 
     #[test]
@@ -566,7 +571,11 @@ mod tests {
         std::fs::write(dir.path().join("src/main.rs"), "fn main() {}").unwrap();
         let report = super::generate_repository(dir.path(), "inventory").unwrap();
         assert!(!report.created.is_empty());
-        assert!(dir.path().join("src/modules/inventory/repositories").is_dir());
+        assert!(
+            dir.path()
+                .join("src/modules/inventory/repositories")
+                .is_dir()
+        );
     }
 
     #[test]

@@ -192,19 +192,17 @@ mod tests {
     #[tokio::test]
     async fn override_provider_chains() {
         let provider = ProviderDefinition::value(42u64);
-        let builder = TestModule::builder::<EmptyTestModule>()
-            .override_provider(provider);
+        let builder = TestModule::builder::<EmptyTestModule>().override_provider(provider);
         assert_eq!(builder.overrides.len(), 1);
     }
 
     #[tokio::test]
     async fn override_factory_chains() {
-        let builder = TestModule::builder::<EmptyTestModule>()
-            .override_factory::<String, _, _>(
-                Scope::Transient,
-                Vec::new(),
-                |_resolver| async { Ok("factory-value".to_string()) },
-            );
+        let builder = TestModule::builder::<EmptyTestModule>().override_factory::<String, _, _>(
+            Scope::Transient,
+            Vec::new(),
+            |_resolver| async { Ok("factory-value".to_string()) },
+        );
         assert_eq!(builder.overrides.len(), 1);
     }
 
@@ -221,11 +219,9 @@ mod tests {
     #[tokio::test]
     async fn compile_with_override_factory() {
         let compiled = TestModule::builder::<WithStringModule>()
-            .override_factory::<String, _, _>(
-                Scope::Singleton,
-                Vec::new(),
-                |_resolver| async { Ok("factory-resolved".to_string()) },
-            )
+            .override_factory::<String, _, _>(Scope::Singleton, Vec::new(), |_resolver| async {
+                Ok("factory-resolved".to_string())
+            })
             .compile()
             .await
             .unwrap();

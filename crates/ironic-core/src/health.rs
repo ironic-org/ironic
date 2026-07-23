@@ -555,7 +555,7 @@ mod tests {
 
         struct DummyIndicator;
         impl HealthIndicator for DummyIndicator {
-            fn name(&self) -> &str {
+            fn name(&self) -> &'static str {
                 "dummy"
             }
             #[allow(deprecated)]

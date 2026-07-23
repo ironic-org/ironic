@@ -236,7 +236,7 @@ mod tests {
 
     #[tokio::test]
     async fn abort_immediately_stops() {
-        let task = interval(Duration::from_secs(60), || async {});
+        let task = interval(Duration::from_mins(1), || async {});
         task.abort();
         let result = task.shutdown().await;
         assert!(result.is_err());

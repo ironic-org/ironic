@@ -112,26 +112,20 @@ mod tests {
 
     struct CollectStep {
         name: &'static str,
-        counter: Arc<AtomicU64>,
+        _counter: Arc<AtomicU64>,
     }
 
     impl SagaStep<Vec<&'static str>> for CollectStep {
         fn name(&self) -> &'static str {
             self.name
         }
-        fn execute<'a>(
-            &'a self,
-            state: &'a mut Vec<&'static str>,
-        ) -> SagaFuture<'a> {
+        fn execute<'a>(&'a self, state: &'a mut Vec<&'static str>) -> SagaFuture<'a> {
             Box::pin(async move {
                 state.push(self.name);
                 Ok(())
             })
         }
-        fn compensate<'a>(
-            &'a self,
-            state: &'a mut Vec<&'static str>,
-        ) -> SagaFuture<'a> {
+        fn compensate<'a>(&'a self, state: &'a mut Vec<&'static str>) -> SagaFuture<'a> {
             Box::pin(async move {
                 state.push(self.name);
                 Ok(())
@@ -145,16 +139,10 @@ mod tests {
         fn name(&self) -> &'static str {
             "fail"
         }
-        fn execute<'a>(
-            &'a self,
-            _state: &'a mut Vec<&'static str>,
-        ) -> SagaFuture<'a> {
+        fn execute<'a>(&'a self, _state: &'a mut Vec<&'static str>) -> SagaFuture<'a> {
             Box::pin(async { Err(SagaError::execute("fail", "oops")) })
         }
-        fn compensate<'a>(
-            &'a self,
-            _state: &'a mut Vec<&'static str>,
-        ) -> SagaFuture<'a> {
+        fn compensate<'a>(&'a self, _state: &'a mut Vec<&'static str>) -> SagaFuture<'a> {
             Box::pin(async { Ok(()) })
         }
     }
@@ -164,11 +152,11 @@ mod tests {
         let saga = Saga::new()
             .step(CollectStep {
                 name: "step1",
-                counter: Arc::new(AtomicU64::new(0)),
+                _counter: Arc::new(AtomicU64::new(0)),
             })
             .step(CollectStep {
                 name: "step2",
-                counter: Arc::new(AtomicU64::new(0)),
+                _counter: Arc::new(AtomicU64::new(0)),
             });
         let mut state = Vec::new();
         saga.execute(&mut state).await.unwrap();
@@ -180,12 +168,12 @@ mod tests {
         let saga = Saga::new()
             .step(CollectStep {
                 name: "a",
-                counter: Arc::new(AtomicU64::new(0)),
+                _counter: Arc::new(AtomicU64::new(0)),
             })
             .step(FailingStep)
             .step(CollectStep {
                 name: "c",
-                counter: Arc::new(AtomicU64::new(0)),
+                _counter: Arc::new(AtomicU64::new(0)),
             });
         let mut state = Vec::new();
         let result = saga.execute(&mut state).await;
@@ -205,7 +193,7 @@ mod tests {
     async fn saga_single_step_success() {
         let saga = Saga::new().step(CollectStep {
             name: "only",
-            counter: Arc::new(AtomicU64::new(0)),
+            _counter: Arc::new(AtomicU64::new(0)),
         });
         let mut state = Vec::new();
         saga.execute(&mut state).await.unwrap();

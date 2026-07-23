@@ -84,6 +84,9 @@ mod tests {
     fn mongo_integration_error_display() {
         let err = IntegrationError::new("MONGODB", "connection refused");
         assert_eq!(err.integration(), "MONGODB");
-        assert_eq!(err.to_string(), "IR_INTEGRATION_MONGODB: connection refused");
+        assert_eq!(
+            err.to_string(),
+            "IR_INTEGRATION_MONGODB: connection refused"
+        );
     }
 }

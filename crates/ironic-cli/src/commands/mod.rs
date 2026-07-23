@@ -48,23 +48,19 @@ pub(crate) fn execute(command: Cli, output: &mut impl Write) -> Result<(), CliEr
 #[cfg(test)]
 mod tests {
     use crate::cli::*;
-    use crate::CliError;
 
-    fn run_cmd(command: Command) -> Result<Vec<u8>, CliError> {
+    fn run_cmd(command: Command) -> Vec<u8> {
         let cli = Cli { command };
         let mut buf = Vec::new();
-        let result = super::execute(cli, &mut buf);
-        // Return Ok with the captured output even when command "fails"
-        // so tests can inspect both the error and the output buffer.
-        let _ = result.as_ref().map_err(|_| ());
-        Ok(buf)
+        let _ = super::execute(cli, &mut buf);
+        buf
     }
 
     #[test]
     fn uninstall_starts_with_instructions() {
-        let result = run_cmd(Command::Uninstall);
+        let buf = run_cmd(Command::Uninstall);
         // Should write instructions before waiting for stdin
-        assert!(result.is_ok());
+        assert!(!buf.is_empty());
     }
 
     #[test]
@@ -73,7 +69,6 @@ mod tests {
         let mut buf = Vec::new();
         let result = super::execute(Cli { command: cmd }, &mut buf);
         // Doctor may fail if rustc isn't installed, but shouldn't panic
-        let _ = result;
         assert!(!buf.is_empty() || result.is_err());
     }
 

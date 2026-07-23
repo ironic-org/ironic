@@ -32,15 +32,21 @@ mod tests {
 
     #[test]
     fn openapi_error_display_and_clone() {
-        let err = OpenApiError::InvalidPath { path: "relative".into() };
+        let err = OpenApiError::InvalidPath {
+            path: "relative".into(),
+        };
         let msg = err.to_string();
         assert!(msg.contains("RF_OPENAPI_INVALID_PATH"));
 
-        let conflict = OpenApiError::EndpointConflict { path: "/api/items".into() };
+        let conflict = OpenApiError::EndpointConflict {
+            path: "/api/items".into(),
+        };
         let msg2 = conflict.to_string();
         assert!(msg2.contains("RF_OPENAPI_ENDPOINT_CONFLICT"));
 
-        let dup = OpenApiError::DuplicateOperationId { operation_id: "getItems".into() };
+        let dup = OpenApiError::DuplicateOperationId {
+            operation_id: "getItems".into(),
+        };
         let msg3 = dup.to_string();
         assert!(msg3.contains("RF_OPENAPI_DUPLICATE_OPERATION_ID"));
 
@@ -83,8 +89,8 @@ mod tests {
 
     #[test]
     fn openapi_parameter_builder() {
-        let param = OpenApiParameter::new::<String>("id", ParameterLocation::Path)
-            .description("Item ID");
+        let param =
+            OpenApiParameter::new::<String>("id", ParameterLocation::Path).description("Item ID");
         let _ = param;
     }
 }

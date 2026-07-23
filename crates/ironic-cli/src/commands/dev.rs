@@ -216,7 +216,7 @@ mod tests {
 
     #[test]
     fn io_err_produces_io_variant() {
-        let io = std::io::Error::new(std::io::ErrorKind::Other, "write failed");
+        let io = std::io::Error::other("write failed");
         let err = super::io_err(io);
         assert!(matches!(err, CliError::Io { .. }));
     }

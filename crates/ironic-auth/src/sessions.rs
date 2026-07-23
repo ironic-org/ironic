@@ -468,13 +468,13 @@ mod tests {
 
     #[test]
     fn session_new_creates_with_id() {
-        let session = Session::new(Duration::from_secs(3600)).unwrap();
+        let session = Session::new(Duration::from_hours(1)).unwrap();
         assert_eq!(session.id.expose().len(), 64);
     }
 
     #[test]
     fn session_insert_and_get() {
-        let mut session = Session::new(Duration::from_secs(3600)).unwrap();
+        let mut session = Session::new(Duration::from_hours(1)).unwrap();
         session.insert("user_id", 42_u64).unwrap();
         let value: Option<u64> = session.get("user_id").unwrap();
         assert_eq!(value, Some(42));
@@ -482,14 +482,14 @@ mod tests {
 
     #[test]
     fn session_get_missing_key() {
-        let session = Session::new(Duration::from_secs(3600)).unwrap();
+        let session = Session::new(Duration::from_hours(1)).unwrap();
         let value: Option<String> = session.get("nonexistent").unwrap();
         assert_eq!(value, None);
     }
 
     #[test]
     fn session_get_type_mismatch() {
-        let mut session = Session::new(Duration::from_secs(3600)).unwrap();
+        let mut session = Session::new(Duration::from_hours(1)).unwrap();
         session.insert("key", "hello").unwrap();
         let result: Result<Option<i32>, _> = session.get("key");
         assert!(result.is_err());
@@ -497,7 +497,7 @@ mod tests {
 
     #[test]
     fn session_multiple_values() {
-        let mut session = Session::new(Duration::from_secs(3600)).unwrap();
+        let mut session = Session::new(Duration::from_hours(1)).unwrap();
         session.insert("name", "Alice").unwrap();
         session.insert("score", 100_i32).unwrap();
         assert_eq!(session.get::<String>("name").unwrap(), Some("Alice".into()));
@@ -538,19 +538,19 @@ mod tests {
     #[test]
     fn session_cookie_includes_attributes() {
         let id = SessionId::generate().unwrap();
-        let cookie = session_cookie("sid", &id, Duration::from_secs(3600), true);
+        let cookie = session_cookie("sid", &id, Duration::from_hours(1), true);
         assert!(cookie.starts_with("sid="));
         assert!(cookie.contains("Max-Age=3600"));
         assert!(cookie.contains("Secure"));
         assert!(cookie.contains("HttpOnly"));
         assert!(cookie.contains("SameSite=Lax"));
-        assert!(cookie.contains(&format!("{}", id.expose())));
+        assert!(cookie.contains(&id.expose().to_string()));
     }
 
     #[test]
     fn session_cookie_insecure() {
         let id = SessionId::generate().unwrap();
-        let cookie = session_cookie("sid", &id, Duration::from_secs(60), false);
+        let cookie = session_cookie("sid", &id, Duration::from_mins(1), false);
         assert!(!cookie.contains("Secure"));
         assert!(cookie.contains("Max-Age=60"));
     }
@@ -577,7 +577,7 @@ mod tests {
     #[tokio::test]
     async fn memory_store_save_and_load() {
         let store = InMemorySessionStore::default();
-        let session = Session::new(Duration::from_secs(3600)).unwrap();
+        let session = Session::new(Duration::from_hours(1)).unwrap();
         let id = session.id.clone();
         store.save(session).await.unwrap();
         let loaded = store.load(&id).await.unwrap();
@@ -596,7 +596,7 @@ mod tests {
     #[tokio::test]
     async fn memory_store_delete() {
         let store = InMemorySessionStore::default();
-        let session = Session::new(Duration::from_secs(3600)).unwrap();
+        let session = Session::new(Duration::from_hours(1)).unwrap();
         let id = session.id.clone();
         store.save(session).await.unwrap();
         store.delete(&id).await.unwrap();
@@ -607,7 +607,7 @@ mod tests {
     #[tokio::test]
     async fn memory_store_load_expired() {
         let store = InMemorySessionStore::default();
-        let mut session = Session::new(Duration::from_secs(3600)).unwrap();
+        let mut session = Session::new(Duration::from_hours(1)).unwrap();
         // Force expiry in the past
         session.expires_at = SystemTime::UNIX_EPOCH;
         let id = session.id.clone();

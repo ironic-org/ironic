@@ -136,10 +136,7 @@ mod tests {
             .unwrap();
 
         let inv = registry.inventory();
-        assert_eq!(
-            inv,
-            vec![("alpha", "1.0.0"), ("beta", "2.0.0")]
-        );
+        assert_eq!(inv, vec![("alpha", "1.0.0"), ("beta", "2.0.0")]);
     }
 
     #[test]

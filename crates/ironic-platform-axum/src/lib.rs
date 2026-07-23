@@ -224,7 +224,11 @@ impl AxumAdapter {
     /// ```
     #[cfg(feature = "sse")]
     #[must_use]
-    pub fn sse_route(mut self, path: &str, tx: tokio::sync::broadcast::Sender<axum::response::sse::Event>) -> Self {
+    pub fn sse_route(
+        mut self,
+        path: &str,
+        tx: tokio::sync::broadcast::Sender<axum::response::sse::Event>,
+    ) -> Self {
         self.sse_broadcasters.push(SseBroadcasterEntry {
             path: path.to_owned(),
             tx,
@@ -328,21 +332,12 @@ impl HttpPlatformAdapter for AxumAdapter {
                         loop {
                             match rx.recv().await {
                                 Ok(event) => {
-                                    return Some((
-                                        Ok::<_, std::convert::Infallible>(event),
-                                        rx,
-                                    ))
+                                    return Some((Ok::<_, std::convert::Infallible>(event), rx));
                                 }
-                                Err(
-                                    tokio::sync::broadcast::error::RecvError::Closed,
-                                ) => {
+                                Err(tokio::sync::broadcast::error::RecvError::Closed) => {
                                     return None;
                                 }
-                                Err(
-                                    tokio::sync::broadcast::error::RecvError::Lagged(
-                                        _,
-                                    ),
-                                ) => {},
+                                Err(tokio::sync::broadcast::error::RecvError::Lagged(_)) => {}
                             }
                         }
                     });
@@ -1414,7 +1409,10 @@ mod tests {
 
     #[test]
     fn native_path_with_params() {
-        assert_eq!(super::native_path("/users/:id/posts/:post_id"), "/users/{id}/posts/{post_id}");
+        assert_eq!(
+            super::native_path("/users/:id/posts/:post_id"),
+            "/users/{id}/posts/{post_id}"
+        );
     }
 
     #[test]

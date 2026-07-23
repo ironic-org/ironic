@@ -328,7 +328,7 @@ mod tests {
             data: vec![],
         };
         let debug = format!("{file:?}");
-        assert!(debug.contains("f"));
+        assert!(debug.contains('f'));
     }
 
     #[test]

@@ -177,24 +177,22 @@ mod tests {
 
     #[test]
     fn parse_rejects_keywords() {
-        let keywords = ["mod", "fn", "struct", "impl", "let", "match", "return", "use", "while", "for"];
+        let keywords = [
+            "mod", "fn", "struct", "impl", "let", "match", "return", "use", "while", "for",
+        ];
         for kw in &keywords {
             let result = super::Names::parse(kw);
-            assert!(
-                result.is_err(),
-                "keyword `{kw}` should be rejected"
-            );
+            assert!(result.is_err(), "keyword `{kw}` should be rejected");
         }
     }
 
     #[test]
     fn is_keyword_true_for_all_keywords() {
         let keywords = [
-            "as", "async", "await", "break", "const", "continue", "crate",
-            "dyn", "else", "enum", "extern", "false", "fn", "for", "if",
-            "impl", "in", "let", "loop", "match", "mod", "move", "mut",
-            "pub", "ref", "return", "self", "static", "struct", "super",
-            "trait", "true", "type", "unsafe", "use", "where", "while",
+            "as", "async", "await", "break", "const", "continue", "crate", "dyn", "else", "enum",
+            "extern", "false", "fn", "for", "if", "impl", "in", "let", "loop", "match", "mod",
+            "move", "mut", "pub", "ref", "return", "self", "static", "struct", "super", "trait",
+            "true", "type", "unsafe", "use", "where", "while",
         ];
         for kw in &keywords {
             assert!(super::is_keyword(kw), "{kw} should be a keyword");

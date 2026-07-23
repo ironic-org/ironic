@@ -381,11 +381,13 @@ mod tests {
 
     fn request_with_auth_header(value: &str) -> Request {
         let mut headers = HeaderMap::new();
-        headers.insert(
-            http::header::AUTHORIZATION,
-            value.parse().unwrap(),
-        );
-        Request::new(HttpMethod::GET, "/".parse::<Uri>().unwrap(), headers, Vec::new())
+        headers.insert(http::header::AUTHORIZATION, value.parse().unwrap());
+        Request::new(
+            HttpMethod::GET,
+            "/".parse::<Uri>().unwrap(),
+            headers,
+            Vec::new(),
+        )
     }
 
     // -----------------------------------------------------------------------

@@ -321,13 +321,13 @@ mod tests {
         let path = dir.path().join("app.rs");
         std::fs::write(
             &path,
-            r#"
+            r"
 use ironic::prelude::*;
 
 #[derive(Module)]
 #[module(imports = [ExistingModule])]
 struct AppModule;
-"#,
+",
         )
         .unwrap();
         let result = super::ensure_module_import(&path, "crate::modules::new::NewModule").unwrap();
@@ -342,13 +342,13 @@ struct AppModule;
         let path = dir.path().join("app.rs");
         std::fs::write(
             &path,
-            r#"
+            r"
 use ironic::prelude::*;
 
 #[derive(Module)]
 #[module(imports = [ExistingModule])]
 struct AppModule;
-"#,
+",
         )
         .unwrap();
         let result = super::ensure_module_import(&path, "ExistingModule").unwrap();
@@ -359,11 +359,7 @@ struct AppModule;
     fn ensure_module_import_errors_on_no_module_attr() {
         let dir = tempfile::tempdir().unwrap();
         let path = dir.path().join("no_module.rs");
-        std::fs::write(
-            &path,
-            r#"struct NoModuleHere;"#,
-        )
-        .unwrap();
+        std::fs::write(&path, r"struct NoModuleHere;").unwrap();
         let result = super::ensure_module_import(&path, "Something");
         assert!(matches!(result, Err(CliError::SourceParse { .. })));
     }

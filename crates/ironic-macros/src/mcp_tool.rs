@@ -1,9 +1,9 @@
 use proc_macro2::TokenStream;
 use quote::quote;
 use syn::{
-    FnArg, ItemFn, LitStr, Pat, PatType, Type,
+    FnArg, ItemFn, LitStr, Pat, PatType, Token, Type,
     parse::{Parse, ParseStream},
-    parse2, Token,
+    parse2,
 };
 
 struct McpToolArgs {
@@ -39,7 +39,9 @@ struct ParamInfo {
     is_optional: bool,
 }
 
-fn extract_params(inputs: &syn::punctuated::Punctuated<FnArg, syn::token::Comma>) -> Vec<ParamInfo> {
+fn extract_params(
+    inputs: &syn::punctuated::Punctuated<FnArg, syn::token::Comma>,
+) -> Vec<ParamInfo> {
     let mut params = Vec::new();
     for arg in inputs {
         if let FnArg::Typed(PatType { pat, ty, .. }) = arg
@@ -194,10 +196,7 @@ pub(crate) fn expand(attr: TokenStream, item: TokenStream) -> syn::Result<TokenS
     let schema = build_schema_object(&params);
     let deserialization = build_param_deserialization(&params);
 
-    let generated_fn_name = syn::Ident::new(
-        &format!("mcp_tool_{fn_name}"),
-        fn_name.span(),
-    );
+    let generated_fn_name = syn::Ident::new(&format!("mcp_tool_{fn_name}"), fn_name.span());
 
     Ok(quote! {
         #func

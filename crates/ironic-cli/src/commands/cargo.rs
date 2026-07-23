@@ -26,12 +26,14 @@ pub(crate) fn execute(subcommand: &str, arguments: CargoArgs) -> Result<(), CliE
 
 #[cfg(test)]
 mod tests {
-    use crate::cli::CargoArgs;
     use crate::CliError;
+    use crate::cli::CargoArgs;
 
     #[test]
     fn cargo_args_construction() {
-        let args = CargoArgs { cargo_args: vec!["--release".into(), "--features".into(), "foo".into()] };
+        let args = CargoArgs {
+            cargo_args: vec!["--release".into(), "--features".into(), "foo".into()],
+        };
         assert_eq!(args.cargo_args.len(), 3);
         assert_eq!(args.cargo_args[0], "--release");
     }
@@ -44,7 +46,10 @@ mod tests {
 
     #[test]
     fn execute_with_nonexistent_subcommand() {
-        let result = super::execute("nonexistent_subcommand_xyz", CargoArgs { cargo_args: vec![] });
+        let result = super::execute(
+            "nonexistent_subcommand_xyz",
+            CargoArgs { cargo_args: vec![] },
+        );
         // Cargo binary exists, subcommand fails -> CommandFailed
         assert!(result.is_err());
         if let Err(CliError::CommandFailed { program, .. }) = result {

@@ -331,7 +331,10 @@ mod tests {
 
     #[test]
     fn join_paths_multiple_segments() {
-        assert_eq!(super::join_paths("/api/v1", "users/:id"), "/api/v1/users/:id");
+        assert_eq!(
+            super::join_paths("/api/v1", "users/:id"),
+            "/api/v1/users/:id"
+        );
     }
 
     #[test]
@@ -363,7 +366,8 @@ mod tests {
 
     #[test]
     fn attribute_finds_by_name() {
-        let attrs: Vec<Attribute> = vec![parse_quote!(#[controller("/api")]), parse_quote!(#[routes])];
+        let attrs: Vec<Attribute> =
+            vec![parse_quote!(#[controller("/api")]), parse_quote!(#[routes])];
         assert!(super::attribute(&attrs, "controller").is_some());
         assert!(super::attribute(&attrs, "routes").is_some());
         assert!(super::attribute(&attrs, "nonexistent").is_none());

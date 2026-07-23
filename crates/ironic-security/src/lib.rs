@@ -108,8 +108,7 @@ mod tests {
     #[cfg(feature = "security-headers")]
     #[test]
     fn security_headers_disable_hsts() {
-        let config = super::security_headers::SecurityHeadersConfig::new()
-            .disable_hsts();
+        let config = super::security_headers::SecurityHeadersConfig::new().disable_hsts();
         let _ = config;
     }
 

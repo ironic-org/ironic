@@ -43,6 +43,7 @@ async fn event_handler_macro_generates_registration_function() {
     use std::sync::Arc;
 
     #[event_handler(capacity = 32)]
+    #[allow(clippy::unused_async)]
     async fn handle_string_event(event: Arc<String>) {
         let _ = event;
     }
@@ -67,6 +68,7 @@ async fn event_handler_macro_with_custom_event_type() {
     struct OrderPlaced(u32);
 
     #[event_handler(capacity = 8)]
+    #[allow(clippy::unused_async)]
     async fn handle_order(event: Arc<OrderPlaced>) {
         let _ = event;
     }
@@ -87,13 +89,14 @@ async fn event_handler_macro_auto_register_generates_async_init_impl() {
     use std::sync::Arc;
 
     #[event_handler(auto_register, capacity = 16)]
+    #[allow(clippy::unused_async)]
     async fn handle_auto_event(event: Arc<String>) {
         let _ = event;
     }
 
     // Verify auto-register struct exists by checking it implements AsyncModuleInit
-    fn _check_trait_bound<T: ironic::AsyncModuleInit>() {}
-    _check_trait_bound::<__EventHandlerAuto_handle_auto_event>();
+    fn check_trait_bound<T: ironic::AsyncModuleInit>() {}
+    check_trait_bound::<__EventHandlerAuto_handle_auto_event>();
 
     let bus = EventBus::default();
     __event_handler_reg_handle_auto_event(&bus);
@@ -111,6 +114,7 @@ async fn event_handler_macro_default_capacity() {
     use std::sync::Arc;
 
     #[event_handler]
+    #[allow(clippy::unused_async)]
     async fn handle_default(event: Arc<String>) {
         let _ = event;
     }

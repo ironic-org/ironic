@@ -55,9 +55,6 @@ mod tests {
     fn seaorm_integration_error_display() {
         let err = IntegrationError::new("SEAORM", "connection timeout");
         assert_eq!(err.integration(), "SEAORM");
-        assert_eq!(
-            err.to_string(),
-            "IR_INTEGRATION_SEAORM: connection timeout"
-        );
+        assert_eq!(err.to_string(), "IR_INTEGRATION_SEAORM: connection timeout");
     }
 }

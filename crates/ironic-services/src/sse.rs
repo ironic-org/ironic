@@ -3,14 +3,9 @@
 //! Provides [`SseRoute`] for sending events to connected clients, [`SseConfig`]
 //! for endpoint configuration, and reconnection support via `Last-Event-ID`.
 
-use std::{
-    convert::Infallible,
-    pin::Pin,
-    sync::Arc,
-    time::Duration,
-};
 use axum::response::sse::{Event, Sse};
 use futures_util::Stream;
+use std::{convert::Infallible, pin::Pin, sync::Arc, time::Duration};
 use tokio::sync::mpsc;
 
 /// Boxed SSE event stream.
@@ -67,7 +62,9 @@ impl SseRoute {
     ///
     /// Returns an error if the client has disconnected.
     pub async fn send(&self, mut event: Event) -> Result<(), SseError> {
-        let id = self.event_counter.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+        let id = self
+            .event_counter
+            .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
         event = event.id(format!("{}{}", self.config.event_id_prefix, id));
         self.sender
             .send(Ok(event))
@@ -100,7 +97,10 @@ pub fn sse_endpoint(
         move |(mut receiver, config, counter)| {
             let counter = counter.clone();
             async move {
-                receiver.recv().await.map(|event| (event, (receiver, config, counter)))
+                receiver
+                    .recv()
+                    .await
+                    .map(|event| (event, (receiver, config, counter)))
             }
         },
     );
@@ -123,7 +123,7 @@ mod tests {
     #[tokio::test]
     async fn sse_route_send_and_receive() {
         let config = SseConfig::default();
-        let (tx, mut sse_stream) = sse_endpoint(config);
+        let (tx, _sse_stream) = sse_endpoint(config);
 
         let route = SseRoute::new(
             tx.clone(),

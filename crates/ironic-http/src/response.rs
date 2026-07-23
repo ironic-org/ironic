@@ -270,8 +270,8 @@ where
 mod tests {
     use super::*;
     use crate::HttpStatus;
+
     use std::sync::Arc;
-    use http;
 
     #[test]
     fn body_as_bytes_empty() {
@@ -335,8 +335,7 @@ mod tests {
                 .unwrap(),
             "application/json"
         );
-        let body: serde_json::Value =
-            serde_json::from_slice(resp.body().as_bytes()).unwrap();
+        let body: serde_json::Value = serde_json::from_slice(resp.body().as_bytes()).unwrap();
         assert_eq!(body["key"], "value");
     }
 
@@ -344,8 +343,7 @@ mod tests {
     fn response_error_creates_structured_error() {
         let resp = Response::error(HttpStatus::NOT_FOUND, "NOT_FOUND", "resource missing");
         assert_eq!(resp.status(), HttpStatus::NOT_FOUND);
-        let body: serde_json::Value =
-            serde_json::from_slice(resp.body().as_bytes()).unwrap();
+        let body: serde_json::Value = serde_json::from_slice(resp.body().as_bytes()).unwrap();
         assert_eq!(body["code"], "NOT_FOUND");
         assert_eq!(body["message"], "resource missing");
         assert_eq!(body["status"], 404);
@@ -360,8 +358,7 @@ mod tests {
             Some("req-123"),
         );
         assert_eq!(resp.status(), HttpStatus::BAD_REQUEST);
-        let body: serde_json::Value =
-            serde_json::from_slice(resp.body().as_bytes()).unwrap();
+        let body: serde_json::Value = serde_json::from_slice(resp.body().as_bytes()).unwrap();
         assert_eq!(body["code"], "BAD_REQ");
         assert_eq!(body["request_id"], "req-123");
         assert!(body["timestamp_ms"].as_u64().is_some());
@@ -369,14 +366,9 @@ mod tests {
 
     #[test]
     fn response_error_with_tracing_no_request_id() {
-        let resp = Response::error_with_tracing(
-            HttpStatus::BAD_REQUEST,
-            "BAD_REQ",
-            "bad request",
-            None,
-        );
-        let body: serde_json::Value =
-            serde_json::from_slice(resp.body().as_bytes()).unwrap();
+        let resp =
+            Response::error_with_tracing(HttpStatus::BAD_REQUEST, "BAD_REQ", "bad request", None);
+        let body: serde_json::Value = serde_json::from_slice(resp.body().as_bytes()).unwrap();
         assert!(body.get("request_id").is_none());
     }
 
@@ -385,8 +377,7 @@ mod tests {
         let items = vec![1, 2, 3];
         let resp = Response::paginated(&items, 100, 0, 20).unwrap();
         assert_eq!(resp.status(), HttpStatus::OK);
-        let body: serde_json::Value =
-            serde_json::from_slice(resp.body().as_bytes()).unwrap();
+        let body: serde_json::Value = serde_json::from_slice(resp.body().as_bytes()).unwrap();
         assert_eq!(body["total"], 100);
         assert_eq!(body["offset"], 0);
         assert_eq!(body["limit"], 20);
@@ -441,7 +432,12 @@ mod tests {
         let result = Json(42u32).into_framework_response().unwrap();
         assert_eq!(result.status(), HttpStatus::OK);
         assert_eq!(
-            result.headers().get(http::header::CONTENT_TYPE).unwrap().to_str().unwrap(),
+            result
+                .headers()
+                .get(http::header::CONTENT_TYPE)
+                .unwrap()
+                .to_str()
+                .unwrap(),
             "application/json"
         );
     }

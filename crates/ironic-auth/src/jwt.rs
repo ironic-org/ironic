@@ -29,7 +29,7 @@ impl JwtService {
     /// use jsonwebtoken::Algorithm;
     ///
     /// let service = JwtService::hmac(b"my-secret-key", Algorithm::HS256);
-    /// let payload = serde_json::json!({"sub": "hello world", "exp": 9999999999_u64});
+    /// let payload = serde_json::json!({"sub": "hello world", "exp": 9_999_999_999_u64});
     /// let token = service.encode(&payload).unwrap();
     /// let claims: serde_json::Value = service.decode(&token).unwrap().claims;
     /// assert_eq!(claims["sub"], "hello world");
@@ -59,7 +59,7 @@ impl JwtService {
     /// let decoding_key = DecodingKey::from_secret(b"key");
     /// let validation = Validation::new(Algorithm::HS384);
     /// let service = JwtService::new(header, encoding_key, decoding_key, validation);
-    /// let payload = serde_json::json!({"data": "value", "exp": 9999999999_u64});
+    /// let payload = serde_json::json!({"data": "value", "exp": 9_999_999_999_u64});
     /// assert!(service.encode(&payload).is_ok());
     /// ```
     #[must_use]
@@ -158,7 +158,7 @@ mod tests {
     #[test]
     fn hmac_round_trip() {
         let service = JwtService::hmac(b"test-key-12345678", Algorithm::HS256);
-        let payload = serde_json::json!({"sub": "hello world", "exp": 9999999999_u64});
+        let payload = serde_json::json!({"sub": "hello world", "exp": 9_999_999_999_u64});
         let token = service.encode(&payload).unwrap();
         let claims: serde_json::Value = service.decode(&token).unwrap().claims;
         assert_eq!(claims["sub"], "hello world");
@@ -195,7 +195,7 @@ mod tests {
     #[test]
     fn encode_decode_with_different_algorithms() {
         let service = JwtService::hmac(b"key", Algorithm::HS512);
-        let payload = serde_json::json!({"value": 42, "exp": 9999999999_u64});
+        let payload = serde_json::json!({"value": 42, "exp": 9_999_999_999_u64});
         let token = service.encode(&payload).unwrap();
         let claims: serde_json::Value = service.decode(&token).unwrap().claims;
         assert_eq!(claims["value"], 42);

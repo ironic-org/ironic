@@ -194,8 +194,8 @@ mod tests {
 
     #[test]
     fn parse_new_with_workspace() {
-        let cli =
-            Cli::try_parse_from(["ironic", "new", "my-app", "--framework-workspace", "../"]).unwrap();
+        let cli = Cli::try_parse_from(["ironic", "new", "my-app", "--framework-workspace", "../"])
+            .unwrap();
         assert!(matches!(
             cli.command,
             Command::New(NewArgs { name, framework_workspace: Some(_), .. }) if name == "my-app"
@@ -234,7 +234,7 @@ mod tests {
         let cli = Cli::try_parse_from(["ironic", "workspace"]).unwrap();
         assert!(matches!(
             cli.command,
-            Command::Workspace(InspectArgs { path }) if path == PathBuf::from(".")
+            Command::Workspace(InspectArgs { path }) if path == *"."
         ));
     }
 
@@ -243,7 +243,7 @@ mod tests {
         let cli = Cli::try_parse_from(["ironic", "routes", "src"]).unwrap();
         assert!(matches!(
             cli.command,
-            Command::Routes(InspectArgs { path }) if path == PathBuf::from("src")
+            Command::Routes(InspectArgs { path }) if path == *"src"
         ));
     }
 
@@ -279,11 +279,21 @@ mod tests {
 
     #[test]
     fn parse_ready_resource_variants() {
-        let variants = ["auth", "auth-basic", "auth-jwt", "auth-oauth", "file-upload", "email"];
+        let variants = [
+            "auth",
+            "auth-basic",
+            "auth-jwt",
+            "auth-oauth",
+            "file-upload",
+            "email",
+        ];
         for variant in &variants {
             let args = ["ironic", "g", "rr", variant];
             let result = Cli::try_parse_from(args);
-            assert!(result.is_ok(), "ready-resource variant `{variant}` should parse");
+            assert!(
+                result.is_ok(),
+                "ready-resource variant `{variant}` should parse"
+            );
         }
     }
 

@@ -196,7 +196,11 @@ mod tests {
             .unwrap();
         let bus = builder.build();
 
-        let result = bus.execute(CreateUser { name: "Alice".into() }).await;
+        let result = bus
+            .execute(CreateUser {
+                name: "Alice".into(),
+            })
+            .await;
         assert_eq!(result.unwrap(), 42);
     }
 

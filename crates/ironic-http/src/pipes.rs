@@ -282,6 +282,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[allow(clippy::approx_constant)]
     async fn parse_float_parses_valid_float() {
         let pipe = ParseFloatPipe;
         let value = pipe
@@ -289,7 +290,7 @@ mod tests {
             .await
             .unwrap();
         let result = *value.downcast::<f64>().unwrap();
-        assert!((result - 3.14).abs() < 1e-10);
+        assert!((result - 3.14f64).abs() < 1e-10);
     }
 
     #[tokio::test]
@@ -306,7 +307,7 @@ mod tests {
     async fn parse_float_rejects_non_string_value() {
         let pipe = ParseFloatPipe;
         let err = pipe
-            .transform(Box::new(3.14f64), &mut context())
+            .transform(Box::new(std::f64::consts::PI), &mut context())
             .await
             .unwrap_err();
         assert_eq!(err.code(), "RF_PARSE_FLOAT_FAILED");

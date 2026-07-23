@@ -90,7 +90,10 @@ mod tests {
 
     #[test]
     fn crates_io_api_url() {
-        assert_eq!(super::CRATES_IO_API, "https://crates.io/api/v1/crates/ironic");
+        assert_eq!(
+            super::CRATES_IO_API,
+            "https://crates.io/api/v1/crates/ironic"
+        );
     }
 
     #[test]
@@ -109,7 +112,9 @@ mod tests {
         assert!(!output.is_empty());
         // Either shows current version or error message
         let current = env!("CARGO_PKG_VERSION");
-        assert!(output.contains(current) || output.contains("error") || output.contains("Could not"));
+        assert!(
+            output.contains(current) || output.contains("error") || output.contains("Could not")
+        );
         // Even if check fails, the function returns Ok
         assert!(result.is_ok());
     }
@@ -129,7 +134,7 @@ mod tests {
         match result {
             Ok(version) => {
                 // If it succeeds, version must be a non-empty string
-                assert!(version.map_or(true, |v| !v.is_empty()));
+                assert!(version.is_none_or(|v| !v.is_empty()));
             }
             Err(msg) => {
                 // Error message must be descriptive
@@ -143,6 +148,6 @@ mod tests {
         let version = env!("CARGO_PKG_VERSION");
         assert!(!version.is_empty());
         // Version should be semver-like
-        assert!(version.chars().next().map_or(false, |c| c.is_ascii_digit()));
+        assert!(version.chars().next().is_some_and(|c| c.is_ascii_digit()));
     }
 }

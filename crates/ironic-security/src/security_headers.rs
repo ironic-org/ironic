@@ -249,36 +249,31 @@ mod tests {
 
     #[test]
     fn custom_hsts_value() {
-        let config = SecurityHeadersConfig::new()
-            .hsts("max-age=63072000");
+        let config = SecurityHeadersConfig::new().hsts("max-age=63072000");
         assert_eq!(config.hsts.as_deref(), Some("max-age=63072000"));
     }
 
     #[test]
     fn custom_csp_value() {
-        let config = SecurityHeadersConfig::new()
-            .csp("default-src 'none'");
+        let config = SecurityHeadersConfig::new().csp("default-src 'none'");
         assert_eq!(config.csp.as_deref(), Some("default-src 'none'"));
     }
 
     #[test]
     fn custom_x_content_type_options() {
-        let config = SecurityHeadersConfig::new()
-            .x_content_type_options("nosniff");
+        let config = SecurityHeadersConfig::new().x_content_type_options("nosniff");
         assert_eq!(config.x_content_type_options.as_deref(), Some("nosniff"));
     }
 
     #[test]
     fn custom_x_frame_options() {
-        let config = SecurityHeadersConfig::new()
-            .x_frame_options("SAMEORIGIN");
+        let config = SecurityHeadersConfig::new().x_frame_options("SAMEORIGIN");
         assert_eq!(config.x_frame_options.as_deref(), Some("SAMEORIGIN"));
     }
 
     #[test]
     fn custom_referrer_policy() {
-        let config = SecurityHeadersConfig::new()
-            .referrer_policy("no-referrer");
+        let config = SecurityHeadersConfig::new().referrer_policy("no-referrer");
         assert_eq!(config.referrer_policy.as_deref(), Some("no-referrer"));
     }
 
@@ -288,9 +283,18 @@ mod tests {
             .cross_origin_opener_policy("unsafe-none")
             .cross_origin_embedder_policy("unsafe-none")
             .cross_origin_resource_policy("cross-origin");
-        assert_eq!(config.cross_origin_opener_policy.as_deref(), Some("unsafe-none"));
-        assert_eq!(config.cross_origin_embedder_policy.as_deref(), Some("unsafe-none"));
-        assert_eq!(config.cross_origin_resource_policy.as_deref(), Some("cross-origin"));
+        assert_eq!(
+            config.cross_origin_opener_policy.as_deref(),
+            Some("unsafe-none")
+        );
+        assert_eq!(
+            config.cross_origin_embedder_policy.as_deref(),
+            Some("unsafe-none")
+        );
+        assert_eq!(
+            config.cross_origin_resource_policy.as_deref(),
+            Some("cross-origin")
+        );
     }
 
     #[test]

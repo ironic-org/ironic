@@ -1,9 +1,9 @@
 use proc_macro2::TokenStream;
 use quote::quote;
 use syn::{
-    FnArg, ItemFn, PatType, Type,
+    FnArg, ItemFn, PatType, Token, Type,
     parse::{Parse, ParseStream},
-    parse2, Token,
+    parse2,
 };
 
 struct EventHandlerArgs {
@@ -52,7 +52,7 @@ pub(crate) fn expand(attribute: TokenStream, item: TokenStream) -> syn::Result<T
     let auto_register = args.auto_register;
     let handler_fn_name = &function.sig.ident;
     let reg_name = syn::Ident::new(
-        &format!("__event_handler_reg_{}", handler_fn_name),
+        &format!("__event_handler_reg_{handler_fn_name}"),
         handler_fn_name.span(),
     );
 
@@ -85,12 +85,12 @@ pub(crate) fn expand(attribute: TokenStream, item: TokenStream) -> syn::Result<T
     // 3. If auto_register, emit a registrar struct + AsyncModuleInit impl.
     if auto_register {
         let registrar_name = syn::Ident::new(
-            &format!("__EventHandlerAuto_{}", handler_fn_name),
+            &format!("__EventHandlerAuto_{handler_fn_name}"),
             handler_fn_name.span(),
         );
         output.extend(quote! {
             #[doc(hidden)]
-            #[allow(missing_docs)]
+            #[allow(missing_docs, non_camel_case_types)]
             pub struct #registrar_name;
 
             impl ::ironic::AsyncModuleInit for #registrar_name {
@@ -134,9 +134,10 @@ fn extract_event_type(function: &ItemFn) -> syn::Result<Type> {
     match param {
         FnArg::Typed(PatType { ty, .. }) => {
             if let Type::Path(type_path) = ty.as_ref() {
-                let last_seg = type_path.path.segments.last().ok_or_else(|| {
-                    syn::Error::new_spanned(ty, "could not determine event type")
-                })?;
+                let last_seg =
+                    type_path.path.segments.last().ok_or_else(|| {
+                        syn::Error::new_spanned(ty, "could not determine event type")
+                    })?;
                 if last_seg.ident == "Arc"
                     && let syn::PathArguments::AngleBracketed(args) = &last_seg.arguments
                     && let Some(syn::GenericArgument::Type(inner)) = args.args.first()
@@ -147,7 +148,7 @@ fn extract_event_type(function: &ItemFn) -> syn::Result<Type> {
             }
             Ok(ty.as_ref().clone())
         }
-        _ => Err(syn::Error::new_spanned(
+        FnArg::Receiver(_) => Err(syn::Error::new_spanned(
             param,
             "event_handler parameter must be a typed parameter",
         )),

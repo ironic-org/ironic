@@ -59,36 +59,42 @@ pub(crate) fn execute(arguments: GenerateArgs, output: &mut impl Write) -> Resul
 
 #[cfg(test)]
 mod tests {
-    use crate::cli::{GenerateArgs, Generator, NameArgs};
     use crate::CliError;
+    use crate::cli::{GenerateArgs, Generator, NameArgs};
 
-    #[ignore]
+    #[ignore = "requires running project"]
     #[test]
     fn execute_module_generator_fails_in_non_project_dir() {
         let args = GenerateArgs {
-            generator: Generator::Module(NameArgs { name: "test_mod".into() }),
+            generator: Generator::Module(NameArgs {
+                name: "test_mod".into(),
+            }),
         };
         let mut buf = Vec::new();
         let result = super::execute(args, &mut buf);
         assert!(result.is_err());
     }
 
-    #[ignore]
+    #[ignore = "requires running project"]
     #[test]
     fn execute_controller_generator_fails_in_non_project_dir() {
         let args = GenerateArgs {
-            generator: Generator::Controller(NameArgs { name: "my_ctrl".into() }),
+            generator: Generator::Controller(NameArgs {
+                name: "my_ctrl".into(),
+            }),
         };
         let mut buf = Vec::new();
         let result = super::execute(args, &mut buf);
         assert!(result.is_err());
     }
 
-    #[ignore]
+    #[ignore = "requires running project"]
     #[test]
     fn execute_service_generator_fails_in_non_project_dir() {
         let args = GenerateArgs {
-            generator: Generator::Service(NameArgs { name: "my_svc".into() }),
+            generator: Generator::Service(NameArgs {
+                name: "my_svc".into(),
+            }),
         };
         let mut buf = Vec::new();
         let result = super::execute(args, &mut buf);
@@ -115,25 +121,53 @@ mod tests {
         assert!(matches!(result, Err(CliError::InvalidName { .. })));
     }
 
-    #[ignore]
+    #[ignore = "requires running project"]
     #[test]
     fn execute_single_file_generators_fail_in_non_project_dir() {
-        for variant in ["decorator", "filter", "gateway", "guard", "interceptor", "middleware", "pipe", "provider"] {
+        for variant in [
+            "decorator",
+            "filter",
+            "gateway",
+            "guard",
+            "interceptor",
+            "middleware",
+            "pipe",
+            "provider",
+        ] {
             let generator = match variant {
-                "decorator" => Generator::Decorator(NameArgs { name: "test".into() }),
-                "filter" => Generator::Filter(NameArgs { name: "test".into() }),
-                "gateway" => Generator::Gateway(NameArgs { name: "test".into() }),
-                "guard" => Generator::Guard(NameArgs { name: "test".into() }),
-                "interceptor" => Generator::Interceptor(NameArgs { name: "test".into() }),
-                "middleware" => Generator::Middleware(NameArgs { name: "test".into() }),
-                "pipe" => Generator::Pipe(NameArgs { name: "test".into() }),
-                "provider" => Generator::Provider(NameArgs { name: "test".into() }),
+                "decorator" => Generator::Decorator(NameArgs {
+                    name: "test".into(),
+                }),
+                "filter" => Generator::Filter(NameArgs {
+                    name: "test".into(),
+                }),
+                "gateway" => Generator::Gateway(NameArgs {
+                    name: "test".into(),
+                }),
+                "guard" => Generator::Guard(NameArgs {
+                    name: "test".into(),
+                }),
+                "interceptor" => Generator::Interceptor(NameArgs {
+                    name: "test".into(),
+                }),
+                "middleware" => Generator::Middleware(NameArgs {
+                    name: "test".into(),
+                }),
+                "pipe" => Generator::Pipe(NameArgs {
+                    name: "test".into(),
+                }),
+                "provider" => Generator::Provider(NameArgs {
+                    name: "test".into(),
+                }),
                 _ => unreachable!(),
             };
-            let args = GenerateArgs { generator: generator };
+            let args = GenerateArgs { generator };
             let mut buf = Vec::new();
             let result = super::execute(args, &mut buf);
-            assert!(result.is_err(), "{variant} should fail without a src/ directory");
+            assert!(
+                result.is_err(),
+                "{variant} should fail without a src/ directory"
+            );
         }
     }
 }

@@ -7,8 +7,7 @@ use super::types::McpToolDefinition;
 
 /// The return type of an MCP tool handler: a pinned, boxed future
 /// resolving to `Ok(value)` or `Err(error_message)`.
-pub type McpToolResult =
-    Pin<Box<dyn Future<Output = Result<serde_json::Value, String>> + Send>>;
+pub type McpToolResult = Pin<Box<dyn Future<Output = Result<serde_json::Value, String>> + Send>>;
 
 /// A boxed async function that implements an MCP tool.
 pub type McpToolFn = Arc<dyn Fn(serde_json::Value) -> McpToolResult + Send + Sync>;

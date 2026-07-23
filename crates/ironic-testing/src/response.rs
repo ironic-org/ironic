@@ -113,12 +113,10 @@ mod tests {
 
     fn ok_response() -> TestResponse {
         let mut headers = HeaderMap::new();
-        headers.insert(
-            "content-type",
-            HeaderValue::from_static("application/json"),
-        );
+        headers.insert("content-type", HeaderValue::from_static("application/json"));
         headers.insert("x-request-id", HeaderValue::from_static("abc"));
-        let response = Response::json(HttpStatus::OK, &serde_json::json!({"key": "value"})).unwrap();
+        let response =
+            Response::json(HttpStatus::OK, &serde_json::json!({"key": "value"})).unwrap();
         TestResponse::new(response)
     }
 

@@ -127,7 +127,12 @@ impl InMemoryRateLimiter {
     /// # Panics
     ///
     /// Panics if the internal mutex is poisoned.
-    pub(crate) fn sync_check(&self, key: &str, max_requests: u64, window_secs: u64) -> RateLimitResult {
+    pub(crate) fn sync_check(
+        &self,
+        key: &str,
+        max_requests: u64,
+        window_secs: u64,
+    ) -> RateLimitResult {
         let mut windows = self
             .windows
             .lock()
@@ -489,8 +494,7 @@ mod tests {
 
     #[test]
     fn rate_limit_middleware_with_key_resolver() {
-        let resolver: RateLimitKeyResolver =
-            Arc::new(|_ctx| "custom-key".to_owned());
+        let resolver: RateLimitKeyResolver = Arc::new(|_ctx| "custom-key".to_owned());
         let _mw = RateLimitMiddleware::new(10, 60).with_key_resolver(resolver);
     }
 }

@@ -171,7 +171,7 @@ impl RedisQueue {
                 .map_err(|e| QueueError(format!("redis rpush: {e}")))?;
             if let Some(ttl) = message.ttl_secs {
                 let _: () = conn
-                    .expire(&msg_key, ttl as i64)
+                    .expire(&msg_key, ttl.cast_signed())
                     .await
                     .map_err(|e| QueueError(format!("redis expire: {e}")))?;
             }
@@ -205,7 +205,7 @@ impl Queue for RedisQueue {
                         .await
                         .map_err(|e| QueueError(format!("redis sadd: {e}")))?;
                     let _: () = conn
-                        .expire(&proc_key, self.config.visibility_timeout_secs as i64)
+                        .expire(&proc_key, self.config.visibility_timeout_secs.cast_signed())
                         .await
                         .map_err(|e| QueueError(format!("redis expire: {e}")))?;
                     Ok(Some(msg))

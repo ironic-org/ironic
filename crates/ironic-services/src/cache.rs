@@ -47,8 +47,6 @@ pub trait Cache: Send + Sync + 'static {
     fn remove_by_prefix<'a>(&'a self, prefix: &'a str) -> CacheFuture<'a, usize>;
 }
 
-
-
 #[derive(Clone, Debug)]
 struct Entry {
     value: Vec<u8>,
@@ -253,7 +251,7 @@ impl Cache for RedisCache {
             use ::redis::AsyncCommands;
             let mut conn = self.client.clone();
             if let Some(duration) = ttl {
-                    conn.set_ex(&full_key, value, duration.as_secs())
+                conn.set_ex(&full_key, value, duration.as_secs())
                     .await
                     .map_err(|e| CacheError::Backend(e.to_string()))
             } else {
@@ -353,10 +351,7 @@ mod tests {
     async fn set_and_get() {
         let cache = Arc::new(InMemoryCache::new(16));
         cache.set("key1", b"value1".to_vec(), None).await.unwrap();
-        assert_eq!(
-            cache.get("key1").await.unwrap(),
-            Some(b"value1".to_vec())
-        );
+        assert_eq!(cache.get("key1").await.unwrap(), Some(b"value1".to_vec()));
     }
 
     #[tokio::test]
@@ -413,8 +408,7 @@ mod tests {
         cache.set("b", vec![2], None).await.unwrap();
         cache.set("c", vec![3], None).await.unwrap();
         assert_eq!(cache.get("c").await.unwrap(), Some(vec![3]));
-        assert!(cache.get("a").await.unwrap().is_none()
-            || cache.get("b").await.unwrap().is_none());
+        assert!(cache.get("a").await.unwrap().is_none() || cache.get("b").await.unwrap().is_none());
     }
 
     #[tokio::test]

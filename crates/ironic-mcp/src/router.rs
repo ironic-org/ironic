@@ -1,5 +1,5 @@
-use super::server::McpServer;
 use super::McpTool;
+use super::server::McpServer;
 
 /// A builder for configuring and constructing an [`McpServer`].
 ///

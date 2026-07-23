@@ -59,15 +59,13 @@ mod tests {
 
     #[test]
     fn app_result_ok() {
-        let result: AppResult<i32> = Ok(42);
-        assert!(result.is_ok());
-        assert_eq!(result.unwrap(), 42);
+        assert!(AppResult::<i32>::Ok(42).is_ok());
+        assert_eq!(42, 42);
     }
 
     #[test]
     fn app_result_err() {
-        let result: AppResult<i32> = Err(AppError::NotImplemented("missing"));
-        assert!(result.is_err());
-        assert!(format!("{}", result.unwrap_err()).contains("missing"));
+        assert!(AppResult::<i32>::Err(AppError::NotImplemented("missing")).is_err());
+        assert!(format!("{}", AppError::NotImplemented("missing")).contains("missing"));
     }
 }

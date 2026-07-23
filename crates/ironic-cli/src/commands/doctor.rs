@@ -124,9 +124,14 @@ mod tests {
         struct BrokenWriter;
         impl Write for BrokenWriter {
             fn write(&mut self, _: &[u8]) -> std::io::Result<usize> {
-                Err(std::io::Error::new(std::io::ErrorKind::BrokenPipe, "broken"))
+                Err(std::io::Error::new(
+                    std::io::ErrorKind::BrokenPipe,
+                    "broken",
+                ))
             }
-            fn flush(&mut self) -> std::io::Result<()> { Ok(()) }
+            fn flush(&mut self) -> std::io::Result<()> {
+                Ok(())
+            }
         }
         let result = super::report(&mut BrokenWriter, "X", true, "y");
         assert!(result.is_err());
@@ -135,7 +140,7 @@ mod tests {
     #[test]
     fn manifest_contain_returns_false_for_missing_file() {
         let result = super::manifest_contains(std::path::Path::new("/nonexistent/path"), "ironic");
-        assert_eq!(result.unwrap(), false);
+        assert!(!result.unwrap());
     }
 
     #[test]

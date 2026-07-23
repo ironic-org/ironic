@@ -253,8 +253,7 @@ mod tests {
 
     #[test]
     fn allows_multiple_origins() {
-        let config = CorsConfig::new()
-            .allowed_origins(["https://a.com", "https://b.com"]);
+        let config = CorsConfig::new().allowed_origins(["https://a.com", "https://b.com"]);
         assert!(config.is_origin_allowed("https://a.com"));
         assert!(config.is_origin_allowed("https://b.com"));
         assert!(!config.is_origin_allowed("https://c.com"));
@@ -279,15 +278,16 @@ mod tests {
 
     #[test]
     fn builder_sets_methods() {
-        let config = CorsConfig::new()
-            .allowed_methods([HttpMethod::GET, HttpMethod::POST]);
-        assert_eq!(config.allowed_methods, vec![HttpMethod::GET, HttpMethod::POST]);
+        let config = CorsConfig::new().allowed_methods([HttpMethod::GET, HttpMethod::POST]);
+        assert_eq!(
+            config.allowed_methods,
+            vec![HttpMethod::GET, HttpMethod::POST]
+        );
     }
 
     #[test]
     fn builder_sets_headers() {
-        let config = CorsConfig::new()
-            .allowed_headers(["Content-Type", "Authorization"]);
+        let config = CorsConfig::new().allowed_headers(["Content-Type", "Authorization"]);
         assert_eq!(
             config.allowed_headers,
             vec!["Content-Type".to_owned(), "Authorization".to_owned()]

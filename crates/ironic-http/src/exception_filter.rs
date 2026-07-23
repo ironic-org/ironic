@@ -185,19 +185,14 @@ mod tests {
     #[test]
     fn exception_ext_ok_passes_through() {
         let result: Result<i32, HttpError> = Ok(42);
-        let mapped = result.exception(|e| {
-            HttpError::internal("WRAPPED", e.message())
-        });
+        let mapped = result.exception(|e| HttpError::internal("WRAPPED", e.message()));
         assert_eq!(mapped.unwrap(), 42);
     }
 
     #[test]
     fn exception_ext_err_transforms() {
-        let result: Result<i32, HttpError> =
-            Err(HttpError::bad_request("ORIG", "original"));
-        let mapped = result.exception(|e| {
-            HttpError::internal("WRAPPED", e.message())
-        });
+        let result: Result<i32, HttpError> = Err(HttpError::bad_request("ORIG", "original"));
+        let mapped = result.exception(|e| HttpError::internal("WRAPPED", e.message()));
         let err = mapped.unwrap_err();
         assert_eq!(err.code(), "WRAPPED");
         assert_eq!(err.message(), "original");
@@ -222,8 +217,7 @@ mod tests {
 
     #[test]
     fn exception_catch_unhandled_error_passes_through() {
-        let result: Result<i32, HttpError> =
-            Err(HttpError::bad_request("UNHANDLED", "unhandled"));
+        let result: Result<i32, HttpError> = Err(HttpError::bad_request("UNHANDLED", "unhandled"));
         let filter = Arc::new(TestFilter);
         let err = result.exception_catch(filter).unwrap_err();
         assert_eq!(err.code(), "UNHANDLED");

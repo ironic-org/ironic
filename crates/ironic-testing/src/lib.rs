@@ -18,13 +18,13 @@ mod tests {
     #[allow(dead_code)]
     fn _re_exported_types_accessible() {
         // These compile — if any type is missing, the module won't compile.
-        fn _check<T>() {}
-        _check::<crate::testing::TestBuildError>();
-        _check::<crate::testing::TestApplication>();
-        _check::<crate::testing::TestApplicationBuilder>();
-        _check::<crate::testing::CompiledTestModule>();
-        _check::<crate::testing::TestModule>();
-        _check::<crate::testing::TestModuleBuilder>();
-        _check::<crate::testing::TestResponse>();
+        fn check<T>() {}
+        check::<crate::testing::TestBuildError>();
+        check::<crate::testing::TestApplication>();
+        check::<crate::testing::TestApplicationBuilder>();
+        check::<crate::testing::CompiledTestModule>();
+        check::<crate::testing::TestModule>();
+        check::<crate::testing::TestModuleBuilder>();
+        check::<crate::testing::TestResponse>();
     }
 }

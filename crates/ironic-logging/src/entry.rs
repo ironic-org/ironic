@@ -102,10 +102,7 @@ mod tests {
         assert_eq!(entry.module_path.as_deref(), Some("test_mod"));
         assert_eq!(entry.file.as_deref(), Some("test.rs"));
         assert_eq!(entry.line, Some(10));
-        assert_eq!(
-            entry.fields.get("key"),
-            Some(&serde_json::json!("val"))
-        );
+        assert_eq!(entry.fields.get("key"), Some(&serde_json::json!("val")));
     }
 
     #[test]

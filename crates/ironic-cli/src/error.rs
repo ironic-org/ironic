@@ -73,7 +73,11 @@ mod tests {
 
     #[test]
     fn io_error_display() {
-        let err = CliError::io("test action", "/tmp/test", io::Error::new(io::ErrorKind::NotFound, "file not found"));
+        let err = CliError::io(
+            "test action",
+            "/tmp/test",
+            io::Error::new(io::ErrorKind::NotFound, "file not found"),
+        );
         let msg = err.to_string();
         assert!(msg.contains("RF_CLI_IO"));
         assert!(msg.contains("test action"));
@@ -91,7 +95,9 @@ mod tests {
 
     #[test]
     fn file_conflict_display() {
-        let err = CliError::FileConflict { path: "/tmp/conflict.rs".into() };
+        let err = CliError::FileConflict {
+            path: "/tmp/conflict.rs".into(),
+        };
         let msg = err.to_string();
         assert!(msg.contains("RF_CLI_FILE_CONFLICT"));
         assert!(msg.contains("/tmp/conflict.rs"));
@@ -152,7 +158,10 @@ mod tests {
     fn non_exhaustive_allows_forward_compat() {
         // Confirm the enum can be constructed only through known variants
         // (pattern match will need `_` wildcard — that's the point).
-        let err = CliError::CommandFailed { program: "x".into(), status: "1".into() };
+        let err = CliError::CommandFailed {
+            program: "x".into(),
+            status: "1".into(),
+        };
         assert!(format!("{err}").contains("RF_CLI_COMMAND_FAILED"));
     }
 }

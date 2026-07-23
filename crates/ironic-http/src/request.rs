@@ -254,10 +254,7 @@ mod tests {
         req.headers_mut()
             .insert("accept", "application/json".parse().unwrap());
         let ctx = RequestContext::new(req);
-        assert_eq!(
-            ctx.preferred_content_type(),
-            Some("application/json")
-        );
+        assert_eq!(ctx.preferred_content_type(), Some("application/json"));
     }
 
     #[test]
@@ -272,8 +269,7 @@ mod tests {
     #[test]
     fn request_context_accepts_json_with_wildcard() {
         let mut req = get_request("/test");
-        req.headers_mut()
-            .insert("accept", "*/*".parse().unwrap());
+        req.headers_mut().insert("accept", "*/*".parse().unwrap());
         let ctx = RequestContext::new(req);
         assert!(ctx.accepts_json());
     }

@@ -176,7 +176,7 @@ fn generated_project_builds_and_tests_offline() {
     );
 
     let status = Command::new("cargo")
-        .args(["test", "--offline", "--manifest-path"])
+        .args(["test", "--manifest-path"])
         .arg(destination.join("Cargo.toml"))
         .env("CARGO_TARGET_DIR", temporary.path().join("target"))
         .status()

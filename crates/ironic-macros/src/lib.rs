@@ -6,6 +6,7 @@ mod controller;
 mod from_row;
 mod injectable;
 mod jwt_guard;
+mod mcp_tool;
 mod merge;
 mod module;
 mod openapi;
@@ -83,6 +84,32 @@ pub fn derive_openapi_schema(input: TokenStream) -> TokenStream {
 /// ```
 pub fn jwt_guard(attribute: TokenStream, item: TokenStream) -> TokenStream {
     jwt_guard::expand(attribute.into(), item.into())
+        .unwrap_or_else(syn::Error::into_compile_error)
+        .into()
+}
+
+#[proc_macro_attribute]
+/// Generates an [`McpTool`] from an async function.
+///
+/// The function becomes an MCP tool that AI agents can discover and call.
+/// Parameters are automatically converted to a JSON Schema for the input.
+///
+/// # Example
+///
+/// ```ignore
+/// use std::sync::Arc;
+/// use ironic::{mcp_tool, McpRouter, AxumAdapter};
+///
+/// #[mcp_tool("greet", description = "Greets a user by name")]
+/// async fn greet(name: String) -> Result<String, String> {
+///     Ok(format!("Hello, {name}!"))
+/// }
+///
+/// let adapter = AxumAdapter::new()
+///     .mcp(McpRouter::new().register_tool(mcp_tool_greet()));
+/// ```
+pub fn mcp_tool(attribute: TokenStream, item: TokenStream) -> TokenStream {
+    mcp_tool::expand(attribute.into(), item.into())
         .unwrap_or_else(syn::Error::into_compile_error)
         .into()
 }

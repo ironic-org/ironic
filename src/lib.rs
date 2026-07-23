@@ -107,6 +107,8 @@ pub use ironic_macros::{
     options, param, patch, pipe, post, put, query, resp, routes, subscribe_message, r#test,
     timeout, web_socket_gateway,
 };
+#[cfg(feature = "mcp")]
+pub use ironic_macros::mcp_tool;
 #[cfg(feature = "openapi")]
 pub use openapi::*;
 #[cfg(feature = "mcp")]
@@ -276,6 +278,8 @@ pub mod prelude {
         head, header, intercept_fn, interceptor, interval, middleware, options, param, patch, pipe,
         pipe_fn, post, put, query, resp, routes, subscribe_message, timeout, web_socket_gateway,
     };
+    #[cfg(feature = "mcp")]
+    pub use crate::mcp_tool;
     #[cfg(feature = "serialization")]
     pub use crate::{FieldRule, FieldRules, SerializeInterceptor, set_current_roles};
     #[cfg(feature = "multipart")]

@@ -26,7 +26,25 @@ MCP exposes registered tools as a JSON-RPC 2.0 endpoint (`POST /mcp`). An AI age
 
 ## Defining a Tool
 
-Create an `McpTool` with a name, description, JSON Schema for inputs, and an async handler:
+### With the `#[mcp_tool]` Macro (Recommended)
+
+Use the `#[mcp_tool]` attribute on an async function — the JSON Schema is inferred from Rust parameter types:
+
+```rust
+use ironic::mcp_tool;
+
+#[mcp_tool("greet", description = "Greets a user by name")]
+async fn greet(name: String) -> Result<String, String> {
+    Ok(format!("Hello, {name}!"))
+}
+```
+
+This generates a `mcp_tool_greet()` function that returns an `McpTool`.
+Supports `String`, `bool`, `i32`/`i64`/`u32`/`u64`/`f32`/`f64`, `Vec<T>`, and `Option<T>` parameters.
+
+### Programmatic API
+
+Create an `McpTool` directly with a name, description, JSON Schema, and async handler:
 
 ```rust
 use ironic::{McpTool, json};
@@ -107,6 +125,26 @@ The agent will discover all registered tools and their input schemas automatical
 | `prompts/list`            | Supported (no prompts)   |
 
 ## Example: Full Integration
+
+### With `#[mcp_tool]` Macro
+
+```rust
+use ironic::{mcp_tool, AxumAdapter, McpRouter};
+
+#[mcp_tool("add", description = "Adds two numbers")]
+async fn add(a: i32, b: i32) -> Result<i32, String> {
+    Ok(a + b)
+}
+
+let mcp = McpRouter::new()
+    .with_name("Calculator API")
+    .register_tool(mcp_tool_add());
+
+let adapter = AxumAdapter::new()
+    .mcp(mcp);
+```
+
+### Programmatic API
 
 ```rust
 use std::sync::Arc;

@@ -50,7 +50,7 @@ Ironic follows these principles:
 
 ## Where to start
 
-- New to Ironic? Start with [Getting Started](/docs/getting-started/getting-started)
+- New to Ironic? Start with [Getting Started](/docs/getting-started)
 - Coming from NestJS? Read [Coming from NestJS](/docs/getting-started/coming-from-nestjs)
 - Want to see benchmarks? Check [Benchmarks](/docs/getting-started/benchmarks)
 - Ready to build? Install the [CLI](/docs/getting-started/cli) and scaffold a project

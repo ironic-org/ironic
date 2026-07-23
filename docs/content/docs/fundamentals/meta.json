@@ -4,12 +4,7 @@
     "overview",
     "modules",
     "providers",
-    "lifecycle",
     "request-lifecycle",
-    "guards",
-    "pipes",
-    "interceptors",
-    "error-handling",
-    "middleware"
+    "pipes"
   ]
 }

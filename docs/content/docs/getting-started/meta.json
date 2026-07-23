@@ -2,9 +2,9 @@
   "title": "Getting Started",
   "pages": [
     "index",
+    "introduction",
     "why-nestrs",
     "why-not-axum",
-    "benchmarks",
     "coming-from-nestjs",
     "coming-from-aspnet",
     "coming-from-spring-boot",
@@ -12,6 +12,8 @@
     "getting-started",
     "project-structure",
     "cli",
-    "demo-apps"
+    "demo-apps",
+    "dx-improvements",
+    "ready-resources"
   ]
 }

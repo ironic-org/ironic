@@ -1,4 +1,4 @@
 {
   "title": "HTTP & API",
-  "pages": ["api-versioning", "response-serialization", "validation-pipes", "exception-filters", "inline-exceptions", "error-envelope", "paginated-responses", "pagination-extractor", "streaming-responses", "content-negotiation", "feature-gate-guard", "per-route-timeout", "rate-limit-key", "guards", "interceptors", "middleware", "compression", "security", "openapi", "backtrace", "uuid"]
+  "pages": ["api-versioning", "response-serialization", "validation-pipes", "exception-filters", "inline-exceptions", "error-envelope", "paginated-responses", "pagination-extractor", "streaming-responses", "content-negotiation", "feature-gate-guard", "per-route-timeout", "rate-limit-key", "guards", "interceptors", "compression", "security", "openapi", "backtrace", "uuid"]
 }

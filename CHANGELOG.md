@@ -10,6 +10,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - release.sh: prefer [Unreleased] content over git log when non-empty
 - add-changelog-entry.sh: helper script for quick [Unreleased] entries
+- Created transport documentation group with HTTP, WebSocket, GraphQL, OpenAPI, and MCP pages
+- Lifecycle hooks section with 15 detailed hook pages as main sidebar nav
+- Configuration section with env cascade, alternative sources, from_env, and env-var reference pages
 
 ### Fixed
 - release.sh: macOS compat — replace head -n -1 with sed '$d'

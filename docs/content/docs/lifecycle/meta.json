@@ -1,0 +1,20 @@
+{
+  "title": "Lifecycle Hooks",
+  "pages": [
+    "overview",
+    "on-module-configure",
+    "on-module-init",
+    "async-module-init",
+    "on-application-bootstrap",
+    "on-server-ready",
+    "on-request-init",
+    "on-error",
+    "on-guard-denied",
+    "before-shutdown",
+    "on-module-destroy",
+    "on-application-shutdown",
+    "after-shutdown",
+    "on-module-load",
+    "on-module-unload"
+  ]
+}

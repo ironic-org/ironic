@@ -39,6 +39,17 @@ impl SessionId {
     }
 
     /// Parses a session identifier, rejecting unexpected lengths and characters.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use ironic::auth::sessions::SessionId;
+    ///
+    /// let id = SessionId::parse("a1b2c3d4e5f6071829a0b1c2d3e4f50617283940a1b2c3d4e5f6071829a0b1c0").unwrap();
+    /// assert_eq!(id.expose().len(), 64);
+    /// assert!(SessionId::parse("short").is_none());
+    /// assert!(SessionId::parse("not-hex-garbage!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!").is_none());
+    /// ```
     #[must_use]
     pub fn parse(value: &str) -> Option<Self> {
         (value.len() == 64 && value.bytes().all(|byte| byte.is_ascii_hexdigit()))
@@ -179,6 +190,17 @@ impl SessionStore for InMemorySessionStore {
 }
 
 /// Finds a named cookie in an HTTP `Cookie` header value.
+///
+/// # Example
+///
+/// ```rust
+/// use ironic::auth::sessions::cookie_value;
+///
+/// let header = "session=abc123; theme=dark; csrf=tok";
+/// assert_eq!(cookie_value(header, "session"), Some("abc123"));
+/// assert_eq!(cookie_value(header, "theme"), Some("dark"));
+/// assert_eq!(cookie_value(header, "missing"), None);
+/// ```
 #[must_use]
 pub fn cookie_value<'a>(header: &'a str, name: &str) -> Option<&'a str> {
     header.split(';').find_map(|part| {
@@ -188,6 +210,19 @@ pub fn cookie_value<'a>(header: &'a str, name: &str) -> Option<&'a str> {
 }
 
 /// Builds a secure host-only session cookie.
+///
+/// # Example
+///
+/// ```rust
+/// use std::time::Duration;
+/// use ironic::auth::sessions::{SessionId, session_cookie};
+///
+/// let id = SessionId::generate().unwrap();
+/// let cookie = session_cookie("sid", &id, Duration::from_secs(3600), true);
+/// assert!(cookie.starts_with("sid="));
+/// assert!(cookie.contains("Max-Age=3600"));
+/// assert!(cookie.contains("Secure"));
+/// ```
 #[must_use]
 pub fn session_cookie(name: &str, id: &SessionId, max_age: Duration, secure: bool) -> String {
     let secure_attribute = if secure { "; Secure" } else { "" };
@@ -200,6 +235,16 @@ pub fn session_cookie(name: &str, id: &SessionId, max_age: Duration, secure: boo
 }
 
 /// Builds a cookie that immediately removes a browser session identifier.
+///
+/// # Example
+///
+/// ```rust
+/// use ironic::auth::sessions::expired_session_cookie;
+///
+/// let cookie = expired_session_cookie("sid", true);
+/// assert!(cookie.starts_with("sid="));
+/// assert!(cookie.contains("Max-Age=0"));
+/// ```
 #[must_use]
 pub fn expired_session_cookie(name: &str, secure: bool) -> String {
     let secure_attribute = if secure { "; Secure" } else { "" };
@@ -361,5 +406,213 @@ impl SessionStore for RedisSessionStore {
                 .map_err(|e| SessionError::Store(format!("Redis DEL failed: {e}")))?;
             Ok(())
         })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::time::Duration;
+
+    // -----------------------------------------------------------------------
+    // SessionId
+    // -----------------------------------------------------------------------
+
+    #[test]
+    fn session_id_generates_64_hex_chars() {
+        let id = SessionId::generate().unwrap();
+        assert_eq!(id.expose().len(), 64);
+        assert!(id.expose().bytes().all(|b| b.is_ascii_hexdigit()));
+    }
+
+    #[test]
+    fn session_id_parse_valid() {
+        let hex = "a1b2c3d4e5f6071829a0b1c2d3e4f50617283940a1b2c3d4e5f6071829a0b1c0";
+        assert_eq!(hex.len(), 64);
+        let parsed = SessionId::parse(hex).unwrap();
+        assert_eq!(parsed.expose(), hex);
+    }
+
+    #[test]
+    fn session_id_parse_invalid_length() {
+        assert!(SessionId::parse("too-short").is_none());
+        assert!(SessionId::parse("also-w-a-a-a-a-a-a-a-a-a-a-a-a-a-a-a-a-a-a-way-too-longgggggggggggggggggggggggggggggggggggggggggggggggg").is_none());
+    }
+
+    #[test]
+    fn session_id_parse_non_hex() {
+        let hex = "zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz";
+        assert_eq!(hex.len(), 64);
+        assert!(SessionId::parse(hex).is_none());
+    }
+
+    #[test]
+    fn session_id_debug_redacts() {
+        let id = SessionId::generate().unwrap();
+        let debug = format!("{id:?}");
+        assert!(debug.contains("[REDACTED]"));
+        assert!(!debug.contains(id.expose()));
+    }
+
+    #[test]
+    fn session_id_clone_eq_hash() {
+        let a = SessionId::generate().unwrap();
+        let b = SessionId::parse(a.expose()).unwrap();
+        assert_eq!(a, b);
+        assert_eq!(a.expose(), b.expose());
+    }
+
+    // -----------------------------------------------------------------------
+    // Session
+    // -----------------------------------------------------------------------
+
+    #[test]
+    fn session_new_creates_with_id() {
+        let session = Session::new(Duration::from_secs(3600)).unwrap();
+        assert_eq!(session.id.expose().len(), 64);
+    }
+
+    #[test]
+    fn session_insert_and_get() {
+        let mut session = Session::new(Duration::from_secs(3600)).unwrap();
+        session.insert("user_id", 42_u64).unwrap();
+        let value: Option<u64> = session.get("user_id").unwrap();
+        assert_eq!(value, Some(42));
+    }
+
+    #[test]
+    fn session_get_missing_key() {
+        let session = Session::new(Duration::from_secs(3600)).unwrap();
+        let value: Option<String> = session.get("nonexistent").unwrap();
+        assert_eq!(value, None);
+    }
+
+    #[test]
+    fn session_get_type_mismatch() {
+        let mut session = Session::new(Duration::from_secs(3600)).unwrap();
+        session.insert("key", "hello").unwrap();
+        let result: Result<Option<i32>, _> = session.get("key");
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn session_multiple_values() {
+        let mut session = Session::new(Duration::from_secs(3600)).unwrap();
+        session.insert("name", "Alice").unwrap();
+        session.insert("score", 100_i32).unwrap();
+        assert_eq!(session.get::<String>("name").unwrap(), Some("Alice".into()));
+        assert_eq!(session.get::<i32>("score").unwrap(), Some(100));
+    }
+
+    // -----------------------------------------------------------------------
+    // cookie_value
+    // -----------------------------------------------------------------------
+
+    #[test]
+    fn cookie_value_found() {
+        let header = "session=abc123; theme=dark";
+        assert_eq!(cookie_value(header, "session"), Some("abc123"));
+        assert_eq!(cookie_value(header, "theme"), Some("dark"));
+    }
+
+    #[test]
+    fn cookie_value_missing() {
+        assert_eq!(cookie_value("session=abc123", "missing"), None);
+    }
+
+    #[test]
+    fn cookie_value_empty_header() {
+        assert_eq!(cookie_value("", "anything"), None);
+    }
+
+    #[test]
+    fn cookie_value_trailing_semicolon() {
+        let header = "sid=val;";
+        assert_eq!(cookie_value(header, "sid"), Some("val"));
+    }
+
+    // -----------------------------------------------------------------------
+    // session_cookie / expired_session_cookie
+    // -----------------------------------------------------------------------
+
+    #[test]
+    fn session_cookie_includes_attributes() {
+        let id = SessionId::generate().unwrap();
+        let cookie = session_cookie("sid", &id, Duration::from_secs(3600), true);
+        assert!(cookie.starts_with("sid="));
+        assert!(cookie.contains("Max-Age=3600"));
+        assert!(cookie.contains("Secure"));
+        assert!(cookie.contains("HttpOnly"));
+        assert!(cookie.contains("SameSite=Lax"));
+        assert!(cookie.contains(&format!("{}", id.expose())));
+    }
+
+    #[test]
+    fn session_cookie_insecure() {
+        let id = SessionId::generate().unwrap();
+        let cookie = session_cookie("sid", &id, Duration::from_secs(60), false);
+        assert!(!cookie.contains("Secure"));
+        assert!(cookie.contains("Max-Age=60"));
+    }
+
+    #[test]
+    fn expired_session_cookie_sets_max_age_zero() {
+        let cookie = expired_session_cookie("sid", true);
+        assert!(cookie.starts_with("sid="));
+        assert!(cookie.contains("Max-Age=0"));
+        assert!(cookie.contains("Secure"));
+    }
+
+    #[test]
+    fn expired_session_cookie_insecure() {
+        let cookie = expired_session_cookie("sid", false);
+        assert!(!cookie.contains("Secure"));
+        assert!(cookie.contains("Max-Age=0"));
+    }
+
+    // -----------------------------------------------------------------------
+    // InMemorySessionStore (async)
+    // -----------------------------------------------------------------------
+
+    #[tokio::test]
+    async fn memory_store_save_and_load() {
+        let store = InMemorySessionStore::default();
+        let session = Session::new(Duration::from_secs(3600)).unwrap();
+        let id = session.id.clone();
+        store.save(session).await.unwrap();
+        let loaded = store.load(&id).await.unwrap();
+        assert!(loaded.is_some());
+        assert_eq!(loaded.unwrap().id, id);
+    }
+
+    #[tokio::test]
+    async fn memory_store_load_missing() {
+        let store = InMemorySessionStore::default();
+        let id = SessionId::generate().unwrap();
+        let loaded = store.load(&id).await.unwrap();
+        assert!(loaded.is_none());
+    }
+
+    #[tokio::test]
+    async fn memory_store_delete() {
+        let store = InMemorySessionStore::default();
+        let session = Session::new(Duration::from_secs(3600)).unwrap();
+        let id = session.id.clone();
+        store.save(session).await.unwrap();
+        store.delete(&id).await.unwrap();
+        let loaded = store.load(&id).await.unwrap();
+        assert!(loaded.is_none());
+    }
+
+    #[tokio::test]
+    async fn memory_store_load_expired() {
+        let store = InMemorySessionStore::default();
+        let mut session = Session::new(Duration::from_secs(3600)).unwrap();
+        // Force expiry in the past
+        session.expires_at = SystemTime::UNIX_EPOCH;
+        let id = session.id.clone();
+        store.save(session).await.unwrap();
+        let loaded = store.load(&id).await.unwrap();
+        assert!(loaded.is_none());
     }
 }

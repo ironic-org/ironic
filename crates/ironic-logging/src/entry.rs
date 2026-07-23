@@ -5,6 +5,11 @@ use serde::Serialize;
 use tracing::Level;
 
 /// A single logging log entry captured from a tracing event.
+///
+/// Each entry carries an ISO-8601 timestamp, a log level, message, optional
+/// source-location metadata, and structured key-value fields.
+///
+/// Serialised as JSON when persisted by [`super::storage::LogStorage`].
 #[derive(Debug, Clone, Serialize)]
 pub struct LogEntry {
     /// ISO-8601 timestamp (UTC).
@@ -61,5 +66,79 @@ fn level_to_str(level: Level) -> String {
         Level::INFO => "INFO".into(),
         Level::WARN => "WARN".into(),
         Level::ERROR => "ERROR".into(),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use chrono::Utc;
+
+    #[test]
+    fn level_conversion() {
+        assert_eq!(level_to_str(Level::TRACE), "TRACE");
+        assert_eq!(level_to_str(Level::DEBUG), "DEBUG");
+        assert_eq!(level_to_str(Level::INFO), "INFO");
+        assert_eq!(level_to_str(Level::WARN), "WARN");
+        assert_eq!(level_to_str(Level::ERROR), "ERROR");
+    }
+
+    #[test]
+    fn log_entry_creation_and_fields() {
+        let mut fields = BTreeMap::new();
+        fields.insert("key".into(), serde_json::json!("val"));
+        let entry = LogEntry::new(
+            Utc::now(),
+            Level::INFO,
+            "test",
+            "hello".into(),
+            Some("test_mod"),
+            Some("test.rs"),
+            Some(10),
+            fields,
+        );
+        assert_eq!(entry.level, "INFO");
+        assert_eq!(entry.message, "hello");
+        assert_eq!(entry.module_path.as_deref(), Some("test_mod"));
+        assert_eq!(entry.file.as_deref(), Some("test.rs"));
+        assert_eq!(entry.line, Some(10));
+        assert_eq!(
+            entry.fields.get("key"),
+            Some(&serde_json::json!("val"))
+        );
+    }
+
+    #[test]
+    fn log_entry_serialisation() {
+        let entry = LogEntry::new(
+            Utc::now(),
+            Level::WARN,
+            "warn_mod",
+            "warning message".into(),
+            None,
+            None,
+            None,
+            BTreeMap::new(),
+        );
+        let json = serde_json::to_string(&entry).unwrap();
+        assert!(json.contains("\"WARN\""));
+        assert!(json.contains("\"warning message\""));
+    }
+
+    #[test]
+    fn log_entry_without_fields_omits_fields() {
+        let entry = LogEntry::new(
+            Utc::now(),
+            Level::ERROR,
+            "err_mod",
+            "error".into(),
+            None,
+            None,
+            None,
+            BTreeMap::new(),
+        );
+        let json = serde_json::to_string(&entry).unwrap();
+        // When fields is empty it should be skipped
+        assert!(!json.contains("\"fields\""));
     }
 }

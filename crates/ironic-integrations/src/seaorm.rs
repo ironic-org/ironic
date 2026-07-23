@@ -40,3 +40,24 @@ impl IntegrationHealth for ::sea_orm::DatabaseConnection {
         })
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn seaorm_connect_fails_with_empty_url() {
+        let result = connect(String::new()).await;
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn seaorm_integration_error_display() {
+        let err = IntegrationError::new("SEAORM", "connection timeout");
+        assert_eq!(err.integration(), "SEAORM");
+        assert_eq!(
+            err.to_string(),
+            "IR_INTEGRATION_SEAORM: connection timeout"
+        );
+    }
+}

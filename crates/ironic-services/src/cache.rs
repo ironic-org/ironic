@@ -15,7 +15,6 @@ pub type CacheFuture<'a, T> = Pin<Box<dyn Future<Output = Result<T, CacheError>>
 
 /// A cache backend failure.
 #[derive(Debug, thiserror::Error)]
-#[non_exhaustive]
 pub enum CacheError {
     /// A value could not be encoded or decoded.
     #[error("IRONIC_CACHE_SERIALIZATION: {0}")]
@@ -26,10 +25,14 @@ pub enum CacheError {
 }
 
 /// Backend-neutral asynchronous byte cache.
+///
+/// # Errors
+///
+/// Each method returns [`CacheError`] on backend failure.
 pub trait Cache: Send + Sync + 'static {
     /// Loads a non-expired value.
     fn get<'a>(&'a self, key: &'a str) -> CacheFuture<'a, Option<Vec<u8>>>;
-    /// Stores a value with an optional time-to-live.
+    /// Stores a value with optional time-to-live.
     fn set<'a>(
         &'a self,
         key: &'a str,
@@ -40,9 +43,11 @@ pub trait Cache: Send + Sync + 'static {
     fn remove<'a>(&'a self, key: &'a str) -> CacheFuture<'a, bool>;
     /// Clears this cache namespace.
     fn clear(&self) -> CacheFuture<'_, ()>;
-    /// Removes all entries whose key starts with the given prefix.
+    /// Removes all entries whose key starts with given prefix.
     fn remove_by_prefix<'a>(&'a self, prefix: &'a str) -> CacheFuture<'a, usize>;
 }
+
+
 
 #[derive(Clone, Debug)]
 struct Entry {
@@ -286,5 +291,106 @@ impl Cache for RedisCache {
             }
             Ok(count)
         })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::sync::Arc;
+
+    #[tokio::test]
+    async fn set_and_get() {
+        let cache = Arc::new(InMemoryCache::new(16));
+        cache.set("key1", b"value1".to_vec(), None).await.unwrap();
+        assert_eq!(
+            cache.get("key1").await.unwrap(),
+            Some(b"value1".to_vec())
+        );
+    }
+
+    #[tokio::test]
+    async fn get_missing() {
+        let cache = Arc::new(InMemoryCache::default());
+        assert_eq!(cache.get("missing").await.unwrap(), None);
+    }
+
+    #[tokio::test]
+    async fn remove() {
+        let cache = Arc::new(InMemoryCache::new(16));
+        cache.set("k", vec![1], None).await.unwrap();
+        assert!(cache.remove("k").await.unwrap());
+        assert!(!cache.remove("k").await.unwrap());
+        assert_eq!(cache.get("k").await.unwrap(), None);
+    }
+
+    #[tokio::test]
+    async fn ttl_expiry() {
+        let cache = Arc::new(InMemoryCache::new(16));
+        cache
+            .set("k", vec![1], Some(Duration::from_millis(1)))
+            .await
+            .unwrap();
+        tokio::time::sleep(Duration::from_millis(10)).await;
+        assert_eq!(cache.get("k").await.unwrap(), None);
+    }
+
+    #[tokio::test]
+    async fn clear() {
+        let cache = Arc::new(InMemoryCache::new(16));
+        cache.set("a", vec![1], None).await.unwrap();
+        cache.set("b", vec![2], None).await.unwrap();
+        cache.clear().await.unwrap();
+        assert!(cache.get("a").await.unwrap().is_none());
+        assert!(cache.get("b").await.unwrap().is_none());
+    }
+
+    #[tokio::test]
+    async fn remove_by_prefix() {
+        let cache = Arc::new(InMemoryCache::new(16));
+        cache.set("aa:1", vec![1], None).await.unwrap();
+        cache.set("aa:2", vec![2], None).await.unwrap();
+        cache.set("bb:1", vec![3], None).await.unwrap();
+        assert_eq!(cache.remove_by_prefix("aa:").await.unwrap(), 2);
+        assert!(cache.get("aa:1").await.unwrap().is_none());
+        assert_eq!(cache.get("bb:1").await.unwrap(), Some(vec![3]));
+    }
+
+    #[tokio::test]
+    async fn evict_when_at_capacity() {
+        let cache = Arc::new(InMemoryCache::new(2));
+        cache.set("a", vec![1], None).await.unwrap();
+        cache.set("b", vec![2], None).await.unwrap();
+        cache.set("c", vec![3], None).await.unwrap();
+        assert_eq!(cache.get("c").await.unwrap(), Some(vec![3]));
+        assert!(cache.get("a").await.unwrap().is_none()
+            || cache.get("b").await.unwrap().is_none());
+    }
+
+    #[tokio::test]
+    async fn set_json_and_get_json() {
+        let cache = Arc::new(InMemoryCache::new(16));
+        let vals = vec!["hello", "world"];
+        cache.set_json("k", &vals, None).await.unwrap();
+        let got: Option<Vec<String>> = cache.get_json("k").await.unwrap();
+        assert_eq!(got, Some(vec!["hello".to_string(), "world".to_string()]));
+    }
+
+    #[tokio::test]
+    async fn get_json_invalid() {
+        let cache = Arc::new(InMemoryCache::new(16));
+        cache.set("k", b"not json".to_vec(), None).await.unwrap();
+        assert!(cache.get_json::<Vec<String>>("k").await.is_err());
+    }
+
+    #[tokio::test]
+    async fn insert_many_with_default_capacity() {
+        let cache = Arc::new(InMemoryCache::default());
+        for i in 0..1000 {
+            let key = format!("k{i}");
+            cache.set(&key, vec![], None).await.unwrap();
+        }
+        let count = cache.remove_by_prefix("k").await.unwrap();
+        assert_eq!(count, 1000);
     }
 }

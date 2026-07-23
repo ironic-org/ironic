@@ -178,3 +178,93 @@ impl Middleware for RequestLogging {
         })
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn request_id_new_and_as_str() {
+        let id = RequestId::new("test-id");
+        assert_eq!(id.as_str(), "test-id");
+    }
+
+    #[test]
+    fn request_id_display() {
+        let id = RequestId::new("display-test");
+        assert_eq!(format!("{id}"), "display-test");
+    }
+
+    #[test]
+    fn request_id_equality() {
+        let a = RequestId::new("same");
+        let b = RequestId::new("same");
+        assert_eq!(a, b);
+    }
+
+    #[test]
+    fn request_id_inequality() {
+        let a = RequestId::new("alpha");
+        let b = RequestId::new("beta");
+        assert_ne!(a, b);
+    }
+
+    #[test]
+    fn request_id_generate_produces_non_empty_id() {
+        let id = RequestId::generate();
+        assert!(!id.as_str().is_empty());
+    }
+
+    #[test]
+    fn request_id_clone() {
+        let a = RequestId::new("clone-me");
+        let b = a.clone();
+        assert_eq!(a, b);
+    }
+
+    #[test]
+    fn request_tracing_new() {
+        let rt = RequestTracing::new();
+        let _default: RequestTracing = Default::default();
+        let _ = rt;
+    }
+
+    #[test]
+    fn request_tracing_is_copy() {
+        let a = RequestTracing::new();
+        let _b = a;
+        let _c = a;
+    }
+
+    #[test]
+    fn request_logging_new() {
+        let rl = RequestLogging::new();
+        let _default: RequestLogging = Default::default();
+        let _ = rl;
+    }
+
+    #[test]
+    fn request_logging_is_copy() {
+        let a = RequestLogging::new();
+        let _b = a;
+        let _c = a;
+    }
+
+    #[test]
+    fn request_sequence_increments() {
+        let a = RequestId::generate();
+        let b = RequestId::generate();
+        assert_ne!(a, b);
+    }
+
+    #[test]
+    fn fake_iso_format_sync_backup() {
+        use std::time::{SystemTime, UNIX_EPOCH};
+        let secs = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .map_or(0.0, |d| d.as_secs_f64());
+        let formatted = format!("{secs:.3}");
+        assert!(!formatted.is_empty());
+        assert!(formatted.contains('.'));
+    }
+}

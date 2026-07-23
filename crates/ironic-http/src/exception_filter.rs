@@ -142,3 +142,159 @@ impl ExceptionFilterSet {
         None
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use std::sync::Arc;
+
+    use super::*;
+
+    struct TestFilter;
+    impl ExceptionFilter for TestFilter {
+        fn catch(
+            &self,
+            error: &HttpError,
+            _context: &FilterContext,
+        ) -> Result<Response, HttpError> {
+            if error.code() == "HANDLED" {
+                Ok(Response::empty(crate::HttpStatus::IM_A_TEAPOT))
+            } else {
+                Err(HttpError::internal("UNHANDLED", "not handled"))
+            }
+        }
+    }
+
+    struct FallbackFilter;
+    impl ExceptionFilter for FallbackFilter {
+        fn catch(
+            &self,
+            _error: &HttpError,
+            _context: &FilterContext,
+        ) -> Result<Response, HttpError> {
+            Ok(Response::empty(crate::HttpStatus::OK))
+        }
+    }
+
+    #[test]
+    fn filter_context_new_stores_metadata() {
+        let md = RouteMetadata::new();
+        let ctx = FilterContext::new(md.clone());
+        assert_eq!(ctx.route_metadata().is_empty(), md.is_empty());
+    }
+
+    #[test]
+    fn exception_ext_ok_passes_through() {
+        let result: Result<i32, HttpError> = Ok(42);
+        let mapped = result.exception(|e| {
+            HttpError::internal("WRAPPED", e.message())
+        });
+        assert_eq!(mapped.unwrap(), 42);
+    }
+
+    #[test]
+    fn exception_ext_err_transforms() {
+        let result: Result<i32, HttpError> =
+            Err(HttpError::bad_request("ORIG", "original"));
+        let mapped = result.exception(|e| {
+            HttpError::internal("WRAPPED", e.message())
+        });
+        let err = mapped.unwrap_err();
+        assert_eq!(err.code(), "WRAPPED");
+        assert_eq!(err.message(), "original");
+    }
+
+    #[test]
+    fn exception_catch_ok_passes_through() {
+        let result: Result<i32, HttpError> = Ok(99);
+        let filter = Arc::new(TestFilter);
+        let mapped = result.exception_catch(filter);
+        assert_eq!(mapped.unwrap(), 99);
+    }
+
+    #[test]
+    fn exception_catch_handled_error_returns_internal_with_filter_body() {
+        let result: Result<i32, HttpError> =
+            Err(HttpError::bad_request("HANDLED", "handled error"));
+        let filter = Arc::new(TestFilter);
+        let err = result.exception_catch(filter).unwrap_err();
+        assert_eq!(err.code(), "HANDLED");
+    }
+
+    #[test]
+    fn exception_catch_unhandled_error_passes_through() {
+        let result: Result<i32, HttpError> =
+            Err(HttpError::bad_request("UNHANDLED", "unhandled"));
+        let filter = Arc::new(TestFilter);
+        let err = result.exception_catch(filter).unwrap_err();
+        assert_eq!(err.code(), "UNHANDLED");
+    }
+
+    #[test]
+    fn exception_filter_set_empty_returns_none() {
+        let set = ExceptionFilterSet::new();
+        let error = HttpError::bad_request("ERR", "err");
+        let ctx = FilterContext::new(RouteMetadata::new());
+        let result = set.catch(&error, &ctx);
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn exception_filter_set_empty_len() {
+        let set = ExceptionFilterSet::new();
+        assert_eq!(set.len(), 0);
+    }
+
+    #[test]
+    fn exception_filter_set_push_increases_len() {
+        let mut set = ExceptionFilterSet::new();
+        set.push(Arc::new(TestFilter));
+        assert_eq!(set.len(), 1);
+    }
+
+    #[test]
+    fn exception_filter_set_catch_first_matching_filter() {
+        let mut set = ExceptionFilterSet::new();
+        set.push(Arc::new(TestFilter));
+        set.push(Arc::new(FallbackFilter));
+        let error = HttpError::bad_request("HANDLED", "handled");
+        let ctx = FilterContext::new(RouteMetadata::new());
+        let result = set.catch(&error, &ctx);
+        assert!(result.is_some());
+        let response = result.unwrap().unwrap();
+        assert_eq!(response.status(), crate::HttpStatus::IM_A_TEAPOT);
+    }
+
+    #[test]
+    fn exception_filter_set_catch_falls_through_to_second() {
+        let mut set = ExceptionFilterSet::new();
+        set.push(Arc::new(TestFilter));
+        set.push(Arc::new(FallbackFilter));
+        let error = HttpError::bad_request("OTHER", "other");
+        let ctx = FilterContext::new(RouteMetadata::new());
+        let result = set.catch(&error, &ctx);
+        assert!(result.is_some());
+        let response = result.unwrap();
+        assert!(response.is_err());
+        let err = response.unwrap_err();
+        assert_eq!(err.status(), 500);
+        assert_eq!(err.code(), "UNHANDLED");
+    }
+
+    #[test]
+    fn exception_filter_set_append_merges_filters() {
+        let mut set_a = ExceptionFilterSet::new();
+        set_a.push(Arc::new(TestFilter));
+        let mut set_b = ExceptionFilterSet::new();
+        set_b.push(Arc::new(FallbackFilter));
+        set_a.append(&mut set_b);
+        assert_eq!(set_a.len(), 2);
+    }
+
+    #[test]
+    fn exception_filter_set_is_cloneable() {
+        let mut set = ExceptionFilterSet::new();
+        set.push(Arc::new(TestFilter));
+        let cloned = set.clone();
+        assert_eq!(cloned.len(), 1);
+    }
+}

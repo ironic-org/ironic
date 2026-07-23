@@ -8,6 +8,23 @@ use ironic_di::{Container, Dependency, ProviderDefinition, ResolveError, Scope};
 use crate::TestBuildError;
 
 /// Entry point for compiling a module with test-local provider overrides.
+///
+/// `TestModule` compiles a [`Module`] graph in isolation — no HTTP server,
+/// no platform adapter, no lifecycle orchestration. Useful for testing
+/// provider resolution without the overhead of a full [`TestApplication`].
+///
+/// # Example
+///
+/// ```rust,ignore
+/// # use ironic::{Module, ModuleDefinition, TestModule};
+/// # struct MyModule;
+/// # impl Module for MyModule {
+/// #     fn definition() -> ModuleDefinition {
+/// #         ModuleDefinition::builder::<Self>().build()
+/// #     }
+/// # }
+/// let compiled = TestModule::builder::<MyModule>().compile().await.unwrap();
+/// ```
 #[derive(Clone, Copy, Debug, Default)]
 pub struct TestModule;
 
@@ -23,6 +40,9 @@ impl TestModule {
 }
 
 /// Builds an isolated module container.
+///
+/// Collects provider overrides that shadow the module's original registrations
+/// before compilation. See [`TestModule::builder()`] for usage.
 pub struct TestModuleBuilder {
     root: ironic_core::ModuleDefinition,
     overrides: Vec<ProviderDefinition>,
@@ -106,5 +126,131 @@ impl CompiledTestModule {
     /// Returns [`ResolveError`] when the provider is missing or construction fails.
     pub async fn resolve<T: Send + Sync + 'static>(&self) -> Result<Arc<T>, ResolveError> {
         self.container.resolve::<T>().await
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use ironic_core::{Module, ModuleDefinition, ModuleId};
+
+    use super::*;
+
+    struct EmptyTestModule;
+    impl Module for EmptyTestModule {
+        fn definition() -> ModuleDefinition {
+            ModuleDefinition::builder::<Self>().build()
+        }
+    }
+
+    struct WithStringModule;
+    impl Module for WithStringModule {
+        fn definition() -> ModuleDefinition {
+            ModuleDefinition::builder::<Self>()
+                .provider(ProviderDefinition::value("original".to_string()))
+                .build()
+        }
+    }
+
+    struct WithU64Module;
+    impl Module for WithU64Module {
+        fn definition() -> ModuleDefinition {
+            ModuleDefinition::builder::<Self>()
+                .provider(ProviderDefinition::value(42u64))
+                .build()
+        }
+    }
+
+    #[tokio::test]
+    async fn builder_defaults() {
+        let builder = TestModule::builder::<EmptyTestModule>();
+        assert!(builder.overrides.is_empty());
+    }
+
+    #[tokio::test]
+    async fn compile_empty_module() {
+        let compiled = TestModule::builder::<EmptyTestModule>()
+            .compile()
+            .await
+            .unwrap();
+        // Root module is always in the initialization order.
+        assert_eq!(compiled.graph().initialization_order().len(), 1);
+    }
+
+    #[tokio::test]
+    async fn override_value_is_applied() {
+        let compiled = TestModule::builder::<WithStringModule>()
+            .override_value("overridden".to_string())
+            .compile()
+            .await
+            .unwrap();
+        assert_eq!(
+            compiled.resolve::<String>().await.unwrap().as_str(),
+            "overridden"
+        );
+    }
+
+    #[tokio::test]
+    async fn override_provider_chains() {
+        let provider = ProviderDefinition::value(42u64);
+        let builder = TestModule::builder::<EmptyTestModule>()
+            .override_provider(provider);
+        assert_eq!(builder.overrides.len(), 1);
+    }
+
+    #[tokio::test]
+    async fn override_factory_chains() {
+        let builder = TestModule::builder::<EmptyTestModule>()
+            .override_factory::<String, _, _>(
+                Scope::Transient,
+                Vec::new(),
+                |_resolver| async { Ok("factory-value".to_string()) },
+            );
+        assert_eq!(builder.overrides.len(), 1);
+    }
+
+    #[tokio::test]
+    async fn compile_with_override_provider() {
+        let compiled = TestModule::builder::<WithU64Module>()
+            .override_provider(ProviderDefinition::value(100u64))
+            .compile()
+            .await
+            .unwrap();
+        assert_eq!(*compiled.resolve::<u64>().await.unwrap(), 100);
+    }
+
+    #[tokio::test]
+    async fn compile_with_override_factory() {
+        let compiled = TestModule::builder::<WithStringModule>()
+            .override_factory::<String, _, _>(
+                Scope::Singleton,
+                Vec::new(),
+                |_resolver| async { Ok("factory-resolved".to_string()) },
+            )
+            .compile()
+            .await
+            .unwrap();
+        assert_eq!(
+            compiled.resolve::<String>().await.unwrap().as_str(),
+            "factory-resolved"
+        );
+    }
+
+    #[tokio::test]
+    async fn compiled_module_returns_graph() {
+        let compiled = TestModule::builder::<EmptyTestModule>()
+            .compile()
+            .await
+            .unwrap();
+        let graph = compiled.graph();
+        assert_eq!(graph.root(), ModuleId::of::<EmptyTestModule>());
+    }
+
+    #[tokio::test]
+    async fn compile_adds_providers_from_module() {
+        let compiled = TestModule::builder::<WithU64Module>()
+            .compile()
+            .await
+            .unwrap();
+        assert_eq!(*compiled.resolve::<u64>().await.unwrap(), 42);
     }
 }

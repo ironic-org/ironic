@@ -17,6 +17,15 @@ enum TaskState {
 }
 
 /// Handle for one running scheduled task.
+///
+/// # Errors
+///
+/// [`shutdown`](ScheduledTask::shutdown) returns a [`JoinError`](tokio::task::JoinError)
+/// if the spawned task panicked.
+///
+/// # Panics
+///
+/// Never panics on its own.
 pub struct ScheduledTask {
     control: watch::Sender<TaskState>,
     task: JoinHandle<()>,
@@ -166,4 +175,80 @@ where
         control,
         task: handle,
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::sync::Arc;
+
+    #[tokio::test]
+    async fn interval_runs_task() {
+        let ran = Arc::new(std::sync::atomic::AtomicBool::new(false));
+        let r = ran.clone();
+        let task = interval(Duration::from_millis(10), move || {
+            let r = r.clone();
+            async move {
+                r.store(true, std::sync::atomic::Ordering::SeqCst);
+            }
+        });
+        tokio::time::sleep(Duration::from_millis(30)).await;
+        assert!(ran.load(std::sync::atomic::Ordering::SeqCst));
+        task.shutdown().await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn shutdown_stops_task() {
+        let counter = Arc::new(std::sync::atomic::AtomicU32::new(0));
+        let c = counter.clone();
+        let task = interval(Duration::from_millis(5), move || {
+            let c = c.clone();
+            async move {
+                c.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+            }
+        });
+        tokio::time::sleep(Duration::from_millis(25)).await;
+        let count_before = counter.load(std::sync::atomic::Ordering::SeqCst);
+        assert!(count_before >= 1);
+        task.shutdown().await.unwrap();
+        let count_after = counter.load(std::sync::atomic::Ordering::SeqCst);
+        assert_eq!(count_after, count_after);
+    }
+
+    #[tokio::test]
+    async fn pause_and_resume() {
+        let ran = Arc::new(std::sync::atomic::AtomicBool::new(false));
+        let r = ran.clone();
+        let task = interval(Duration::from_millis(10), move || {
+            let r = r.clone();
+            async move {
+                r.store(true, std::sync::atomic::Ordering::SeqCst);
+            }
+        });
+        task.pause();
+        tokio::time::sleep(Duration::from_millis(50)).await;
+        assert!(!ran.load(std::sync::atomic::Ordering::SeqCst));
+        task.resume();
+        tokio::time::sleep(Duration::from_millis(30)).await;
+        assert!(ran.load(std::sync::atomic::Ordering::SeqCst));
+        task.shutdown().await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn abort_immediately_stops() {
+        let task = interval(Duration::from_secs(60), || async {});
+        task.abort();
+        let result = task.shutdown().await;
+        assert!(result.is_err());
+    }
+
+    #[cfg(feature = "cron")]
+    #[tokio::test]
+    async fn cron_schedule_rejects_bad_expression() {
+        let result = cron_schedule("not-a-cron", || async {});
+        assert!(result.is_err());
+        if let Err(msg) = result {
+            assert!(msg.contains("invalid cron expression"));
+        }
+    }
 }

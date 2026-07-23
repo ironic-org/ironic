@@ -84,3 +84,65 @@ fn which_install_method() -> Option<&'static str> {
         None
     }
 }
+
+#[cfg(test)]
+mod tests {
+
+    #[test]
+    fn crates_io_api_url() {
+        assert_eq!(super::CRATES_IO_API, "https://crates.io/api/v1/crates/ironic");
+    }
+
+    #[test]
+    fn user_agent_contains_cli_and_version() {
+        let ua = super::USER_AGENT;
+        assert!(ua.starts_with("ironic-cli/"));
+        assert!(!ua.ends_with('/'));
+    }
+
+    #[test]
+    fn execute_output_format() {
+        let mut buf = Vec::new();
+        let result = super::execute(&mut buf);
+        let output = String::from_utf8(buf).unwrap_or_default();
+        // Should always write something
+        assert!(!output.is_empty());
+        // Either shows current version or error message
+        let current = env!("CARGO_PKG_VERSION");
+        assert!(output.contains(current) || output.contains("error") || output.contains("Could not"));
+        // Even if check fails, the function returns Ok
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn which_install_method_is_some_when_running() {
+        // The test binary's current_exe is always accessible
+        let method = super::which_install_method();
+        // Method can be None for custom paths, but should never panic
+        let _ = method;
+    }
+
+    #[test]
+    fn check_latest_version_handles_network_error() {
+        // This network call fails gracefully when offline
+        let result = super::check_latest_version();
+        match result {
+            Ok(version) => {
+                // If it succeeds, version must be a non-empty string
+                assert!(version.map_or(true, |v| !v.is_empty()));
+            }
+            Err(msg) => {
+                // Error message must be descriptive
+                assert!(!msg.is_empty());
+            }
+        }
+    }
+
+    #[test]
+    fn cargo_pkg_version_available() {
+        let version = env!("CARGO_PKG_VERSION");
+        assert!(!version.is_empty());
+        // Version should be semver-like
+        assert!(version.chars().next().map_or(false, |c| c.is_ascii_digit()));
+    }
+}

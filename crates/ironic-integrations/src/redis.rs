@@ -63,3 +63,21 @@ impl IntegrationHealth for RedisConnection {
         })
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn redis_connect_fails_with_empty_url() {
+        let result = RedisConnection::connect("").await;
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn redis_integration_error_display() {
+        let err = IntegrationError::new("REDIS", "connection refused");
+        assert_eq!(err.integration(), "REDIS");
+        assert_eq!(err.to_string(), "IR_INTEGRATION_REDIS: connection refused");
+    }
+}

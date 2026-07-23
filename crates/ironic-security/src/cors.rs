@@ -9,6 +9,20 @@ use ironic_http::{
 };
 
 /// CORS configuration.
+///
+/// By default no origins are allowed — all cross-origin requests are rejected.
+/// Use the builder methods to configure allowed origins, methods, and headers.
+///
+/// # Example
+///
+/// ```rust
+/// use ironic::security::cors::CorsConfig;
+///
+/// let config = CorsConfig::new()
+///     .allowed_origins(["https://example.com"])
+///     .allowed_methods(["GET", "POST"].map(|m| m.parse().unwrap()))
+///     .allow_credentials(true);
+/// ```
 #[derive(Clone)]
 pub struct CorsConfig {
     allowed_origins: Vec<String>,
@@ -83,9 +97,29 @@ impl CorsConfig {
     pub(crate) fn is_origin_allowed(&self, origin: &str) -> bool {
         self.allowed_origins.iter().any(|o| o == "*" || o == origin)
     }
+
+    /// Returns the configured allowed origins.
+    #[must_use]
+    pub fn allowed_origins_list(&self) -> &[String] {
+        &self.allowed_origins
+    }
 }
 
 /// Configurable CORS middleware.
+///
+/// Handles preflight `OPTIONS` requests automatically and sets the
+/// appropriate `Access-Control-Allow-*` response headers on matching origins.
+///
+/// # Example
+///
+/// ```rust
+/// use ironic::security::{CorsConfig, CorsMiddleware};
+///
+/// let middleware = CorsMiddleware::new(
+///     CorsConfig::new()
+///         .allowed_origins(["https://frontend.example.com"])
+/// );
+/// ```
 #[derive(Clone)]
 pub struct CorsMiddleware {
     config: Arc<CorsConfig>,
@@ -189,5 +223,98 @@ fn set_cors_headers(response: &mut Response, config: &CorsConfig, origin: &str) 
         .map(|s| http::HeaderValue::from_str(&s.to_string()))
     {
         headers.insert(http::header::ACCESS_CONTROL_MAX_AGE, value);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn default_denies_all_origins() {
+        let config = CorsConfig::new();
+        assert!(!config.is_origin_allowed("https://example.com"));
+        assert!(!config.is_origin_allowed("http://localhost:3000"));
+    }
+
+    #[test]
+    fn allows_explicit_origin() {
+        let config = CorsConfig::new().allowed_origins(["https://myapp.com"]);
+        assert!(config.is_origin_allowed("https://myapp.com"));
+        assert!(!config.is_origin_allowed("https://evil.com"));
+    }
+
+    #[test]
+    fn allows_wildcard_origin() {
+        let config = CorsConfig::new().allowed_origins(["*"]);
+        assert!(config.is_origin_allowed("https://anything.com"));
+        assert!(config.is_origin_allowed("http://localhost"));
+    }
+
+    #[test]
+    fn allows_multiple_origins() {
+        let config = CorsConfig::new()
+            .allowed_origins(["https://a.com", "https://b.com"]);
+        assert!(config.is_origin_allowed("https://a.com"));
+        assert!(config.is_origin_allowed("https://b.com"));
+        assert!(!config.is_origin_allowed("https://c.com"));
+    }
+
+    #[test]
+    fn default_methods() {
+        let config = CorsConfig::new();
+        assert_eq!(
+            config.allowed_methods,
+            vec![
+                HttpMethod::GET,
+                HttpMethod::POST,
+                HttpMethod::PUT,
+                HttpMethod::PATCH,
+                HttpMethod::DELETE,
+                HttpMethod::OPTIONS,
+                HttpMethod::HEAD,
+            ]
+        );
+    }
+
+    #[test]
+    fn builder_sets_methods() {
+        let config = CorsConfig::new()
+            .allowed_methods([HttpMethod::GET, HttpMethod::POST]);
+        assert_eq!(config.allowed_methods, vec![HttpMethod::GET, HttpMethod::POST]);
+    }
+
+    #[test]
+    fn builder_sets_headers() {
+        let config = CorsConfig::new()
+            .allowed_headers(["Content-Type", "Authorization"]);
+        assert_eq!(
+            config.allowed_headers,
+            vec!["Content-Type".to_owned(), "Authorization".to_owned()]
+        );
+    }
+
+    #[test]
+    fn builder_sets_credentials() {
+        let config = CorsConfig::new().allow_credentials(true);
+        assert!(config.allow_credentials);
+    }
+
+    #[test]
+    fn builder_sets_max_age() {
+        let config = CorsConfig::new().max_age(3600);
+        assert_eq!(config.max_age, Some(3600));
+    }
+
+    #[test]
+    fn cors_middleware_constructs() {
+        let config = CorsConfig::new();
+        let _mw = CorsMiddleware::new(config);
+    }
+
+    #[test]
+    fn allowed_origins_list_returns_slice() {
+        let config = CorsConfig::new().allowed_origins(["https://a.com"]);
+        assert_eq!(config.allowed_origins_list(), &["https://a.com"]);
     }
 }

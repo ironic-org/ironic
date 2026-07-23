@@ -151,3 +151,156 @@ impl RequestContext {
             .is_some_and(|ct| ct.contains("json") || ct.contains("*/*"))
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use std::collections::HashMap;
+
+    use super::*;
+
+    fn get_request(uri: &str) -> Request {
+        Request::new(
+            HttpMethod::GET,
+            uri.parse::<Uri>().unwrap(),
+            HeaderMap::new(),
+            Vec::new(),
+        )
+    }
+
+    #[test]
+    fn request_new_sets_method_uri_headers_body() {
+        let req = Request::new(
+            HttpMethod::POST,
+            "/test".parse::<Uri>().unwrap(),
+            HeaderMap::new(),
+            vec![1, 2, 3],
+        );
+        assert_eq!(req.method(), &HttpMethod::POST);
+        assert_eq!(req.uri(), &"/test".parse::<Uri>().unwrap());
+        assert_eq!(req.body(), &[1, 2, 3]);
+    }
+
+    #[test]
+    fn request_with_path_parameters() {
+        let mut params = HashMap::new();
+        params.insert("id".to_string(), "42".to_string());
+        let req = get_request("/users/42").with_path_parameters(params);
+        assert_eq!(req.path_parameter("id"), Some("42"));
+    }
+
+    #[test]
+    fn request_path_parameter_missing() {
+        let req = get_request("/users");
+        assert_eq!(req.path_parameter("id"), None);
+    }
+
+    #[test]
+    fn request_headers_mut_allows_modification() {
+        let mut req = get_request("/test");
+        req.headers_mut()
+            .insert("x-custom", "value".parse().unwrap());
+        assert_eq!(
+            req.headers().get("x-custom").unwrap().to_str().unwrap(),
+            "value"
+        );
+    }
+
+    #[test]
+    fn request_context_new_creates_empty_context() {
+        let ctx = RequestContext::new(get_request("/test"));
+        assert_eq!(ctx.request().method(), &HttpMethod::GET);
+        assert!(ctx.route_metadata().is_none());
+    }
+
+    #[test]
+    fn request_context_set_route_metadata() {
+        let mut ctx = RequestContext::new(get_request("/test"));
+        let md = RouteMetadata::new();
+        ctx.set_route_metadata(md.clone());
+        assert!(ctx.route_metadata().is_some());
+    }
+
+    #[test]
+    fn request_context_extension_round_trip() {
+        let mut ctx = RequestContext::new(get_request("/test"));
+        ctx.insert_extension(42u32);
+        assert_eq!(ctx.extension::<u32>(), Some(&42));
+    }
+
+    #[test]
+    fn request_context_extension_overwrite() {
+        let mut ctx = RequestContext::new(get_request("/test"));
+        ctx.insert_extension(1u32);
+        let prev = ctx.insert_extension(2u32);
+        assert_eq!(prev, Some(1u32));
+        assert_eq!(ctx.extension::<u32>(), Some(&2));
+    }
+
+    #[test]
+    fn request_context_extension_none_when_missing() {
+        let ctx = RequestContext::new(get_request("/test"));
+        assert_eq!(ctx.extension::<u32>(), None);
+    }
+
+    #[test]
+    fn request_context_preferred_content_type_none_when_missing() {
+        let ctx = RequestContext::new(get_request("/test"));
+        assert_eq!(ctx.preferred_content_type(), None);
+    }
+
+    #[test]
+    fn request_context_preferred_content_type_returns_value() {
+        let mut req = get_request("/test");
+        req.headers_mut()
+            .insert("accept", "application/json".parse().unwrap());
+        let ctx = RequestContext::new(req);
+        assert_eq!(
+            ctx.preferred_content_type(),
+            Some("application/json")
+        );
+    }
+
+    #[test]
+    fn request_context_accepts_json_with_json_content_type() {
+        let mut req = get_request("/test");
+        req.headers_mut()
+            .insert("accept", "application/json".parse().unwrap());
+        let ctx = RequestContext::new(req);
+        assert!(ctx.accepts_json());
+    }
+
+    #[test]
+    fn request_context_accepts_json_with_wildcard() {
+        let mut req = get_request("/test");
+        req.headers_mut()
+            .insert("accept", "*/*".parse().unwrap());
+        let ctx = RequestContext::new(req);
+        assert!(ctx.accepts_json());
+    }
+
+    #[test]
+    fn request_context_accepts_json_false_for_xml() {
+        let mut req = get_request("/test");
+        req.headers_mut()
+            .insert("accept", "application/xml".parse().unwrap());
+        let ctx = RequestContext::new(req);
+        assert!(!ctx.accepts_json());
+    }
+
+    #[test]
+    fn request_context_request_mut_allows_mutation() {
+        let mut ctx = RequestContext::new(get_request("/test"));
+        ctx.request_mut()
+            .headers_mut()
+            .insert("x-foo", "bar".parse().unwrap());
+        assert_eq!(
+            ctx.request()
+                .headers()
+                .get("x-foo")
+                .unwrap()
+                .to_str()
+                .unwrap(),
+            "bar"
+        );
+    }
+}

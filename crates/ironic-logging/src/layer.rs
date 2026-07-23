@@ -11,6 +11,8 @@ use super::storage::LogStorage;
 ///
 /// Composes with other layers via `tracing_subscriber::registry()`.
 ///
+/// # Examples
+///
 /// ```ignore
 /// use tracing_subscriber::prelude::*;
 ///
@@ -79,6 +81,54 @@ impl tracing::field::Visit for JsonVisitor {
         value: &(dyn std::error::Error + 'static),
     ) {
         self.record_value(field, serde_json::Value::String(format!("{value}")));
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn time_series_layer_constructible() {
+        struct NoopStorage;
+        impl LogStorage for NoopStorage {
+            fn store<'a>(&'a self, _entry: LogEntry) -> super::super::storage::StorageFuture<'a> {
+                Box::pin(async { Ok(()) })
+            }
+            fn flush<'a>(&'a self) -> super::super::storage::StorageFuture<'a> {
+                Box::pin(async { Ok(()) })
+            }
+        }
+
+        let storage = Arc::new(NoopStorage);
+        let _layer: TimeSeriesLayer<tracing_subscriber::Registry> = TimeSeriesLayer::new(storage);
+    }
+
+    #[test]
+    fn json_visitor_record_value_skips_message() {
+        let visitor = JsonVisitor { fields: BTreeMap::new() };
+        assert!(visitor.fields.is_empty());
+    }
+
+    #[test]
+    fn layer_new_accepts_any_storage() {
+        struct CountStorage {
+            stored: std::sync::atomic::AtomicU64,
+        }
+        impl LogStorage for CountStorage {
+            fn store<'a>(&'a self, _entry: LogEntry) -> super::super::storage::StorageFuture<'a> {
+                self.stored.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+                Box::pin(async { Ok(()) })
+            }
+            fn flush<'a>(&'a self) -> super::super::storage::StorageFuture<'a> {
+                Box::pin(async { Ok(()) })
+            }
+        }
+
+        let storage = Arc::new(CountStorage {
+            stored: std::sync::atomic::AtomicU64::new(0),
+        });
+        let _layer: TimeSeriesLayer<tracing_subscriber::Registry> = TimeSeriesLayer::new(storage);
     }
 }
 

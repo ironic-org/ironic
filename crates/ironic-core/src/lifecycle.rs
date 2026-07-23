@@ -37,6 +37,15 @@ pub(crate) type AsyncInitCallback = Arc<
 >;
 
 /// A safe lifecycle callback failure.
+///
+/// # Examples
+///
+/// ```rust
+/// use ironic::LifecycleError;
+///
+/// let err = LifecycleError::new("db connection failed");
+/// assert_eq!(err.to_string(), "db connection failed");
+/// ```
 #[derive(Clone, Debug, Eq, PartialEq, thiserror::Error)]
 #[error("{message}")]
 pub struct LifecycleError {
@@ -45,6 +54,15 @@ pub struct LifecycleError {
 
 impl LifecycleError {
     /// Creates a lifecycle error with a safe diagnostic message.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use ironic::LifecycleError;
+    ///
+    /// let err = LifecycleError::new("timeout");
+    /// assert_eq!(format!("{err:?}"), "LifecycleError { message: \"timeout\" }");
+    /// ```
     #[must_use]
     pub fn new(message: impl Into<String>) -> Self {
         Self {
@@ -58,18 +76,32 @@ impl LifecycleError {
 /// Runs after a provider's module and dependencies are available.
 pub trait OnModuleInit: Send + Sync + 'static {
     /// Initializes the provider.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`LifecycleError`] if initialization fails. The error message
+    /// should be a safe diagnostic string that does not leak secrets.
     fn on_module_init(&self) -> LifecycleFuture<'_>;
 }
 
 /// Runs after every module initialization callback has succeeded.
 pub trait OnApplicationBootstrap: Send + Sync + 'static {
     /// Completes application-level startup work.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`LifecycleError`] if bootstrap fails. The application will
+    /// abort startup and report the error.
     fn on_application_bootstrap(&self) -> LifecycleFuture<'_>;
 }
 
 /// Runs during cleanup in reverse successful-initialization order.
 pub trait OnModuleDestroy: Send + Sync + 'static {
     /// Releases module-owned resources.
+    ///
+    /// # Errors
+    ///
+    /// Errors are logged but do not prevent other modules from being destroyed.
     fn on_module_destroy(&self) -> LifecycleFuture<'_>;
 }
 
@@ -517,4 +549,69 @@ fn downcast<T: Send + Sync + 'static>(value: ProviderValue) -> Result<Arc<T>, Li
             std::any::type_name::<T>()
         ))
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn lifecycle_error_new_and_display() {
+        let err = LifecycleError::new("something went wrong");
+        assert_eq!(err.message, "something went wrong");
+        assert_eq!(err.to_string(), "something went wrong");
+    }
+
+    #[test]
+    fn lifecycle_error_debug() {
+        let err = LifecycleError::new("oh no");
+        let debug = format!("{err:?}");
+        assert!(debug.contains("oh no"));
+    }
+
+    #[test]
+    fn lifecycle_error_partial_eq() {
+        let a = LifecycleError::new("same");
+        let b = LifecycleError::new("same");
+        let c = LifecycleError::new("different");
+        assert_eq!(a, b);
+        assert_ne!(a, c);
+    }
+
+    #[test]
+    fn lifecycle_error_clone() {
+        let a = LifecycleError::new("clone me");
+        let b = a.clone();
+        assert_eq!(a, b);
+    }
+
+    #[test]
+    fn lifecycle_definition_builder_defaults() {
+        struct MyService;
+        let def = LifecycleDefinition::builder::<MyService>().build();
+        assert_eq!(def.key(), ProviderKey::of::<MyService>());
+        assert!(def.module_init.is_none());
+        assert!(def.application_bootstrap.is_none());
+        assert!(def.module_destroy.is_none());
+        assert!(def.application_shutdown.is_none());
+        assert!(def.module_configure.is_none());
+        assert!(def.server_ready.is_none());
+        assert!(def.request_init.is_none());
+        assert!(def.request_destroy.is_none());
+        assert!(def.on_error.is_none());
+        assert!(def.guard_denied.is_none());
+        assert!(def.before_shutdown.is_none());
+        assert!(def.after_shutdown.is_none());
+        assert!(def.module_load.is_none());
+        assert!(def.module_unload.is_none());
+    }
+
+    #[test]
+    fn lifecycle_definition_debug_output() {
+        struct MyService;
+        let def = LifecycleDefinition::builder::<MyService>().build();
+        let debug = format!("{def:?}");
+        assert!(debug.contains("LifecycleDefinition"));
+        assert!(debug.contains("module_init: false"));
+    }
 }

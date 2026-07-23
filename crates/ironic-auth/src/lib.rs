@@ -18,6 +18,8 @@ pub mod oauth;
 pub mod sessions;
 
 /// A boxed asynchronous authentication operation.
+///
+/// Returned by [`Authenticator::authenticate`].
 pub type AuthenticationFuture<'a, P> =
     Pin<Box<dyn Future<Output = Result<Option<P>, AuthError>> + Send + 'a>>;
 
@@ -51,6 +53,32 @@ impl AuthError {
 }
 
 /// An application-defined authenticated identity.
+///
+/// # Example
+///
+/// ```rust
+/// use ironic::auth::{Principal, Authorizable};
+///
+/// struct User {
+///     id: String,
+///     roles: Vec<String>,
+/// }
+///
+/// impl Principal for User {
+///     fn subject(&self) -> &str {
+///         &self.id
+///     }
+/// }
+///
+/// impl Authorizable for User {
+///     fn has_role(&self, role: &str) -> bool {
+///         self.roles.iter().any(|r| r == role)
+///     }
+///     fn has_permission(&self, _permission: &str) -> bool {
+///         false
+///     }
+/// }
+/// ```
 pub trait Principal: Send + Sync + 'static {
     /// Returns the stable subject identifier for logs and authorization decisions.
     fn subject(&self) -> &str;
@@ -81,6 +109,16 @@ impl<P> Clone for AuthContext<P> {
 
 impl<P> AuthContext<P> {
     /// Creates authentication state for an optional principal.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use ironic::auth::AuthContext;
+    ///
+    /// let ctx = AuthContext::new(Some("user-42"));
+    /// assert!(ctx.is_authenticated());
+    /// assert_eq!(ctx.principal(), Some(&"user-42"));
+    /// ```
     #[must_use]
     pub fn new(principal: Option<P>) -> Self {
         Self {
@@ -108,6 +146,11 @@ pub trait Authenticator<P>: Send + Sync + 'static {
 }
 
 /// Middleware that authenticates a request and stores [`AuthContext`].
+///
+/// # Type parameters
+///
+/// * `A` — An [`Authenticator`] implementation that extracts credentials.
+/// * `P` — The [`Principal`] type produced by the authenticator.
 pub struct AuthenticationMiddleware<A, P> {
     authenticator: A,
     marker: std::marker::PhantomData<fn() -> P>,
@@ -147,6 +190,10 @@ where
 }
 
 /// Guard that rejects anonymous requests.
+///
+/// # Type parameters
+///
+/// * `P` — The [`Principal`] type required for this route.
 #[derive(Clone, Copy, Debug, Default)]
 pub struct RequireAuthenticated<P>(std::marker::PhantomData<fn() -> P>);
 
@@ -186,6 +233,12 @@ pub enum AccessRequirement {
 }
 
 /// Guard enforcing a role or permission on an authenticated principal.
+///
+/// Used with [`RequireAccess::role`] or [`RequireAccess::permission`].
+///
+/// # Type parameters
+///
+/// * `P` — The [`Authorizable`] principal type.
 #[derive(Clone, Debug)]
 pub struct RequireAccess<P> {
     requirement: AccessRequirement,
@@ -239,9 +292,13 @@ impl<P: Authorizable> Guard for RequireAccess<P> {
 
 /// Extracts an RFC 6750 bearer credential from request headers.
 ///
+/// Returns `Ok(None)` when no `Authorization` header is present.
+///
 /// # Errors
 ///
-/// Returns [`AuthError::Unauthorized`] when an authorization header is malformed.
+/// Returns [`AuthError::Unauthorized`] when the `Authorization` header
+/// is not valid UTF-8, does not use the `Bearer` scheme, or contains
+/// multiple credentials.
 pub fn bearer_token(request: &Request) -> Result<Option<&str>, AuthError> {
     let Some(value) = request.headers().get(http::header::AUTHORIZATION) else {
         return Ok(None);
@@ -264,6 +321,19 @@ pub fn bearer_token(request: &Request) -> Result<Option<&str>, AuthError> {
 
 /// Hashes a password with Argon2id and a cryptographically random salt.
 ///
+/// The returned string contains all parameters needed for verification
+/// and can be passed directly to [`verify_password`].
+///
+/// # Example
+///
+/// ```rust
+/// use ironic::auth::{hash_password, verify_password};
+///
+/// let hash = hash_password(b"my-secure-password").unwrap();
+/// assert!(verify_password(b"my-secure-password", &hash).unwrap());
+/// assert!(!verify_password(b"wrong-password", &hash).unwrap());
+/// ```
+///
 /// # Errors
 ///
 /// Returns the upstream password-hash error if hashing fails.
@@ -277,6 +347,15 @@ pub fn hash_password(password: &[u8]) -> Result<String, password_driver::passwor
 }
 
 /// Verifies a password against an encoded Argon2 password hash.
+///
+/// # Example
+///
+/// ```rust
+/// use ironic::auth::{hash_password, verify_password};
+///
+/// let hash = hash_password(b"password").unwrap();
+/// assert!(verify_password(b"password", &hash).unwrap());
+/// ```
 ///
 /// # Errors
 ///
@@ -292,5 +371,175 @@ pub fn verify_password(
         Ok(()) => Ok(true),
         Err(Error::Password) => Ok(false),
         Err(error) => Err(error),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::{HeaderMap, HttpError, HttpMethod, HttpStatus, Request, Uri};
+
+    fn request_with_auth_header(value: &str) -> Request {
+        let mut headers = HeaderMap::new();
+        headers.insert(
+            http::header::AUTHORIZATION,
+            value.parse().unwrap(),
+        );
+        Request::new(HttpMethod::GET, "/".parse::<Uri>().unwrap(), headers, Vec::new())
+    }
+
+    // -----------------------------------------------------------------------
+    // bearer_token
+    // -----------------------------------------------------------------------
+
+    #[test]
+    fn bearer_token_returns_none_when_missing() {
+        let request = Request::new(
+            HttpMethod::GET,
+            "/".parse::<Uri>().unwrap(),
+            HeaderMap::new(),
+            Vec::new(),
+        );
+        assert_eq!(bearer_token(&request).unwrap(), None);
+    }
+
+    #[test]
+    fn bearer_token_returns_credential() {
+        let request = request_with_auth_header("Bearer my-token");
+        assert_eq!(bearer_token(&request).unwrap(), Some("my-token"));
+    }
+
+    #[test]
+    fn bearer_token_rejects_wrong_scheme() {
+        let request = request_with_auth_header("Basic dXNlcjpwYXNz");
+        assert!(bearer_token(&request).is_err());
+    }
+
+    #[test]
+    fn bearer_token_rejects_no_space() {
+        let request = request_with_auth_header("Bearernospace");
+        assert!(bearer_token(&request).is_err());
+    }
+
+    #[test]
+    fn bearer_token_rejects_empty_credential() {
+        let request = request_with_auth_header("Bearer ");
+        assert!(bearer_token(&request).is_err());
+    }
+
+    #[test]
+    fn bearer_token_case_insensitive_scheme() {
+        let request = request_with_auth_header("BEARER token-value");
+        assert_eq!(bearer_token(&request).unwrap(), Some("token-value"));
+    }
+
+    // -----------------------------------------------------------------------
+    // hash_password / verify_password
+    // -----------------------------------------------------------------------
+
+    #[test]
+    fn hash_and_verify_round_trip() {
+        let hash = hash_password(b"hello-world").unwrap();
+        assert!(verify_password(b"hello-world", &hash).unwrap());
+    }
+
+    #[test]
+    fn hash_verify_wrong_password() {
+        let hash = hash_password(b"correct").unwrap();
+        assert!(!verify_password(b"wrong", &hash).unwrap());
+    }
+
+    #[test]
+    fn hash_verify_malformed_hash() {
+        assert!(verify_password(b"password", "not-a-valid-hash").is_err());
+    }
+
+    // -----------------------------------------------------------------------
+    // AuthContext
+    // -----------------------------------------------------------------------
+
+    #[test]
+    fn auth_context_with_principal() {
+        let ctx = AuthContext::new(Some(42_i32));
+        assert!(ctx.is_authenticated());
+        assert_eq!(ctx.principal(), Some(&42));
+    }
+
+    #[test]
+    fn auth_context_anonymous() {
+        let ctx: AuthContext<i32> = AuthContext::new(None);
+        assert!(!ctx.is_authenticated());
+        assert_eq!(ctx.principal(), None);
+    }
+
+    #[test]
+    fn auth_context_clone() {
+        let ctx = AuthContext::new(Some("alice"));
+        let cloned = ctx.clone();
+        assert_eq!(cloned.principal(), Some(&"alice"));
+    }
+
+    // -----------------------------------------------------------------------
+    // AuthError → HttpError conversion
+    // -----------------------------------------------------------------------
+
+    #[test]
+    fn unauthorized_converts_to_401() {
+        let error: HttpError = AuthError::Unauthorized("bad token".into()).into_http_error();
+        assert_eq!(error.status(), HttpStatus::UNAUTHORIZED);
+    }
+
+    #[test]
+    fn forbidden_converts_to_403() {
+        let error: HttpError = AuthError::Forbidden("no access".into()).into_http_error();
+        assert_eq!(error.status(), HttpStatus::FORBIDDEN);
+    }
+
+    #[test]
+    fn configuration_converts_to_500() {
+        let error: HttpError = AuthError::Configuration("bad setup".into()).into_http_error();
+        assert_eq!(error.status(), HttpStatus::INTERNAL_SERVER_ERROR);
+    }
+
+    // -----------------------------------------------------------------------
+    // Constructor smoke-tests
+    // -----------------------------------------------------------------------
+
+    #[test]
+    fn authentication_middleware_constructs() {
+        struct DummyAuth;
+        impl Authenticator<&'static str> for DummyAuth {
+            fn authenticate<'a>(
+                &'a self,
+                _request: &'a Request,
+            ) -> AuthenticationFuture<'a, &'static str> {
+                Box::pin(async move { Ok(Some("user")) })
+            }
+        }
+        let _mw: AuthenticationMiddleware<DummyAuth, &'static str> =
+            AuthenticationMiddleware::new(DummyAuth);
+    }
+
+    #[test]
+    fn require_authenticated_constructs() {
+        let _guard: RequireAuthenticated<String> = RequireAuthenticated::new();
+    }
+
+    #[test]
+    fn require_access_constructs() {
+        let _role = RequireAccess::<String>::role("admin");
+        let _perm = RequireAccess::<String>::permission("read");
+    }
+
+    #[test]
+    fn access_requirement_equality() {
+        assert_eq!(
+            AccessRequirement::Role("admin".into()),
+            AccessRequirement::Role("admin".into())
+        );
+        assert_ne!(
+            AccessRequirement::Role("admin".into()),
+            AccessRequirement::Permission("admin".into())
+        );
     }
 }

@@ -239,3 +239,128 @@ where
         "multipart form data"
     }
 }
+
+#[cfg(all(test, feature = "multipart"))]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn multipart_config_default_sets_correct_limits() {
+        let config = MultipartConfig::default();
+        assert_eq!(config.max_file_size, 5 * 1024 * 1024);
+        assert_eq!(config.max_field_size, 256 * 1024);
+    }
+
+    #[test]
+    fn multipart_config_custom_values() {
+        let config = MultipartConfig {
+            max_file_size: 1024,
+            max_field_size: 512,
+        };
+        assert_eq!(config.max_file_size, 1024);
+        assert_eq!(config.max_field_size, 512);
+    }
+
+    #[test]
+    fn multipart_form_new_uses_default_config() {
+        let form: MultipartForm<()> = MultipartForm::new();
+        assert_eq!(form.config.max_file_size, 5 * 1024 * 1024);
+    }
+
+    #[test]
+    fn multipart_form_with_config() {
+        let config = MultipartConfig {
+            max_file_size: 100,
+            max_field_size: 50,
+        };
+        let form: MultipartForm<()> = MultipartForm::with_config(config.clone());
+        assert_eq!(form.config.max_file_size, 100);
+        assert_eq!(form.config.max_field_size, 50);
+    }
+
+    #[test]
+    fn multipart_form_default() {
+        let form: MultipartForm<()> = MultipartForm::default();
+        assert_eq!(form.config.max_file_size, 5 * 1024 * 1024);
+    }
+
+    #[test]
+    fn multipart_form_description() {
+        let form: MultipartForm<()> = MultipartForm::new();
+        assert_eq!(form.description(), "multipart form data");
+    }
+
+    #[test]
+    fn uploaded_file_construction() {
+        let file = UploadedFile {
+            field_name: "avatar".to_string(),
+            file_name: Some("photo.jpg".to_string()),
+            content_type: Some("image/jpeg".to_string()),
+            size: 1024,
+            data: vec![0; 1024],
+        };
+        assert_eq!(file.field_name, "avatar");
+        assert_eq!(file.file_name.as_deref(), Some("photo.jpg"));
+        assert_eq!(file.content_type.as_deref(), Some("image/jpeg"));
+        assert_eq!(file.size, 1024);
+        assert_eq!(file.data.len(), 1024);
+    }
+
+    #[test]
+    fn uploaded_file_clone() {
+        let a = UploadedFile {
+            field_name: "f".to_string(),
+            file_name: None,
+            content_type: None,
+            size: 0,
+            data: vec![],
+        };
+        let _b = a.clone();
+    }
+
+    #[test]
+    fn uploaded_file_debug() {
+        let file = UploadedFile {
+            field_name: "f".to_string(),
+            file_name: None,
+            content_type: None,
+            size: 0,
+            data: vec![],
+        };
+        let debug = format!("{file:?}");
+        assert!(debug.contains("f"));
+    }
+
+    #[test]
+    fn multipart_form_data_construction() {
+        let data = MultipartFormData {
+            fields: (),
+            files: vec![],
+        };
+        assert!(data.files.is_empty());
+    }
+
+    #[test]
+    fn is_size_limit_error_matches_field_exceeded() {
+        use multer::Error as MulterError;
+        let err = MulterError::FieldSizeExceeded {
+            field_name: Some("test".into()),
+            limit: 100,
+        };
+        assert!(is_size_limit_error(&err));
+    }
+
+    #[test]
+    fn is_size_limit_error_matches_stream_exceeded() {
+        use multer::Error as MulterError;
+        let err = MulterError::StreamSizeExceeded { limit: 100 };
+        assert!(is_size_limit_error(&err));
+    }
+
+    #[test]
+    fn is_size_limit_error_returns_false_for_other_errors() {
+        use multer::Error as MulterError;
+        let err = MulterError::NoMultipart;
+        assert!(!is_size_limit_error(&err));
+    }
+}

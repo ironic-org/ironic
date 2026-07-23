@@ -81,7 +81,15 @@ pub const DEFAULT_REQUEST_TIMEOUT: Duration = Duration::from_secs(30);
 pub const DEFAULT_DRAIN_TIMEOUT: Duration = Duration::from_secs(30);
 
 impl AxumAdapter {
-    /// Creates an adapter with a 1 MiB request body limit.
+    /// Creates an adapter with default settings:
+    ///
+    /// | Setting                | Default                          |
+    /// |------------------------|----------------------------------|
+    /// | Request body limit     | 1 MiB                           |
+    /// | Request timeout        | 30 seconds                      |
+    /// | Drain timeout          | 30 seconds                      |
+    /// | Compression            | Disabled                        |
+    /// | Max connections        | Unlimited                       |
     #[must_use]
     pub fn new() -> Self {
         Self {
@@ -1252,6 +1260,197 @@ mod tests {
         // Body should be uncompressed
         let body = to_bytes(response.into_body(), usize::MAX).await.unwrap();
         assert_eq!(&body[..], b"hello world");
+    }
+
+    // ------------------------------------------------------------------
+    // Builder method tests
+    // ------------------------------------------------------------------
+
+    #[test]
+    fn default_adapter_settings() {
+        let adapter = AxumAdapter::new();
+        assert_eq!(adapter.request_body_limit, DEFAULT_REQUEST_BODY_LIMIT);
+        assert_eq!(adapter.request_timeout, DEFAULT_REQUEST_TIMEOUT);
+        assert_eq!(adapter.drain_timeout, DEFAULT_DRAIN_TIMEOUT);
+        assert!(adapter.max_connections.is_none());
+        assert!(adapter.configure_router.is_empty());
+    }
+
+    #[test]
+    fn default_trait() {
+        let adapter = AxumAdapter::default();
+        assert_eq!(adapter.request_body_limit, DEFAULT_REQUEST_BODY_LIMIT);
+    }
+
+    #[test]
+    fn builder_methods_chain() {
+        let adapter = AxumAdapter::new()
+            .request_body_limit(2048)
+            .request_timeout(Duration::from_secs(10))
+            .drain_timeout(Duration::from_secs(5))
+            .max_connections(100);
+        assert_eq!(adapter.request_body_limit, 2048);
+        assert_eq!(adapter.request_timeout, Duration::from_secs(10));
+        assert_eq!(adapter.drain_timeout, Duration::from_secs(5));
+        assert_eq!(adapter.max_connections, Some(100));
+    }
+
+    // ------------------------------------------------------------------
+    // native_path tests
+    // ------------------------------------------------------------------
+
+    #[test]
+    fn native_path_no_params() {
+        assert_eq!(super::native_path("/users"), "/users");
+    }
+
+    #[test]
+    fn native_path_with_params() {
+        assert_eq!(super::native_path("/users/:id/posts/:post_id"), "/users/{id}/posts/{post_id}");
+    }
+
+    #[test]
+    fn native_path_root() {
+        assert_eq!(super::native_path("/"), "/");
+    }
+
+    // ------------------------------------------------------------------
+    // method_filter tests
+    // ------------------------------------------------------------------
+
+    #[test]
+    fn method_filter_get() {
+        assert_eq!(
+            super::method_filter(&HttpMethod::GET).unwrap(),
+            MethodFilter::GET
+        );
+    }
+
+    #[test]
+    fn method_filter_post() {
+        assert_eq!(
+            super::method_filter(&HttpMethod::POST).unwrap(),
+            MethodFilter::POST
+        );
+    }
+
+    #[test]
+    fn method_filter_put() {
+        assert_eq!(
+            super::method_filter(&HttpMethod::PUT).unwrap(),
+            MethodFilter::PUT
+        );
+    }
+
+    #[test]
+    fn method_filter_delete() {
+        assert_eq!(
+            super::method_filter(&HttpMethod::DELETE).unwrap(),
+            MethodFilter::DELETE
+        );
+    }
+
+    #[test]
+    fn method_filter_patch() {
+        assert_eq!(
+            super::method_filter(&HttpMethod::PATCH).unwrap(),
+            MethodFilter::PATCH
+        );
+    }
+
+    #[test]
+    fn method_filter_head() {
+        assert_eq!(
+            super::method_filter(&HttpMethod::HEAD).unwrap(),
+            MethodFilter::HEAD
+        );
+    }
+
+    #[test]
+    fn method_filter_options() {
+        assert_eq!(
+            super::method_filter(&HttpMethod::OPTIONS).unwrap(),
+            MethodFilter::OPTIONS
+        );
+    }
+
+    // ------------------------------------------------------------------
+    // AxumApplication accessor tests
+    // ------------------------------------------------------------------
+
+    #[test]
+    fn axum_application_router_accessor() {
+        let app = AxumAdapter::new().build(application()).unwrap();
+        let _router = app.router();
+    }
+
+    #[test]
+    fn axum_application_into_router() {
+        let app = AxumAdapter::new().build(application()).unwrap();
+        let router = app.into_router();
+        let _router: Router = router;
+    }
+
+    // ------------------------------------------------------------------
+    // matches_header_version / matches_media_type_version tests
+    // ------------------------------------------------------------------
+
+    #[test]
+    fn matches_header_version_matching() {
+        let request = http::Request::get("/")
+            .header("accept-version", "1")
+            .body(axum::body::Body::empty())
+            .unwrap();
+        let version = ironic_http::VersionMetadata::new("1", VersioningStrategy::Header);
+        assert!(super::matches_header_version(&request, &version));
+    }
+
+    #[test]
+    fn matches_header_version_non_matching() {
+        let request = http::Request::get("/")
+            .header("accept-version", "2")
+            .body(axum::body::Body::empty())
+            .unwrap();
+        let version = ironic_http::VersionMetadata::new("1", VersioningStrategy::Header);
+        assert!(!super::matches_header_version(&request, &version));
+    }
+
+    #[test]
+    fn matches_header_version_missing_header() {
+        let request = http::Request::get("/")
+            .body(axum::body::Body::empty())
+            .unwrap();
+        let version = ironic_http::VersionMetadata::new("1", VersioningStrategy::Header);
+        assert!(!super::matches_header_version(&request, &version));
+    }
+
+    #[test]
+    fn matches_media_type_version_matching() {
+        let request = http::Request::get("/")
+            .header("accept", "application/vnd.api.v3+json")
+            .body(axum::body::Body::empty())
+            .unwrap();
+        let version = ironic_http::VersionMetadata::new("3", VersioningStrategy::MediaType);
+        assert!(super::matches_media_type_version(&request, &version));
+    }
+
+    #[test]
+    fn matches_media_type_version_non_matching() {
+        let request = http::Request::get("/")
+            .header("accept", "application/vnd.api.v2+json")
+            .body(axum::body::Body::empty())
+            .unwrap();
+        let version = ironic_http::VersionMetadata::new("1", VersioningStrategy::MediaType);
+        assert!(!super::matches_media_type_version(&request, &version));
+    }
+
+    #[test]
+    fn matches_media_type_version_missing_header() {
+        let request = http::Request::get("/")
+            .body(axum::body::Body::empty())
+            .unwrap();
+        let version = ironic_http::VersionMetadata::new("1", VersioningStrategy::MediaType);
+        assert!(!super::matches_media_type_version(&request, &version));
     }
 
     #[tokio::test]

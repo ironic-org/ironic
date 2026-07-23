@@ -433,9 +433,15 @@ pub struct OpenApiDocument {
 impl OpenApiDocument {
     /// Discovers compiled framework routes and generates an `OpenAPI` 3.1 document.
     ///
+    /// Iterates all registered routes, collects their [`OpenApiOperation`] metadata,
+    /// and builds a complete `OpenAPI` document with paths, components, and security
+    /// definitions.
+    ///
     /// # Errors
     ///
-    /// Returns [`OpenApiError`] for invalid endpoints or duplicate explicit operation IDs.
+    /// Returns [`OpenApiError`] for:
+    /// - Invalid paths (not starting with `/`)
+    /// - Duplicate explicit operation IDs
     pub fn from_application(
         application: &CompiledHttpApplication,
         config: &OpenApiConfig,
@@ -619,5 +625,81 @@ pub(crate) fn validate_absolute_path(path: &str) -> Result<(), OpenApiError> {
         Err(OpenApiError::InvalidPath {
             path: path.to_owned(),
         })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn openapi_path_converts_colon_params() {
+        assert_eq!(openapi_path("/users/:id/items"), "/users/{id}/items");
+        assert_eq!(openapi_path("/:resource/:action"), "/{resource}/{action}");
+    }
+
+    #[test]
+    fn openapi_path_plain_path_unchanged() {
+        assert_eq!(openapi_path("/api/health"), "/api/health");
+        assert_eq!(openapi_path("/"), "/");
+    }
+
+    #[test]
+    fn path_parameter_names_extracts_braced_params() {
+        let names: Vec<String> = path_parameter_names("/users/{id}/items/{item_id}").collect();
+        assert_eq!(names, vec!["id", "item_id"]);
+    }
+
+    #[test]
+    fn path_parameter_names_empty_when_none() {
+        let names: Vec<String> = path_parameter_names("/api/health").collect();
+        assert!(names.is_empty());
+    }
+
+    #[test]
+    fn method_name_maps_correctly() {
+        use ironic_http::HttpMethod;
+        assert_eq!(method_name(&HttpMethod::GET), "get");
+        assert_eq!(method_name(&HttpMethod::POST), "post");
+        assert_eq!(method_name(&HttpMethod::PUT), "put");
+        assert_eq!(method_name(&HttpMethod::DELETE), "delete");
+        assert_eq!(method_name(&HttpMethod::PATCH), "patch");
+        assert_eq!(method_name(&HttpMethod::HEAD), "head");
+        assert_eq!(method_name(&HttpMethod::OPTIONS), "options");
+    }
+
+    #[test]
+    fn default_operation_id_format() {
+        assert_eq!(default_operation_id("handler", 0), "handler_0");
+        assert_eq!(default_operation_id("get_user", 42), "get_user_42");
+    }
+
+    #[test]
+    fn validate_absolute_path_accepts_slash() {
+        assert!(validate_absolute_path("/openapi.json").is_ok());
+        assert!(validate_absolute_path("/").is_ok());
+    }
+
+    #[test]
+    fn validate_absolute_path_rejects_relative() {
+        let err = validate_absolute_path("openapi.json").unwrap_err();
+        assert!(matches!(err, OpenApiError::InvalidPath { .. }));
+    }
+
+    #[test]
+    fn security_scheme_oauth2_json() {
+        let mut scopes = BTreeMap::new();
+        scopes.insert("read".into(), "Read access".into());
+        let scheme = SecurityScheme::OAuth2AuthorizationCode {
+            authorization_url: "https://auth.example.com/authorize".into(),
+            token_url: "https://auth.example.com/token".into(),
+            scopes,
+        };
+        let json = scheme.as_json();
+        assert_eq!(json["type"], "oauth2");
+        assert_eq!(
+            json["flows"]["authorizationCode"]["scopes"]["read"],
+            "Read access"
+        );
     }
 }

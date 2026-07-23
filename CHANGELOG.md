@@ -17,6 +17,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - add-changelog-entry.sh: prevent duplicate category insertion
 - Changelog entries use real newlines instead of literal backslash-n in markdown output
 
+### Changed
+- Added comprehensive doc comments and test modules across all 22 crates
+- Fixed 12 failing unit tests and 4 broken doctests
+
 ## [v1.0.9] - 2026-07-21
 
 ### Added

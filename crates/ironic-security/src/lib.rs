@@ -2,6 +2,17 @@
 //!
 //! Each module is gated behind its own feature flag and follows the existing
 //! [`Middleware`] trait from `ironic-http`.
+//!
+//! # Feature flags
+//!
+//! | Flag | Module | Description |
+//! |------|--------|-------------|
+//! | `security-cors` | [`cors`] | Cross-Origin Resource Sharing middleware |
+//! | `security-csrf` | [`csrf`] | CSRF protection via synchronizer token pattern |
+//! | `security-rate-limit` | [`rate_limit`] | Rate limiting with in-memory or Redis backends |
+//! | `security-headers` | [`security_headers`] | Security HTTP response headers |
+//!
+//! All four can be enabled together with the `security` meta-feature.
 
 #[cfg(feature = "security-cors")]
 pub mod cors;
@@ -92,5 +103,64 @@ mod tests {
     fn security_headers_defaults_are_set() {
         let config = super::security_headers::SecurityHeadersConfig::new();
         let _ = config;
+    }
+
+    #[cfg(feature = "security-headers")]
+    #[test]
+    fn security_headers_disable_hsts() {
+        let config = super::security_headers::SecurityHeadersConfig::new()
+            .disable_hsts();
+        let _ = config;
+    }
+
+    #[cfg(feature = "security-headers")]
+    #[test]
+    fn security_headers_custom_values() {
+        let config = super::security_headers::SecurityHeadersConfig::new()
+            .csp("default-src 'none'")
+            .hsts("max-age=86400");
+        let _ = config;
+    }
+
+    #[cfg(feature = "security-csrf")]
+    #[test]
+    fn csrf_config_builder_valid() {
+        let config = super::csrf::CsrfConfig::new()
+            .cookie_name("_csrf")
+            .header_name("x-csrf");
+        let _ = config;
+    }
+
+    #[cfg(feature = "security-rate-limit")]
+    #[test]
+    fn rate_limiter_sync_check_result() {
+        let limiter = super::rate_limit::InMemoryRateLimiter::new();
+        let result = limiter.sync_check("key", 1, 60);
+        assert!(result.allowed);
+        assert_eq!(result.remaining, 0);
+    }
+
+    #[cfg(feature = "security-rate-limit")]
+    #[test]
+    fn rate_limiter_key_isolation() {
+        let limiter = super::rate_limit::InMemoryRateLimiter::new();
+        assert!(limiter.check("alice", 2, 60));
+        assert!(limiter.check("alice", 2, 60));
+        assert!(!limiter.check("alice", 2, 60));
+        assert!(limiter.check("bob", 2, 60));
+    }
+
+    #[cfg(feature = "security-csrf")]
+    #[test]
+    #[should_panic(expected = "CSRF cookie name")]
+    fn csrf_config_panics_on_invalid_cookie_name() {
+        let _ = super::csrf::CsrfConfig::new().cookie_name("bad;name");
+    }
+
+    #[cfg(feature = "security-csrf")]
+    #[test]
+    #[should_panic(expected = "CSRF header name")]
+    fn csrf_config_panics_on_invalid_header_name() {
+        let _ = super::csrf::CsrfConfig::new().header_name("bad\rname");
     }
 }

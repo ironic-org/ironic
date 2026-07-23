@@ -66,9 +66,32 @@ impl<S: Send + 'static> Saga<S> {
 
     /// Executes all steps, compensating completed steps in reverse after a failure.
     ///
+    /// Each step is executed in insertion order. If a step fails, all previously
+    /// completed steps are compensated in reverse order.
+    ///
     /// # Errors
+    ///
     /// Returns the execution failure unless compensation fails, in which case the compensation
     /// failure is returned because manual recovery is required.
+    ///
+    /// # Examples
+    ///
+    /// ```ignore
+    /// use ironic::distributed::sagas::{Saga, SagaStep, SagaFuture, SagaError};
+    ///
+    /// struct ReserveFunds;
+    /// impl SagaStep<String> for ReserveFunds {
+    ///     fn name(&self) -> &'static str { "reserve_funds" }
+    ///     fn execute<'a>(&'a self, _state: &'a mut String) -> SagaFuture<'a> {
+    ///         Box::pin(async { Ok(()) })
+    ///     }
+    ///     fn compensate<'a>(&'a self, _state: &'a mut String) -> SagaFuture<'a> {
+    ///         Box::pin(async { Ok(()) })
+    ///     }
+    /// }
+    ///
+    /// let saga = Saga::new().step(ReserveFunds);
+    /// ```
     pub async fn execute(&self, state: &mut S) -> Result<(), SagaError> {
         for (index, step) in self.steps.iter().enumerate() {
             if let Err(error) = step.execute(state).await {
@@ -79,5 +102,134 @@ impl<S: Send + 'static> Saga<S> {
             }
         }
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::sync::atomic::AtomicU64;
+
+    struct CollectStep {
+        name: &'static str,
+        counter: Arc<AtomicU64>,
+    }
+
+    impl SagaStep<Vec<&'static str>> for CollectStep {
+        fn name(&self) -> &'static str {
+            self.name
+        }
+        fn execute<'a>(
+            &'a self,
+            state: &'a mut Vec<&'static str>,
+        ) -> SagaFuture<'a> {
+            Box::pin(async move {
+                state.push(self.name);
+                Ok(())
+            })
+        }
+        fn compensate<'a>(
+            &'a self,
+            state: &'a mut Vec<&'static str>,
+        ) -> SagaFuture<'a> {
+            Box::pin(async move {
+                state.push(self.name);
+                Ok(())
+            })
+        }
+    }
+
+    struct FailingStep;
+
+    impl SagaStep<Vec<&'static str>> for FailingStep {
+        fn name(&self) -> &'static str {
+            "fail"
+        }
+        fn execute<'a>(
+            &'a self,
+            _state: &'a mut Vec<&'static str>,
+        ) -> SagaFuture<'a> {
+            Box::pin(async { Err(SagaError::execute("fail", "oops")) })
+        }
+        fn compensate<'a>(
+            &'a self,
+            _state: &'a mut Vec<&'static str>,
+        ) -> SagaFuture<'a> {
+            Box::pin(async { Ok(()) })
+        }
+    }
+
+    #[tokio::test]
+    async fn saga_executes_all_steps_in_order() {
+        let saga = Saga::new()
+            .step(CollectStep {
+                name: "step1",
+                counter: Arc::new(AtomicU64::new(0)),
+            })
+            .step(CollectStep {
+                name: "step2",
+                counter: Arc::new(AtomicU64::new(0)),
+            });
+        let mut state = Vec::new();
+        saga.execute(&mut state).await.unwrap();
+        assert_eq!(state, vec!["step1", "step2"]);
+    }
+
+    #[tokio::test]
+    async fn saga_compensates_on_failure() {
+        let saga = Saga::new()
+            .step(CollectStep {
+                name: "a",
+                counter: Arc::new(AtomicU64::new(0)),
+            })
+            .step(FailingStep)
+            .step(CollectStep {
+                name: "c",
+                counter: Arc::new(AtomicU64::new(0)),
+            });
+        let mut state = Vec::new();
+        let result = saga.execute(&mut state).await;
+        assert!(result.is_err());
+        // Step "a" should have been compensated
+        assert_eq!(state, vec!["a", "a"]);
+    }
+
+    #[tokio::test]
+    async fn empty_saga_succeeds() {
+        let saga: Saga<()> = Saga::new();
+        let mut state = ();
+        saga.execute(&mut state).await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn saga_single_step_success() {
+        let saga = Saga::new().step(CollectStep {
+            name: "only",
+            counter: Arc::new(AtomicU64::new(0)),
+        });
+        let mut state = Vec::new();
+        saga.execute(&mut state).await.unwrap();
+        assert_eq!(state, vec!["only"]);
+    }
+
+    #[test]
+    fn saga_error_execute_creation() {
+        let err = SagaError::execute("step1", "something failed");
+        assert!(err.to_string().contains("IRONIC_SAGA_EXECUTE"));
+        assert!(err.to_string().contains("step1"));
+    }
+
+    #[test]
+    fn saga_error_compensate_creation() {
+        let err = SagaError::compensate("step1", "compensation failed");
+        assert!(err.to_string().contains("IRONIC_SAGA_COMPENSATE"));
+        assert!(err.to_string().contains("step1"));
+    }
+
+    #[test]
+    fn saga_error_clone_and_eq() {
+        let err = SagaError::execute("s", "msg");
+        let cloned = err.clone();
+        assert_eq!(err, cloned);
     }
 }

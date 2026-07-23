@@ -6,6 +6,20 @@ use std::{
 use serde_json::{Value, json};
 
 /// Produces an `OpenAPI`-compatible JSON Schema for a Rust type.
+///
+/// Implementors provide the JSON Schema representation that is used when
+/// generating request/response schemas and component schemas in the `OpenAPI`
+/// document.
+///
+/// # Examples
+///
+/// ```ignore
+/// use ironic::OpenApiSchema;
+///
+/// let schema = <Option<String>>::openapi_schema();
+/// assert_eq!(schema["type"], "string");
+/// assert_eq!(schema["nullable"], true);
+/// ```
 pub trait OpenApiSchema {
     /// Returns the inline schema for this type.
     #[must_use]
@@ -91,5 +105,81 @@ impl<T: OpenApiSchema, S: BuildHasher> OpenApiSchema for HashMap<String, T, S> {
 impl<T: OpenApiSchema> OpenApiSchema for BTreeMap<String, T> {
     fn openapi_schema() -> Value {
         json!({ "type": "object", "additionalProperties": T::openapi_schema() })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn integer_schema() {
+        assert_eq!(i32::openapi_schema(), json!({"type": "integer"}));
+        assert_eq!(u64::openapi_schema(), json!({"type": "integer"}));
+    }
+
+    #[test]
+    fn number_schema() {
+        assert_eq!(f64::openapi_schema(), json!({"type": "number"}));
+        assert_eq!(f32::openapi_schema(), json!({"type": "number"}));
+    }
+
+    #[test]
+    fn boolean_schema() {
+        assert_eq!(bool::openapi_schema(), json!({"type": "boolean"}));
+    }
+
+    #[test]
+    fn string_schema() {
+        assert_eq!(String::openapi_schema(), json!({"type": "string"}));
+    }
+
+    #[test]
+    fn str_schema() {
+        assert_eq!(<str>::openapi_schema(), json!({"type": "string"}));
+    }
+
+    #[test]
+    fn option_schema_is_nullable() {
+        let schema = <Option<String>>::openapi_schema();
+        assert_eq!(schema["type"], "string");
+        assert_eq!(schema["nullable"], true);
+    }
+
+    #[test]
+    fn option_non_nullable_type_preserved() {
+        let schema = <Option<i32>>::openapi_schema();
+        assert_eq!(schema["type"], "integer");
+        assert_eq!(schema["nullable"], true);
+    }
+
+    #[test]
+    fn vec_schema() {
+        let schema = <Vec<i32>>::openapi_schema();
+        assert_eq!(schema["type"], "array");
+        assert_eq!(schema["items"], json!({"type": "integer"}));
+    }
+
+    #[test]
+    fn array_schema_fixed_size() {
+        let schema = <[String; 3]>::openapi_schema();
+        assert_eq!(schema["type"], "array");
+        assert_eq!(schema["items"], json!({"type": "string"}));
+        assert_eq!(schema["minItems"], 3);
+        assert_eq!(schema["maxItems"], 3);
+    }
+
+    #[test]
+    fn hashmap_schema() {
+        let schema = <std::collections::HashMap<String, bool>>::openapi_schema();
+        assert_eq!(schema["type"], "object");
+        assert_eq!(schema["additionalProperties"], json!({"type": "boolean"}));
+    }
+
+    #[test]
+    fn btreemap_schema() {
+        let schema = <BTreeMap<String, f64>>::openapi_schema();
+        assert_eq!(schema["type"], "object");
+        assert_eq!(schema["additionalProperties"], json!({"type": "number"}));
     }
 }

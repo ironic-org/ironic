@@ -272,6 +272,7 @@ fn module_entries(attribute: &Attribute) -> Vec<(&'static str, String)> {
     output
 }
 
+/// Joins a route prefix and suffix, normalising slashes.
 fn join_paths(prefix: &str, suffix: &str) -> String {
     let joined = format!(
         "{}/{}",
@@ -284,5 +285,235 @@ fn join_paths(prefix: &str, suffix: &str) -> String {
         joined
     } else {
         format!("/{joined}")
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use syn::{Attribute, parse_quote};
+
+    use crate::CliError;
+
+    #[test]
+    fn join_paths_both_empty() {
+        assert_eq!(super::join_paths("", ""), "/");
+    }
+
+    #[test]
+    fn join_paths_root_and_suffix() {
+        assert_eq!(super::join_paths("/", "users"), "/users");
+    }
+
+    #[test]
+    fn join_paths_prefix_and_root() {
+        assert_eq!(super::join_paths("/api", "/"), "/api/");
+    }
+
+    #[test]
+    fn join_paths_normalises_double_slashes() {
+        assert_eq!(super::join_paths("/api/", "/users"), "/api/users");
+    }
+
+    #[test]
+    fn join_paths_prefix_only() {
+        assert_eq!(super::join_paths("/api", ""), "/api/");
+    }
+
+    #[test]
+    fn join_paths_suffix_only() {
+        assert_eq!(super::join_paths("", "users"), "/users");
+    }
+
+    #[test]
+    fn join_paths_no_leading_slash() {
+        assert_eq!(super::join_paths("api", "users"), "/api/users");
+    }
+
+    #[test]
+    fn join_paths_multiple_segments() {
+        assert_eq!(super::join_paths("/api/v1", "users/:id"), "/api/v1/users/:id");
+    }
+
+    #[test]
+    fn join_paths_trailing_slashes() {
+        assert_eq!(super::join_paths("/api/v1///", "///users"), "/api/v1/users");
+    }
+
+    #[test]
+    fn list_modules_nonexistent_dir() {
+        let result = super::list_modules(std::path::Path::new("/nonexistent/path")).unwrap();
+        assert_eq!(result, "none");
+    }
+
+    #[test]
+    fn list_modules_empty_dir() {
+        let dir = tempfile::tempdir().unwrap();
+        let result = super::list_modules(dir.path()).unwrap();
+        assert_eq!(result, "none");
+    }
+
+    #[test]
+    fn list_modules_with_entries() {
+        let dir = tempfile::tempdir().unwrap();
+        std::fs::create_dir(dir.path().join("users")).unwrap();
+        std::fs::create_dir(dir.path().join("products")).unwrap();
+        let result = super::list_modules(dir.path()).unwrap();
+        assert_eq!(result, "products, users");
+    }
+
+    #[test]
+    fn attribute_finds_by_name() {
+        let attrs: Vec<Attribute> = vec![parse_quote!(#[controller("/api")]), parse_quote!(#[routes])];
+        assert!(super::attribute(&attrs, "controller").is_some());
+        assert!(super::attribute(&attrs, "routes").is_some());
+        assert!(super::attribute(&attrs, "nonexistent").is_none());
+    }
+
+    #[test]
+    fn string_argument_extracts_string() {
+        let attr: Attribute = parse_quote!(#[controller("/api/v1")]);
+        let value = super::string_argument(&attr);
+        assert_eq!(value.as_deref(), Some("/api/v1"));
+    }
+
+    #[test]
+    fn string_argument_handles_no_args() {
+        let attr: Attribute = parse_quote!(#[routes]);
+        assert!(super::string_argument(&attr).is_none());
+    }
+
+    #[test]
+    fn derives_detects_target_trait() {
+        let attrs: Vec<Attribute> = vec![parse_quote!(#[derive(Debug, Clone, Injectable)])];
+        assert!(super::derives(&attrs, "Injectable"));
+        assert!(super::derives(&attrs, "Clone"));
+        assert!(!super::derives(&attrs, "Serialize"));
+    }
+
+    #[test]
+    fn derives_false_without_derive() {
+        let attrs: Vec<Attribute> = vec![parse_quote!(#[controller("/api")])];
+        assert!(!super::derives(&attrs, "Injectable"));
+    }
+
+    #[test]
+    fn module_entries_parses_imports() {
+        let attr: Attribute = parse_quote!(#[module(imports = [UsersModule, ProductsModule])]);
+        let entries = super::module_entries(&attr);
+        assert!(entries.contains(&("imports", "UsersModule".to_string())));
+        assert!(entries.contains(&("imports", "ProductsModule".to_string())));
+    }
+
+    #[test]
+    fn module_entries_parses_providers_and_controllers() {
+        let attr: Attribute = parse_quote!(
+            #[module(providers = [UserService, UserRepository], controllers = [UserController])]
+        );
+        let entries = super::module_entries(&attr);
+        assert!(entries.contains(&("provides", "UserService".to_string())));
+        assert!(entries.contains(&("provides", "UserRepository".to_string())));
+        assert!(entries.contains(&("controls", "UserController".to_string())));
+    }
+
+    #[test]
+    fn module_entries_returns_empty_for_non_module_attr() {
+        let attr: Attribute = parse_quote!(#[derive(Debug)]);
+        let entries = super::module_entries(&attr);
+        assert!(entries.is_empty());
+    }
+
+    #[test]
+    fn rust_files_collects_recursively() {
+        let dir = tempfile::tempdir().unwrap();
+        std::fs::create_dir_all(dir.path().join("src/modules")).unwrap();
+        std::fs::write(dir.path().join("src/main.rs"), "").unwrap();
+        std::fs::write(dir.path().join("src/mod.rs"), "").unwrap();
+        std::fs::write(dir.path().join("src/modules/users.rs"), "").unwrap();
+        std::fs::write(dir.path().join("README.md"), "").unwrap();
+        let files = super::rust_files(dir.path()).unwrap();
+        assert_eq!(files.len(), 3);
+        assert!(files.contains(&dir.path().join("src/main.rs")));
+        assert!(files.contains(&dir.path().join("src/mod.rs")));
+        assert!(files.contains(&dir.path().join("src/modules/users.rs")));
+    }
+
+    #[test]
+    fn rust_files_handles_directory_without_src() {
+        let dir = tempfile::tempdir().unwrap();
+        std::fs::write(dir.path().join("lib.rs"), "").unwrap();
+        std::fs::write(dir.path().join("nested.rs"), "").unwrap();
+        let files = super::rust_files(dir.path()).unwrap();
+        assert_eq!(files.len(), 2);
+    }
+
+    #[test]
+    fn parse_files_handles_valid_rust() {
+        let dir = tempfile::tempdir().unwrap();
+        std::fs::write(dir.path().join("main.rs"), "fn main() {}").unwrap();
+        let files = vec![dir.path().join("main.rs")];
+        let parsed = super::parse_files(&files).unwrap();
+        assert_eq!(parsed.len(), 1);
+    }
+
+    #[test]
+    fn parse_files_returns_error_on_invalid_rust() {
+        let dir = tempfile::tempdir().unwrap();
+        std::fs::write(dir.path().join("bad.rs"), "this is not valid rust @@").unwrap();
+        let files = vec![dir.path().join("bad.rs")];
+        let result = super::parse_files(&files);
+        assert!(result.is_err());
+        assert!(matches!(result, Err(CliError::SourceParse { .. })));
+    }
+
+    #[test]
+    fn workspace_requires_cargo_toml() {
+        let dir = tempfile::tempdir().unwrap();
+        let mut buf = Vec::new();
+        let result = super::workspace(dir.path(), &mut buf);
+        assert!(result.is_err());
+        assert!(matches!(result, Err(CliError::Io { .. })));
+    }
+
+    #[test]
+    fn workspace_output_with_cargo_toml() {
+        let dir = tempfile::tempdir().unwrap();
+        std::fs::write(
+            dir.path().join("Cargo.toml"),
+            r#"[package]
+name = "my-app"
+version = "0.1.0"
+edition = "2024"
+"#,
+        )
+        .unwrap();
+        let mut buf = Vec::new();
+        let result = super::workspace(dir.path(), &mut buf);
+        assert!(result.is_ok());
+        let output = String::from_utf8(buf).unwrap();
+        assert!(output.contains("my-app"));
+        assert!(output.contains("0.1.0"));
+        assert!(output.contains("2024"));
+    }
+
+    #[test]
+    fn routes_returns_empty_for_no_controllers() {
+        let dir = tempfile::tempdir().unwrap();
+        std::fs::create_dir_all(dir.path().join("src")).unwrap();
+        std::fs::write(dir.path().join("src/lib.rs"), "").unwrap();
+        let mut buf = Vec::new();
+        let result = super::routes(dir.path(), &mut buf);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn graph_returns_empty_digraph_for_no_modules() {
+        let dir = tempfile::tempdir().unwrap();
+        std::fs::create_dir_all(dir.path().join("src")).unwrap();
+        std::fs::write(dir.path().join("src/lib.rs"), "").unwrap();
+        let mut buf = Vec::new();
+        let result = super::graph(dir.path(), &mut buf);
+        assert!(result.is_ok());
+        let output = String::from_utf8(buf).unwrap();
+        assert!(output.contains("digraph ironic {"));
     }
 }

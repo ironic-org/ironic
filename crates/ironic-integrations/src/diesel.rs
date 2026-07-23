@@ -61,3 +61,21 @@ where
         })
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn diesel_integration_error_display() {
+        let err = IntegrationError::new("DIESEL", "connection refused");
+        assert_eq!(err.integration(), "DIESEL");
+        assert_eq!(err.to_string(), "IR_INTEGRATION_DIESEL: connection refused");
+    }
+
+    #[test]
+    fn diesel_integration_error_from_number() {
+        let err = IntegrationError::new("DIESEL", 42);
+        assert_eq!(err.to_string(), "IR_INTEGRATION_DIESEL: 42");
+    }
+}

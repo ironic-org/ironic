@@ -69,9 +69,32 @@ pub struct AxumAdapter {
     #[cfg(feature = "resilience-ext")]
     max_concurrent_requests: Option<u64>,
     max_connections: Option<usize>,
+    #[cfg(feature = "mcp")]
+    mcp: Option<crate::mcp::McpRouter>,
+    #[cfg(feature = "sse")]
+    sse_broadcasters: Vec<SseBroadcasterEntry>,
 }
 
 type RouterConfigurator = Box<dyn FnOnce(Router) -> Router + Send + 'static>;
+
+/// A broadcast-based SSE route entry.
+///
+/// Each HTTP GET to this route creates a new SSE stream subscribed to
+/// the broadcast sender. Every event sent via the sender is delivered
+/// to all connected clients.
+#[cfg(feature = "sse")]
+struct SseBroadcasterEntry {
+    path: String,
+    tx: tokio::sync::broadcast::Sender<axum::response::sse::Event>,
+}
+
+/// A [`broadcast::Sender`] that can be used to push events to all SSE clients
+/// connected to a route registered via [`AxumAdapter::sse_route`].
+///
+/// Create one with [`tokio::sync::broadcast::channel`] and pass the sender
+/// to [`AxumAdapter::sse_route`]. Use the returned handle to push events.
+#[cfg(feature = "sse")]
+pub type EventBroadcaster = tokio::sync::broadcast::Sender<axum::response::sse::Event>;
 
 /// Default maximum buffered request body: 1 MiB.
 pub const DEFAULT_REQUEST_BODY_LIMIT: usize = 1024 * 1024;
@@ -81,7 +104,15 @@ pub const DEFAULT_REQUEST_TIMEOUT: Duration = Duration::from_secs(30);
 pub const DEFAULT_DRAIN_TIMEOUT: Duration = Duration::from_secs(30);
 
 impl AxumAdapter {
-    /// Creates an adapter with a 1 MiB request body limit.
+    /// Creates an adapter with default settings:
+    ///
+    /// | Setting                | Default                          |
+    /// |------------------------|----------------------------------|
+    /// | Request body limit     | 1 MiB                           |
+    /// | Request timeout        | 30 seconds                      |
+    /// | Drain timeout          | 30 seconds                      |
+    /// | Compression            | Disabled                        |
+    /// | Max connections        | Unlimited                       |
     #[must_use]
     pub fn new() -> Self {
         Self {
@@ -96,6 +127,10 @@ impl AxumAdapter {
             #[cfg(feature = "resilience-ext")]
             max_concurrent_requests: None,
             max_connections: None,
+            #[cfg(feature = "mcp")]
+            mcp: None,
+            #[cfg(feature = "sse")]
+            sse_broadcasters: Vec::new(),
         }
     }
 
@@ -152,6 +187,52 @@ impl AxumAdapter {
         configure: impl FnOnce(Router) -> Router + Send + 'static,
     ) -> Self {
         self.configure_router.push(Box::new(configure));
+        self
+    }
+
+    /// Mounts an MCP (Model Context Protocol) server that exposes registered
+    /// tools via JSON-RPC 2.0 over `POST /mcp`.
+    ///
+    /// Requires the `mcp` feature.
+    #[cfg(feature = "mcp")]
+    #[must_use]
+    pub fn mcp(mut self, mcp: crate::mcp::McpRouter) -> Self {
+        self.mcp = Some(mcp);
+        self
+    }
+
+    /// Registers a broadcast-based SSE endpoint.
+    ///
+    /// Every HTTP `GET` to `path` opens a new SSE stream that receives all
+    /// events sent through `tx`.  Drop all senders (or call
+    /// [`broadcast::Sender::closed`](tokio::sync::broadcast::Sender::closed))
+    /// to signal end-of-stream to connected clients.
+    ///
+    /// Requires the `sse` feature.
+    ///
+    /// # Example
+    ///
+    /// ```rust,ignore
+    /// use tokio::sync::broadcast;
+    /// use axum::response::sse::Event;
+    ///
+    /// let (tx, _) = broadcast::channel::<Event>(256);
+    /// let adapter = AxumAdapter::new()
+    ///     .sse_route("/events", tx.clone());
+    /// // Later …
+    /// let _ = tx.send(Event::default().data("hello".into()));
+    /// ```
+    #[cfg(feature = "sse")]
+    #[must_use]
+    pub fn sse_route(
+        mut self,
+        path: &str,
+        tx: tokio::sync::broadcast::Sender<axum::response::sse::Event>,
+    ) -> Self {
+        self.sse_broadcasters.push(SseBroadcasterEntry {
+            path: path.to_owned(),
+            tx,
+        });
         self
     }
 
@@ -233,6 +314,36 @@ impl HttpPlatformAdapter for AxumAdapter {
                 ))
                 .service(tower_http::services::ServeDir::new(&sf.fs_dir).precompressed_gzip());
             router = router.route(&wildcard_path, axum::routing::get_service(dir_service));
+        }
+        #[cfg(feature = "mcp")]
+        if let Some(mcp) = self.mcp {
+            let mcp_server = mcp.build();
+            router = router.merge(mcp_server.into_router());
+        }
+        #[cfg(feature = "sse")]
+        for entry in self.sse_broadcasters {
+            let path = entry.path;
+            let tx = entry.tx;
+            router = router.route(
+                &path,
+                axum::routing::get(move || {
+                    let rx = tx.subscribe();
+                    let stream = futures_util::stream::unfold(rx, |mut rx| async move {
+                        loop {
+                            match rx.recv().await {
+                                Ok(event) => {
+                                    return Some((Ok::<_, std::convert::Infallible>(event), rx));
+                                }
+                                Err(tokio::sync::broadcast::error::RecvError::Closed) => {
+                                    return None;
+                                }
+                                Err(tokio::sync::broadcast::error::RecvError::Lagged(_)) => {}
+                            }
+                        }
+                    });
+                    async { axum::response::sse::Sse::new(Box::pin(stream)) }
+                }),
+            );
         }
         for configure in self.configure_router {
             router = configure(router);
@@ -1252,6 +1363,200 @@ mod tests {
         // Body should be uncompressed
         let body = to_bytes(response.into_body(), usize::MAX).await.unwrap();
         assert_eq!(&body[..], b"hello world");
+    }
+
+    // ------------------------------------------------------------------
+    // Builder method tests
+    // ------------------------------------------------------------------
+
+    #[test]
+    fn default_adapter_settings() {
+        let adapter = AxumAdapter::new();
+        assert_eq!(adapter.request_body_limit, DEFAULT_REQUEST_BODY_LIMIT);
+        assert_eq!(adapter.request_timeout, DEFAULT_REQUEST_TIMEOUT);
+        assert_eq!(adapter.drain_timeout, DEFAULT_DRAIN_TIMEOUT);
+        assert!(adapter.max_connections.is_none());
+        assert!(adapter.configure_router.is_empty());
+    }
+
+    #[test]
+    fn default_trait() {
+        let adapter = AxumAdapter::default();
+        assert_eq!(adapter.request_body_limit, DEFAULT_REQUEST_BODY_LIMIT);
+    }
+
+    #[test]
+    fn builder_methods_chain() {
+        let adapter = AxumAdapter::new()
+            .request_body_limit(2048)
+            .request_timeout(Duration::from_secs(10))
+            .drain_timeout(Duration::from_secs(5))
+            .max_connections(100);
+        assert_eq!(adapter.request_body_limit, 2048);
+        assert_eq!(adapter.request_timeout, Duration::from_secs(10));
+        assert_eq!(adapter.drain_timeout, Duration::from_secs(5));
+        assert_eq!(adapter.max_connections, Some(100));
+    }
+
+    // ------------------------------------------------------------------
+    // native_path tests
+    // ------------------------------------------------------------------
+
+    #[test]
+    fn native_path_no_params() {
+        assert_eq!(super::native_path("/users"), "/users");
+    }
+
+    #[test]
+    fn native_path_with_params() {
+        assert_eq!(
+            super::native_path("/users/:id/posts/:post_id"),
+            "/users/{id}/posts/{post_id}"
+        );
+    }
+
+    #[test]
+    fn native_path_root() {
+        assert_eq!(super::native_path("/"), "/");
+    }
+
+    // ------------------------------------------------------------------
+    // method_filter tests
+    // ------------------------------------------------------------------
+
+    #[test]
+    fn method_filter_get() {
+        assert_eq!(
+            super::method_filter(&HttpMethod::GET).unwrap(),
+            MethodFilter::GET
+        );
+    }
+
+    #[test]
+    fn method_filter_post() {
+        assert_eq!(
+            super::method_filter(&HttpMethod::POST).unwrap(),
+            MethodFilter::POST
+        );
+    }
+
+    #[test]
+    fn method_filter_put() {
+        assert_eq!(
+            super::method_filter(&HttpMethod::PUT).unwrap(),
+            MethodFilter::PUT
+        );
+    }
+
+    #[test]
+    fn method_filter_delete() {
+        assert_eq!(
+            super::method_filter(&HttpMethod::DELETE).unwrap(),
+            MethodFilter::DELETE
+        );
+    }
+
+    #[test]
+    fn method_filter_patch() {
+        assert_eq!(
+            super::method_filter(&HttpMethod::PATCH).unwrap(),
+            MethodFilter::PATCH
+        );
+    }
+
+    #[test]
+    fn method_filter_head() {
+        assert_eq!(
+            super::method_filter(&HttpMethod::HEAD).unwrap(),
+            MethodFilter::HEAD
+        );
+    }
+
+    #[test]
+    fn method_filter_options() {
+        assert_eq!(
+            super::method_filter(&HttpMethod::OPTIONS).unwrap(),
+            MethodFilter::OPTIONS
+        );
+    }
+
+    // ------------------------------------------------------------------
+    // AxumApplication accessor tests
+    // ------------------------------------------------------------------
+
+    #[test]
+    fn axum_application_router_accessor() {
+        let app = AxumAdapter::new().build(application()).unwrap();
+        let _router = app.router();
+    }
+
+    #[test]
+    fn axum_application_into_router() {
+        let app = AxumAdapter::new().build(application()).unwrap();
+        let router = app.into_router();
+        let _router: Router = router;
+    }
+
+    // ------------------------------------------------------------------
+    // matches_header_version / matches_media_type_version tests
+    // ------------------------------------------------------------------
+
+    #[test]
+    fn matches_header_version_matching() {
+        let request = http::Request::get("/")
+            .header("accept-version", "1")
+            .body(axum::body::Body::empty())
+            .unwrap();
+        let version = ironic_http::VersionMetadata::new("1", VersioningStrategy::Header);
+        assert!(super::matches_header_version(&request, &version));
+    }
+
+    #[test]
+    fn matches_header_version_non_matching() {
+        let request = http::Request::get("/")
+            .header("accept-version", "2")
+            .body(axum::body::Body::empty())
+            .unwrap();
+        let version = ironic_http::VersionMetadata::new("1", VersioningStrategy::Header);
+        assert!(!super::matches_header_version(&request, &version));
+    }
+
+    #[test]
+    fn matches_header_version_missing_header() {
+        let request = http::Request::get("/")
+            .body(axum::body::Body::empty())
+            .unwrap();
+        let version = ironic_http::VersionMetadata::new("1", VersioningStrategy::Header);
+        assert!(!super::matches_header_version(&request, &version));
+    }
+
+    #[test]
+    fn matches_media_type_version_matching() {
+        let request = http::Request::get("/")
+            .header("accept", "application/vnd.api.v3+json")
+            .body(axum::body::Body::empty())
+            .unwrap();
+        let version = ironic_http::VersionMetadata::new("3", VersioningStrategy::MediaType);
+        assert!(super::matches_media_type_version(&request, &version));
+    }
+
+    #[test]
+    fn matches_media_type_version_non_matching() {
+        let request = http::Request::get("/")
+            .header("accept", "application/vnd.api.v2+json")
+            .body(axum::body::Body::empty())
+            .unwrap();
+        let version = ironic_http::VersionMetadata::new("1", VersioningStrategy::MediaType);
+        assert!(!super::matches_media_type_version(&request, &version));
+    }
+
+    #[test]
+    fn matches_media_type_version_missing_header() {
+        let request = http::Request::get("/")
+            .body(axum::body::Body::empty())
+            .unwrap();
+        let version = ironic_http::VersionMetadata::new("1", VersioningStrategy::MediaType);
+        assert!(!super::matches_media_type_version(&request, &version));
     }
 
     #[tokio::test]

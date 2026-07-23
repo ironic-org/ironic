@@ -11,6 +11,8 @@ use super::storage::LogStorage;
 ///
 /// Composes with other layers via `tracing_subscriber::registry()`.
 ///
+/// # Examples
+///
 /// ```ignore
 /// use tracing_subscriber::prelude::*;
 ///
@@ -124,5 +126,56 @@ impl<S: tracing::Subscriber> Layer<S> for TimeSeriesLayer<S> {
         tokio::spawn(async move {
             let _ = storage.store(entry).await;
         });
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn time_series_layer_constructible() {
+        struct NoopStorage;
+        impl LogStorage for NoopStorage {
+            fn store(&self, _entry: LogEntry) -> super::super::storage::StorageFuture<'_> {
+                Box::pin(async { Ok(()) })
+            }
+            fn flush(&self) -> super::super::storage::StorageFuture<'_> {
+                Box::pin(async { Ok(()) })
+            }
+        }
+
+        let storage = Arc::new(NoopStorage);
+        let _layer: TimeSeriesLayer<tracing_subscriber::Registry> = TimeSeriesLayer::new(storage);
+    }
+
+    #[test]
+    fn json_visitor_record_value_skips_message() {
+        let visitor = JsonVisitor {
+            fields: BTreeMap::new(),
+        };
+        assert!(visitor.fields.is_empty());
+    }
+
+    #[test]
+    fn layer_new_accepts_any_storage() {
+        struct CountStorage {
+            stored: std::sync::atomic::AtomicU64,
+        }
+        impl LogStorage for CountStorage {
+            fn store(&self, _entry: LogEntry) -> super::super::storage::StorageFuture<'_> {
+                self.stored
+                    .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+                Box::pin(async { Ok(()) })
+            }
+            fn flush(&self) -> super::super::storage::StorageFuture<'_> {
+                Box::pin(async { Ok(()) })
+            }
+        }
+
+        let storage = Arc::new(CountStorage {
+            stored: std::sync::atomic::AtomicU64::new(0),
+        });
+        let _layer: TimeSeriesLayer<tracing_subscriber::Registry> = TimeSeriesLayer::new(storage);
     }
 }

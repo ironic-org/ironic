@@ -1,6 +1,6 @@
 import type { BaseLayoutProps } from 'fumadocs-ui/layouts/shared';
+import { GitBranch } from 'lucide-react';
 import { GIT_BRANCH } from './constants';
-import { GitHubNavBadge } from '@/src/pages/home/components/github-stars';
 
 export function baseOptions(): BaseLayoutProps {
     return {
@@ -23,11 +23,6 @@ export function baseOptions(): BaseLayoutProps {
                         {GIT_BRANCH}
                     </span>
                 </>
-            ),
-            children: (
-                <span className='hidden xl:inline-flex'>
-                    <GitHubNavBadge />
-                </span>
             ),
         },
     };

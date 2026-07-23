@@ -56,3 +56,15 @@ where
         })
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn sqlx_integration_error_display() {
+        let err = IntegrationError::new("SQLX", "pool exhausted");
+        assert_eq!(err.integration(), "SQLX");
+        assert_eq!(err.to_string(), "IR_INTEGRATION_SQLX: pool exhausted");
+    }
+}

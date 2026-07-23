@@ -36,11 +36,17 @@ impl Interceptor for CacheInterceptor {
                 return next.run(context).await;
             };
 
+            let uri = context.request().uri();
+            let full_path = if let Some(query) = uri.query().filter(|q| !q.is_empty()) {
+                format!("{}?{}", uri.path(), query)
+            } else {
+                uri.path().to_owned()
+            };
             let key = format!(
                 "route-cache:{}:{}:{}",
                 meta.ttl_secs,
                 context.request().method(),
-                context.request().uri().path(),
+                full_path,
             );
 
             if let Some(cached) = self.backend.get(&key).await.map_err(|error| {

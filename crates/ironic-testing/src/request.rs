@@ -9,6 +9,10 @@ use serde::Serialize;
 use crate::TestResponse;
 
 /// A fluent in-process HTTP request builder.
+///
+/// Constructed by [`TestApplication::get()`], [`TestApplication::post()`], etc.
+/// Provides chainable methods to set headers, body, and query parameters before
+/// dispatching via [`send()`](TestRequestBuilder::send).
 pub struct TestRequestBuilder<'a> {
     application: &'a CompiledHttpApplication,
     method: HttpMethod,
@@ -35,6 +39,9 @@ impl<'a> TestRequestBuilder<'a> {
     }
 
     /// Adds a request header.
+    ///
+    /// Sets an internal error when the name or value is malformed — the error
+    /// is returned when [`send()`](TestRequestBuilder::send) is called.
     #[must_use]
     pub fn header(mut self, name: &str, value: &str) -> Self {
         match (
@@ -55,6 +62,9 @@ impl<'a> TestRequestBuilder<'a> {
     }
 
     /// Serializes a request body as JSON and sets its content type.
+    ///
+    /// Sets an internal error when serialization fails — the error is returned
+    /// when [`send()`](TestRequestBuilder::send) is called.
     #[must_use]
     pub fn json<T: Serialize + ?Sized>(mut self, value: &T) -> Self {
         match serde_json::to_vec(value) {
@@ -76,6 +86,10 @@ impl<'a> TestRequestBuilder<'a> {
     }
 
     /// Appends URL-encoded query parameters.
+    ///
+    /// Automatically chooses `?` or `&` as separator based on whether the path
+    /// already contains a query string. Sets an internal error when
+    /// serialization fails.
     #[must_use]
     pub fn query<T: Serialize + ?Sized>(mut self, value: &T) -> Self {
         match serde_urlencoded::to_string(value) {
@@ -102,6 +116,10 @@ impl<'a> TestRequestBuilder<'a> {
     }
 
     /// Dispatches the request through the complete framework pipeline.
+    ///
+    /// If a previous builder call set an internal error (e.g. malformed header
+    /// or failed JSON serialization), the error response is returned immediately
+    /// without dispatching.
     pub async fn send(self) -> TestResponse {
         if let Some(error) = self.error {
             return TestResponse::new(error_response(error));
@@ -167,4 +185,158 @@ fn error_response(error: HttpError) -> Response {
     error
         .into_framework_response()
         .unwrap_or_else(|_| Response::empty(HttpStatus::INTERNAL_SERVER_ERROR))
+}
+
+#[cfg(test)]
+mod tests {
+    use std::collections::HashMap;
+
+    use serde::Serialize;
+
+    use super::{match_path, segments};
+
+    #[test]
+    fn segments_empty_path() {
+        assert!(segments("").is_empty());
+    }
+
+    #[test]
+    fn segments_root_path() {
+        assert!(segments("/").is_empty());
+    }
+
+    #[test]
+    fn segments_single() {
+        assert_eq!(segments("/users"), vec!["users"]);
+    }
+
+    #[test]
+    fn segments_multiple() {
+        assert_eq!(segments("/users/42/posts"), vec!["users", "42", "posts"]);
+    }
+
+    #[test]
+    fn segments_trailing_slash_is_ignored() {
+        assert_eq!(segments("/users/"), vec!["users"]);
+    }
+
+    #[test]
+    fn match_path_exact() {
+        let result = match_path("/users/42", "/users/42");
+        assert_eq!(result, Some(HashMap::new()));
+    }
+
+    #[test]
+    fn match_path_with_parameter() {
+        let result = match_path("/users/:id", "/users/42");
+        let mut expected = HashMap::new();
+        expected.insert("id".to_string(), "42".to_string());
+        assert_eq!(result, Some(expected));
+    }
+
+    #[test]
+    fn match_path_multiple_parameters() {
+        let result = match_path("/:a/:b/:c", "/x/y/z");
+        let mut expected = HashMap::new();
+        expected.insert("a".to_string(), "x".to_string());
+        expected.insert("b".to_string(), "y".to_string());
+        expected.insert("c".to_string(), "z".to_string());
+        assert_eq!(result, Some(expected));
+    }
+
+    #[test]
+    fn match_path_mismatch_length() {
+        let result = match_path("/users/:id", "/users/42/posts");
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn match_path_literal_mismatch() {
+        let result = match_path("/users/:id", "/items/42");
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn header_sets_internal_error_on_invalid_name() {
+        let builder = super::TestRequestBuilder {
+            application: &create_empty_application(),
+            method: ironic_http::HttpMethod::GET,
+            path: "/".to_string(),
+            headers: ironic_http::HeaderMap::new(),
+            body: Vec::new(),
+            error: None,
+        };
+        // Header name with spaces is invalid
+        let builder = builder.header("invalid header name", "value");
+        assert!(builder.error.is_some());
+    }
+
+    #[test]
+    fn body_sets_bytes() {
+        let builder = super::TestRequestBuilder {
+            application: &create_empty_application(),
+            method: ironic_http::HttpMethod::POST,
+            path: "/".to_string(),
+            headers: ironic_http::HeaderMap::new(),
+            body: Vec::new(),
+            error: None,
+        };
+        let builder = builder.body(vec![1, 2, 3]);
+        assert_eq!(builder.body, vec![1, 2, 3]);
+    }
+
+    #[test]
+    fn body_from_str() {
+        let builder = super::TestRequestBuilder {
+            application: &create_empty_application(),
+            method: ironic_http::HttpMethod::POST,
+            path: "/".to_string(),
+            headers: ironic_http::HeaderMap::new(),
+            body: Vec::new(),
+            error: None,
+        };
+        let builder = builder.body("hello");
+        assert_eq!(builder.body, b"hello");
+    }
+
+    #[test]
+    fn query_appends_question_mark() {
+        #[derive(Serialize)]
+        struct Q {
+            key: String,
+        }
+        let builder = super::TestRequestBuilder {
+            application: &create_empty_application(),
+            method: ironic_http::HttpMethod::GET,
+            path: "/search".to_string(),
+            headers: ironic_http::HeaderMap::new(),
+            body: Vec::new(),
+            error: None,
+        };
+        let builder = builder.query(&Q { key: "val".into() });
+        assert_eq!(builder.path, "/search?key=val");
+    }
+
+    #[test]
+    fn query_appends_ampersand_when_query_exists() {
+        #[derive(Serialize)]
+        struct Q {
+            key: String,
+        }
+        let builder = super::TestRequestBuilder {
+            application: &create_empty_application(),
+            method: ironic_http::HttpMethod::GET,
+            path: "/search?existing=1".to_string(),
+            headers: ironic_http::HeaderMap::new(),
+            body: Vec::new(),
+            error: None,
+        };
+        let builder = builder.query(&Q { key: "val".into() });
+        assert_eq!(builder.path, "/search?existing=1&key=val");
+    }
+
+    fn create_empty_application() -> ironic_http::CompiledHttpApplication {
+        use ironic_di::ContainerBuilder;
+        ironic_http::CompiledHttpApplication::new(ContainerBuilder::new().build(), Vec::new())
+    }
 }

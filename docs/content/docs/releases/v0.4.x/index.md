@@ -5,95 +5,85 @@ description: Complete changelog and release notes for the Ironic v0.4.x stable s
 
 ## v0.4.9 — 2026-07-16
 
-# v0.4.9
-
 ### Added
-- implement CI/CD pipeline, security auditing, and operational endpoints (e5537f2)
-- enhance observability with operational endpoints and health checks (0082bdb)
+- Implement CI/CD pipeline, security auditing, and operational endpoints (e5537f2)
+- Enhance observability with operational endpoints and health checks (0082bdb)
 
 ### Fixed
-- improve documentation and formatting in build script and tests (5226611)
+- Improve documentation and formatting in build script and tests (5226611)
 
 ---
+
 ## v0.4.8 — 2026-07-16
 
-# v0.4.8
-
 ### Added
-- add database migration commands and update documentation (1e3db79)
+- Add database migration commands and update documentation (1e3db79)
 
 ### Fixed
-- improve formatting and readability in migration and project generation code (37a696c)
-- enhance API documentation for authentication endpoints (acdf3d1)
-- enhance OpenAPI attributes and improve controller documentation (e27518d)
+- Improve formatting and readability in migration and project generation code (37a696c)
+- Enhance API documentation for authentication endpoints (acdf3d1)
+- Enhance OpenAPI attributes and improve controller documentation (e27518d)
 
 ### Changed
 - Add robots.txt and site.webmanifest for SEO and PWA support (d21bb8f)
 - Implement code changes to enhance functionality and improve performance (57a33f2)
 
 ---
+
 ## v0.4.7 — 2026-07-16
 
-# v0.4.7
-
 ### Fixed
-- enhance release script and project generator for better version handling and documentation sync (a8e859e)
+- Enhance release script and project generator for better version handling and documentation sync (a8e859e)
 
 ---
+
 ## v0.4.6 — 2026-07-16
 
-# v0.4.6
-
 ### Added
-- update version to 0.4.6 and enhance OpenAPI support with new attributes (f088ce6)
+- Update version to 0.4.6 and enhance OpenAPI support with new attributes (f088ce6)
 
 ### Fixed
-- comment out database module by default with setup guide (a0612d4)
+- Comment out database module by default with setup guide (a0612d4)
 
 ---
+
 ## v0.4.5 — 2026-07-16
 
-# v0.4.5
-
 ---
+
 ## v0.4.4 — 2026-07-16
 
-# v0.4.4
-
 ### Added
-- enhance update command to automatically upgrade to the latest version (24228b6)
+- Enhance update command to automatically upgrade to the latest version (24228b6)
 
 ---
+
 ## v0.4.3 — 2026-07-16
 
-# v0.4.3
-
 ### Fixed
-- update default server host to 0.0.0.0 in multiple examples (435807c)
-- update latest version in BlogIndex to v0.4.2 (2ca67ef)
+- Update default server host to 0.0.0.0 in multiple examples (435807c)
+- Update latest version in BlogIndex to v0.4.2 (2ca67ef)
 
 ---
+
 ## v0.4.2 — 2026-07-16
 
-# v0.4.2
-
 ### Fixed
-- enable hot-reload feature in Cargo.toml (a87a424)
-- remove redundant command for cleaning stale test cache artifacts (e560244)
-- update release script to check if version is published on crates.io before proceeding (d188dfc)
+- Enable hot-reload feature in Cargo.toml (a87a424)
+- Remove redundant command for cleaning stale test cache artifacts (e560244)
+- Update release script to check if version is published on crates.io before proceeding (d188dfc)
 
 ### Changed
-- enhance getting started guide with project structure details (eb6ebeb)
+- Enhance getting started guide with project structure details (eb6ebeb)
 
 ---
+
 ## v0.4.1 — 2026-07-15
 
-# v0.4.1
-
 ### Added
-- add repository generation support in CLI and refactor todo app (09f74f4)
+- Add repository generation support in CLI and refactor todo app (09f74f4)
 - Add comprehensive documentation for Todo API, database migrations, schema, architecture, deployment, and development setup (5034e24)
-- initialize todo application with Ironic framework (4b19726)
+- Initialize todo application with Ironic framework (4b19726)
 - Enhance database integration documentation with setup instructions and examples (afea150)
 - Add S3 upload documentation and update meta.json to include new page (630047e)
 - Add configuration and migrations metadata, update advanced pages (16d2473)
@@ -109,129 +99,98 @@ description: Complete changelog and release notes for the Ironic v0.4.x stable s
 - Remove redundant import and reorganize imports for clarity (1a4349d)
 
 ### Changed
-- streamline code structure and improve readability across multiple files (3b7b0a2)
+- Streamline code structure and improve readability across multiple files (3b7b0a2)
 
 ---
+
 ## v0.4.0 — 2026-07-15
 
-# v0.4.0 — Production Readiness & Enterprise Features
+### Added
 
-v0.4.0 is a major release focused on production-readiness. It brings multipart file uploads, Redis-backed session persistence, OAuth2 callback handling, backpressure/bulkhead protection, error backtraces, configuration hot-reload, feature toggles, and comprehensive documentation.
+- **Multipart Upload**: Ironic now has first-class multipart/form-data support via the `MultipartForm<T>` extractor. This combines structured form fields (via `DeserializeOwned`) with file uploads.
 
----
+  ```rust
+  #[derive(serde::Deserialize)]
+  struct UploadDto {
+      title: String,
+      description: String,
+  }
 
-## Multipart Upload
+  #[post("/upload")]
+  async fn upload(
+      &self,
+      #[decorator(MultipartForm<UploadDto>)]
+      form: MultipartFormData<UploadDto>,
+  ) -> Result<Json<UploadResponse>, HttpError> {
+      let file = &form.files[0];
+      // file.field_name, file.file_name, file.content_type, file.data
+  }
+  ```
 
-Ironic now has first-class multipart/form-data support via the `MultipartForm<T>` extractor. This combines structured form fields (via `DeserializeOwned`) with file uploads.
+  Configuration includes per-file size limits (default 5 MiB), per-field size limits (default 256 KiB), and total body limits. Exceeding limits returns 413 Payload Too Large. Gated behind the `multipart` feature flag.
 
-```rust
-#[derive(serde::Deserialize)]
-struct UploadDto {
-    title: String,
-    description: String,
-}
+- **Redis Session Persistence**: The new `RedisSessionStore` implements the `SessionStore` trait against Redis, serializing sessions as JSON under `ironic:session:{id}` keys with configurable TTL (default 24h).
 
-#[post("/upload")]
-async fn upload(
-    &self,
-    #[decorator(MultipartForm<UploadDto>)]
-    form: MultipartFormData<UploadDto>,
-) -> Result<Json<UploadResponse>, HttpError> {
-    let file = &form.files[0];
-    // file.field_name, file.file_name, file.content_type, file.data
-}
-```
+  ```rust
+  let store = RedisSessionStore::new(connection_manager)
+      .with_ttl(Duration::from_secs(3600));
 
-Configuration includes per-file size limits (default 5 MiB), per-field size limits (default 256 KiB), and total body limits. Exceeding limits returns 413 Payload Too Large. Gated behind the `multipart` feature flag.
+  // Or via config struct:
+  let store = RedisSessionStore::with_config(conn, RedisSessionConfig { session_ttl: 7200 });
+  ```
 
----
+  Gated behind `redis` + `sessions` features.
 
-## Redis Session Persistence
+- **Error Backtraces**: `HttpError` now supports capturing Rust backtraces automatically when the `backtrace` feature is enabled. `HttpError::internal()` captures a `Backtrace` at the call site, serialized in debug builds only.
 
-The new `RedisSessionStore` implements the `SessionStore` trait against Redis, serializing sessions as JSON under `ironic:session:{id}` keys with configurable TTL (default 24h).
+  Gated behind the `backtrace` feature flag.
 
-```rust
-let store = RedisSessionStore::new(connection_manager)
-    .with_ttl(Duration::from_secs(3600));
+- **Backpressure / Bulkhead**: `ConcurrencyLimitLayer` and `ConcurrencyLimitService` provide bulkhead protection with a configurable concurrency limit. When exceeded, the service returns 503 Service Unavailable.
 
-// Or via config struct:
-let store = RedisSessionStore::with_config(conn, RedisSessionConfig { session_ttl: 7200 });
-```
+  ```rust
+  AxumAdapter::new(router)
+      .max_concurrent_requests(128)
+  ```
 
-Gated behind `redis` + `sessions` features.
+  The `ConcurrencyLimitService` is infallible (`Error = Infallible`) for `Router::layer()` compatibility. Gated behind `resilience-ext`.
 
----
+- **OAuth2 Callback Handler**: The OAuth2 module now includes token exchange (`exchange_code()`), state validation (`validate_state()`), and session token storage (`store_tokens_in_session()`). The `ProviderTokenResponse` type provides structured access to access/refresh tokens and expiry.
 
-## Error Backtraces
+  The exchange is generic over `AsyncHttpClient` — no `reqwest` dependency required. Gated behind `oauth`.
 
-`HttpError` now supports capturing Rust backtraces automatically when the `backtrace` feature is enabled. `HttpError::internal()` captures a `Backtrace` at the call site, serialized in debug builds only.
+- **Config Hot Reload & Feature Toggles**: `ConfigurationLoader::watch()` spawns a file watcher that reloads configuration on change, communicating updates through a `tokio::sync::watch` channel.
 
-Gated behind the `backtrace` feature flag.
+  ```rust
+  let watcher: ConfigWatcher<AppConfig> = ConfigurationLoader::new()
+      .file("config.toml")
+      .watch()
+      .await?;
+  ```
 
----
+  `FeatureToggle` allows runtime feature flag control from config:
 
-## Backpressure / Bulkhead
+  ```rust
+  let toggle = FeatureToggle::from_root_config("new_checkout");
+  if toggle.is_enabled() { /* new path */ }
+  ```
 
-`ConcurrencyLimitLayer` and `ConcurrencyLimitService` provide bulkhead protection with a configurable concurrency limit. When exceeded, the service returns 503 Service Unavailable.
+  Gated behind `hot-reload` (uses `notify` 8.2.0).
 
-```rust
-AxumAdapter::new(router)
-    .max_concurrent_requests(128)
-```
+- **Documentation**: 15+ documentation pages were created or updated, including:
 
-The `ConcurrencyLimitService` is infallible (`Error = Infallible`) for `Router::layer()` compatibility. Gated behind `resilience-ext`.
+  - Configuration profiles — environment-aware config with `IRONIC_ENV`, file precedence
+  - Multipart uploads — usage, size limits, error handling
+  - Static file serving — ETag, Cache-Control, directory index
+  - Session persistence — Redis & in-memory stores, TTL configuration
+  - OTLP telemetry — OpenTelemetry export, W3C trace context, sampling
+  - Metrics — per-endpoint labels, histogram buckets, custom metrics API
+  - Health checks — `HealthIndicator` trait, composite endpoint, per-dependency status
+  - Middleware — rate limit backends, header configuration
+  - Deployment — drain timeout, graceful shutdown, rolling deployments
 
----
+  All docs include runnable examples, configuration tables, testing sections, and common mistake tables.
 
-## OAuth2 Callback Handler
-
-The OAuth2 module now includes token exchange (`exchange_code()`), state validation (`validate_state()`), and session token storage (`store_tokens_in_session()`). The `ProviderTokenResponse` type provides structured access to access/refresh tokens and expiry.
-
-The exchange is generic over `AsyncHttpClient` — no `reqwest` dependency required. Gated behind `oauth`.
-
----
-
-## Config Hot Reload & Feature Toggles
-
-`ConfigurationLoader::watch()` spawns a file watcher that reloads configuration on change, communicating updates through a `tokio::sync::watch` channel.
-
-```rust
-let watcher: ConfigWatcher<AppConfig> = ConfigurationLoader::new()
-    .file("config.toml")
-    .watch()
-    .await?;
-```
-
-`FeatureToggle` allows runtime feature flag control from config:
-
-```rust
-let toggle = FeatureToggle::from_root_config("new_checkout");
-if toggle.is_enabled() { /* new path */ }
-```
-
-Gated behind `hot-reload` (uses `notify` 8.2.0).
-
----
-
-## Documentation
-
-15+ documentation pages were created or updated, including:
-
-- **Configuration profiles** — environment-aware config with `IRONIC_ENV`, file precedence
-- **Multipart uploads** — usage, size limits, error handling
-- **Static file serving** — ETag, Cache-Control, directory index
-- **Session persistence** — Redis & in-memory stores, TTL configuration
-- **OTLP telemetry** — OpenTelemetry export, W3C trace context, sampling
-- **Metrics** — per-endpoint labels, histogram buckets, custom metrics API
-- **Health checks** — `HealthIndicator` trait, composite endpoint, per-dependency status
-- **Middleware** — rate limit backends, header configuration
-- **Deployment** — drain timeout, graceful shutdown, rolling deployments
-
-All docs include runnable examples, configuration tables, testing sections, and common mistake tables.
-
----
-
-## Migration Guide
+### Migration Guide
 
 A comprehensive [migration guide](/docs/migrations/v0.3.x) covers all breaking changes:
 
@@ -241,7 +200,7 @@ A comprehensive [migration guide](/docs/migrations/v0.3.x) covers all breaking c
 - Health endpoint returns per-component checks with composite format
 - New feature flags: `multipart`, `static-files`, `backtrace`, `resilience-ext`
 
-## Full Changelog
+### Full Changelog
 
 See the [CHANGELOG](https://github.com/ironic-org/ironic/blob/main/CHANGELOG.md) for the complete list of changes.
 

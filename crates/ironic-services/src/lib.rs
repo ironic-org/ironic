@@ -8,6 +8,8 @@ pub mod events;
 pub mod realtime;
 #[cfg(feature = "scheduling")]
 pub mod scheduling;
+#[cfg(feature = "sse")]
+pub mod sse;
 #[cfg(feature = "realtime")]
 /// WebSocket gateway runtime: connections, rooms, and broadcasting.
 pub mod ws;

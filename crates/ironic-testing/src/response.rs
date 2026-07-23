@@ -2,6 +2,10 @@ use ironic_http::{HeaderMap, HttpStatus, Response};
 use serde::{Serialize, de::DeserializeOwned};
 
 /// An in-process response with typed accessors and focused assertions.
+///
+/// Wraps an [`ironic_http::Response`] and provides convenience methods for
+/// common test assertions such as status code, header values, and JSON body
+/// comparison.
 pub struct TestResponse {
     response: Response,
 }
@@ -98,5 +102,130 @@ impl TestResponse {
     #[must_use]
     pub fn into_inner(self) -> Response {
         self.response
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use ironic_http::{HeaderMap, HeaderValue, HttpStatus, Response};
+
+    use super::TestResponse;
+
+    fn ok_response() -> TestResponse {
+        let mut headers = HeaderMap::new();
+        headers.insert("content-type", HeaderValue::from_static("application/json"));
+        headers.insert("x-request-id", HeaderValue::from_static("abc"));
+        let response =
+            Response::json(HttpStatus::OK, &serde_json::json!({"key": "value"})).unwrap();
+        TestResponse::new(response)
+    }
+
+    fn error_response() -> TestResponse {
+        let response = Response::error(
+            HttpStatus::NOT_FOUND,
+            "RF_RESOURCE_NOT_FOUND",
+            "The resource was not found",
+        );
+        TestResponse::new(response)
+    }
+
+    #[test]
+    fn status_returns_http_status() {
+        let resp = ok_response();
+        assert_eq!(resp.status(), HttpStatus::OK);
+    }
+
+    #[test]
+    fn headers_returns_header_map() {
+        let resp = ok_response();
+        assert_eq!(
+            resp.headers().get("content-type").unwrap(),
+            "application/json"
+        );
+    }
+
+    #[test]
+    fn body_returns_bytes() {
+        let resp = ok_response();
+        assert!(!resp.body().is_empty());
+    }
+
+    #[test]
+    fn json_deserializes_body() {
+        let resp = ok_response();
+        let value: serde_json::Value = resp.json().unwrap();
+        assert_eq!(value["key"], "value");
+    }
+
+    #[test]
+    fn json_returns_error_on_empty_body() {
+        let response = Response::empty(HttpStatus::OK);
+        let resp = TestResponse::new(response);
+        assert!(resp.json::<serde_json::Value>().is_err());
+    }
+
+    #[test]
+    fn assert_status_passes() {
+        ok_response().assert_status(200);
+    }
+
+    #[test]
+    #[should_panic(expected = "unexpected response status")]
+    fn assert_status_panics_on_mismatch() {
+        ok_response().assert_status(404);
+    }
+
+    #[test]
+    fn assert_header_passes() {
+        ok_response().assert_header("content-type", "application/json");
+    }
+
+    #[test]
+    #[should_panic(expected = "response header `x-missing` is missing")]
+    fn assert_header_panics_on_missing() {
+        ok_response().assert_header("x-missing", "value");
+    }
+
+    #[test]
+    fn assert_json_passes() {
+        ok_response().assert_json(&serde_json::json!({"key": "value"}));
+    }
+
+    #[test]
+    #[should_panic(expected = "unexpected JSON response body")]
+    fn assert_json_panics_on_mismatch() {
+        ok_response().assert_json(&serde_json::json!({"key": "wrong"}));
+    }
+
+    #[test]
+    fn assert_error_passes() {
+        error_response().assert_error("RF_RESOURCE_NOT_FOUND");
+    }
+
+    #[test]
+    #[should_panic(expected = "unexpected framework error code")]
+    fn assert_error_panics_on_code_mismatch() {
+        error_response().assert_error("RF_WRONG_CODE");
+    }
+
+    #[test]
+    #[should_panic(expected = "unexpected framework error code")]
+    fn assert_error_panics_on_non_error_body() {
+        ok_response().assert_error("ANY");
+    }
+
+    #[test]
+    fn into_inner_consumes_wrapper() {
+        let resp = ok_response();
+        let inner = resp.into_inner();
+        assert_eq!(inner.status(), HttpStatus::OK);
+    }
+
+    #[test]
+    fn empty_response_has_empty_body() {
+        let response = Response::empty(HttpStatus::NO_CONTENT);
+        let resp = TestResponse::new(response);
+        assert_eq!(resp.status(), HttpStatus::NO_CONTENT);
+        assert!(resp.body().is_empty());
     }
 }

@@ -8,6 +8,14 @@ use serde::Serialize;
 use crate::{CompiledApplicationGraph, CompiledHttpApplication};
 
 /// Serializable application graph and route snapshot.
+///
+/// # Errors
+///
+/// Construction is infallible; serialization may fail at Axum runtime.
+///
+/// # Panics
+///
+/// Never panics.
 #[derive(Clone, Debug, Serialize)]
 pub struct DevtoolsSnapshot {
     /// Root module type name.
@@ -141,4 +149,57 @@ fn escape(value: &str) -> String {
         .replace('>', "&gt;")
         .replace('"', "&quot;")
         .replace('\'', "&#39;")
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn escape_ampersand() {
+        assert_eq!(escape("a&b"), "a&amp;b");
+    }
+
+    #[test]
+    fn escape_angle_brackets() {
+        assert_eq!(escape("<script>"), "&lt;script&gt;");
+    }
+
+    #[test]
+    fn escape_quotes() {
+        assert_eq!(escape(r#"a"b'c"#), "a&quot;b&#39;c");
+    }
+
+    #[test]
+    fn escape_noop_for_plain_text() {
+        assert_eq!(escape("hello world"), "hello world");
+    }
+
+    #[test]
+    fn devtools_snapshot_serialize() {
+        let snapshot = DevtoolsSnapshot {
+            root: "AppModule".into(),
+            modules: vec![ModuleSnapshot {
+                name: "FooModule".into(),
+                imports: vec!["BarModule".into()],
+                providers: vec![ProviderSnapshot {
+                    name: "DbPool".into(),
+                    scope: "Singleton".into(),
+                    dependencies: vec![],
+                }],
+            }],
+            routes: vec![RouteSnapshot {
+                method: "GET".into(),
+                path: "/users".into(),
+                controller: "UserController".into(),
+                handler: "list".into(),
+            }],
+        };
+
+        let json = serde_json::to_string(&snapshot).unwrap();
+        assert!(json.contains("AppModule"));
+        assert!(json.contains("FooModule"));
+        assert!(json.contains("DbPool"));
+        assert!(json.contains("GET"));
+    }
 }

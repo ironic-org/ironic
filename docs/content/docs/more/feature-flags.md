@@ -124,7 +124,7 @@ These are always available (no feature flag required):
 | Per-route timeout | `RouteDefinition::timeout(duration)` — overrides global adapter timeout |
 | Feature gate guard | `FeatureGateGuard::new("feature-name")` — gates routes behind runtime toggles |
 | Cache prefix invalidation | `Cache::remove_by_prefix(prefix)` — invalidates all keys starting with prefix |
-| Rate limit key resolver | `RateLimitMiddleware::key_resolver(...)` — custom rate limit keys |
+| Rate limit key resolver | `RateLimitMiddleware::with_key_resolver(...)` — custom rate limit keys |
 | TCP connection limit | `AxumAdapter::max_connections(n)` — prevents socket exhaustion |
 | Task pause/resume | `ScheduledTask::pause()` / `resume()` — runtime task control |
 | Error counter metric | `ironic_http_errors_total` — auto-incremented on 5xx in Prometheus scrape |

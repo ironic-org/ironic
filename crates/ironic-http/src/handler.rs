@@ -93,3 +93,46 @@ where
         marker: PhantomData,
     })
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn handler_arguments_take_returns_value() {
+        let mut args = HandlerArguments::new(vec![Box::new(42u32)]);
+        let value: u32 = args.take(0).unwrap();
+        assert_eq!(value, 42);
+    }
+
+    #[test]
+    fn handler_arguments_take_out_of_bounds_returns_error() {
+        let mut args = HandlerArguments::new(vec![Box::new(1u32)]);
+        let err = args.take::<u32>(5).unwrap_err();
+        assert_eq!(err.code(), "RF_HTTP_HANDLER_ARGUMENT_MISSING");
+    }
+
+    #[test]
+    fn handler_arguments_take_twice_returns_error() {
+        let mut args = HandlerArguments::new(vec![Box::new(1u32)]);
+        let _first: u32 = args.take(0).unwrap();
+        let err = args.take::<u32>(0).unwrap_err();
+        assert_eq!(err.code(), "RF_HTTP_HANDLER_ARGUMENT_MISSING");
+    }
+
+    #[test]
+    fn handler_arguments_take_wrong_type_returns_error() {
+        let mut args = HandlerArguments::new(vec![Box::new("hello".to_string())]);
+        let err = args.take::<u32>(0).unwrap_err();
+        assert_eq!(err.code(), "RF_HTTP_HANDLER_TYPE_MISMATCH");
+    }
+
+    #[test]
+    fn handler_fn_returns_erased_handler() {
+        use std::sync::Arc;
+        let handler = handler_fn(|_controller: Arc<()>, _args| async move {
+            Ok::<_, HttpError>(Response::empty(http::StatusCode::OK))
+        });
+        let _: Arc<dyn ErasedHandler> = handler;
+    }
+}

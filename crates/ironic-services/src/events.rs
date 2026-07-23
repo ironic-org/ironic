@@ -10,6 +10,14 @@ use tokio::sync::{Mutex, RwLock, mpsc};
 type ErasedEvent = Arc<dyn Any + Send + Sync>;
 
 /// A typed event subscriber.
+///
+/// # Errors
+///
+/// [`recv`](EventSubscription::recv) returns `None` when the bus drops.
+///
+/// # Panics
+///
+/// Never panics.
 pub struct EventSubscription<E> {
     receiver: mpsc::Receiver<ErasedEvent>,
     marker: std::marker::PhantomData<fn() -> E>,
@@ -99,5 +107,89 @@ impl EventBus {
     pub async fn drain_dead_letters(&self) -> Vec<DeadLetter> {
         let mut queue = self.dead_letters.lock().await;
         std::mem::take(&mut *queue)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[derive(Debug, Clone, PartialEq, Eq)]
+    struct TestEvent(u32);
+
+    #[tokio::test]
+    async fn subscribe_and_recv() {
+        let bus = EventBus::default();
+        let mut sub = bus.subscribe::<TestEvent>(8).await;
+        let n = bus.publish(TestEvent(42)).await;
+        assert_eq!(n, 1);
+        let ev = sub.recv().await;
+        assert_eq!(ev.as_deref(), Some(&TestEvent(42)));
+    }
+
+    #[tokio::test]
+    async fn multiple_subscribers() {
+        let bus = EventBus::default();
+        let mut sub1 = bus.subscribe::<TestEvent>(8).await;
+        let mut sub2 = bus.subscribe::<TestEvent>(8).await;
+        let n = bus.publish(TestEvent(1)).await;
+        assert_eq!(n, 2);
+        assert_eq!(sub1.recv().await.as_deref(), Some(&TestEvent(1)));
+        assert_eq!(sub2.recv().await.as_deref(), Some(&TestEvent(1)));
+    }
+
+    #[tokio::test]
+    async fn publish_to_no_subscribers() {
+        let bus = EventBus::default();
+        let n = bus.publish(TestEvent(99)).await;
+        assert_eq!(n, 0);
+    }
+
+    #[tokio::test]
+    async fn subscribe_different_types() {
+        let bus = EventBus::default();
+        let mut sub_a = bus.subscribe::<TestEvent>(8).await;
+        let mut sub_b = bus.subscribe::<String>(8).await;
+
+        bus.publish(TestEvent(1)).await;
+        bus.publish("hello".to_string()).await;
+
+        assert_eq!(sub_a.recv().await.as_deref(), Some(&TestEvent(1)));
+        assert_eq!(sub_b.recv().await.as_deref(), Some(&"hello".to_string()));
+    }
+
+    #[tokio::test]
+    async fn dead_letter_on_dropped_subscriber() {
+        let bus = EventBus::default();
+        {
+            let _sub = bus.subscribe::<TestEvent>(1).await;
+        }
+        // Give the drop time to propagate
+        tokio::task::yield_now().await;
+        bus.publish(TestEvent(7)).await;
+        let dead = bus.drain_dead_letters().await;
+        assert_eq!(dead.len(), 1);
+        assert!(dead[0].type_name.contains("TestEvent"));
+    }
+
+    #[tokio::test]
+    async fn drain_dead_letters_idempotent() {
+        let bus = EventBus::default();
+        let sub = bus.subscribe::<TestEvent>(1).await;
+        drop(sub);
+        tokio::task::yield_now().await;
+        bus.publish(TestEvent(1)).await;
+        assert_eq!(bus.drain_dead_letters().await.len(), 1);
+        // second drain returns empty
+        assert!(bus.drain_dead_letters().await.is_empty());
+    }
+
+    #[tokio::test]
+    async fn subscriber_recv_none_when_bus_dropped() {
+        let bus = Arc::new(EventBus::default());
+        let mut sub = bus.subscribe::<TestEvent>(8).await;
+        drop(bus);
+        let ev = sub.recv().await;
+        assert!(ev.is_none());
     }
 }

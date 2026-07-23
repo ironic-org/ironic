@@ -156,14 +156,18 @@ use ironic::telemetry::inject_trace_context;
 
 async fn call_external_api() -> Result<(), HttpError> {
     let client = reqwest::Client::new();
-    let mut headers = reqwest::header::HeaderMap::new();
 
-    // Injects traceparent header from the current tracing span
-    inject_trace_context(&mut headers);
+    // Build a request and inject trace context into it
+    let mut request = http::Request::builder()
+        .uri("https://api.example.com/data")
+        .body(())
+        .unwrap();
+
+    inject_trace_context(&mut request);
 
     let resp = client
         .get("https://api.example.com/data")
-        .headers(headers)
+        .headers(request.headers().clone())
         .send()
         .await?;
 

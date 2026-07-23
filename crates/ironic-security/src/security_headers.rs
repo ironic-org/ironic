@@ -7,6 +7,20 @@ use std::sync::Arc;
 use ironic_http::{Middleware, MiddlewareNext, PipelineFuture, RequestContext};
 
 /// Security headers configuration.
+///
+/// All headers are enabled by default with secure values.
+/// Use the builder methods to customize or disable individual headers.
+///
+/// # Example
+///
+/// ```rust
+/// use ironic::security::security_headers::SecurityHeadersConfig;
+///
+/// let config = SecurityHeadersConfig::new()
+///     .hsts("max-age=63072000; includeSubDomains; preload")
+///     .csp("default-src 'self'; script-src 'self' 'unsafe-inline'")
+///     .disable_hsts();
+/// ```
 #[derive(Clone)]
 pub struct SecurityHeadersConfig {
     hsts: Option<String>,
@@ -121,6 +135,18 @@ fn insert_header(headers: &mut http::HeaderMap, name: http::HeaderName, value: &
 }
 
 /// Middleware that sets security-related HTTP response headers.
+///
+/// Applies the configured headers to every response. Headers include
+/// HSTS, CSP, X-Content-Type-Options, X-Frame-Options, Referrer-Policy,
+/// Permissions-Policy, and Cross-Origin-* policies.
+///
+/// # Example
+///
+/// ```rust
+/// use ironic::security::{SecurityHeadersConfig, SecurityHeadersMiddleware};
+///
+/// let middleware = SecurityHeadersMiddleware::new(SecurityHeadersConfig::new());
+/// ```
 #[derive(Clone)]
 pub struct SecurityHeadersMiddleware {
     config: Arc<SecurityHeadersConfig>,
@@ -192,5 +218,103 @@ impl Middleware for SecurityHeadersMiddleware {
 
             Ok(response)
         })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn default_config_has_all_headers() {
+        let config = SecurityHeadersConfig::new();
+        assert!(config.hsts.is_some());
+        assert!(config.csp.is_some());
+        assert!(config.x_content_type_options.is_some());
+        assert!(config.x_frame_options.is_some());
+        assert!(config.referrer_policy.is_some());
+    }
+
+    #[test]
+    fn disable_hsts_removes_header() {
+        let config = SecurityHeadersConfig::new().disable_hsts();
+        assert!(config.hsts.is_none());
+    }
+
+    #[test]
+    fn disable_csp_removes_header() {
+        let config = SecurityHeadersConfig::new().disable_csp();
+        assert!(config.csp.is_none());
+    }
+
+    #[test]
+    fn custom_hsts_value() {
+        let config = SecurityHeadersConfig::new().hsts("max-age=63072000");
+        assert_eq!(config.hsts.as_deref(), Some("max-age=63072000"));
+    }
+
+    #[test]
+    fn custom_csp_value() {
+        let config = SecurityHeadersConfig::new().csp("default-src 'none'");
+        assert_eq!(config.csp.as_deref(), Some("default-src 'none'"));
+    }
+
+    #[test]
+    fn custom_x_content_type_options() {
+        let config = SecurityHeadersConfig::new().x_content_type_options("nosniff");
+        assert_eq!(config.x_content_type_options.as_deref(), Some("nosniff"));
+    }
+
+    #[test]
+    fn custom_x_frame_options() {
+        let config = SecurityHeadersConfig::new().x_frame_options("SAMEORIGIN");
+        assert_eq!(config.x_frame_options.as_deref(), Some("SAMEORIGIN"));
+    }
+
+    #[test]
+    fn custom_referrer_policy() {
+        let config = SecurityHeadersConfig::new().referrer_policy("no-referrer");
+        assert_eq!(config.referrer_policy.as_deref(), Some("no-referrer"));
+    }
+
+    #[test]
+    fn cross_origin_policies() {
+        let config = SecurityHeadersConfig::new()
+            .cross_origin_opener_policy("unsafe-none")
+            .cross_origin_embedder_policy("unsafe-none")
+            .cross_origin_resource_policy("cross-origin");
+        assert_eq!(
+            config.cross_origin_opener_policy.as_deref(),
+            Some("unsafe-none")
+        );
+        assert_eq!(
+            config.cross_origin_embedder_policy.as_deref(),
+            Some("unsafe-none")
+        );
+        assert_eq!(
+            config.cross_origin_resource_policy.as_deref(),
+            Some("cross-origin")
+        );
+    }
+
+    #[test]
+    fn middleware_constructs() {
+        let mw = SecurityHeadersMiddleware::new(SecurityHeadersConfig::new());
+        let _ = mw;
+    }
+
+    #[test]
+    fn default_hsts_value() {
+        let config = SecurityHeadersConfig::new();
+        assert_eq!(
+            config.hsts.as_deref(),
+            Some("max-age=31536000; includeSubDomains")
+        );
+    }
+
+    #[test]
+    fn default_csp_value() {
+        let config = SecurityHeadersConfig::new();
+        assert_eq!(config.csp.as_deref(), Some("default-src 'self'"));
     }
 }

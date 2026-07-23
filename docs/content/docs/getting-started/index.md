@@ -29,73 +29,26 @@ This documentation walks you through every feature step by step:
 
 ## How Ironic compares
 
-Ironic combines NestJS's batteries-included philosophy with Rust's performance and zero-cost abstractions:
+| | Ironic | Axum | Actix-Web | Rocket | Salvo | Poem | Warp | NestJS |
+|---|---|---|---|---|---|---|---|---|
+| **DI Container** | ✅ Built-in | ❌ Bring your own | ❌ Bring your own | ❌ | ❌ | ❌ | ❌ | ✅ Built-in |
+| **Module System** | ✅ Built-in | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ Built-in |
+| **CLI** | ✅ Scaffolding + generators | ❌ | ❌ | 🔶 Basic | ❌ | ❌ | ❌ | ✅ CLI |
+| **Auth** | ✅ JWT + OAuth2 + Sessions | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ Passport |
+| **OpenAPI** | ✅ Auto-generated | ❌ | 🔶 Utopică | ❌ | ❌ | ✅ Poem OpenAPI | ❌ | ✅ Swagger |
+| **Metrics** | ✅ Prometheus | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| **Config** | ✅ Typed + hot-reload | ❌ | ❌ | 🔶 Figment | 🔶 | 🔶 | ❌ | ✅ ConfigModule |
+| **WebSockets** | ✅ Gateways + Rooms | ✅ axum/ws | ✅ actix-ws | ❌ | ✅ | ✅ | ❌ | ✅ Gateways |
+| **GraphQL** | ✅ async-graphql | ❌ | 🔶 | ❌ | ❌ | ✅ | ❌ | ✅ @nestjs/graphql |
+| **Background Jobs** | ✅ Cron + Queues + Sagas | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ @nestjs/schedule |
+| **Caching** | ✅ In-memory + Redis | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ CacheModule |
+| **CQRS / Event Bus** | ✅ Built-in | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ @nestjs/cqrs |
+| **Validation** | ✅ Pipes + Garde | ❌ | ❌ | ❌ | ✅ Validator | ✅ Validator | ❌ | ✅ ValidationPipe |
+| **Testing Utilities** | ✅ TestModule + in-process client | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ Test |
+| **Hot Reload** | ✅ Config + file watching | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ Webpack HMR |
+| **Middleware** | ✅ Guards + Interceptors + Filters | ✅ Tower layers | ✅ Middleware | ✅ Fairings | ✅ Middleware | ✅ Middleware | ✅ Filters | ✅ Guards + Interceptors |
+| **Runtime** | Async (tokio) | Async (tokio) | Async (tokio) | Async (tokio) | Async (tokio) | Async (tokio) | Async (tokio) | Single-threaded (Node.js) |
+| **Memory Safety** | ✅ Compile-time | ✅ Compile-time | ✅ Compile-time | ✅ Compile-time | ✅ Compile-time | ✅ Compile-time | ✅ Compile-time | ❌ GC |
+| **Package ecosystem** | Single crate | Tower/tower-http | actix extras | Rocket contrib | Salvo extras | Poem extras | Filters | NPM (1M+ packages) |
 
-| Feature | NestJS | Axum | Actix Web | Loco | **Ironic** |
-|---------|--------|------|-----------|------|------------|
-| **Language** | TypeScript | Rust | Rust | Rust | **Rust** |
-| **Architecture** | Decorator modules | Handler functions | Actor system | MVC (Rails) | **Module graph + DI** |
-| **Dependency Injection** | ✅ Built-in | — Third-party | — Third-party | ❌ | **✅ Built-in (3 scopes)** |
-| **Module system** | ✅ | ❌ | ❌ | ❌ | **✅** |
-| **Attribute routing** | ✅ `@Get()` | ❌ | ❌ | ❌ | **✅ `#[get]`** |
-| **Guards (auth)** | ✅ | — Tower layer | — Middleware | — | **✅ `#[guard]`** |
-| **Interceptors** | ✅ | — Tower layer | — Middleware | — | **✅ `#[interceptor]`** |
-| **Exception filters** | ✅ | ❌ | ❌ | ❌ | **✅ `.exception_filter()`** |
-| **Middleware pipeline** | ✅ | Tower layers | Middleware wrap | Tower layers | **✅ + Guards + Interceptors** |
-| **CLI scaffolding** | ✅ | ❌ | ❌ | ✅ | **✅ `ironic generate`** |
-| **Rate limiting** | ThrottlerModule | ❌ | ❌ | ❌ | **✅ Per-user key** |
-| **Brute-force detection** | ❌ | ❌ | ❌ | ❌ | **✅ via OnGuardDenied** |
-| **Security headers** | Helmet | ❌ | ❌ | — | **✅ Built-in** |
-| **TCP connection limit** | ❌ | ❌ | ❌ | ❌ | **✅ `max_connections()`** |
-| **CORS** | ✅ | — tower-http | — actix-cors | — | **✅ Built-in** |
-| **Cron / scheduled tasks** | ✅ | ❌ | ❌ | ✅ | **✅ pause/resume** |
-| **Cache (built-in)** | ✅ CacheModule | ❌ | ❌ | ❌ | **✅ `#[cache]`** |
-| **Cache invalidation** | ❌ | ❌ | ❌ | ❌ | **✅ `remove_by_prefix()`** |
-| **OpenAPI generation** | ✅ | Utoipa | Utoipa | Utoipa | **✅ Built-in** |
-| **WebSockets** | ✅ | ✅ | ✅ | ✅ | **✅ Rooms + broadcast** |
-| **Events (pub/sub)** | ✅ EventEmitter | ❌ | ❌ | ❌ | **✅ `EventBus` + DLQ** |
-| **Compression** | ✅ compression | — tower-http | — | — | **✅ gzip/brotli/zstd** |
-| **Metrics (Prometheus)** | — prom-client | — tower-http | — | — | **✅ Error counter + per-endpoint** |
-| **Structured logging** | — pino/winston | — tracing | — tracing | — | **✅ JSON to file** |
-| **Health checks** | ✅ Terminus | ❌ | ❌ | ❌ | **✅ `HealthModule`** |
-| **Hot-reload config** | ❌ | ❌ | ❌ | ❌ | **✅ `Reloadable<T>`** |
-| **Feature flags** | ❌ | ❌ | ❌ | ❌ | **✅ Runtime + hot-reload** |
-| **Pagination** | ❌ | ❌ | ❌ | ❌ | **✅ `Response::paginated()`** |
-| **Content negotiation** | ✅ | ❌ | ❌ | ❌ | **✅ `Accept` header** |
-| **Streaming body** | ❌ | ✅ | ✅ | ✅ | **✅ `Body::Stream`** |
-| **Lifecycle hooks** | ✅ 4 hooks | ❌ | ❌ | ❌ | **✅ 15 hooks** |
-| **Graceful shutdown** | ✅ | ✅ | ✅ | ✅ | **✅ Drain + before/after hooks** |
-| **Per-route timeout** | ✅ | ❌ | ❌ | ❌ | **✅** |
-| **Learning curve** | Moderate | Low | Medium | Low | **Moderate** |
-| **Ecosystem** | Mature (2017) | Growing (2021) | Mature (2017) | Growing (2023) | **Early (2026)** |
-
-> ✅ = built-in  ·  — = needs third-party crate  ·  ❌ = not available
-
-## How the docs work
-
-Every page follows the same structure:
-
-1. **What you'll learn** — goals for the section
-2. **The big picture** — a simple analogy or diagram
-3. **Step-by-step code** — copy-paste examples with line-by-line explanations
-4. **Try it yourself** — a quick exercise
-5. **Common mistakes** — things that trip people up
-6. **What you learned** — a summary checklist
-
-## Quick navigation
-
-### I'm new here
-Start with [Getting Started](./getting-started) → [Fundamentals](./fundamentals) → [CLI](./cli)
-
-### I want to build an API
-[Fundamentals](./fundamentals) → [API Versioning](./api-versioning) → [Validation](./validation-pipes) → [Error Handling](./exception-filters)
-
-### I want to add a database
-[Database Integrations](./database-integrations) → [Authentication](./authentication)
-
-### I'm deploying to production
-[Security](./security) → [Observability](./observability) → [Performance](./cache-decorators)
-
----
-
-**Ready?** Start with [Getting Started](./getting-started) — you'll have a running API in under a minute.
+Ironic gives you all of this **out of the box**, so you can focus on what makes your application unique. No other Rust framework matches this breadth of built-in features — and unlike NestJS, you get Rust's compile-time safety and native performance.

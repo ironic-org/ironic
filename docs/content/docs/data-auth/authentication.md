@@ -30,14 +30,13 @@ ironic = { features = ["authentication"] }
 Never store raw passwords. Hash them:
 
 ```rust
-use ironic::auth::PasswordHasher;
+use ironic::auth::{hash_password, verify_password};
 
-let hasher = PasswordHasher::new();
-let hash = hasher.hash("my-secret-password")?;  // → "$argon2id$v=19$m=19456,t=2,p=1$..."
+let hash = hash_password(b"my-secret-password")?;
 
 // Verify later:
-assert!(hasher.verify("my-secret-password", &hash).is_ok());
-assert!(hasher.verify("wrong-password", &hash).is_err());
+assert!(verify_password(b"my-secret-password", &hash)?);
+assert!(!verify_password(b"wrong-password", &hash)?);
 ```
 
 > Argon2id is the **current best practice** for password hashing — it's memory-hard, resistant to GPU attacks, and recommended by OWASP.

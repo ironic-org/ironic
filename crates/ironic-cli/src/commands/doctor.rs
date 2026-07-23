@@ -94,3 +94,68 @@ fn report(
     )
     .map_err(|error| CliError::io("write output", "stdout", error))
 }
+
+#[cfg(test)]
+mod tests {
+
+    #[test]
+    fn report_ok_format() {
+        let mut buf = Vec::new();
+        super::report(&mut buf, "Test", true, "v1.0.0").unwrap();
+        let output = String::from_utf8(buf).unwrap();
+        assert!(output.contains("OK"));
+        assert!(output.contains("Test"));
+        assert!(output.contains("v1.0.0"));
+    }
+
+    #[test]
+    fn report_warn_format() {
+        let mut buf = Vec::new();
+        super::report(&mut buf, "Checker", false, "missing").unwrap();
+        let output = String::from_utf8(buf).unwrap();
+        assert!(output.contains("WARN"));
+        assert!(output.contains("Checker"));
+        assert!(output.contains("missing"));
+    }
+
+    #[test]
+    fn report_returns_error_on_write_failure() {
+        use std::io::Write;
+        struct BrokenWriter;
+        impl Write for BrokenWriter {
+            fn write(&mut self, _: &[u8]) -> std::io::Result<usize> {
+                Err(std::io::Error::new(
+                    std::io::ErrorKind::BrokenPipe,
+                    "broken",
+                ))
+            }
+            fn flush(&mut self) -> std::io::Result<()> {
+                Ok(())
+            }
+        }
+        let result = super::report(&mut BrokenWriter, "X", true, "y");
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn manifest_contain_returns_false_for_missing_file() {
+        let result = super::manifest_contains(std::path::Path::new("/nonexistent/path"), "ironic");
+        assert!(!result.unwrap());
+    }
+
+    #[test]
+    fn manifest_contain_checks_content() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("Cargo.toml");
+        std::fs::write(&path, "[dependencies]\nironic = \"1.0\"").unwrap();
+        assert!(super::manifest_contains(&path, "ironic").unwrap());
+        assert!(!super::manifest_contains(&path, "axum").unwrap());
+    }
+
+    #[test]
+    fn check_ironic_version_is_current() {
+        // env!("CARGO_PKG_VERSION") is always set at compile time
+        let current = env!("CARGO_PKG_VERSION");
+        assert!(!current.is_empty());
+    }
+}

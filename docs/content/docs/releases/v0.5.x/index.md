@@ -11,3 +11,8 @@ All versions in the v0.5.x series. Visit the [Blog](/blog) for detailed release 
 
 ---
 
+## v0.5.0 — 2026-07-16
+
+### Changed
+- Update alias for Decorator command from `d` to `de`
+

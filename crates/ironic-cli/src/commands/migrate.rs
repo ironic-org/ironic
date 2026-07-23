@@ -207,3 +207,67 @@ fn show_status(output: &mut impl Write) -> Result<(), CliError> {
         Ok(())
     })
 }
+
+#[cfg(test)]
+mod tests {
+    use crate::CliError;
+
+    #[test]
+    fn migrations_dir_constant() {
+        assert_eq!(super::MIGRATIONS_DIR, "./migrations");
+    }
+
+    #[cfg(not(feature = "sqlx-postgres"))]
+    #[test]
+    fn no_sqlx_message_is_not_empty() {
+        let msg = super::NO_SQLX_MSG;
+        assert!(!msg.is_empty());
+        assert!(msg.contains("sqlx"));
+    }
+
+    /// Runs all CWD-sensitive migration tests sequentially to avoid interference.
+    #[test]
+    fn migration_operations() {
+        let dir = tempfile::tempdir().unwrap();
+        let original = std::env::current_dir().unwrap();
+        std::env::set_current_dir(dir.path()).unwrap();
+
+        // create_migration_creates_file
+        let mut output = Vec::new();
+        super::create_migration("create_users", &mut output).unwrap();
+        let entries: Vec<_> = std::fs::read_dir("./migrations").unwrap().collect();
+        assert_eq!(entries.len(), 1);
+        let filename = entries[0]
+            .as_ref()
+            .unwrap()
+            .file_name()
+            .to_string_lossy()
+            .to_string();
+        assert!(filename.ends_with("_create_users.sql"));
+        let content = std::fs::read_to_string(entries[0].as_ref().unwrap().path()).unwrap();
+        assert!(content.contains("-- Migration: create_users"));
+        assert!(content.contains("-- Write your up SQL here"));
+        let output_str = String::from_utf8(output).unwrap();
+        assert!(output_str.contains("✓ Created"));
+
+        // create_migration_rejects_duplicate
+        let mut out = Vec::new();
+        let result = super::create_migration("create_users", &mut out);
+        assert!(matches!(result, Err(CliError::FileConflict { .. })));
+
+        // create_migration_works_with_any_name
+        let mut out2 = Vec::new();
+        super::create_migration("add_index_to_users_email", &mut out2).unwrap();
+        super::create_migration("create_orders_table", &mut out2).unwrap();
+        let count = std::fs::read_dir("./migrations").unwrap().count();
+        assert_eq!(count, 3);
+
+        #[cfg(feature = "sqlx-postgres")]
+        {
+            let result = super::load_database_url();
+            assert!(result.is_err());
+        }
+
+        std::env::set_current_dir(original).unwrap();
+    }
+}

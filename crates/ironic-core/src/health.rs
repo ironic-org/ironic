@@ -19,6 +19,18 @@ use crate::{Module, ModuleDefinition};
 // ---------------------------------------------------------------------------
 
 /// Build-time metadata about the running binary.
+///
+/// Captured at compile time via `build.rs` environment variables,
+/// falling back to `"unknown"` when not set (e.g. during `cargo check`).
+///
+/// # Examples
+///
+/// ```rust
+/// use ironic::BuildInfo;
+///
+/// let info = BuildInfo::capture();
+/// assert!(!info.version.is_empty());
+/// ```
 #[derive(Debug, Clone, Serialize)]
 pub struct BuildInfo {
     /// Git commit SHA (short).
@@ -35,6 +47,15 @@ pub struct BuildInfo {
 
 impl BuildInfo {
     /// Captures build-time environment variables injected by `build.rs`.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use ironic::BuildInfo;
+    ///
+    /// let info = BuildInfo::capture();
+    /// assert!(!info.rust_version.is_empty());
+    /// ```
     #[must_use]
     pub fn capture() -> Self {
         Self {
@@ -145,6 +166,16 @@ pub trait HealthIndicator: Send + Sync {
 // ---------------------------------------------------------------------------
 
 /// The result of a single health check.
+///
+/// # Examples
+///
+/// ```rust
+/// use ironic::HealthStatus;
+///
+/// let ok = HealthStatus::Ok;
+/// let degraded = HealthStatus::Degraded { message: None };
+/// let unhealthy = HealthStatus::Unhealthy { error: "db down".into() };
+/// ```
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "snake_case")]
 pub enum HealthStatus {
@@ -168,6 +199,16 @@ pub enum HealthStatus {
 // ---------------------------------------------------------------------------
 
 /// Configuration for the composite health endpoint.
+///
+/// # Examples
+///
+/// ```rust
+/// use ironic::HealthConfig;
+/// use std::time::Duration;
+///
+/// let config = HealthConfig::default();
+/// assert_eq!(config.check_timeout, Duration::from_secs(5));
+/// ```
 #[derive(Debug, Clone)]
 pub struct HealthConfig {
     /// Per-check timeout (default 5s).
@@ -435,5 +476,102 @@ async fn run_readiness_checks() -> HealthResponse {
     HealthResponse {
         status: aggregate.to_string(),
         checks,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn build_info_capture_has_defaults() {
+        let info = BuildInfo::capture();
+        assert!(!info.git_sha.is_empty());
+        assert!(!info.build_timestamp.is_empty());
+        assert!(!info.rust_version.is_empty());
+        assert!(!info.version.is_empty());
+    }
+
+    #[test]
+    fn health_config_default_timeout() {
+        let config = HealthConfig::default();
+        assert_eq!(config.check_timeout, Duration::from_secs(5));
+    }
+
+    #[test]
+    fn health_config_custom_timeout() {
+        let config = HealthConfig {
+            check_timeout: Duration::from_secs(30),
+        };
+        assert_eq!(config.check_timeout, Duration::from_secs(30));
+    }
+
+    #[test]
+    fn health_status_ok_debug_and_serialize() {
+        let status = HealthStatus::Ok;
+        let json = serde_json::to_string(&status).unwrap();
+        assert_eq!(json, r#""ok""#);
+    }
+
+    #[test]
+    fn health_status_degraded_with_message() {
+        let status = HealthStatus::Degraded {
+            message: Some("high latency".into()),
+        };
+        let json = serde_json::to_string(&status).unwrap();
+        assert!(json.contains("high latency"));
+    }
+
+    #[test]
+    fn health_status_degraded_without_message_omits_field() {
+        let status = HealthStatus::Degraded { message: None };
+        let json = serde_json::to_string(&status).unwrap();
+        assert_eq!(json, r#"{"degraded":{}}"#);
+    }
+
+    #[test]
+    fn health_status_unhealthy() {
+        let status = HealthStatus::Unhealthy {
+            error: "connection refused".into(),
+        };
+        let json = serde_json::to_string(&status).unwrap();
+        assert!(json.contains("connection refused"));
+    }
+
+    #[test]
+    fn configure_overrides_default_config() {
+        let original = load_config();
+        let custom = HealthConfig {
+            check_timeout: Duration::from_secs(15),
+        };
+        configure(custom.clone());
+        assert_eq!(load_config().check_timeout, Duration::from_secs(15));
+        configure(original);
+    }
+
+    #[test]
+    fn register_adds_indicators() {
+        use std::sync::Arc;
+
+        struct DummyIndicator;
+        impl HealthIndicator for DummyIndicator {
+            fn name(&self) -> &'static str {
+                "dummy"
+            }
+            #[allow(deprecated)]
+            fn check(&self) -> Pin<Box<dyn Future<Output = HealthStatus> + Send + '_>> {
+                Box::pin(std::future::ready(HealthStatus::Ok))
+            }
+        }
+
+        let indicator = Arc::new(DummyIndicator);
+        register(indicator);
+
+        let list = HEALTH_INDICATORS.lock().ok();
+        assert!(list.is_some());
+        if let Some(list) = list {
+            let found = list.iter().any(|i| i.name() == "dummy");
+            assert!(found);
+        }
     }
 }

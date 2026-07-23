@@ -9,6 +9,19 @@ use ironic_http::{
 };
 
 /// CSRF protection configuration.
+///
+/// Controls the cookie and header names used for the synchronizer token
+/// pattern, and the generator for fresh tokens.
+///
+/// # Example
+///
+/// ```rust
+/// use ironic::security::csrf::CsrfConfig;
+///
+/// let config = CsrfConfig::new()
+///     .cookie_name("_csrf")
+///     .header_name("x-csrf-token");
+/// ```
 #[derive(Clone)]
 pub struct CsrfConfig {
     cookie_name: String,
@@ -77,6 +90,17 @@ impl CsrfConfig {
 /// requests (POST, PUT, PATCH, DELETE), it also expects the same token
 /// in a request header. If the tokens don't match, a 403 response is
 /// returned.
+///
+/// Safe methods (GET, HEAD, OPTIONS) set the CSRF cookie if absent
+/// but do not require token validation.
+///
+/// # Example
+///
+/// ```rust
+/// use ironic::security::csrf::{CsrfConfig, CsrfMiddleware};
+///
+/// let middleware = CsrfMiddleware::new(CsrfConfig::new());
+/// ```
 #[derive(Clone)]
 pub struct CsrfMiddleware {
     config: Arc<CsrfConfig>,
@@ -112,6 +136,14 @@ impl CsrfMiddleware {
             .get(&self.config.header_name)
             .and_then(|v| v.to_str().ok())
             .map(std::borrow::ToOwned::to_owned)
+    }
+}
+
+impl CsrfMiddleware {
+    /// Returns a reference to the current configuration.
+    #[must_use]
+    pub fn config(&self) -> &CsrfConfig {
+        &self.config
     }
 }
 
@@ -157,5 +189,64 @@ impl Middleware for CsrfMiddleware {
                 )),
             }
         })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn defaults_are_set() {
+        let config = CsrfConfig::new();
+        assert_eq!(config.cookie_name, "csrf-token");
+        assert_eq!(config.header_name, "x-csrf-token");
+        assert!(config.safe_methods.contains(&HttpMethod::GET));
+    }
+
+    #[test]
+    fn builder_sets_cookie_name() {
+        let config = CsrfConfig::new().cookie_name("_csrf");
+        assert_eq!(config.cookie_name, "_csrf");
+    }
+
+    #[test]
+    fn builder_sets_header_name() {
+        let config = CsrfConfig::new().header_name("x-csrf");
+        assert_eq!(config.header_name, "x-csrf");
+    }
+
+    #[test]
+    #[should_panic(expected = "CSRF cookie name")]
+    fn cookie_name_rejects_semicolon() {
+        let _ = CsrfConfig::new().cookie_name("bad;name");
+    }
+
+    #[test]
+    #[should_panic(expected = "CSRF cookie name")]
+    fn cookie_name_rejects_equals() {
+        let _ = CsrfConfig::new().cookie_name("bad=name");
+    }
+
+    #[test]
+    #[should_panic(expected = "CSRF header name")]
+    fn header_name_rejects_crlf() {
+        let _ = CsrfConfig::new().header_name("bad\rname");
+    }
+
+    #[test]
+    fn csrf_middleware_constructs_with_config() {
+        let config = CsrfConfig::new();
+        let mw = CsrfMiddleware::new(config);
+        let _ = mw.config();
+    }
+
+    #[test]
+    fn safe_methods_includes_get_head_options() {
+        let config = CsrfConfig::new();
+        assert!(config.safe_methods.contains(&HttpMethod::GET));
+        assert!(config.safe_methods.contains(&HttpMethod::HEAD));
+        assert!(config.safe_methods.contains(&HttpMethod::OPTIONS));
+        assert!(!config.safe_methods.contains(&HttpMethod::POST));
     }
 }

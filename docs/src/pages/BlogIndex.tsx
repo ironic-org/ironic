@@ -1,6 +1,6 @@
 import { ArrowRight, Calendar, Clock, GitBranch, Layers, Sparkles, Star } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { LATEST_VERSION_LABEL } from '@/lib/constants';
+import { GITHUB_URL, LATEST_VERSION_LABEL } from '@/lib/constants';
 
 type Post = {
     slug: string;
@@ -12,6 +12,14 @@ type Post = {
 };
 
 const posts: Post[] = [
+    {
+        slug: 'v1.1.0',
+        title: 'v1.1.0 — release.sh: prefer [Unreleased] content over git log when non-empty',
+        description: 'release.sh: prefer [Unreleased] content over git log when non-empty',
+        date: '2026-07-23',
+        tag: 'release',
+        readTime: '2 min',
+    },
     {
         slug: 'v1.0.9',
         title: 'v1.0.9 — add documentation for backtrace and UUID features, and implement message queues and saga orchestration',
@@ -703,7 +711,7 @@ export default function BlogIndex() {
                                 Star the repo on GitHub to get notified of new releases, or watch the repository for updates.
                             </p>
                             <a
-                                href="https://github.com/ironic-org/ironic"
+                                href={GITHUB_URL}
                                 target="_blank"
                                 rel="noopener noreferrer"
                                 className="inline-flex items-center gap-2 rounded-full bg-fd-foreground text-fd-background px-6 py-2.5 text-sm font-semibold hover:bg-fd-foreground/90 transition-colors"

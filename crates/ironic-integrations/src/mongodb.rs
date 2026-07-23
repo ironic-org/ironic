@@ -63,3 +63,30 @@ impl IntegrationHealth for MongoDatabase {
         })
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn mongo_connect_fails_with_bad_uri() {
+        let result = MongoDatabase::connect("not-a-valid-uri", "test").await;
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn mongo_connect_fails_with_empty_uri() {
+        let result = MongoDatabase::connect("", "test").await;
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn mongo_integration_error_display() {
+        let err = IntegrationError::new("MONGODB", "connection refused");
+        assert_eq!(err.integration(), "MONGODB");
+        assert_eq!(
+            err.to_string(),
+            "IR_INTEGRATION_MONGODB: connection refused"
+        );
+    }
+}

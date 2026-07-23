@@ -163,3 +163,61 @@ fn is_rust_file(path: &Path) -> bool {
 fn io_err(error: std::io::Error) -> CliError {
     CliError::io("write output", "stdout", error)
 }
+
+#[cfg(test)]
+mod tests {
+    use std::path::Path;
+
+    use crate::CliError;
+
+    #[test]
+    fn is_rust_file_accepts_rs() {
+        assert!(super::is_rust_file(Path::new("main.rs")));
+    }
+
+    #[test]
+    fn is_rust_file_accepts_toml() {
+        assert!(super::is_rust_file(Path::new("Cargo.toml")));
+    }
+
+    #[test]
+    fn is_rust_file_rejects_other_extensions() {
+        assert!(!super::is_rust_file(Path::new("main.py")));
+        assert!(!super::is_rust_file(Path::new("index.html")));
+        assert!(!super::is_rust_file(Path::new("Makefile")));
+    }
+
+    #[test]
+    fn is_rust_file_rejects_no_extension() {
+        assert!(!super::is_rust_file(Path::new("LICENSE")));
+        assert!(!super::is_rust_file(Path::new("Makefile")));
+    }
+
+    #[test]
+    fn is_rust_file_rejects_directory() {
+        assert!(!super::is_rust_file(Path::new("src")));
+    }
+
+    #[test]
+    fn is_rust_file_checks_extension_only() {
+        assert!(super::is_rust_file(Path::new("/path/to/module.rs")));
+        assert!(super::is_rust_file(Path::new("/path/to/Cargo.toml")));
+    }
+
+    #[test]
+    fn io_err_wraps_io_error() {
+        let io = std::io::Error::new(std::io::ErrorKind::BrokenPipe, "pipe broken");
+        let err = super::io_err(io);
+        let msg = err.to_string();
+        assert!(msg.contains("RF_CLI_IO"));
+        assert!(msg.contains("write output"));
+        assert!(msg.contains("pipe broken"));
+    }
+
+    #[test]
+    fn io_err_produces_io_variant() {
+        let io = std::io::Error::other("write failed");
+        let err = super::io_err(io);
+        assert!(matches!(err, CliError::Io { .. }));
+    }
+}

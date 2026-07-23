@@ -47,6 +47,21 @@ pub struct AuthorizationRequest {
 }
 
 /// Builds an authorization URL with fresh CSRF state and an S256 PKCE challenge.
+///
+/// # Example
+///
+/// ```rust,ignore
+/// use ironic::auth::oauth::{basic_client, authorization_request};
+///
+/// let client = basic_client(
+///     "my-client", None,
+///     "https://provider.com/auth",
+///     "https://provider.com/token",
+///     "https://myapp.com/callback",
+/// ).unwrap();
+/// let req = authorization_request(&client, ["openid", "profile"]);
+/// // Redirect the user to `req.url` ...
+/// ```
 #[must_use]
 pub fn authorization_request(
     client: &ConfiguredBasicClient,
@@ -68,6 +83,8 @@ pub fn authorization_request(
 }
 
 /// Exchanged token response from an OAuth provider.
+///
+/// Returned by [`exchange_code`] after a successful authorization-code flow.
 #[derive(Clone, Debug)]
 pub struct ProviderTokenResponse {
     /// The access token string.
@@ -168,4 +185,92 @@ pub fn store_tokens_in_session(
     }
     session.insert("oauth:scopes", tokens.scopes.join(" "))?;
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn validate_state_matching() {
+        let csrf = CsrfToken::new("expected-state".to_owned());
+        assert!(validate_state(Some("expected-state"), &csrf).is_ok());
+    }
+
+    #[test]
+    fn validate_state_mismatched() {
+        let csrf = CsrfToken::new("expected-state".to_owned());
+        let result = validate_state(Some("wrong-state"), &csrf);
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("CSRF"));
+    }
+
+    #[test]
+    fn validate_state_missing() {
+        let csrf = CsrfToken::new("state".to_owned());
+        let result = validate_state(None, &csrf);
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("Missing"));
+    }
+
+    #[test]
+    fn validate_state_empty() {
+        let csrf = CsrfToken::new("state".to_owned());
+        let result = validate_state(Some(""), &csrf);
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("Missing"));
+    }
+
+    #[test]
+    fn basic_client_creates_successfully() {
+        let client = basic_client(
+            "test-client",
+            Some("secret".into()),
+            "https://provider.com/auth",
+            "https://provider.com/token",
+            "https://myapp.com/callback",
+        );
+        assert!(client.is_ok());
+    }
+
+    #[test]
+    fn basic_client_rejects_bad_url() {
+        let client = basic_client(
+            "test-client",
+            None,
+            "not-a-url",
+            "https://provider.com/token",
+            "https://myapp.com/callback",
+        );
+        assert!(client.is_err());
+    }
+
+    #[test]
+    fn authorization_request_generates_url() {
+        let client = basic_client(
+            "client",
+            None,
+            "https://provider.com/auth",
+            "https://provider.com/token",
+            "https://myapp.com/callback",
+        )
+        .unwrap();
+        let req = authorization_request(&client, ["openid".to_string()]);
+        assert!(req.url.as_str().contains("https://provider.com/auth"));
+        assert!(!req.csrf_state.secret().is_empty());
+    }
+
+    #[test]
+    fn provider_token_response_construction() {
+        let resp = ProviderTokenResponse {
+            access_token: "at".into(),
+            refresh_token: Some("rt".into()),
+            token_type: "Bearer".into(),
+            expires_in: Some(std::time::Duration::from_hours(1)),
+            scopes: vec!["openid".into()],
+        };
+        assert_eq!(resp.access_token, "at");
+        assert_eq!(resp.refresh_token.as_deref(), Some("rt"));
+        assert_eq!(resp.token_type, "Bearer");
+    }
 }

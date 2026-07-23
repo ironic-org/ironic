@@ -57,3 +57,43 @@ pub(crate) fn execute(output: &mut impl Write) -> Result<(), CliError> {
     writeln!(output, "  ✓ Ironic has been uninstalled.").map_err(&map)?;
     Ok(())
 }
+
+#[allow(clippy::items_after_test_module)]
+#[cfg(test)]
+mod tests {
+    use crate::CliError;
+
+    #[test]
+    fn cache_dirs_currently_empty() {
+        assert!(super::CACHE_DIRS.is_empty());
+    }
+
+    #[test]
+    fn execute_writes_prompt() {
+        let mut buf = Vec::new();
+        // execute will try to read from stdin when it shows the prompt,
+        // but we don't actually provide input. It should still write the prompt.
+        let result = super::execute(&mut buf);
+        let output = String::from_utf8(buf).unwrap_or_default();
+        // At minimum the prompt text should be there
+        assert!(output.contains("remove Ironic") || output.contains("Continue"));
+        // If stdin has no input, it should abort
+        if result.is_ok() {
+            assert!(output.contains("Aborted"));
+        }
+    }
+
+    #[test]
+    fn uninstall_output_format() {
+        let mut buf = Vec::new();
+        let result = super::execute(&mut buf);
+        let output = String::from_utf8(buf).unwrap_or_default();
+        if let Err(CliError::CommandFailed { program, .. }) = &result {
+            assert!(program.contains("cargo uninstall"));
+        }
+        // Should either abort or try uninstall
+        assert!(
+            output.contains("remove") || output.contains("uninstall") || output.contains("Aborted")
+        );
+    }
+}

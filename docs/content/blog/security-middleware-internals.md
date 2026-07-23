@@ -41,7 +41,9 @@ When the limit is hit (line 120), the middleware returns `429 Too Many Requests`
 
 `CsrfMiddleware` at `crates/ironic-security/src/csrf.rs:81` implements the classic synchronizer token pattern. The idea is simple: an attacker on a malicious site cannot read your cookies (the browser's same-origin policy prevents that), but your browser will send your cookies automatically on a cross-site POST. So we require the token to come from two places: a cookie (where the browser sends it automatically) and a custom header (where only your own JavaScript can set it). If they match, the request originated from your own page.
 
-The configuration at lines 13–18 defines the cookie name (default `"csrf-token"`), the header name (default `"x-csrf-token"`), a token generator (default `uuid::Uuid::new_v4()`), and the safe methods list (`GET`, `HEAD`, `OPTIONS`). Both the cookie name and header name are validated at construction time — the cookie name must not contain `;`, `=`, `\r`, or `\n` (line 47); the header name must not contain `\r` or `\n` (line 66). These are panics, not runtime errors, because invalid names are a programmer bug.
+The configuration at lines 13–18 defines the cookie name (default `"csrf-token"`), the header name (default `"x-csrf-token"`), a token generator (default `uuid::Uuid::new_v4()`), and the safe methods list (`GET`, `HEAD`, `OPTIONS`). Both the cookie name and header name are validated at construction time — the cookie name must not contain `;`, `=`, `\r`, or `
+` (line 47); the header name must not contain `\r` or `
+` (line 66). These are panics, not runtime errors, because invalid names are a programmer bug.
 
 The `Middleware::handle` at line 118 splits into two paths. For safe methods (line 128): if the CSRF cookie is already present, pass through. If not, generate a fresh token with `(self.config.token_generator)()` at line 131, call `next.run()` to get the response, then append a `Set-Cookie` header with `HttpOnly; Secure; SameSite=Strict` flags (line 136). The cookie is scoped to `/` by default.
 

@@ -1,18 +1,27 @@
-import { Download, Github, Sparkles } from 'lucide-react';
+import { Download, Sparkles, Star, GitFork } from 'lucide-react';
 import FadeUp from './fade-up';
 import { CURRENT_VERSION } from '@/lib/constants';
+import { useGitHubStars } from './github-stars';
 
-const stats = [
-    { icon: <Download className='w-5 h-5' />, value: CURRENT_VERSION, label: 'Latest version' },
-    { icon: <Github className='w-5 h-5' />, value: 'MIT', label: 'Open source license' },
-    { icon: <Sparkles className='w-5 h-5' />, value: 'Rust 1.97+', label: 'Minimum Rust version' },
-];
+function formatCount(n: number): string {
+    if (n >= 1000) return `${(n / 1000).toFixed(1)}k`;
+    return n.toString();
+}
 
 const StatsBar = () => {
+    const { stars, forks } = useGitHubStars();
+
+    const stats = [
+        { icon: <Download className='w-5 h-5' />, value: CURRENT_VERSION, label: 'Latest version' },
+        { icon: <Star className='w-5 h-5 fill-amber-400 stroke-amber-500' />, value: stars !== null ? formatCount(stars) : '—', label: 'GitHub Stars' },
+        { icon: <GitFork className='w-5 h-5 stroke-sky-500' />, value: forks !== null ? formatCount(forks) : '—', label: 'Forks' },
+        { icon: <Sparkles className='w-5 h-5' />, value: 'Rust 1.97+', label: 'Minimum Rust version' },
+    ];
+
     return (
         <section className='relative py-16 px-6 max-w-7xl mx-auto border-t border-fd-border'>
             <div className='absolute inset-0 bg-brand/2 -mx-6' />
-            <FadeUp className='grid grid-cols-1 sm:grid-cols-3 gap-8 max-w-2xl mx-auto relative'>
+            <FadeUp className='grid grid-cols-2 sm:grid-cols-4 gap-8 max-w-3xl mx-auto relative'>
                 {stats.map((stat) => (
                     <div key={stat.label} className='flex flex-col items-center text-center gap-3 p-6 rounded-2xl hover:bg-fd-card/50 transition-colors'>
                         <div className='flex items-center justify-center w-12 h-12 rounded-xl bg-brand/10 text-brand'>

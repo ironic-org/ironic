@@ -265,3 +265,212 @@ where
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::HttpStatus;
+
+    use std::sync::Arc;
+
+    #[test]
+    fn body_as_bytes_empty() {
+        assert!(Body::Empty.as_bytes().is_empty());
+    }
+
+    #[test]
+    fn body_as_bytes_bytes() {
+        let body = Body::Bytes(vec![1, 2, 3]);
+        assert_eq!(body.as_bytes(), &[1, 2, 3]);
+    }
+
+    #[test]
+    fn body_as_bytes_stream() {
+        let body = Body::Stream(Arc::new(vec![4, 5, 6]));
+        assert_eq!(body.as_bytes(), &[4, 5, 6]);
+    }
+
+    #[test]
+    fn body_default_is_empty() {
+        let body: Body = Body::default();
+        assert_eq!(body, Body::Empty);
+    }
+
+    #[test]
+    fn response_empty_creates_correct_status() {
+        let resp = Response::empty(HttpStatus::NO_CONTENT);
+        assert_eq!(resp.status(), HttpStatus::NO_CONTENT);
+        assert_eq!(resp.body(), &Body::Empty);
+    }
+
+    #[test]
+    fn response_bytes_creates_correct_body() {
+        let resp = Response::bytes(HttpStatus::OK, vec![10, 20]);
+        assert_eq!(resp.status(), HttpStatus::OK);
+        assert_eq!(resp.body().as_bytes(), &[10, 20]);
+    }
+
+    #[test]
+    fn response_bytes_from_str() {
+        let resp = Response::bytes(HttpStatus::OK, "hello");
+        assert_eq!(resp.body().as_bytes(), b"hello");
+    }
+
+    #[test]
+    fn response_from_stream_creates_streaming_body() {
+        let data = Arc::new(vec![1, 2, 3]);
+        let resp = Response::from_stream(HttpStatus::OK, Arc::clone(&data));
+        assert_eq!(resp.body(), &Body::Stream(data));
+    }
+
+    #[test]
+    fn response_json_serializes_and_sets_content_type() {
+        let resp = Response::json(HttpStatus::OK, &serde_json::json!({"key": "value"})).unwrap();
+        assert_eq!(resp.status(), HttpStatus::OK);
+        assert_eq!(
+            resp.headers()
+                .get(http::header::CONTENT_TYPE)
+                .unwrap()
+                .to_str()
+                .unwrap(),
+            "application/json"
+        );
+        let body: serde_json::Value = serde_json::from_slice(resp.body().as_bytes()).unwrap();
+        assert_eq!(body["key"], "value");
+    }
+
+    #[test]
+    fn response_error_creates_structured_error() {
+        let resp = Response::error(HttpStatus::NOT_FOUND, "NOT_FOUND", "resource missing");
+        assert_eq!(resp.status(), HttpStatus::NOT_FOUND);
+        let body: serde_json::Value = serde_json::from_slice(resp.body().as_bytes()).unwrap();
+        assert_eq!(body["code"], "NOT_FOUND");
+        assert_eq!(body["message"], "resource missing");
+        assert_eq!(body["status"], 404);
+    }
+
+    #[test]
+    fn response_error_with_tracing_includes_timestamp_and_request_id() {
+        let resp = Response::error_with_tracing(
+            HttpStatus::BAD_REQUEST,
+            "BAD_REQ",
+            "bad request",
+            Some("req-123"),
+        );
+        assert_eq!(resp.status(), HttpStatus::BAD_REQUEST);
+        let body: serde_json::Value = serde_json::from_slice(resp.body().as_bytes()).unwrap();
+        assert_eq!(body["code"], "BAD_REQ");
+        assert_eq!(body["request_id"], "req-123");
+        assert!(body["timestamp_ms"].as_u64().is_some());
+    }
+
+    #[test]
+    fn response_error_with_tracing_no_request_id() {
+        let resp =
+            Response::error_with_tracing(HttpStatus::BAD_REQUEST, "BAD_REQ", "bad request", None);
+        let body: serde_json::Value = serde_json::from_slice(resp.body().as_bytes()).unwrap();
+        assert!(body.get("request_id").is_none());
+    }
+
+    #[test]
+    fn response_paginated_creates_correct_body() {
+        let items = vec![1, 2, 3];
+        let resp = Response::paginated(&items, 100, 0, 20).unwrap();
+        assert_eq!(resp.status(), HttpStatus::OK);
+        let body: serde_json::Value = serde_json::from_slice(resp.body().as_bytes()).unwrap();
+        assert_eq!(body["total"], 100);
+        assert_eq!(body["offset"], 0);
+        assert_eq!(body["limit"], 20);
+        assert_eq!(body["items"].as_array().unwrap().len(), 3);
+    }
+
+    #[test]
+    fn response_into_parts_splits_correctly() {
+        let resp = Response::bytes(HttpStatus::OK, "body");
+        let (status, headers, body) = resp.into_parts();
+        assert_eq!(status, HttpStatus::OK);
+        assert!(headers.is_empty());
+        assert_eq!(body.as_bytes(), b"body");
+    }
+
+    #[test]
+    fn response_set_body_replaces_body() {
+        let mut resp = Response::empty(HttpStatus::OK);
+        resp.set_body(Body::Bytes(vec![99]));
+        assert_eq!(resp.body().as_bytes(), &[99]);
+    }
+
+    #[test]
+    fn into_response_for_response_is_identity() {
+        let resp = Response::empty(HttpStatus::OK);
+        let result = resp.into_framework_response().unwrap();
+        assert_eq!(result.status(), HttpStatus::OK);
+    }
+
+    #[test]
+    fn into_response_for_unit_returns_204() {
+        let result = ().into_framework_response().unwrap();
+        assert_eq!(result.status(), HttpStatus::NO_CONTENT);
+    }
+
+    #[test]
+    fn into_response_for_string_returns_ok() {
+        let result = "hello".to_string().into_framework_response().unwrap();
+        assert_eq!(result.status(), HttpStatus::OK);
+        assert_eq!(result.body().as_bytes(), b"hello");
+    }
+
+    #[test]
+    fn into_response_for_str_returns_ok() {
+        let result = "static str".into_framework_response().unwrap();
+        assert_eq!(result.status(), HttpStatus::OK);
+        assert_eq!(result.body().as_bytes(), b"static str");
+    }
+
+    #[test]
+    fn into_response_for_json_serializes() {
+        let result = Json(42u32).into_framework_response().unwrap();
+        assert_eq!(result.status(), HttpStatus::OK);
+        assert_eq!(
+            result
+                .headers()
+                .get(http::header::CONTENT_TYPE)
+                .unwrap()
+                .to_str()
+                .unwrap(),
+            "application/json"
+        );
+    }
+
+    #[test]
+    fn into_response_for_result_ok() {
+        let result: Result<&'static str, ()> = Ok("ok");
+        let resp = result.into_framework_response().unwrap();
+        assert_eq!(resp.status(), HttpStatus::OK);
+    }
+
+    #[test]
+    fn into_response_for_result_err() {
+        let result: Result<(), &'static str> = Err("error");
+        let resp = result.into_framework_response().unwrap();
+        assert_eq!(resp.status(), HttpStatus::OK);
+    }
+
+    #[test]
+    fn response_headers_mut_allows_modification() {
+        let mut resp = Response::empty(HttpStatus::OK);
+        resp.headers_mut()
+            .insert("x-custom", "value".parse().unwrap());
+        assert_eq!(
+            resp.headers().get("x-custom").unwrap().to_str().unwrap(),
+            "value"
+        );
+    }
+
+    #[test]
+    fn response_clone_produces_equal_copy() {
+        let a = Response::bytes(HttpStatus::OK, vec![1, 2, 3]);
+        let b = a.clone();
+        assert_eq!(a, b);
+    }
+}

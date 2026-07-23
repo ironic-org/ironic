@@ -1,5 +1,5 @@
 [workspace.package]
-version = "1.0.9"
+version = "1.1.0"
 edition = "2024"
 rust-version = "1.97"
 license = "MIT OR Apache-2.0"
@@ -61,6 +61,7 @@ cache = []
 scheduling = []
 events = []
 realtime = ["axum/ws"]
+sse = []
 application-services = ["cache", "scheduling", "events", "realtime"]
 queues = []
 microservices = []
@@ -102,6 +103,7 @@ hot-reload = ["dep:notify"]
 transport-redis = ["dep:redis"]
 transport-rabbitmq = ["dep:lapin"]
 transport-kafka = ["dep:kafka"]
+mcp = ["axum/json"]
 
 [[bin]]
 name = "ironic"
@@ -248,9 +250,9 @@ opentelemetry = { version = "0.28", default-features = false, features = ["trace
 opentelemetry_sdk = { version = "0.28", default-features = false, features = ["trace", "rt-tokio"] }
 opentelemetry-otlp = { version = "0.28", default-features = false, features = ["trace", "grpc-tonic"] }
 tracing-opentelemetry = { version = "0.29", default-features = false }
-ironic = { path = ".", version = "1.0.9" }
+ironic = { path = ".", version = "1.1.0" }
 
-ironic-macros = { path = "crates/ironic-macros", version = "1.0.9" }
+ironic-macros = { path = "crates/ironic-macros", version = "1.1.0" }
 
 [workspace.lints.rust]
 unsafe_code = "forbid"

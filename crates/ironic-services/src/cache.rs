@@ -15,7 +15,6 @@ pub type CacheFuture<'a, T> = Pin<Box<dyn Future<Output = Result<T, CacheError>>
 
 /// A cache backend failure.
 #[derive(Debug, thiserror::Error)]
-#[non_exhaustive]
 pub enum CacheError {
     /// A value could not be encoded or decoded.
     #[error("IRONIC_CACHE_SERIALIZATION: {0}")]
@@ -26,10 +25,14 @@ pub enum CacheError {
 }
 
 /// Backend-neutral asynchronous byte cache.
+///
+/// # Errors
+///
+/// Each method returns [`CacheError`] on backend failure.
 pub trait Cache: Send + Sync + 'static {
     /// Loads a non-expired value.
     fn get<'a>(&'a self, key: &'a str) -> CacheFuture<'a, Option<Vec<u8>>>;
-    /// Stores a value with an optional time-to-live.
+    /// Stores a value with optional time-to-live.
     fn set<'a>(
         &'a self,
         key: &'a str,
@@ -40,7 +43,7 @@ pub trait Cache: Send + Sync + 'static {
     fn remove<'a>(&'a self, key: &'a str) -> CacheFuture<'a, bool>;
     /// Clears this cache namespace.
     fn clear(&self) -> CacheFuture<'_, ()>;
-    /// Removes all entries whose key starts with the given prefix.
+    /// Removes all entries whose key starts with given prefix.
     fn remove_by_prefix<'a>(&'a self, prefix: &'a str) -> CacheFuture<'a, usize>;
 }
 
@@ -177,18 +180,17 @@ impl Cache for InMemoryCache {
 
 /// A Redis-backed cache implementation.
 ///
-/// Requires the `redis` feature and a running Redis instance.
+/// Requires both the `cache` and `redis` features and a running Redis instance.
 /// The cache holds a connection manager reference but does not perform
 /// automatic reconnection — use a connection manager for production use.
-#[cfg(feature = "redis")]
+#[cfg(all(feature = "cache", feature = "redis"))]
 #[derive(Clone)]
-#[allow(dead_code)]
 pub struct RedisCache {
     client: ::redis::aio::ConnectionManager,
     key_prefix: String,
 }
 
-#[cfg(feature = "redis")]
+#[cfg(all(feature = "cache", feature = "redis"))]
 impl std::fmt::Debug for RedisCache {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("RedisCache")
@@ -198,7 +200,7 @@ impl std::fmt::Debug for RedisCache {
     }
 }
 
-#[cfg(feature = "redis")]
+#[cfg(all(feature = "cache", feature = "redis"))]
 impl RedisCache {
     /// Creates a new Redis cache from an existing connection manager.
     #[must_use]
@@ -216,7 +218,6 @@ impl RedisCache {
         self
     }
 
-    #[allow(dead_code)]
     fn prefixed(&self, key: &str) -> String {
         if self.key_prefix.is_empty() {
             key.to_owned()
@@ -226,65 +227,214 @@ impl RedisCache {
     }
 }
 
-#[cfg(feature = "redis")]
+#[cfg(all(feature = "cache", feature = "redis"))]
 impl Cache for RedisCache {
-    fn get<'a>(&'a self, _key: &'a str) -> CacheFuture<'a, Option<Vec<u8>>> {
+    fn get<'a>(&'a self, key: &'a str) -> CacheFuture<'a, Option<Vec<u8>>> {
+        let full_key = self.prefixed(key);
         Box::pin(async move {
-            Err(CacheError::Backend(
-                "Redis cache requires a live connection; initialize with `new(client)` first"
-                    .into(),
-            ))
+            use ::redis::AsyncCommands;
+            let mut conn = self.client.clone();
+            conn.get(&full_key)
+                .await
+                .map_err(|e| CacheError::Backend(e.to_string()))
         })
     }
 
     fn set<'a>(
         &'a self,
-        _key: &'a str,
-        _value: Vec<u8>,
-        _ttl: Option<std::time::Duration>,
+        key: &'a str,
+        value: Vec<u8>,
+        ttl: Option<std::time::Duration>,
     ) -> CacheFuture<'a, ()> {
+        let full_key = self.prefixed(key);
         Box::pin(async move {
-            Err(CacheError::Backend(
-                "Redis cache requires a live connection; initialize with `new(client)` first"
-                    .into(),
-            ))
+            use ::redis::AsyncCommands;
+            let mut conn = self.client.clone();
+            if let Some(duration) = ttl {
+                conn.set_ex(&full_key, value, duration.as_secs())
+                    .await
+                    .map_err(|e| CacheError::Backend(e.to_string()))
+            } else {
+                conn.set(&full_key, value)
+                    .await
+                    .map_err(|e| CacheError::Backend(e.to_string()))
+            }
         })
     }
 
-    fn remove<'a>(&'a self, _key: &'a str) -> CacheFuture<'a, bool> {
+    fn remove<'a>(&'a self, key: &'a str) -> CacheFuture<'a, bool> {
+        let full_key = self.prefixed(key);
         Box::pin(async move {
-            Err(CacheError::Backend(
-                "Redis cache requires a live connection; initialize with `new(client)` first"
-                    .into(),
-            ))
+            use ::redis::AsyncCommands;
+            let mut conn = self.client.clone();
+            let deleted: i32 = conn
+                .del(&full_key)
+                .await
+                .map_err(|e| CacheError::Backend(e.to_string()))?;
+            Ok(deleted > 0)
         })
     }
 
     fn clear(&self) -> CacheFuture<'_, ()> {
         Box::pin(async move {
-            Err(CacheError::Backend(
-                "Redis cache does not support clear across all keys without a prefix scan".into(),
-            ))
+            use ::redis::AsyncCommands;
+            let mut conn = self.client.clone();
+            let mut cursor: u64 = 0;
+            loop {
+                let (next_cursor, keys): (u64, Vec<String>) = ::redis::cmd("SCAN")
+                    .arg(cursor)
+                    .arg("COUNT")
+                    .arg(100)
+                    .query_async(&mut conn)
+                    .await
+                    .map_err(|e| CacheError::Backend(e.to_string()))?;
+                cursor = next_cursor;
+                if !keys.is_empty() {
+                    let _: () = conn
+                        .del(&keys)
+                        .await
+                        .map_err(|e| CacheError::Backend(format!("clear del: {e}")))?;
+                }
+                if cursor == 0 {
+                    break;
+                }
+            }
+            Ok(())
         })
     }
 
     fn remove_by_prefix<'a>(&'a self, prefix: &'a str) -> CacheFuture<'a, usize> {
-        let full_prefix = format!("{}:{}", self.key_prefix, prefix);
+        let full_prefix = if self.key_prefix.is_empty() {
+            format!("{prefix}*")
+        } else {
+            format!("{}:{}*", self.key_prefix, prefix)
+        };
         Box::pin(async move {
-            use redis::AsyncCommands;
+            use ::redis::AsyncCommands;
             let mut conn = self.client.clone();
-            let keys: Vec<String> = conn
-                .keys(format!("{full_prefix}*"))
-                .await
-                .map_err(|e| CacheError::Backend(e.to_string()))?;
-            let count = keys.len();
-            if !keys.is_empty() {
-                let _: () = conn
-                    .del(&keys)
+            let mut total = 0usize;
+            let mut cursor: u64 = 0;
+            loop {
+                let (next_cursor, keys): (u64, Vec<String>) = ::redis::cmd("SCAN")
+                    .arg(cursor)
+                    .arg("MATCH")
+                    .arg(&full_prefix)
+                    .arg("COUNT")
+                    .arg(100)
+                    .query_async(&mut conn)
                     .await
-                    .map_err(|e| CacheError::Backend(format!("failed to delete keys: {e}")))?;
+                    .map_err(|e| CacheError::Backend(e.to_string()))?;
+                cursor = next_cursor;
+                let count = keys.len();
+                if count > 0 {
+                    let _: () = conn
+                        .del(&keys)
+                        .await
+                        .map_err(|e| CacheError::Backend(format!("prefix del: {e}")))?;
+                    total += count;
+                }
+                if cursor == 0 {
+                    break;
+                }
             }
-            Ok(count)
+            Ok(total)
         })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::sync::Arc;
+
+    #[tokio::test]
+    async fn set_and_get() {
+        let cache = Arc::new(InMemoryCache::new(16));
+        cache.set("key1", b"value1".to_vec(), None).await.unwrap();
+        assert_eq!(cache.get("key1").await.unwrap(), Some(b"value1".to_vec()));
+    }
+
+    #[tokio::test]
+    async fn get_missing() {
+        let cache = Arc::new(InMemoryCache::default());
+        assert_eq!(cache.get("missing").await.unwrap(), None);
+    }
+
+    #[tokio::test]
+    async fn remove() {
+        let cache = Arc::new(InMemoryCache::new(16));
+        cache.set("k", vec![1], None).await.unwrap();
+        assert!(cache.remove("k").await.unwrap());
+        assert!(!cache.remove("k").await.unwrap());
+        assert_eq!(cache.get("k").await.unwrap(), None);
+    }
+
+    #[tokio::test]
+    async fn ttl_expiry() {
+        let cache = Arc::new(InMemoryCache::new(16));
+        cache
+            .set("k", vec![1], Some(Duration::from_millis(1)))
+            .await
+            .unwrap();
+        tokio::time::sleep(Duration::from_millis(10)).await;
+        assert_eq!(cache.get("k").await.unwrap(), None);
+    }
+
+    #[tokio::test]
+    async fn clear() {
+        let cache = Arc::new(InMemoryCache::new(16));
+        cache.set("a", vec![1], None).await.unwrap();
+        cache.set("b", vec![2], None).await.unwrap();
+        cache.clear().await.unwrap();
+        assert!(cache.get("a").await.unwrap().is_none());
+        assert!(cache.get("b").await.unwrap().is_none());
+    }
+
+    #[tokio::test]
+    async fn remove_by_prefix() {
+        let cache = Arc::new(InMemoryCache::new(16));
+        cache.set("aa:1", vec![1], None).await.unwrap();
+        cache.set("aa:2", vec![2], None).await.unwrap();
+        cache.set("bb:1", vec![3], None).await.unwrap();
+        assert_eq!(cache.remove_by_prefix("aa:").await.unwrap(), 2);
+        assert!(cache.get("aa:1").await.unwrap().is_none());
+        assert_eq!(cache.get("bb:1").await.unwrap(), Some(vec![3]));
+    }
+
+    #[tokio::test]
+    async fn evict_when_at_capacity() {
+        let cache = Arc::new(InMemoryCache::new(2));
+        cache.set("a", vec![1], None).await.unwrap();
+        cache.set("b", vec![2], None).await.unwrap();
+        cache.set("c", vec![3], None).await.unwrap();
+        assert_eq!(cache.get("c").await.unwrap(), Some(vec![3]));
+        assert!(cache.get("a").await.unwrap().is_none() || cache.get("b").await.unwrap().is_none());
+    }
+
+    #[tokio::test]
+    async fn set_json_and_get_json() {
+        let cache = Arc::new(InMemoryCache::new(16));
+        let vals = vec!["hello", "world"];
+        cache.set_json("k", &vals, None).await.unwrap();
+        let got: Option<Vec<String>> = cache.get_json("k").await.unwrap();
+        assert_eq!(got, Some(vec!["hello".to_string(), "world".to_string()]));
+    }
+
+    #[tokio::test]
+    async fn get_json_invalid() {
+        let cache = Arc::new(InMemoryCache::new(16));
+        cache.set("k", b"not json".to_vec(), None).await.unwrap();
+        assert!(cache.get_json::<Vec<String>>("k").await.is_err());
+    }
+
+    #[tokio::test]
+    async fn insert_many_with_default_capacity() {
+        let cache = Arc::new(InMemoryCache::default());
+        for i in 0..1000 {
+            let key = format!("k{i}");
+            cache.set(&key, vec![], None).await.unwrap();
+        }
+        let count = cache.remove_by_prefix("k").await.unwrap();
+        assert_eq!(count, 1000);
     }
 }

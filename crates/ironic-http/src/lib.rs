@@ -1,4 +1,8 @@
-#![doc = "Transport-neutral HTTP contracts for Ironic."]
+#![doc = "Transport-neutral HTTP contracts for Ironic.
+
+This crate provides the framework's core HTTP abstractions including
+requests, responses, middleware, guards, interceptors, pipes, error
+handling, multipart uploads, and observability."]
 
 mod error;
 mod exception_filter;
@@ -28,7 +32,9 @@ pub use extract::{
 };
 pub use extractors::Pagination;
 pub use handler::{ErasedHandler, HandlerArguments, HandlerFuture, handler_fn};
-pub use metadata::{CacheMetadata, VersionMetadata, VersioningStrategy};
+pub use metadata::{
+    CacheKeyMetadata, CacheMetadata, CacheTtlMetadata, VersionMetadata, VersioningStrategy,
+};
 #[cfg(feature = "multipart")]
 pub use multipart::{MultipartConfig, MultipartForm, MultipartFormData, UploadedFile};
 pub use observability::{RequestId, RequestLogging, RequestTracing};
@@ -60,3 +66,13 @@ pub use http::StatusCode as HttpStatus;
 pub use http::Uri;
 /// HTTP headers used by transport-neutral requests and responses.
 pub use http::{HeaderMap, HeaderName, HeaderValue};
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn public_types_are_accessible() {
+        let _ = crate::HttpMethod::GET;
+        let _ = crate::HttpStatus::OK;
+        let _ = crate::Response::empty(crate::HttpStatus::OK);
+    }
+}

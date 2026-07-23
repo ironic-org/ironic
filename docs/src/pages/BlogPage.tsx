@@ -1,5 +1,6 @@
 import { useEffect, useMemo } from 'react';
 import { Link, useLocation } from 'react-router-dom';
+import { GITHUB_URL } from '@/lib/constants';
 import { getMDXComponents } from '@/mdx-components';
 import { blogSource } from '@/lib/source';
 import { ArrowLeft, Calendar, Clock, Github } from 'lucide-react';
@@ -118,7 +119,7 @@ export default function BlogPage() {
                             3 min read
                         </div>
                         <a
-                            href="https://github.com/ironic-org/ironic"
+                            href={GITHUB_URL}
                             target="_blank"
                             rel="noopener noreferrer"
                             className="inline-flex items-center gap-1.5 text-xs font-medium text-fd-muted-foreground hover:text-fd-foreground transition-colors ml-auto"
@@ -159,7 +160,7 @@ export default function BlogPage() {
                         All releases
                     </Link>
                     <a
-                        href="https://github.com/ironic-org/ironic/issues"
+                        href={`${GITHUB_URL}/issues`}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="inline-flex items-center gap-2 text-sm font-medium text-fd-muted-foreground hover:text-brand transition-colors"

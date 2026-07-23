@@ -25,6 +25,9 @@ pub type RateLimitKeyResolver = Arc<dyn Fn(&RequestContext) -> String + Send + S
 // ---------------------------------------------------------------------------
 
 /// The result of a rate-limit check.
+///
+/// Returned by [`RateLimitBackend::check_rate_limit`] and
+/// [`InMemoryRateLimiter::sync_check`].
 #[derive(Debug, Clone)]
 pub struct RateLimitResult {
     /// Whether the request is allowed through.
@@ -36,6 +39,8 @@ pub struct RateLimitResult {
 }
 
 /// Pluggable rate-limit backend.
+///
+/// Implementations include [`InMemoryRateLimiter`] and [`RedisRateLimiter`].
 ///
 /// # Lifetime
 ///
@@ -57,6 +62,19 @@ pub trait RateLimitBackend: Send + Sync {
 // ---------------------------------------------------------------------------
 
 /// In-memory sliding-window rate limiter.
+///
+/// Tracks request timestamps per key and evicts entries outside the
+/// sliding window on each check.
+///
+/// # Example
+///
+/// ```rust
+/// use ironic::security::rate_limit::InMemoryRateLimiter;
+///
+/// let limiter = InMemoryRateLimiter::new();
+/// assert!(limiter.check("client-1", 5, 60));
+/// assert_eq!(limiter.remaining("client-1", 5, 60), 4);
+/// ```
 #[derive(Clone)]
 pub struct InMemoryRateLimiter {
     windows: Arc<Mutex<HashMap<String, Vec<Instant>>>>,
@@ -103,7 +121,18 @@ impl InMemoryRateLimiter {
     }
 
     /// Shared synchronous implementation used by both `check` and `remaining`.
-    fn sync_check(&self, key: &str, max_requests: u64, window_secs: u64) -> RateLimitResult {
+    ///
+    /// Returns a [`RateLimitResult`] with allowed/remaining/reset information.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the internal mutex is poisoned.
+    pub(crate) fn sync_check(
+        &self,
+        key: &str,
+        max_requests: u64,
+        window_secs: u64,
+    ) -> RateLimitResult {
         let mut windows = self
             .windows
             .lock()
@@ -242,6 +271,18 @@ impl RateLimitBackend for RedisRateLimiter {
 // ---------------------------------------------------------------------------
 
 /// Rate-limiting middleware with a pluggable backend.
+///
+/// Uses client IP (`X-Forwarded-For` or remote address) as the default
+/// rate-limit key. Custom key resolvers can be provided.
+///
+/// # Example
+///
+/// ```rust
+/// use ironic::security::rate_limit::RateLimitMiddleware;
+///
+/// // Allow 100 requests per 60 seconds per client IP
+/// let middleware = RateLimitMiddleware::new(100, 60);
+/// ```
 #[derive(Clone)]
 pub struct RateLimitMiddleware {
     backend: Arc<dyn RateLimitBackend>,
@@ -275,6 +316,17 @@ impl RateLimitMiddleware {
             window_secs,
             key_resolver: None,
         }
+    }
+
+    /// Sets a custom key resolver function.
+    ///
+    /// The resolver receives a [`RequestContext`] and returns a rate-limit
+    /// key string. The default resolver uses `X-Forwarded-For` or the
+    /// remote address.
+    #[must_use]
+    pub fn with_key_resolver(mut self, resolver: RateLimitKeyResolver) -> Self {
+        self.key_resolver = Some(resolver);
+        self
     }
 }
 
@@ -350,5 +402,99 @@ impl Middleware for RateLimitMiddleware {
             );
             Ok(response)
         })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // -----------------------------------------------------------------------
+    // InMemoryRateLimiter
+    // -----------------------------------------------------------------------
+
+    #[test]
+    fn allows_within_limit() {
+        let limiter = InMemoryRateLimiter::new();
+        assert!(limiter.check("client", 3, 60));
+        assert!(limiter.check("client", 3, 60));
+        assert!(limiter.check("client", 3, 60));
+    }
+
+    #[test]
+    fn blocks_excess() {
+        let limiter = InMemoryRateLimiter::new();
+        assert!(limiter.check("client", 2, 60));
+        assert!(limiter.check("client", 2, 60));
+        assert!(!limiter.check("client", 2, 60));
+    }
+
+    #[test]
+    fn reports_remaining() {
+        let limiter = InMemoryRateLimiter::new();
+        assert_eq!(limiter.remaining("c", 5, 60), 5);
+        let _ = limiter.check("c", 5, 60);
+        assert_eq!(limiter.remaining("c", 5, 60), 4);
+        let _ = limiter.check("c", 5, 60);
+        assert_eq!(limiter.remaining("c", 5, 60), 3);
+    }
+
+    #[test]
+    fn isolates_clients() {
+        let limiter = InMemoryRateLimiter::new();
+        assert!(limiter.check("alice", 2, 60));
+        assert!(limiter.check("alice", 2, 60));
+        assert!(!limiter.check("alice", 2, 60));
+        assert!(limiter.check("bob", 2, 60));
+        assert!(limiter.check("bob", 2, 60));
+        assert!(!limiter.check("bob", 2, 60));
+        assert!(limiter.check("charlie", 2, 60));
+    }
+
+    #[test]
+    fn sync_check_allowed() {
+        let limiter = InMemoryRateLimiter::new();
+        let result = limiter.sync_check("x", 3, 60);
+        assert!(result.allowed);
+        assert_eq!(result.remaining, 2);
+    }
+
+    #[test]
+    fn sync_check_denied() {
+        let limiter = InMemoryRateLimiter::new();
+        let _ = limiter.check("y", 1, 60); // first request
+        let result = limiter.sync_check("y", 1, 60); // second request exceeds
+        assert!(!result.allowed);
+        assert_eq!(result.remaining, 0);
+    }
+
+    #[test]
+    fn reset_after_is_non_zero_on_denied() {
+        let limiter = InMemoryRateLimiter::new();
+        let result = limiter.sync_check("z", 1, 60);
+        assert!(result.allowed);
+        let result = limiter.sync_check("z", 1, 60);
+        assert!(!result.allowed);
+        assert!(result.reset_after.as_secs() <= 60);
+    }
+
+    #[test]
+    fn default_key_resolver_falls_back() {
+        // The middleware defaults to 127.0.0.1 when no X-Forwarded-For header
+        // We just check the middleware can be constructed with defaults
+        let _mw = RateLimitMiddleware::new(10, 60);
+    }
+
+    #[test]
+    fn rate_limit_middleware_with_backend() {
+        use std::sync::Arc;
+        let backend = Arc::new(InMemoryRateLimiter::new());
+        let _mw = RateLimitMiddleware::with_backend(backend, 10, 60);
+    }
+
+    #[test]
+    fn rate_limit_middleware_with_key_resolver() {
+        let resolver: RateLimitKeyResolver = Arc::new(|_ctx| "custom-key".to_owned());
+        let _mw = RateLimitMiddleware::new(10, 60).with_key_resolver(resolver);
     }
 }

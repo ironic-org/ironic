@@ -280,6 +280,6 @@ Here's the cycle you'll use every day:
 
 Now that you have a working API, learn how everything fits together:
 
-→ [Project Structure & Organization](./project-structure) — every file and folder explained
+→ [Project Structure](./project-structure) — every file and folder explained
 
 → [Fundamentals: Modules, Controllers, Services & DI](./fundamentals)

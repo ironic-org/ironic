@@ -227,3 +227,101 @@ impl HttpPlatformApplication for InProcessApplication {
         Box::pin(async move { Ok(shutdown.wait().await) })
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use ironic_core::{Module, ModuleDefinition, ModuleId};
+    use ironic_http::HttpMethod;
+
+    use super::*;
+
+    struct EmptyTestModule;
+    impl Module for EmptyTestModule {
+        fn definition() -> ModuleDefinition {
+            ModuleDefinition::builder::<Self>().build()
+        }
+    }
+
+    #[tokio::test]
+    async fn builder_defaults() {
+        let builder = TestApplication::builder::<EmptyTestModule>();
+        assert!(builder.overrides.is_empty());
+        assert_eq!(builder.root.id(), ModuleId::of::<EmptyTestModule>());
+    }
+
+    #[tokio::test]
+    async fn override_provider_chains() {
+        let provider = ProviderDefinition::value(42u64);
+        let builder = TestApplication::builder::<EmptyTestModule>().override_provider(provider);
+        assert_eq!(builder.overrides.len(), 1);
+    }
+
+    #[tokio::test]
+    async fn override_value_chains() {
+        let builder = TestApplication::builder::<EmptyTestModule>().override_value("test-value");
+        assert_eq!(builder.overrides.len(), 1);
+    }
+
+    #[tokio::test]
+    async fn override_factory_chains() {
+        let builder = TestApplication::builder::<EmptyTestModule>()
+            .override_factory::<String, _, _>(Scope::Transient, Vec::new(), |_resolver| async {
+                Ok("factory-value".to_string())
+            });
+        assert_eq!(builder.overrides.len(), 1);
+    }
+
+    #[tokio::test]
+    async fn builds_and_shuts_down() {
+        let app = TestApplication::new::<EmptyTestModule>().await.unwrap();
+        app.shutdown().await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn builds_from_builder() {
+        let app = TestApplication::builder::<EmptyTestModule>()
+            .build()
+            .await
+            .unwrap();
+        app.shutdown().await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn resolves_providers() {
+        struct DummyService {
+            value: i32,
+        }
+
+        struct WithDummyModule;
+        impl Module for WithDummyModule {
+            fn definition() -> ModuleDefinition {
+                ModuleDefinition::builder::<Self>()
+                    .provider(ProviderDefinition::value(DummyService { value: 42 }))
+                    .build()
+            }
+        }
+
+        let app = TestApplication::new::<WithDummyModule>().await.unwrap();
+        let service = app.resolve::<DummyService>().await.unwrap();
+        assert_eq!(service.value, 42);
+        app.shutdown().await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn method_shortcuts_create_requests() {
+        let app = TestApplication::new::<EmptyTestModule>().await.unwrap();
+        let _get = app.get("/test");
+        let _post = app.post("/test");
+        let _put = app.put("/test");
+        let _patch = app.patch("/test");
+        let _delete = app.delete("/test");
+        let _request = app.request(HttpMethod::GET, "/test");
+        app.shutdown().await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn shutdown_is_idempotent() {
+        let app = TestApplication::new::<EmptyTestModule>().await.unwrap();
+        app.shutdown().await.unwrap();
+    }
+}

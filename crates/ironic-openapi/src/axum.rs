@@ -200,3 +200,44 @@ fn escape_html(value: &str) -> String {
         .replace('"', "&quot;")
         .replace('\'', "&#39;")
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn escape_html_escapes_special_chars() {
+        let result = escape_html("<script>alert('xss')</script>");
+        assert_eq!(result, "&lt;script&gt;alert(&#39;xss&#39;)&lt;/script&gt;");
+    }
+
+    #[test]
+    fn escape_html_escapes_ampersand_first() {
+        let result = escape_html("a&b<c>d\"e'f");
+        assert_eq!(result, "a&amp;b&lt;c&gt;d&quot;e&#39;f");
+    }
+
+    #[test]
+    fn escape_html_no_changes_for_safe_string() {
+        let result = escape_html("hello world");
+        assert_eq!(result, "hello world");
+    }
+
+    #[test]
+    fn openapi_axum_error_display() {
+        let err = OpenApiAxumError::OpenApi(OpenApiError::InvalidPath { path: "bad".into() });
+        let msg = err.to_string();
+        assert!(msg.contains("RF_OPENAPI_INVALID_PATH"));
+    }
+
+    #[test]
+    fn openapi_swagger_ui_builder() {
+        let adapter = OpenApiAxumAdapter {
+            inner: AxumAdapter::default(),
+            config: OpenApiConfig::new("Test", "1.0"),
+            swagger_ui_path: None,
+        };
+        let adapter = adapter.swagger_ui("/docs");
+        assert_eq!(adapter.swagger_ui_path, Some("/docs".into()));
+    }
+}

@@ -1,4 +1,12 @@
 {
   "title": "Configuration",
-  "pages": ["profiles"]
+  "pages": [
+    "overview",
+    "env-cascade",
+    "alternative-sources",
+    "overriding-in-tests",
+    "advanced-from-env",
+    "env-var-reference",
+    "profiles"
+  ]
 }

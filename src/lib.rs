@@ -61,6 +61,9 @@ pub mod integrations;
 #[cfg(feature = "logging")]
 #[path = "../crates/ironic-logging/src/lib.rs"]
 pub mod logging;
+#[cfg(feature = "mcp")]
+#[path = "../crates/ironic-mcp/src/lib.rs"]
+pub mod mcp;
 #[cfg(feature = "openapi")]
 #[path = "../crates/ironic-openapi/src/lib.rs"]
 mod openapi;
@@ -75,7 +78,8 @@ pub mod security;
     feature = "cache",
     feature = "scheduling",
     feature = "events",
-    feature = "realtime"
+    feature = "realtime",
+    feature = "sse"
 ))]
 #[path = "../crates/ironic-services/src/lib.rs"]
 pub mod services;
@@ -98,12 +102,18 @@ pub use ironic_macros::FromRow;
 #[cfg(feature = "jwt")]
 pub use ironic_macros::jwt_guard;
 
+#[cfg(feature = "events")]
+pub use ironic_macros::event_handler;
+#[cfg(feature = "mcp")]
+pub use ironic_macros::mcp_tool;
 pub use ironic_macros::{
-    Injectable, Merge, Module, OpenApiSchema, Serializable, api, body, cache, controller, cron,
-    decorator, delete, form, get, guard, head, header, interceptor, interval, main, middleware,
-    options, param, patch, pipe, post, put, query, resp, routes, subscribe_message, r#test,
-    timeout, web_socket_gateway,
+    Injectable, Merge, Module, OpenApiSchema, Serializable, api, body, cache, cache_key, cache_ttl,
+    controller, cron, decorator, delete, form, get, guard, head, header, interceptor, interval,
+    main, middleware, options, param, patch, pipe, post, put, query, resp, routes, sse,
+    subscribe_message, r#test, timeout, web_socket_gateway,
 };
+#[cfg(feature = "mcp")]
+pub use mcp::*;
 #[cfg(feature = "openapi")]
 pub use openapi::*;
 pub use platform::*;
@@ -237,6 +247,8 @@ macro_rules! create_param_decorator {
 pub mod prelude {
     #[cfg(feature = "hot-reload")]
     pub use crate::ConfigWatcher;
+    #[cfg(feature = "sse")]
+    pub use crate::EventBroadcaster;
     #[cfg(feature = "sqlx")]
     pub use crate::FromRow;
     #[cfg(feature = "openapi")]
@@ -248,31 +260,46 @@ pub mod prelude {
         any(feature = "redis", feature = "application-services")
     ))]
     pub use crate::cache_interceptor::CacheInterceptor;
+    #[cfg(all(feature = "queues", feature = "redis"))]
+    pub use crate::distributed::queues::{QueueConfig, RedisQueue};
+    #[cfg(feature = "events")]
+    pub use crate::event_handler;
     #[cfg(feature = "logging")]
     pub use crate::logging::{
         LogEntry, LogStorage, StorageError, TimeSeriesConfig, TimeSeriesModule,
     };
+    #[cfg(feature = "mcp")]
+    pub use crate::mcp_tool;
+    #[cfg(all(feature = "cache", feature = "redis"))]
+    pub use crate::services::cache::RedisCache;
+    #[cfg(feature = "sse")]
+    pub use crate::services::sse::{SseConfig, SseError, SseRoute};
+    #[cfg(feature = "sse")]
+    pub use crate::sse;
     pub use crate::{
         AfterShutdown, AppError, AppResult, Application, AsyncModuleInit, AxumAdapter,
-        BeforeShutdown, BuildInfo, CacheMetadata, CompiledHttpApplication, ConfigurationError,
-        ConfigurationLoader, ControllerDefinition, Dependency, ExceptionExt, ExceptionFilter,
-        FeatureGateGuard, FeatureToggle, FilterContext, FormBody, Guard, GuardDecision,
-        GuardFuture, HeaderParameter, HealthModule, HealthStatus, HttpError, HttpMethod,
-        HttpPlatformAdapter, HttpPlatformApplication, Injectable, Interceptor, InterceptorNext,
-        Json, JsonBody, LifecycleDefinition, Merge, Middleware, Module, ModuleDefinition,
-        ModuleRef, OnApplicationBootstrap, OnApplicationShutdown, OnError, OnGuardDenied,
-        OnModuleConfigure, OnModuleDestroy, OnModuleInit, OnModuleLoad, OnModuleUnload,
-        OnRequestDestroy, OnRequestInit, OnServerReady, Pagination, ParameterPipe, PathParameter,
-        PipelineFuture, ProviderDefinition, QueryParameters, RequestContext, RequestId,
-        RequestLogging, RequestScope, RequestTracing, Response, RouteDefinition, RouteMetadata,
-        Scope, Secret, SecretString, Serializable, ShutdownSignal, ValidateConfiguration, Value,
-        VersionMetadata, VersioningStrategy, WsGatewayDefinition, api, body, cache, controller,
-        create_param_decorator, cron, decorator, delete, form, get, guard, guard_fn, handler_fn,
-        head, header, intercept_fn, interceptor, interval, middleware, options, param, patch, pipe,
-        pipe_fn, post, put, query, resp, routes, subscribe_message, timeout, web_socket_gateway,
+        BeforeShutdown, BuildInfo, CacheKeyMetadata, CacheMetadata, CacheTtlMetadata,
+        CompiledHttpApplication, ConfigurationError, ConfigurationLoader, ControllerDefinition,
+        Dependency, ExceptionExt, ExceptionFilter, FeatureGateGuard, FeatureToggle, FilterContext,
+        FormBody, Guard, GuardDecision, GuardFuture, HeaderParameter, HealthModule, HealthStatus,
+        HttpError, HttpMethod, HttpPlatformAdapter, HttpPlatformApplication, Injectable,
+        Interceptor, InterceptorNext, Json, JsonBody, LifecycleDefinition, Merge, Middleware,
+        Module, ModuleDefinition, ModuleRef, OnApplicationBootstrap, OnApplicationShutdown,
+        OnError, OnGuardDenied, OnModuleConfigure, OnModuleDestroy, OnModuleInit, OnModuleLoad,
+        OnModuleUnload, OnRequestDestroy, OnRequestInit, OnServerReady, Pagination, ParameterPipe,
+        PathParameter, PipelineFuture, ProviderDefinition, QueryParameters, RequestContext,
+        RequestId, RequestLogging, RequestScope, RequestTracing, Response, RouteDefinition,
+        RouteMetadata, Scope, Secret, SecretString, Serializable, ShutdownSignal,
+        ValidateConfiguration, Value, VersionMetadata, VersioningStrategy, WsGatewayDefinition,
+        api, body, cache, cache_key, cache_ttl, controller, create_param_decorator, cron,
+        decorator, delete, form, get, guard, guard_fn, handler_fn, head, header, intercept_fn,
+        interceptor, interval, middleware, options, param, patch, pipe, pipe_fn, post, put, query,
+        resp, routes, subscribe_message, timeout, web_socket_gateway,
     };
     #[cfg(feature = "serialization")]
     pub use crate::{FieldRule, FieldRules, SerializeInterceptor, set_current_roles};
+    #[cfg(feature = "mcp")]
+    pub use crate::{McpConfig, McpRouter, McpServer, McpTool};
     #[cfg(feature = "multipart")]
     pub use crate::{MultipartConfig, MultipartForm, MultipartFormData, UploadedFile};
     #[cfg(feature = "sqlx")]

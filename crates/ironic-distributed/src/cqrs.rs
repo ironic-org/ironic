@@ -166,3 +166,103 @@ async fn dispatch<I: Send + 'static, O: Send + 'static>(
         .map(|value| *value)
         .map_err(|_| CqrsError::TypeMismatch(std::any::type_name::<O>()))
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    struct CreateUser {
+        name: String,
+    }
+    impl Command for CreateUser {
+        type Output = u64;
+    }
+
+    struct GetUser {
+        id: u64,
+    }
+    impl Query for GetUser {
+        type Output = String;
+    }
+
+    #[tokio::test]
+    async fn command_handler_executes_successfully() {
+        let mut builder = CqrsBusBuilder::new();
+        builder
+            .command(|cmd: CreateUser| async move {
+                assert_eq!(cmd.name, "Alice");
+                Ok(42u64)
+            })
+            .unwrap();
+        let bus = builder.build();
+
+        let result = bus
+            .execute(CreateUser {
+                name: "Alice".into(),
+            })
+            .await;
+        assert_eq!(result.unwrap(), 42);
+    }
+
+    #[tokio::test]
+    async fn query_handler_returns_result() {
+        let mut builder = CqrsBusBuilder::new();
+        builder
+            .query(|query: GetUser| async move {
+                assert_eq!(query.id, 1);
+                Ok("Alice".into())
+            })
+            .unwrap();
+        let bus = builder.build();
+
+        let result = bus.ask(GetUser { id: 1 }).await;
+        assert_eq!(result.unwrap(), "Alice");
+    }
+
+    #[tokio::test]
+    async fn missing_command_handler_returns_error() {
+        let bus = CqrsBusBuilder::new().build();
+        let result = bus.execute(CreateUser { name: "Bob".into() }).await;
+        assert!(matches!(result, Err(CqrsError::MissingHandler(_))));
+    }
+
+    #[tokio::test]
+    async fn missing_query_handler_returns_error() {
+        let bus = CqrsBusBuilder::new().build();
+        let result = bus.ask(GetUser { id: 99 }).await;
+        assert!(matches!(result, Err(CqrsError::MissingHandler(_))));
+    }
+
+    #[test]
+    fn duplicate_handler_returns_error() {
+        let mut builder = CqrsBusBuilder::new();
+        builder
+            .command(|_: CreateUser| async move { Ok(1u64) })
+            .unwrap();
+        let result = builder.command(|_: CreateUser| async move { Ok(2u64) });
+        assert!(matches!(result, Err(CqrsError::DuplicateHandler(_))));
+    }
+
+    #[test]
+    fn cqrs_error_display() {
+        let err = CqrsError::MissingHandler("CreateUser");
+        assert!(err.to_string().contains("IRONIC_CQRS_MISSING_HANDLER"));
+
+        let err = CqrsError::DuplicateHandler("GetUser");
+        assert!(err.to_string().contains("IRONIC_CQRS_DUPLICATE_HANDLER"));
+
+        let err = CqrsError::TypeMismatch("u64");
+        assert!(err.to_string().contains("IRONIC_CQRS_TYPE_MISMATCH"));
+
+        let err = CqrsError::Handler("something went wrong".into());
+        assert!(err.to_string().contains("IRONIC_CQRS_HANDLER_FAILED"));
+    }
+
+    #[test]
+    fn cqrs_bus_builder_default_is_empty() {
+        let builder = CqrsBusBuilder::new();
+        let bus = builder.build();
+        assert!(bus.commands.is_empty());
+        assert!(bus.queries.is_empty());
+    }
+}

@@ -35,6 +35,98 @@ async fn event_bus_delivers_only_matching_types() {
     assert_eq!(strings.recv().await.unwrap().as_str(), "created");
 }
 
+#[cfg(feature = "events")]
+#[tokio::test]
+async fn event_handler_macro_generates_registration_function() {
+    use ironic::event_handler;
+    use ironic::services::events::EventBus;
+    use std::sync::Arc;
+
+    #[event_handler(capacity = 32)]
+    #[allow(clippy::unused_async)]
+    async fn handle_string_event(event: Arc<String>) {
+        let _ = event;
+    }
+
+    let bus = EventBus::default();
+    __event_handler_reg_handle_string_event(&bus);
+    // Give the spawned task time to subscribe
+    tokio::task::yield_now().await;
+
+    let n = bus.publish("hello".to_owned()).await;
+    assert_eq!(n, 1);
+}
+
+#[cfg(feature = "events")]
+#[tokio::test]
+async fn event_handler_macro_with_custom_event_type() {
+    use ironic::event_handler;
+    use ironic::services::events::EventBus;
+    use std::sync::Arc;
+
+    #[derive(Clone, Debug, PartialEq)]
+    struct OrderPlaced(u32);
+
+    #[event_handler(capacity = 8)]
+    #[allow(clippy::unused_async)]
+    async fn handle_order(event: Arc<OrderPlaced>) {
+        let _ = event;
+    }
+
+    let bus = EventBus::default();
+    __event_handler_reg_handle_order(&bus);
+    tokio::task::yield_now().await;
+
+    let n = bus.publish(OrderPlaced(42)).await;
+    assert_eq!(n, 1);
+}
+
+#[cfg(feature = "events")]
+#[tokio::test]
+async fn event_handler_macro_auto_register_generates_async_init_impl() {
+    use ironic::event_handler;
+    use ironic::services::events::EventBus;
+    use std::sync::Arc;
+
+    #[event_handler(auto_register, capacity = 16)]
+    #[allow(clippy::unused_async)]
+    async fn handle_auto_event(event: Arc<String>) {
+        let _ = event;
+    }
+
+    // Verify auto-register struct exists by checking it implements AsyncModuleInit
+    fn check_trait_bound<T: ironic::AsyncModuleInit>() {}
+    check_trait_bound::<__EventHandlerAuto_handle_auto_event>();
+
+    let bus = EventBus::default();
+    __event_handler_reg_handle_auto_event(&bus);
+    tokio::task::yield_now().await;
+
+    let n = bus.publish("auto".to_owned()).await;
+    assert_eq!(n, 1);
+}
+
+#[cfg(feature = "events")]
+#[tokio::test]
+async fn event_handler_macro_default_capacity() {
+    use ironic::event_handler;
+    use ironic::services::events::EventBus;
+    use std::sync::Arc;
+
+    #[event_handler]
+    #[allow(clippy::unused_async)]
+    async fn handle_default(event: Arc<String>) {
+        let _ = event;
+    }
+
+    let bus = EventBus::default();
+    __event_handler_reg_handle_default(&bus);
+    tokio::task::yield_now().await;
+
+    let n = bus.publish("default".to_owned()).await;
+    assert_eq!(n, 1);
+}
+
 #[cfg(feature = "scheduling")]
 #[tokio::test]
 async fn scheduled_tasks_shutdown_cooperatively() {
@@ -87,6 +179,9 @@ async fn queue_supports_redelivery() {
         id: "1".into(),
         headers: BTreeMap::new(),
         payload: b"work".to_vec(),
+        retry_count: 0,
+        max_retries: 3,
+        ttl_secs: None,
     };
     queue.enqueue(message.clone()).await.unwrap();
     let received = queue.dequeue().await.unwrap().unwrap();

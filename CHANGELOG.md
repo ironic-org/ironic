@@ -24,6 +24,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added comprehensive doc comments and test modules across all 22 crates
 - Fixed 12 failing unit tests and 4 broken doctests
 - Consolidated docs: removed core/hooks/ (duplicate of lifecycle/), deduplicated caching/scheduling/websocket pages, added 3 orphaned getting-started pages to sidebar
+- Standardized changelog format across all release docs — consistent bullet points, dates, deduplicated headings, fixed n artifacts
 
 ## [v1.0.9] - 2026-07-21
 

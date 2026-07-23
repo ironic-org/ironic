@@ -102,6 +102,7 @@ hot-reload = ["dep:notify"]
 transport-redis = ["dep:redis"]
 transport-rabbitmq = ["dep:lapin"]
 transport-kafka = ["dep:kafka"]
+mcp = ["axum/json"]
 
 [[bin]]
 name = "ironic"

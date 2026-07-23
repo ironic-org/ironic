@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Created transport documentation group with HTTP, WebSocket, GraphQL, OpenAPI, and MCP pages
 - Lifecycle hooks section with 15 detailed hook pages as main sidebar nav
 - Configuration section with env cascade, alternative sources, from_env, and env-var reference pages
+- MCP transport implementation — McpServer, McpRouter, McpTool with JSON-RPC 2.0 over HTTP, AxumAdapter integration, and docs
 
 ### Fixed
 - release.sh: macOS compat — replace head -n -1 with sed '$d'

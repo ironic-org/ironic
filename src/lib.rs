@@ -61,6 +61,9 @@ pub mod integrations;
 #[cfg(feature = "logging")]
 #[path = "../crates/ironic-logging/src/lib.rs"]
 pub mod logging;
+#[cfg(feature = "mcp")]
+#[path = "../crates/ironic-mcp/src/lib.rs"]
+pub mod mcp;
 #[cfg(feature = "openapi")]
 #[path = "../crates/ironic-openapi/src/lib.rs"]
 mod openapi;
@@ -106,6 +109,8 @@ pub use ironic_macros::{
 };
 #[cfg(feature = "openapi")]
 pub use openapi::*;
+#[cfg(feature = "mcp")]
+pub use mcp::*;
 pub use platform::*;
 pub use platform_axum::*;
 pub use testing::*;
@@ -275,6 +280,8 @@ pub mod prelude {
     pub use crate::{FieldRule, FieldRules, SerializeInterceptor, set_current_roles};
     #[cfg(feature = "multipart")]
     pub use crate::{MultipartConfig, MultipartForm, MultipartFormData, UploadedFile};
+    #[cfg(feature = "mcp")]
+    pub use crate::{McpConfig, McpRouter, McpServer, McpTool};
     #[cfg(feature = "sqlx")]
     pub use crate::{SqlxErrorExt, SqlxResultExt};
 }

@@ -69,6 +69,8 @@ pub struct AxumAdapter {
     #[cfg(feature = "resilience-ext")]
     max_concurrent_requests: Option<u64>,
     max_connections: Option<usize>,
+    #[cfg(feature = "mcp")]
+    mcp: Option<crate::mcp::McpRouter>,
 }
 
 type RouterConfigurator = Box<dyn FnOnce(Router) -> Router + Send + 'static>;
@@ -104,6 +106,8 @@ impl AxumAdapter {
             #[cfg(feature = "resilience-ext")]
             max_concurrent_requests: None,
             max_connections: None,
+            #[cfg(feature = "mcp")]
+            mcp: None,
         }
     }
 
@@ -160,6 +164,17 @@ impl AxumAdapter {
         configure: impl FnOnce(Router) -> Router + Send + 'static,
     ) -> Self {
         self.configure_router.push(Box::new(configure));
+        self
+    }
+
+    /// Mounts an MCP (Model Context Protocol) server that exposes registered
+    /// tools via JSON-RPC 2.0 over `POST /mcp`.
+    ///
+    /// Requires the `mcp` feature.
+    #[cfg(feature = "mcp")]
+    #[must_use]
+    pub fn mcp(mut self, mcp: crate::mcp::McpRouter) -> Self {
+        self.mcp = Some(mcp);
         self
     }
 
@@ -241,6 +256,11 @@ impl HttpPlatformAdapter for AxumAdapter {
                 ))
                 .service(tower_http::services::ServeDir::new(&sf.fs_dir).precompressed_gzip());
             router = router.route(&wildcard_path, axum::routing::get_service(dir_service));
+        }
+        #[cfg(feature = "mcp")]
+        if let Some(mcp) = self.mcp {
+            let mcp_server = mcp.build();
+            router = router.merge(mcp_server.into_router());
         }
         for configure in self.configure_router {
             router = configure(router);

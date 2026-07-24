@@ -9,6 +9,7 @@ use syn::{
 struct EventHandlerArgs {
     capacity: usize,
     auto_register: bool,
+    transport: Option<String>,
 }
 
 impl Default for EventHandlerArgs {
@@ -16,6 +17,7 @@ impl Default for EventHandlerArgs {
         Self {
             capacity: 16,
             auto_register: false,
+            transport: None,
         }
     }
 }
@@ -31,6 +33,10 @@ impl Parse for EventHandlerArgs {
                 args.capacity = lit.base10_parse::<usize>().unwrap_or(16);
             } else if ident == "auto_register" {
                 args.auto_register = true;
+            } else if ident == "transport" {
+                input.parse::<Token![=]>()?;
+                let lit: syn::LitStr = input.parse()?;
+                args.transport = Some(lit.value());
             }
             if !input.is_empty() {
                 input.parse::<Token![,]>()?;
@@ -64,23 +70,51 @@ pub(crate) fn expand(attribute: TokenStream, item: TokenStream) -> syn::Result<T
     // 1. Emit the original function unchanged.
     output.extend(quote! { #function });
 
-    // 2. Emit the registration function (async now, since subscribe is async).
-    output.extend(quote! {
-        #[doc(hidden)]
-        #[allow(non_snake_case, missing_docs)]
-        #vis fn #reg_name(
-            event_bus: &::ironic::services::events::EventBus,
-        ) {
-            let event_bus = event_bus.clone();
-            ::tokio::spawn(async move {
-                let mut subscription: ::ironic::services::events::EventSubscription<#event_type> =
-                    event_bus.subscribe::<#event_type>(#capacity).await;
-                while let ::std::option::Option::Some(event) = subscription.recv().await {
-                    #handler_fn_name(event).await;
-                }
-            });
-        }
-    });
+    if let Some(ref transport) = args.transport {
+        // Transport-based event handler (cross-process)
+        let pattern = transport.clone();
+        output.extend(quote! {
+            #[doc(hidden)]
+            #[allow(non_snake_case, missing_docs)]
+            #vis fn #reg_name(
+                server: &impl ::ironic::distributed::MicroserviceServer,
+            ) {
+                use ::std::sync::Arc;
+                let handler: ::ironic::distributed::EventHandler = Arc::new(
+                    move |payload: ::std::vec::Vec<u8>,
+                          _ctx: ::ironic::distributed::MessageContext|
+                          -> ::std::pin::Pin<Box<dyn ::std::future::Future<Output = ::std::result::Result<(), ::ironic::distributed::TransportError>> + ::std::marker::Send>> {
+                        let payload = payload.clone();
+                        Box::pin(async move {
+                            let event: #event_type = ::serde_json::from_slice(&payload)
+                                .map_err(|e| ::ironic::distributed::TransportError(e.to_string()))?;
+                            #handler_fn_name(event).await;
+                            ::std::result::Result::Ok(())
+                        })
+                    }
+                );
+                server.on_event(#pattern, handler);
+            }
+        });
+    } else {
+        // 2. In-process EventBus registration (existing behavior).
+        output.extend(quote! {
+            #[doc(hidden)]
+            #[allow(non_snake_case, missing_docs)]
+            #vis fn #reg_name(
+                event_bus: &::ironic::services::events::EventBus,
+            ) {
+                let event_bus = event_bus.clone();
+                ::tokio::spawn(async move {
+                    let mut subscription: ::ironic::services::events::EventSubscription<#event_type> =
+                        event_bus.subscribe::<#event_type>(#capacity).await;
+                    while let ::std::option::Option::Some(event) = subscription.recv().await {
+                        #handler_fn_name(event).await;
+                    }
+                });
+            }
+        });
+    }
 
     // 3. If auto_register, emit a registrar struct + AsyncModuleInit impl.
     if auto_register {

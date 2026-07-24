@@ -20,7 +20,96 @@ pub use ready_resource::generate_ready_resource_jwt;
 /// Generates an OAuth-only auth module.
 pub use ready_resource::generate_ready_resource_oauth;
 
-use std::path::{Path, PathBuf};
+use std::{fs, path::{Path, PathBuf}};
+
+/// Generates a reusable library crate.
+///
+/// Creates a standalone Cargo library project with Ironic module scaffold.
+///
+/// # Errors
+///
+/// Returns [`CliError`] when the destination is occupied or files cannot be written.
+pub fn generate_library(root: &Path, name: &str) -> Result<GenerationReport, CliError> {
+    let names = naming::Names::parse(name)?;
+    let mut report = GenerationReport::default();
+
+    let dest = root.join(&names.kebab);
+    if dest.exists() {
+        return Err(CliError::InvalidName {
+            name: format!("directory `{}` already exists", dest.display()),
+        });
+    }
+
+    let files = [
+        (dest.join("Cargo.toml"), library_manifest(&names.kebab)),
+        (dest.join("src/lib.rs"), library_src_lib(&names)),
+        (dest.join("src/mod.rs"), library_module_shell(&names)),
+    ];
+
+    for (path, contents) in &files {
+        if let Some(parent) = path.parent() {
+            fs::create_dir_all(parent).map_err(|e| CliError::Io {
+                action: "create directory",
+                path: parent.to_path_buf(),
+                source: e,
+            })?;
+        }
+        let changed = write_generated(path, contents)?;
+        record(&mut report, path, changed);
+    }
+
+    report.manual_instructions.push(format!(
+        "add `{} = {{ path = \"{}\" }}` to your project's Cargo.toml dependencies",
+        names.kebab,
+        dest.display()
+    ));
+
+    Ok(report)
+}
+
+fn library_manifest(name: &str) -> String {
+    format!(
+        r#"[package]
+name = "{name}"
+version = "0.1.0"
+edition = "2024"
+description = "An Ironic library crate"
+
+[dependencies]
+ironic = {{ workspace = true }}
+
+[lib]
+name = "{name}"
+"#
+    )
+}
+
+fn library_src_lib(names: &naming::Names) -> String {
+    format!(
+        r#"pub mod r#mod;
+
+pub use r#mod::{name}Module;
+"#,
+        name = names.pascal
+    )
+}
+
+fn library_module_shell(names: &naming::Names) -> String {
+    format!(
+        r#"use ::ironic::prelude::*;
+
+pub struct {name}Module;
+
+impl Module for {name}Module {{
+    fn definition() -> ModuleDefinition {{
+        ModuleDefinition::builder("{name}")
+            .build()
+    }}
+}}
+"#,
+        name = names.pascal
+    )
+}
 
 use naming::Names;
 use source::{ensure_items, ensure_module_import, write_generated, write_module_shell};

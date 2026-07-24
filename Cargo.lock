@@ -443,6 +443,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "aws_lambda_events"
+version = "0.16.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "144ec7565561115498a288850cc6a42b279e09b6c4b88f623eecb9c8ca96c08c"
+dependencies = [
+ "base64",
+ "bytes",
+ "http",
+ "http-body",
+ "http-serde",
+ "query_map",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "axum"
 version = "0.7.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1664,6 +1680,21 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e6d5a32815ae3f33302d95fdcb2ce17862f8c65363dcfd29360480ba1001fc9c"
 
 [[package]]
+name = "futures"
+version = "0.3.32"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8b147ee9d1f6d097cef9ce628cd2ee62288d963e16fb287bd9286455b241382d"
+dependencies = [
+ "futures-channel",
+ "futures-core",
+ "futures-executor",
+ "futures-io",
+ "futures-sink",
+ "futures-task",
+ "futures-util",
+]
+
+[[package]]
 name = "futures-channel"
 version = "0.3.32"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1753,6 +1784,7 @@ version = "0.3.32"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "389ca41296e6190b48053de0321d02a77f32f8a5d2461dd38762c0593805c6d6"
 dependencies = [
+ "futures-channel",
  "futures-core",
  "futures-io",
  "futures-macro",
@@ -2100,6 +2132,16 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9171a2ea8a68358193d15dd5d70c1c10a2afc3e7e4c5bc92bc9f025cebd7359c"
 
 [[package]]
+name = "http-serde"
+version = "2.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0f056c8559e3757392c8d091e796416e4649d8e49e88b8d76df6c002f05027fd"
+dependencies = [
+ "http",
+ "serde",
+]
+
+[[package]]
 name = "httparse"
 version = "1.10.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2436,6 +2478,7 @@ dependencies = [
  "ironic-macros",
  "jsonwebtoken",
  "kafka",
+ "lambda_http",
  "lapin",
  "mongodb",
  "multer",
@@ -2447,6 +2490,7 @@ dependencies = [
  "prettyplease",
  "quote",
  "redis",
+ "rustls-pemfile",
  "sea-orm",
  "serde",
  "serde_json",
@@ -2456,6 +2500,7 @@ dependencies = [
  "tempfile",
  "thiserror 2.0.18",
  "tokio",
+ "tokio-rustls",
  "tonic 0.14.6",
  "tower 0.5.3",
  "tower-http 0.7.0",
@@ -2614,6 +2659,82 @@ checksum = "07293a4e297ac234359b510362495713f75ea345d5307140414f20c69ffeb087"
 dependencies = [
  "bitflags",
  "libc",
+]
+
+[[package]]
+name = "lambda_http"
+version = "0.14.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "68b470cea1ec37b96e9543870a33c1f4b9e243754fe5892668efa3125ea12784"
+dependencies = [
+ "aws_lambda_events",
+ "base64",
+ "bytes",
+ "encoding_rs",
+ "futures",
+ "futures-util",
+ "http",
+ "http-body",
+ "http-body-util",
+ "hyper",
+ "lambda_runtime",
+ "mime",
+ "percent-encoding",
+ "pin-project-lite",
+ "serde",
+ "serde_json",
+ "serde_urlencoded",
+ "tokio-stream",
+ "url",
+]
+
+[[package]]
+name = "lambda_runtime"
+version = "0.13.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ed49669d6430292aead991e19bf13153135a884f916e68f32997c951af637ebe"
+dependencies = [
+ "async-stream",
+ "base64",
+ "bytes",
+ "futures",
+ "http",
+ "http-body",
+ "http-body-util",
+ "http-serde",
+ "hyper",
+ "hyper-util",
+ "lambda_runtime_api_client",
+ "pin-project",
+ "serde",
+ "serde_json",
+ "serde_path_to_error",
+ "tokio",
+ "tokio-stream",
+ "tower 0.4.13",
+ "tower-layer",
+ "tracing",
+]
+
+[[package]]
+name = "lambda_runtime_api_client"
+version = "0.11.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c90a10f094475a34a04da2be11686c4dcfe214d93413162db9ffdff3d3af293a"
+dependencies = [
+ "bytes",
+ "futures-channel",
+ "futures-util",
+ "http",
+ "http-body",
+ "http-body-util",
+ "hyper",
+ "hyper-util",
+ "tokio",
+ "tower 0.4.13",
+ "tower-service",
+ "tracing",
+ "tracing-subscriber",
 ]
 
 [[package]]
@@ -3642,6 +3763,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "query_map"
+version = "0.7.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5eab6b8b1074ef3359a863758dae650c7c0c6027927a085b7af911c8e0bf3a15"
+dependencies = [
+ "form_urlencoded",
+ "serde",
+ "serde_derive",
+]
+
+[[package]]
 name = "quinn"
 version = "0.11.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4074,6 +4206,15 @@ dependencies = [
  "rustls-pki-types",
  "schannel",
  "security-framework",
+]
+
+[[package]]
+name = "rustls-pemfile"
+version = "2.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "dce314e5fee3f39953d46bb63bb8a46d40c2f8fb7cc5a3b6cab2bde9721d6e50"
+dependencies = [
+ "rustls-pki-types",
 ]
 
 [[package]]
@@ -5537,6 +5678,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "tracing-serde"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "704b1aeb7be0d0a84fc9828cae51dab5970fee5088f83d1dd7ee6f6246fc6ff1"
+dependencies = [
+ "serde",
+ "tracing-core",
+]
+
+[[package]]
 name = "tracing-subscriber"
 version = "0.3.23"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5546,12 +5697,15 @@ dependencies = [
  "nu-ansi-term",
  "once_cell",
  "regex-automata",
+ "serde",
+ "serde_json",
  "sharded-slab",
  "smallvec",
  "thread_local",
  "tracing",
  "tracing-core",
  "tracing-log",
+ "tracing-serde",
 ]
 
 [[package]]

@@ -79,7 +79,8 @@ pub mod security;
     feature = "scheduling",
     feature = "events",
     feature = "realtime",
-    feature = "sse"
+    feature = "sse",
+    feature = "http-client"
 ))]
 #[path = "../crates/ironic-services/src/lib.rs"]
 pub mod services;
@@ -107,11 +108,15 @@ pub use ironic_macros::event_handler;
 #[cfg(feature = "mcp")]
 pub use ironic_macros::mcp_tool;
 pub use ironic_macros::{
-    Injectable, Merge, Module, OpenApiSchema, Serializable, api, body, cache, cache_key, cache_ttl,
-    controller, cron, decorator, delete, form, get, guard, head, header, interceptor, interval,
-    main, middleware, options, param, patch, pipe, post, put, query, resp, routes, sse,
-    subscribe_message, r#test, timeout, web_socket_gateway,
+    Injectable, Merge, Module, OmitType, OpenApiSchema, PartialType, PickType, Serializable, api,
+    body, cache, cache_key, cache_ttl, controller, cookie, cron, decorator, delete, form,
+    forward_ref, get, guard, head, header, interceptor, interval, main, middleware, options, param,
+    patch, pipe, post, put, query, raw_body, resp, routes, sse, subscribe_message, r#test, timeout,
+    web_socket_gateway,
 };
+
+#[cfg(feature = "microservices")]
+pub use ironic_macros::message_handler;
 #[cfg(feature = "mcp")]
 pub use mcp::*;
 #[cfg(feature = "openapi")]
@@ -264,6 +269,7 @@ pub mod prelude {
     pub use crate::distributed::queues::{QueueConfig, RedisQueue};
     #[cfg(feature = "events")]
     pub use crate::event_handler;
+
     #[cfg(feature = "logging")]
     pub use crate::logging::{
         LogEntry, LogStorage, StorageError, TimeSeriesConfig, TimeSeriesModule,
@@ -281,10 +287,11 @@ pub mod prelude {
         BeforeShutdown, BuildInfo, CacheKeyMetadata, CacheMetadata, CacheTtlMetadata,
         CompiledHttpApplication, ConfigurationError, ConfigurationLoader, ControllerDefinition,
         Dependency, ExceptionExt, ExceptionFilter, FeatureGateGuard, FeatureToggle, FilterContext,
-        FormBody, Guard, GuardDecision, GuardFuture, HeaderParameter, HealthModule, HealthStatus,
-        HttpError, HttpMethod, HttpPlatformAdapter, HttpPlatformApplication, Injectable,
-        Interceptor, InterceptorNext, Json, JsonBody, LifecycleDefinition, Merge, Middleware,
-        Module, ModuleDefinition, ModuleRef, OnApplicationBootstrap, OnApplicationShutdown,
+        FormBody, ForwardRef, Guard, GuardDecision, GuardFuture, HeaderParameter, HealthModule,
+        HealthStatus, HttpError, HttpMethod, HttpPlatformAdapter, HttpPlatformApplication,
+        Injectable, Interceptor, InterceptorNext, Json, JsonBody, LazyModule, LifecycleDefinition,
+        Merge, Middleware, Module, ModuleDefinition, ModuleRef, OnApplicationBootstrap,
+        OnApplicationShutdown,
         OnError, OnGuardDenied, OnModuleConfigure, OnModuleDestroy, OnModuleInit, OnModuleLoad,
         OnModuleUnload, OnRequestDestroy, OnRequestInit, OnServerReady, Pagination, ParameterPipe,
         PathParameter, PipelineFuture, ProviderDefinition, QueryParameters, RequestContext,
@@ -292,9 +299,9 @@ pub mod prelude {
         RouteMetadata, Scope, Secret, SecretString, Serializable, ShutdownSignal,
         ValidateConfiguration, Value, VersionMetadata, VersioningStrategy, WsGatewayDefinition,
         api, body, cache, cache_key, cache_ttl, controller, create_param_decorator, cron,
-        decorator, delete, form, get, guard, guard_fn, handler_fn, head, header, intercept_fn,
-        interceptor, interval, middleware, options, param, patch, pipe, pipe_fn, post, put, query,
-        resp, routes, subscribe_message, timeout, web_socket_gateway,
+        decorator, delete, form, forward_ref, get, guard, guard_fn, handler_fn, head, header,
+        intercept_fn, interceptor, interval, middleware, options, param, patch, pipe, pipe_fn, post,
+        put, query, resp, routes, subscribe_message, timeout, web_socket_gateway,
     };
     #[cfg(feature = "serialization")]
     pub use crate::{FieldRule, FieldRules, SerializeInterceptor, set_current_roles};

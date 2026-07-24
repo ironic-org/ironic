@@ -6,8 +6,12 @@ use std::{
     fmt,
     future::Future,
     pin::Pin,
-    sync::{Arc, Mutex},
+    sync::{Arc, Mutex, OnceLock},
 };
+
+/// Placeholder type used for error reporting when forward ref resolution fails.
+#[doc(hidden)]
+pub struct ForwardRefPlaceholder;
 
 use tokio::sync::OnceCell;
 
@@ -53,6 +57,106 @@ impl fmt::Debug for ProviderKey {
 impl fmt::Display for ProviderKey {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         formatter.write_str(self.type_name)
+    }
+}
+
+/// A lazy forward reference for resolving circular dependencies.
+///
+/// Use `ForwardRef<T>` in place of `Arc<T>` when two services depend on each other.
+/// The value is resolved lazily after the DI container finishes constructing all
+/// singletons, breaking the cycle at construction time.
+///
+/// # Example
+///
+/// ```ignore
+/// #[derive(Injectable)]
+/// struct ServiceA {
+///     b: ForwardRef<ServiceB>,
+/// }
+///
+/// impl ServiceA {
+///     async fn do_something(&self) {
+///         let b = self.b.get().await;
+///         b.handle().await;
+///     }
+/// }
+/// ```
+pub struct ForwardRef<T: Send + Sync + 'static> {
+    inner: Arc<OnceLock<ProviderValue>>,
+    key: ProviderKey,
+    _phantom: std::marker::PhantomData<T>,
+}
+
+impl<T: Send + Sync + 'static> ForwardRef<T> {
+    /// Creates an empty forward reference.
+    #[must_use]
+    pub fn new() -> Self {
+        Self {
+            inner: Arc::new(OnceLock::new()),
+            key: ProviderKey::of::<T>(),
+            _phantom: std::marker::PhantomData,
+        }
+    }
+
+    /// Returns the provider key for the referenced type.
+    #[must_use]
+    pub const fn key(&self) -> ProviderKey {
+        self.key
+    }
+
+    /// Resolves the forward reference, awaiting the value if not yet populated.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the forward ref was never populated by the container.
+    pub async fn get(&self) -> Arc<T> {
+        loop {
+            if let Some(value) = self.inner.get() {
+                if let Ok(down) = value.clone().downcast::<T>() {
+                    return down;
+                }
+                panic!("ForwardRef<{}> type mismatch", type_name::<T>());
+            }
+            tokio::task::yield_now().await;
+        }
+    }
+
+    /// Populates the forward reference with a resolved value.
+    ///
+    /// This is called by the DI container after all singletons are constructed.
+    pub fn populate(&self, value: Arc<T>) -> Result<(), ProviderValue> {
+        self.inner.set(value as ProviderValue)
+    }
+
+    /// Returns a clone of the inner shared state for pre-population.
+    #[must_use]
+    pub fn shared_inner(&self) -> Arc<OnceLock<ProviderValue>> {
+        Arc::clone(&self.inner)
+    }
+}
+
+impl<T: Send + Sync + 'static> Default for ForwardRef<T> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl<T: Send + Sync + 'static> Clone for ForwardRef<T> {
+    fn clone(&self) -> Self {
+        Self {
+            inner: Arc::clone(&self.inner),
+            key: self.key,
+            _phantom: std::marker::PhantomData,
+        }
+    }
+}
+
+impl<T: Send + Sync + 'static> fmt::Debug for ForwardRef<T> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_tuple("ForwardRef")
+            .field(&self.key)
+            .field(&self.inner.get().map(|_| &"<resolved>"))
+            .finish()
     }
 }
 
@@ -403,6 +507,7 @@ impl ContainerBuilder {
             inner: Arc::new(ContainerInner {
                 registrations,
                 health: Mutex::new(HashMap::new()),
+                pending_forward_refs: Mutex::new(Vec::new()),
             }),
         }
     }
@@ -413,9 +518,16 @@ struct Registration {
     singleton: OnceCell<ProviderValue>,
 }
 
+/// A pending forward reference that needs to be resolved after all singletons are built.
+pub struct PendingForwardRef {
+    key: ProviderKey,
+    cell: Arc<OnceLock<ProviderValue>>,
+}
+
 struct ContainerInner {
     registrations: HashMap<ProviderKey, Arc<Registration>>,
     health: Mutex<HashMap<ProviderKey, ProviderHealth>>,
+    pending_forward_refs: Mutex<Vec<PendingForwardRef>>,
 }
 
 /// Per-provider health statistics.
@@ -430,7 +542,7 @@ pub struct ProviderHealth {
 }
 
 /// Consolidated health summary for the container.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Default)]
 pub struct ProviderHealthSummary {
     /// Total registered providers.
     pub total_providers: usize,
@@ -481,6 +593,47 @@ impl Container {
     }
 
     /// Resolves an optional provider, returning `None` only when it is unregistered.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`ResolveError`] when a registered provider cannot be constructed or downcast.
+    /// Resolves all pending forward references after singleton construction.
+    ///
+    /// Call this after all eager singletons are constructed to populate
+    /// `ForwardRef<T>` instances that break circular dependencies.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`ResolveError`] when a forward-ref target cannot be resolved.
+    pub async fn resolve_forward_refs(&self) -> Result<(), ResolveError> {
+        let pending = std::mem::take(
+            &mut *self
+                .inner
+                .pending_forward_refs
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner),
+        );
+        for pending_ref in pending {
+            let value = self.resolve_key(pending_ref.key).await?;
+            if pending_ref.cell.set(value).is_err() {
+                // Already populated - that's fine, skip.
+            }
+        }
+        Ok(())
+    }
+
+    /// Registers a pending forward reference for later resolution.
+    pub fn register_forward_ref(&self, key: ProviderKey, cell: Arc<OnceLock<ProviderValue>>) {
+        self.inner
+            .pending_forward_refs
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .push(PendingForwardRef { key, cell });
+    }
+
+    /// Resolves an optional provider from the root container.
+    ///
+    /// Returns `None` only when the provider is not registered.
     ///
     /// # Errors
     ///
@@ -541,6 +694,31 @@ impl Container {
             inner: Arc::new(ContainerInner {
                 registrations,
                 health: Mutex::new(HashMap::new()),
+                pending_forward_refs: Mutex::new(Vec::new()),
+            }),
+        }
+    }
+
+    /// Creates a new container with additional provider registrations.
+    ///
+    /// Use for dynamic registration at runtime (e.g., lazy-loaded modules).
+    /// Existing registrations are preserved; new providers must not conflict.
+    #[must_use]
+    pub fn extend(self, providers: Vec<ProviderDefinition>) -> Self {
+        let mut registrations = self.inner.registrations.clone();
+        for provider in providers {
+            registrations.entry(provider.key()).or_insert_with(|| {
+                Arc::new(Registration {
+                    definition: provider,
+                    singleton: OnceCell::new(),
+                })
+            });
+        }
+        Self {
+            inner: Arc::new(ContainerInner {
+                registrations,
+                health: Mutex::new(HashMap::new()),
+                pending_forward_refs: Mutex::new(Vec::new()),
             }),
         }
     }
@@ -651,6 +829,13 @@ impl Resolver {
             Err(ResolveError::MissingProvider { .. }) => Ok(None),
             Err(error) => Err(error),
         }
+    }
+
+    /// Registers a pending forward reference for the given key.
+    ///
+    /// The value will be resolved after all singletons are constructed.
+    pub fn register_forward_ref(&self, key: ProviderKey, cell: Arc<OnceLock<ProviderValue>>) {
+        self.container.register_forward_ref(key, cell);
     }
 
     async fn resolve_erased(&self, key: ProviderKey) -> Result<ProviderValue, ResolveError> {

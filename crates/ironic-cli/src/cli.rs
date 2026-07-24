@@ -51,6 +51,18 @@ pub enum Command {
     Graph(InspectArgs),
     /// Manage database migrations.
     Migrate(MigrateArgs),
+    /// Runs a script defined in `[package.metadata.ironic.scripts]`.
+    Run(RunArgs),
+}
+
+/// Arguments for the `run` command.
+#[derive(Debug, Args)]
+pub struct RunArgs {
+    /// Name of the script to run.
+    pub name: String,
+    /// Additional arguments passed to the script.
+    #[arg(last = true, allow_hyphen_values = true)]
+    pub args: Vec<String>,
 }
 
 /// Arguments for project creation.
@@ -132,6 +144,9 @@ pub enum Generator {
     /// Generates a production-ready module with authentication and authorization.
     #[command(alias = "rr")]
     ReadyResource(ReadyResourceArgs),
+    /// Generates a reusable library crate.
+    #[command(alias = "lib")]
+    Library(NameArgs),
 }
 
 /// Ready-resource variant selection.

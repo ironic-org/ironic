@@ -1,3 +1,4 @@
+#![allow(clippy::type_complexity)]
 //! Procedural macros for declaring Ironic application metadata.
 
 use proc_macro::TokenStream;
@@ -10,6 +11,8 @@ mod jwt_guard;
 mod mcp_tool;
 mod merge;
 mod module;
+mod mapped_types;
+mod message_handler;
 mod openapi;
 mod routes;
 mod serializable;
@@ -46,6 +49,54 @@ pub fn derive_from_row(input: TokenStream) -> TokenStream {
 /// from `self` onto a target of the same type.
 pub fn derive_merge(input: TokenStream) -> TokenStream {
     merge::expand(input.into())
+        .unwrap_or_else(syn::Error::into_compile_error)
+        .into()
+}
+
+#[proc_macro_derive(PartialType, attributes(partial))]
+/// Derives an OpenAPI schema with all fields made optional from a base type.
+///
+/// # Example
+///
+/// ```ignore
+/// #[derive(PartialType)]
+/// #[partial(CreateUserDto)]
+/// struct UpdateUserDto;
+/// ```
+pub fn derive_partial_type(input: TokenStream) -> TokenStream {
+    mapped_types::expand_partial(syn::parse_macro_input!(input as syn::DeriveInput))
+        .unwrap_or_else(syn::Error::into_compile_error)
+        .into()
+}
+
+#[proc_macro_derive(PickType, attributes(pick))]
+/// Derives an OpenAPI schema that includes only the specified fields from a base type.
+///
+/// # Example
+///
+/// ```ignore
+/// #[derive(PickType)]
+/// #[pick(User, fields = ["id", "name", "email"])]
+/// struct UserResponse;
+/// ```
+pub fn derive_pick_type(input: TokenStream) -> TokenStream {
+    mapped_types::expand_pick(syn::parse_macro_input!(input as syn::DeriveInput))
+        .unwrap_or_else(syn::Error::into_compile_error)
+        .into()
+}
+
+#[proc_macro_derive(OmitType, attributes(omit))]
+/// Derives an OpenAPI schema that excludes the specified fields from a base type.
+///
+/// # Example
+///
+/// ```ignore
+/// #[derive(OmitType)]
+/// #[omit(User, fields = ["password_hash"])]
+/// struct SafeUser;
+/// ```
+pub fn derive_omit_type(input: TokenStream) -> TokenStream {
+    mapped_types::expand_omit(syn::parse_macro_input!(input as syn::DeriveInput))
         .unwrap_or_else(syn::Error::into_compile_error)
         .into()
 }
@@ -111,6 +162,30 @@ pub fn jwt_guard(attribute: TokenStream, item: TokenStream) -> TokenStream {
 /// ```
 pub fn mcp_tool(attribute: TokenStream, item: TokenStream) -> TokenStream {
     mcp_tool::expand(attribute.into(), item.into())
+        .unwrap_or_else(syn::Error::into_compile_error)
+        .into()
+}
+
+#[proc_macro_attribute]
+/// Registers an async function as a message handler on a `MicroserviceServer`.
+///
+/// The handler receives a deserialized request and returns a response that is
+/// serialized and sent back to the caller. Use with a microservice server that
+/// implements the request-response pattern.
+///
+/// # Example
+///
+/// ```ignore
+/// use std::sync::Arc;
+/// use ironic::distributed::{MicroserviceServer, MessageContext};
+///
+/// #[message_handler("user.get")]
+/// async fn get_user(request: GetUserRequest) -> GetUserResponse {
+///     // ...
+/// }
+/// ```
+pub fn message_handler(attribute: TokenStream, item: TokenStream) -> TokenStream {
+    message_handler::expand(attribute.into(), item.into())
         .unwrap_or_else(syn::Error::into_compile_error)
         .into()
 }
@@ -211,6 +286,9 @@ marker_attribute!(
     api,
     resp,
     sse,
+    forward_ref,
+    raw_body,
+    cookie,
 );
 
 /// Wraps an async test function with Ironic's Tokio runtime, removing the

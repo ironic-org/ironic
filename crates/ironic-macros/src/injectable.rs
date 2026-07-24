@@ -66,20 +66,37 @@ pub(crate) fn expand(input: TokenStream) -> syn::Result<TokenStream> {
                 let mut initializers = Vec::new();
                 for field in &fields.named {
                     let field_name = field.ident.as_ref().expect("named field");
-                    let inner_type = arc_inner(&field.ty)?;
-                    let inner_type_str = quote!(#inner_type).to_string();
 
-                    if optional_types.contains(&inner_type_str) {
-                        dependencies.push(quote!(::ironic::Dependency::optional::<#inner_type>()));
+                    // Check if this is a ForwardRef<T> field
+                    if let Some(inner_type) = forward_ref_inner(&field.ty) {
+                        // ForwardRef fields register pending refs instead of DI deps
                         initializers.push(quote!(
-                            #field_name: ::std::option::Option::Some(
-                                resolver.resolve_optional::<#inner_type>().await?
-                            )
+                            #field_name: {
+                                let __fwd = ::ironic::ForwardRef::<#inner_type>::new();
+                                let __inner = __fwd.shared_inner();
+                                resolver.register_forward_ref(
+                                    ::ironic::ProviderKey::of::<#inner_type>(),
+                                    __inner,
+                                );
+                                __fwd
+                            }
                         ));
                     } else {
-                        dependencies.push(quote!(::ironic::Dependency::required::<#inner_type>()));
-                        initializers
-                            .push(quote!(#field_name: resolver.resolve::<#inner_type>().await?));
+                        let inner_type = arc_inner(&field.ty)?;
+                        let inner_type_str = quote!(#inner_type).to_string();
+
+                        if optional_types.contains(&inner_type_str) {
+                            dependencies.push(quote!(::ironic::Dependency::optional::<#inner_type>()));
+                            initializers.push(quote!(
+                                #field_name: ::std::option::Option::Some(
+                                    resolver.resolve_optional::<#inner_type>().await?
+                                )
+                            ));
+                        } else {
+                            dependencies.push(quote!(::ironic::Dependency::required::<#inner_type>()));
+                            initializers
+                                .push(quote!(#field_name: resolver.resolve::<#inner_type>().await?));
+                        }
                     }
                 }
                 (dependencies, quote!(Self { #(#initializers),* }))
@@ -147,6 +164,24 @@ fn arc_inner(ty: &Type) -> syn::Result<&Type> {
             ty,
             "injectable fields must have type `Arc<T>`",
         )),
+    }
+}
+
+/// Extracts the inner type from `ForwardRef<T>`.
+fn forward_ref_inner(ty: &Type) -> Option<&Type> {
+    let Type::Path(path) = ty else {
+        return None;
+    };
+    let segment = path.path.segments.last()?;
+    if segment.ident != "ForwardRef" {
+        return None;
+    }
+    let PathArguments::AngleBracketed(arguments) = &segment.arguments else {
+        return None;
+    };
+    match arguments.args.first() {
+        Some(GenericArgument::Type(inner)) if arguments.args.len() == 1 => Some(inner),
+        _ => None,
     }
 }
 

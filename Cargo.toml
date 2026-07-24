@@ -62,6 +62,9 @@ scheduling = []
 events = []
 realtime = ["axum/ws"]
 sse = []
+http-client = []
+tls = ["dep:tokio-rustls", "dep:rustls-pemfile"]
+serverless = ["dep:lambda_http"]
 application-services = ["cache", "scheduling", "events", "realtime"]
 queues = []
 microservices = []
@@ -100,9 +103,9 @@ backtrace = []
 openapi = []
 logging = ["dep:chrono", "dep:tracing-subscriber"]
 hot-reload = ["dep:notify"]
-transport-redis = ["dep:redis"]
-transport-rabbitmq = ["dep:lapin"]
-transport-kafka = ["dep:kafka"]
+transport-redis = ["microservices", "dep:redis"]
+transport-rabbitmq = ["microservices", "dep:lapin"]
+transport-kafka = ["microservices", "dep:kafka"]
 mcp = ["axum/json"]
 
 [[bin]]
@@ -191,6 +194,9 @@ chrono = { workspace = true, optional = true }
 uuid = { workspace = true, optional = true }
 lapin = { workspace = true, optional = true }
 kafka = { workspace = true, optional = true }
+lambda_http = { package = "lambda_http", version = "0.14", default-features = false, features = ["apigw_rest"], optional = true }
+tokio-rustls = { version = "0.26", optional = true }
+rustls-pemfile = { version = "2", optional = true }
 ureq = { version = "3.3.0", features = ["json"] }
 notify = { version = "8.2.0", optional = true }
 ctrlc = "3"
@@ -235,9 +241,10 @@ serde_urlencoded = "0.7.1"
 syn = { version = "2.0.117", features = ["full"] }
 tempfile = "3.23.0"
 thiserror = "2.0.18"
-tokio = { version = "1.52.0", features = ["macros", "net", "rt-multi-thread", "signal", "sync", "time"] }
+tokio = { version = "1.52.0", features = ["macros", "net", "rt-multi-thread", "signal", "sync", "time", "io-util"] }
 tower = { version = "0.5.3", features = ["util"] }
 tower-http = { version = "0.7.0", default-features = false, features = ["cors", "set-header", "compression-gzip", "compression-br", "compression-zstd"] }
+
 tracing = "0.1.43"
 garde = { version = "0.23.0", features = ["derive"] }
 cron = "0.17.0"

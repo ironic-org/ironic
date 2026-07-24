@@ -13,3 +13,5 @@ pub mod sse;
 #[cfg(feature = "realtime")]
 /// WebSocket gateway runtime: connections, rooms, and broadcasting.
 pub mod ws;
+#[cfg(feature = "http-client")]
+pub mod http_client;

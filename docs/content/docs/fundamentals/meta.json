@@ -5,6 +5,7 @@
     "modules",
     "providers",
     "request-lifecycle",
-    "pipes"
+    "pipes",
+    "circular-dependencies"
   ]
 }

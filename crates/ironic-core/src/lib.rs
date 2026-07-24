@@ -10,10 +10,8 @@ use std::{
     any::{TypeId, type_name},
     collections::{HashMap, HashSet},
     fmt,
-    sync::Arc,
+    sync::{Arc, RwLock},
 };
-
-use std::sync::OnceLock;
 
 use ironic_di::{
     Container, ContainerBuilder, ProviderDefinition, ProviderKey, ProviderValue, RegistrationError,
@@ -79,6 +77,22 @@ impl fmt::Debug for ModuleId {
 impl fmt::Display for ModuleId {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         formatter.write_str(self.type_name)
+    }
+}
+
+/// A lazy module wrapper that defers provider registration until explicitly loaded.
+///
+/// Use `LazyModule<T>` in place of `T` in module imports to delay the module's
+/// provider registration until [`ModuleRef::load::<T>()`] is called at runtime.
+pub struct LazyModule<M: Module> {
+    _marker: std::marker::PhantomData<M>,
+}
+
+impl<M: Module> LazyModule<M> {
+    /// Returns the module definition for the wrapped type.
+    #[must_use]
+    pub fn definition() -> ModuleDefinition {
+        M::definition()
     }
 }
 
@@ -198,6 +212,8 @@ impl ModuleDefinitionBuilder {
     pub fn import_lazy<T: Module>(self) -> Self {
         self.import::<T>()
     }
+
+
 
     /// Adds a runtime-created module definition as a direct import.
     #[must_use]
@@ -542,7 +558,7 @@ pub enum ModuleError {
 /// populate the container reference during application initialization.
 #[derive(Clone)]
 pub struct ModuleRef {
-    container: std::sync::Arc<OnceLock<ironic_di::Container>>,
+    container: std::sync::Arc<RwLock<Option<ironic_di::Container>>>,
 }
 
 impl ModuleRef {
@@ -550,13 +566,36 @@ impl ModuleRef {
     #[must_use]
     pub fn new() -> Self {
         Self {
-            container: std::sync::Arc::new(OnceLock::new()),
+            container: std::sync::Arc::new(RwLock::new(None)),
         }
     }
 
     /// Populates the container reference. Called once during application build.
     pub(crate) fn set_container(&self, container: ironic_di::Container) {
-        let _ = self.container.set(container);
+        *self
+            .container
+            .write()
+            .unwrap_or_else(std::sync::PoisonError::into_inner) = Some(container);
+    }
+
+    /// Lazily loads a module, registering its providers into the container.
+    ///
+    /// The module is resolved on first call; subsequent calls are no-ops.
+    ///
+    /// # Errors
+    ///
+    /// Returns a resolve error when the lazy module's providers cannot be registered.
+    pub fn load<M: Module>(&self) -> Result<(), RegistrationError> {
+        let definition = M::definition();
+        let mut guard = self
+            .container
+            .write()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        if let Some(container) = guard.take() {
+            let extended = container.extend(definition.providers);
+            *guard = Some(extended);
+        }
+        Ok(())
     }
 
     /// Resolves a provider by concrete type.
@@ -568,17 +607,19 @@ impl ModuleRef {
     pub async fn resolve<T: Send + Sync + 'static>(
         &self,
     ) -> Result<std::sync::Arc<T>, ironic_di::ResolveError> {
-        self.container
-            .get()
+        let container = self
+            .container
+            .read()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .clone()
             .ok_or_else(|| {
                 let key = ironic_di::ProviderKey::of::<T>();
                 ironic_di::ResolveError::MissingProvider {
                     key,
                     path: Vec::new(),
                 }
-            })?
-            .resolve::<T>()
-            .await
+            })?;
+        container.resolve::<T>().await
     }
 
     /// Resolves an optional provider, returning `None` when it is not registered.
@@ -599,6 +640,54 @@ impl ModuleRef {
 }
 
 impl Default for ModuleRef {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+/// Runtime inspection of providers, modules, and handlers.
+///
+/// Register `DiscoveryService` as a provider in any module and the framework
+/// will populate it during application initialization.
+#[derive(Clone)]
+pub struct DiscoveryService {
+    container: std::sync::Arc<tokio::sync::OnceCell<ironic_di::Container>>,
+}
+
+impl DiscoveryService {
+    /// Creates a new discovery service.
+    #[must_use]
+    pub fn new() -> Self {
+        Self {
+            container: std::sync::Arc::new(tokio::sync::OnceCell::new()),
+        }
+    }
+
+    /// Sets the container reference. Called during application build.
+    pub(crate) fn set_container(&self, container: ironic_di::Container) {
+        let _ = self.container.set(container);
+    }
+
+    /// Returns the total number of registered providers.
+    #[must_use]
+    pub fn provider_count(&self) -> usize {
+        self.container
+            .get()
+            .map(|c| c.health().total_providers)
+            .unwrap_or(0)
+    }
+
+    /// Returns per-provider health statistics.
+    #[must_use]
+    pub fn provider_health(&self) -> ironic_di::ProviderHealthSummary {
+        self.container
+            .get()
+            .map(|c| c.health())
+            .unwrap_or_default()
+    }
+}
+
+impl Default for DiscoveryService {
     fn default() -> Self {
         Self::new()
     }

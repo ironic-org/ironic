@@ -43,8 +43,10 @@ Every feature flag in `Cargo.toml` (58 total), organized by category.
 | `cache` | `Cache` trait, `InMemoryCache`, `RedisCache` (with `redis`), `CacheInterceptor` |
 | `scheduling` | `ScheduledTask`, `interval()`, `cron()`, `cron_schedule()` |
 | `events` | `EventBus` — typed in-process pub/sub |
-| `realtime` | WebSocket + SSE support (`WsConnections`, `WebSocketHandler`, `sse_channel()`) |
-| `application-services` | Bundled: `cache`, `scheduling`, `events`, `realtime` |
+| `realtime` | WebSocket support (`WsConnections`, `WebSocketHandler`) |
+| `sse` | Server-Sent Events (`SseRoute`, `SseConfig`, `EventBroadcaster`) |
+| `http-client` | Injectable HTTP client (`HttpClientService`, `RetryClient`, `CircuitBreakerClient`) |
+| `application-services` | Bundled: `cache`, `scheduling`, `events`, `realtime`, `sse` |
 
 ## Distributed Systems
 | Flag | Enables |

@@ -1,6 +1,9 @@
 #![doc = "Axum integration for Ironic."]
 #![cfg_attr(not(feature = "static-files"), allow(unused_imports, dead_code))]
 
+#[cfg(feature = "serverless")]
+pub mod serverless;
+
 use std::{
     collections::HashMap, convert::Infallible, net::SocketAddr, path::PathBuf, sync::Arc,
     time::Duration,
@@ -56,6 +59,16 @@ struct StaticFileRoute {
     fs_dir: PathBuf,
 }
 
+/// Configuration for TLS/HTTPS serving.
+#[cfg(feature = "tls")]
+#[derive(Clone, Debug)]
+pub struct TlsConfig {
+    /// Path to the TLS certificate PEM file.
+    pub cert_path: PathBuf,
+    /// Path to the TLS private key PEM file.
+    pub key_path: PathBuf,
+}
+
 /// Builds an Axum router from a compiled Ironic HTTP application.
 pub struct AxumAdapter {
     request_body_limit: usize,
@@ -63,6 +76,11 @@ pub struct AxumAdapter {
     drain_timeout: Duration,
     #[cfg(feature = "compression")]
     enable_compression: bool,
+    api_prefix: Option<String>,
+    /// Additional addresses to listen on (e.g., separate HTTPS port).
+    additional_addrs: Vec<SocketAddr>,
+    #[cfg(feature = "tls")]
+    tls_config: Option<TlsConfig>,
     configure_router: Vec<RouterConfigurator>,
     #[cfg(feature = "static-files")]
     static_files: Vec<StaticFileRoute>,
@@ -121,6 +139,10 @@ impl AxumAdapter {
             drain_timeout: DEFAULT_DRAIN_TIMEOUT,
             #[cfg(feature = "compression")]
             enable_compression: false,
+            api_prefix: None,
+            additional_addrs: Vec::new(),
+            #[cfg(feature = "tls")]
+            tls_config: None,
             configure_router: Vec::new(),
             #[cfg(feature = "static-files")]
             static_files: Vec::new(),
@@ -145,6 +167,31 @@ impl AxumAdapter {
     #[must_use]
     pub const fn request_timeout(mut self, timeout: Duration) -> Self {
         self.request_timeout = timeout;
+        self
+    }
+
+    /// Sets a global path prefix for all routes.
+    ///
+    /// All routes are nested under this prefix (e.g., `"/api/v1"` makes
+    /// a `/users` route accessible at `/api/v1/users`).
+    #[must_use]
+    pub fn api_prefix(mut self, prefix: impl Into<String>) -> Self {
+        self.api_prefix = Some(prefix.into());
+        self
+    }
+
+    /// Adds an additional address to listen on (multi-server support).
+    #[must_use]
+    pub fn additional_listener(mut self, addr: SocketAddr) -> Self {
+        self.additional_addrs.push(addr);
+        self
+    }
+
+    /// Configures TLS/HTTPS with the given certificate and key paths.
+    #[cfg(feature = "tls")]
+    #[must_use]
+    pub fn tls(mut self, cert_path: PathBuf, key_path: PathBuf) -> Self {
+        self.tls_config = Some(TlsConfig { cert_path, key_path });
         self
     }
 
@@ -352,9 +399,15 @@ impl HttpPlatformAdapter for AxumAdapter {
         if let Some(max) = self.max_concurrent_requests {
             router = router.layer(crate::resilience::ConcurrencyLimitLayer::new(max));
         }
+        if let Some(prefix) = self.api_prefix {
+            router = Router::new().nest(&prefix, router);
+        }
         Ok(AxumApplication {
             router,
             drain_timeout: self.drain_timeout,
+            additional_addrs: self.additional_addrs,
+            #[cfg(feature = "tls")]
+            tls_config: self.tls_config,
         })
     }
 }
@@ -364,6 +417,9 @@ impl HttpPlatformAdapter for AxumAdapter {
 pub struct AxumApplication {
     router: Router,
     drain_timeout: Duration,
+    additional_addrs: Vec<SocketAddr>,
+    #[cfg(feature = "tls")]
+    tls_config: Option<TlsConfig>,
 }
 
 impl AxumApplication {
@@ -425,21 +481,46 @@ impl HttpPlatformApplication for AxumApplication {
         shutdown: Shutdown,
     ) -> PlatformFuture<Result<ShutdownSignal, Self::Error>> {
         Box::pin(async move {
+            let router = self.router;
+            // Watch channel: graceful writes the signal, drain futures read it.
+            let (drain_tx, drain_rx) = tokio::sync::watch::channel(None::<ShutdownSignal>);
+
+            // Start additional listeners (multi-server support)
+            let mut handles = Vec::new();
+            for addr in self.additional_addrs {
+                let router = router.clone();
+                let drain_rx = tokio::sync::watch::Receiver::clone(&drain_rx);
+                let listener = tokio::net::TcpListener::bind(addr)
+                    .await
+                    .map_err(|error| AxumPlatformError::Bind {
+                        address: addr,
+                        message: error.to_string(),
+                    })?;
+                let graceful = {
+                    let mut rx = drain_rx;
+                    async move {
+                        let _ = rx.changed().await;
+                    }
+                };
+                handles.push(tokio::spawn(async move {
+                    let _ = axum::serve(listener, router).with_graceful_shutdown(graceful).await;
+                }));
+            }
+
             let listener = tokio::net::TcpListener::bind(address)
                 .await
                 .map_err(|error| AxumPlatformError::Bind {
                     address,
                     message: error.to_string(),
                 })?;
-            // Watch channel: graceful writes the signal, drain futures read it.
-            let (drain_tx, drain_rx) = tokio::sync::watch::channel(None::<ShutdownSignal>);
             let graceful = {
                 async move {
                     let sig = shutdown.wait().await;
                     let _ = drain_tx.send(Some(sig));
                 }
             };
-            let serve_fut = axum::serve(listener, self.router).with_graceful_shutdown(graceful);
+
+            let serve_fut = axum::serve(listener, router).with_graceful_shutdown(graceful);
 
             let signal = tokio::select! {
                 result = serve_fut => {

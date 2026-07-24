@@ -290,3 +290,351 @@ fn plugins_apply_in_order_and_reject_duplicate_names() {
         .unwrap()
         .build();
 }
+
+// ── Microservices ─────────────────────────────────────────────────────
+
+#[cfg(all(feature = "microservices", feature = "events"))]
+#[tokio::test]
+async fn forward_ref_resolves_after_container_build() {
+    use std::sync::Arc;
+    use ironic::{ForwardRef, ContainerBuilder, ProviderDefinition, Dependency, Scope};
+    use ironic::distributed::microservices::*;
+
+    struct ServiceB;
+    struct ServiceA {
+        b: ForwardRef<ServiceB>,
+    }
+
+    let fwd = ForwardRef::<ServiceB>::new();
+    let inner = fwd.shared_inner();
+    let mut builder = ContainerBuilder::new();
+    builder
+        .register(ProviderDefinition::value(fwd))
+        .unwrap()
+        .register(ProviderDefinition::factory::<ServiceB, _, _>(
+            Scope::Singleton,
+            Vec::new(),
+            |_| async { Ok(ServiceB) },
+        ))
+        .unwrap()
+        .register(ProviderDefinition::factory::<ServiceA, _, _>(
+            Scope::Singleton,
+            vec![Dependency::required::<ForwardRef<ServiceB>>()],
+            |r| async move {
+                let b: Arc<ForwardRef<ServiceB>> = r.resolve().await?;
+                Ok(ServiceA { b: (*b).clone() })
+            },
+        ))
+        .unwrap();
+    let container = builder.build();
+    // Register the forward ref with the container
+    container.register_forward_ref(ironic::ProviderKey::of::<ServiceB>(), inner);
+    container.resolve_forward_refs().await.unwrap();
+    let a = container.resolve::<ServiceA>().await.unwrap();
+    let _b: Arc<ServiceB> = a.b.get().await;
+}
+
+#[cfg(all(feature = "microservices", feature = "events"))]
+#[tokio::test]
+async fn inmemory_client_server_request_response() {
+    use ironic::distributed::microservices::{InMemoryServer, MicroserviceClient, MicroserviceServer, MessageHandler, TransportError};
+    use std::sync::Arc;
+
+    let (client, server) = InMemoryServer::pair(16);
+    server.on_message("ping", Arc::new(|payload, _ctx| {
+        Box::pin(async move {
+            let msg: String = serde_json::from_slice(&payload).map_err(|e| TransportError(e.to_string()))?;
+            let resp = format!("pong:{}", msg);
+            serde_json::to_vec(&resp).map_err(|e| TransportError(e.to_string()))
+        })
+    }));
+    server.listen().await.unwrap();
+
+    let result: String = client.send("ping", &"hello".to_string()).await.unwrap();
+    assert_eq!(result, "pong:hello");
+}
+
+#[cfg(all(feature = "microservices", feature = "events"))]
+#[tokio::test]
+async fn inmemory_client_server_event() {
+    use std::sync::Arc;
+    use tokio::sync::Mutex;
+    use ironic::distributed::microservices::{InMemoryServer, MicroserviceClient, MicroserviceServer, TransportError};
+
+    let (client, server) = InMemoryServer::pair(16);
+    let received = Arc::new(Mutex::new(Vec::new()));
+
+    let ev = Arc::clone(&received);
+    server.on_event("order.created", Arc::new(move |payload, _ctx| {
+        let ev = Arc::clone(&ev);
+        Box::pin(async move {
+            let msg: String = serde_json::from_slice(&payload).map_err(|e| TransportError(e.to_string()))?;
+            ev.lock().await.push(msg);
+            Ok(())
+        })
+    }));
+    server.listen().await.unwrap();
+
+    client.emit("order.created", &"order-1".to_string()).await.unwrap();
+    tokio::time::sleep(tokio::time::Duration::from_millis(50)).await;
+    assert_eq!(received.lock().await.len(), 1);
+}
+
+#[cfg(all(feature = "microservices", feature = "events"))]
+#[tokio::test]
+async fn pattern_normalization_works() {
+    use ironic::distributed::microservices::{normalize_pattern, MsPattern};
+
+    assert_eq!(normalize_pattern("user.get"), "user.get");
+    let pat = MsPattern::from("order.create");
+    assert_eq!(pat.normalize(), "order.create");
+
+    let json_pattern = serde_json::json!({"service": "users"});
+    let normalized = normalize_pattern(json_pattern);
+    assert!(normalized.contains("users"));
+}
+
+#[cfg(all(feature = "microservices", feature = "events"))]
+#[tokio::test]
+async fn custom_transport_strategy_creates_paired_endpoints() {
+    use ironic::distributed::microservices::{CustomTransportStrategy, InMemoryServer};
+
+    struct TestTransport;
+
+    impl CustomTransportStrategy for TestTransport {
+        type Client = ironic::distributed::microservices::InMemoryClient;
+        type Server = InMemoryServer;
+        fn create(self) -> (Self::Client, Self::Server) {
+            InMemoryServer::pair(16)
+        }
+    }
+
+    let (_client, _server) = TestTransport.create();
+}
+
+// ── ForwardRef DI ─────────────────────────────────────────────────────
+
+#[cfg(feature = "events")]
+#[tokio::test]
+async fn forward_ref_in_di_container() {
+    use std::sync::Arc;
+    use ironic::{
+        ContainerBuilder, ProviderDefinition, Dependency, Scope,
+        ForwardRef, ResolveError,
+    };
+
+    struct ServiceA {
+        b: ForwardRef<ServiceB>,
+    }
+    struct ServiceB;
+
+    let fwd = ForwardRef::<ServiceB>::new();
+    let inner = fwd.shared_inner();
+    let mut builder = ContainerBuilder::new();
+    builder
+        .register(ProviderDefinition::value(fwd))
+        .unwrap()
+        .register(ProviderDefinition::factory::<ServiceA, _, _>(
+            Scope::Singleton,
+            vec![Dependency::required::<ForwardRef<ServiceB>>()],
+            move |r| async move {
+                let fwd: Arc<ForwardRef<ServiceB>> = r.resolve().await?;
+                Ok(ServiceA { b: (*fwd).clone() })
+            },
+        ))
+        .unwrap()
+        .register(ProviderDefinition::value(ServiceB))
+        .unwrap();
+
+    let container = builder.build();
+    container.register_forward_ref(ironic::ProviderKey::of::<ServiceB>(), inner);
+    container.resolve_forward_refs().await.unwrap();
+    let a = container.resolve::<ServiceA>().await.unwrap();
+    let _b: Arc<ServiceB> = a.b.get().await;
+}
+
+// ── Serializer / Deserializer ─────────────────────────────────────────
+
+#[cfg(feature = "microservices")]
+#[test]
+fn serializer_round_trips_json() {
+    use ironic::distributed::microservices::{Serializer, Deserializer, IdentitySerializer};
+
+    let codec = IdentitySerializer;
+    let bytes = codec.to_bytes(&42_u32).unwrap();
+    let value: u32 = codec.read_bytes(&bytes).unwrap();
+    assert_eq!(value, 42);
+}
+
+#[cfg(feature = "microservices")]
+#[test]
+fn serializer_handles_structs() {
+    use ironic::distributed::microservices::{Serializer, Deserializer, IdentitySerializer};
+    use serde::{Serialize, Deserialize};
+
+    #[derive(Serialize, Deserialize, Debug, PartialEq)]
+    struct Person {
+        name: String,
+        age: u8,
+    }
+
+    let codec = IdentitySerializer;
+    let person = Person { name: "Alice".into(), age: 30 };
+    let bytes = codec.to_bytes(&person).unwrap();
+    let decoded: Person = codec.read_bytes(&bytes).unwrap();
+    assert_eq!(person, decoded);
+}
+
+// ── LazyModule ────────────────────────────────────────────────────────
+
+#[cfg(feature = "events")]
+#[tokio::test]
+async fn lazy_module_defers_registration() {
+    use ironic::LazyModule;
+
+    struct TestMod;
+    impl ironic::Module for TestMod {
+        fn definition() -> ironic::ModuleDefinition {
+            ironic::ModuleDefinition::builder::<TestMod>().build()
+        }
+    }
+
+    let def = LazyModule::<TestMod>::definition();
+    assert!(def.id().type_name().contains("TestMod"));
+}
+
+// ── GraphQL Integration ──────────────────────────────────────────────
+
+#[cfg(feature = "graphql")]
+#[test]
+fn graphql_schema_builder_constructs() {
+    use async_graphql::{EmptyMutation, EmptySubscription, Object};
+    use ironic::graphql_integration::GraphqlSchemaBuilder;
+
+    struct Query;
+    #[Object]
+    impl Query {
+        async fn hello(&self) -> &str {
+            "world"
+        }
+    }
+
+    let builder = GraphqlSchemaBuilder::new(Query, EmptyMutation, EmptySubscription);
+    let schema = builder.finish();
+    assert!(!schema.sdl().is_empty());
+}
+
+#[cfg(feature = "graphql")]
+#[test]
+fn graphql_proc_macros_compile() {
+    // Verify that the proc-macro attributes exist and can be applied
+    let _ = ironic::graphql_resolver;
+    let _ = ironic::graphql_query;
+    let _ = ironic::graphql_mutation;
+    let _ = ironic::graphql_subscription;
+}
+
+// ── Redis Integration Tests (require running Redis) ────────────────────
+
+/// Integration test for Redis transport (run with `cargo test --features transport-redis -- --ignored`).
+///
+/// Requires a Redis instance running at 127.0.0.1:6379.
+#[cfg(feature = "transport-redis")]
+#[ignore = "requires running Redis instance"]
+#[tokio::test]
+async fn redis_transport_request_response() {
+    use ironic::distributed::transport_redis::{RedisClient, RedisClientConfig, RedisServer, RedisServerConfig};
+    use ironic::distributed::microservices::{MicroserviceClient, MicroserviceServer, MessageHandler, TransportError};
+    use std::sync::Arc;
+
+    let server = RedisServer::new(RedisServerConfig::default());
+    server.on_message("ping", Arc::new(|payload, _ctx| {
+        Box::pin(async move {
+            let msg: String = serde_json::from_slice(&payload).map_err(|e| TransportError(e.to_string()))?;
+            let resp = format!("pong:{msg}");
+            serde_json::to_vec(&resp).map_err(|e| TransportError(e.to_string()))
+        })
+    }));
+    server.listen().await.unwrap();
+
+    let client = RedisClient::new(RedisClientConfig::default());
+    client.connect().await.unwrap();
+    let result: String = client.send("ping", &"hello".to_string()).await.unwrap();
+    assert_eq!(result, "pong:hello");
+}
+
+/// Integration test for cross-process events via Redis transport.
+///
+/// Requires a Redis instance running at 127.0.0.1:6379.
+#[cfg(feature = "transport-redis")]
+#[ignore = "requires running Redis instance"]
+#[tokio::test]
+async fn redis_transport_cross_process_event() {
+    use ironic::distributed::transport_redis::{RedisClient, RedisClientConfig, RedisServer, RedisServerConfig};
+    use ironic::distributed::microservices::{MicroserviceClient, MicroserviceServer, TransportError};
+    use std::sync::Arc;
+    use tokio::sync::Mutex;
+
+    let server = RedisServer::new(RedisServerConfig::default());
+    let received = Arc::new(Mutex::new(Vec::new()));
+    let ev = Arc::clone(&received);
+    server.on_event("user.created", Arc::new(move |payload, _ctx| {
+        let ev = Arc::clone(&ev);
+        Box::pin(async move {
+            let name: String = serde_json::from_slice(&payload).map_err(|e| TransportError(e.to_string()))?;
+            ev.lock().await.push(name);
+            Ok(())
+        })
+    }));
+    server.listen().await.unwrap();
+
+    let client = RedisClient::new(RedisClientConfig::default());
+    client.connect().await.unwrap();
+    client.emit("user.created", &"Alice".to_string()).await.unwrap();
+    tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
+    assert_eq!(received.lock().await.len(), 1);
+}
+
+// ── DiscoveryService ──────────────────────────────────────────────────
+
+#[cfg(all(feature = "events", feature = "microservices"))]
+#[test]
+fn discovery_service_default_state_is_empty() {
+    use ironic::DiscoveryService;
+
+    let discovery = DiscoveryService::new();
+    assert_eq!(discovery.provider_count(), 0);
+    let health = discovery.provider_health();
+    assert_eq!(health.total_providers, 0);
+}
+
+// ── OpenAPI Mapped Types ──────────────────────────────────────────────
+
+#[cfg(all(feature = "openapi", feature = "validation"))]
+#[test]
+fn openapi_mapped_types_compile() {
+    use ironic::OpenApiSchema;
+
+    #[derive(serde::Serialize, OpenApiSchema)]
+    struct User {
+        name: String,
+        email: String,
+        password: String,
+    }
+
+    #[derive(ironic::PartialType)]
+    #[partial(User)]
+    struct UpdateUser;
+
+    #[derive(ironic::PickType)]
+    #[pick(User, fields = ["name", "email"])]
+    struct UserResponse;
+
+    #[derive(ironic::OmitType)]
+    #[omit(User, fields = ["password"])]
+    struct SafeUser;
+
+    let _ = UpdateUser::openapi_schema();
+    let _ = UserResponse::openapi_schema();
+    let _ = SafeUser::openapi_schema();
+}

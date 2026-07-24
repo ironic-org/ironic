@@ -20,3 +20,13 @@ pub mod microservices;
 pub mod queues;
 #[cfg(feature = "sagas")]
 pub mod sagas;
+#[cfg(feature = "transport-redis")]
+pub mod transport_redis;
+#[cfg(feature = "transport-rabbitmq")]
+pub mod transport_rabbitmq;
+#[cfg(feature = "microservices")]
+pub mod tracing;
+#[cfg(feature = "transport-kafka")]
+pub mod transport_kafka;
+#[cfg(feature = "microservices")]
+pub mod transport_tcp;

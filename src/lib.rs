@@ -67,6 +67,9 @@ pub mod mcp;
 #[cfg(feature = "openapi")]
 #[path = "../crates/ironic-openapi/src/lib.rs"]
 mod openapi;
+#[cfg(feature = "graphql")]
+#[path = "../crates/ironic-graphql/src/lib.rs"]
+pub mod graphql_integration;
 #[path = "../crates/ironic-platform/src/lib.rs"]
 mod platform;
 #[path = "../crates/ironic-platform-axum/src/lib.rs"]
@@ -250,10 +253,14 @@ macro_rules! create_param_decorator {
 
 /// Commonly used Ironic types and macros.
 pub mod prelude {
-    #[cfg(feature = "hot-reload")]
-    pub use crate::ConfigWatcher;
-    #[cfg(feature = "sse")]
-    pub use crate::EventBroadcaster;
+#[cfg(feature = "hot-reload")]
+pub use crate::ConfigWatcher;
+#[cfg(feature = "graphql")]
+pub use crate::graphql_integration::*;
+#[cfg(feature = "graphql")]
+pub use ironic_macros::{resolver, gql_query, mutation, subscription};
+#[cfg(feature = "sse")]
+pub use crate::EventBroadcaster;
     #[cfg(feature = "sqlx")]
     pub use crate::FromRow;
     #[cfg(feature = "openapi")]

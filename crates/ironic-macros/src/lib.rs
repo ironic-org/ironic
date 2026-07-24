@@ -6,6 +6,7 @@ use proc_macro::TokenStream;
 mod controller;
 mod event_handler;
 mod from_row;
+mod graphql;
 mod injectable;
 mod jwt_guard;
 mod mcp_tool;
@@ -31,6 +32,41 @@ pub fn derive_injectable(input: TokenStream) -> TokenStream {
 /// Derives a static application module definition.
 pub fn derive_module(input: TokenStream) -> TokenStream {
     module::expand(input.into())
+        .unwrap_or_else(syn::Error::into_compile_error)
+        .into()
+}
+
+#[proc_macro_attribute]
+/// Marks a struct as a GraphQL resolver with DI injection.
+///
+/// The struct is automatically registered as an `#[Injectable]` and can be
+/// used in GraphQL schema building.
+pub fn resolver(attribute: TokenStream, item: TokenStream) -> TokenStream {
+    graphql::expand_resolver(attribute.into(), item.into())
+        .unwrap_or_else(syn::Error::into_compile_error)
+        .into()
+}
+
+#[proc_macro_attribute]
+/// Marks a method as a GraphQL query field.
+pub fn gql_query(attribute: TokenStream, item: TokenStream) -> TokenStream {
+    graphql::expand_query(attribute.into(), item.into())
+        .unwrap_or_else(syn::Error::into_compile_error)
+        .into()
+}
+
+#[proc_macro_attribute]
+/// Marks a method as a GraphQL mutation field.
+pub fn mutation(attribute: TokenStream, item: TokenStream) -> TokenStream {
+    graphql::expand_mutation(attribute.into(), item.into())
+        .unwrap_or_else(syn::Error::into_compile_error)
+        .into()
+}
+
+#[proc_macro_attribute]
+/// Marks a method as a GraphQL subscription field.
+pub fn subscription(attribute: TokenStream, item: TokenStream) -> TokenStream {
+    graphql::expand_subscription(attribute.into(), item.into())
         .unwrap_or_else(syn::Error::into_compile_error)
         .into()
 }

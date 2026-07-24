@@ -147,6 +147,9 @@ pub enum Generator {
     /// Generates a reusable library crate.
     #[command(alias = "lib")]
     Library(NameArgs),
+    /// Generates a GraphQL resolver scaffold.
+    #[command(alias = "gql")]
+    GraphqlResolver(NameArgs),
 }
 
 /// Ready-resource variant selection.

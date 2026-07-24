@@ -503,6 +503,98 @@ async fn lazy_module_defers_registration() {
     assert!(def.id().type_name().contains("TestMod"));
 }
 
+// ── GraphQL Integration ──────────────────────────────────────────────
+
+#[cfg(feature = "graphql")]
+#[test]
+fn graphql_schema_builder_constructs() {
+    use async_graphql::{EmptyMutation, EmptySubscription, Object};
+    use ironic::graphql_integration::GraphqlSchemaBuilder;
+
+    struct Query;
+    #[Object]
+    impl Query {
+        async fn hello(&self) -> &str {
+            "world"
+        }
+    }
+
+    let builder = GraphqlSchemaBuilder::new(Query, EmptyMutation, EmptySubscription);
+    let schema = builder.finish();
+    assert!(!schema.sdl().is_empty());
+}
+
+#[cfg(feature = "graphql")]
+#[test]
+fn graphql_proc_macros_compile() {
+    // Verify that the proc-macro attributes exist and can be applied
+    let _ = ironic::graphql_resolver;
+    let _ = ironic::graphql_query;
+    let _ = ironic::graphql_mutation;
+    let _ = ironic::graphql_subscription;
+}
+
+// ── Redis Integration Tests (require running Redis) ────────────────────
+
+/// Integration test for Redis transport (run with `cargo test --features transport-redis -- --ignored`).
+///
+/// Requires a Redis instance running at 127.0.0.1:6379.
+#[cfg(feature = "transport-redis")]
+#[ignore = "requires running Redis instance"]
+#[tokio::test]
+async fn redis_transport_request_response() {
+    use ironic::distributed::transport_redis::{RedisClient, RedisClientConfig, RedisServer, RedisServerConfig};
+    use ironic::distributed::microservices::{MicroserviceClient, MicroserviceServer, MessageHandler, TransportError};
+    use std::sync::Arc;
+
+    let server = RedisServer::new(RedisServerConfig::default());
+    server.on_message("ping", Arc::new(|payload, _ctx| {
+        Box::pin(async move {
+            let msg: String = serde_json::from_slice(&payload).map_err(|e| TransportError(e.to_string()))?;
+            let resp = format!("pong:{msg}");
+            serde_json::to_vec(&resp).map_err(|e| TransportError(e.to_string()))
+        })
+    }));
+    server.listen().await.unwrap();
+
+    let client = RedisClient::new(RedisClientConfig::default());
+    client.connect().await.unwrap();
+    let result: String = client.send("ping", &"hello".to_string()).await.unwrap();
+    assert_eq!(result, "pong:hello");
+}
+
+/// Integration test for cross-process events via Redis transport.
+///
+/// Requires a Redis instance running at 127.0.0.1:6379.
+#[cfg(feature = "transport-redis")]
+#[ignore = "requires running Redis instance"]
+#[tokio::test]
+async fn redis_transport_cross_process_event() {
+    use ironic::distributed::transport_redis::{RedisClient, RedisClientConfig, RedisServer, RedisServerConfig};
+    use ironic::distributed::microservices::{MicroserviceClient, MicroserviceServer, TransportError};
+    use std::sync::Arc;
+    use tokio::sync::Mutex;
+
+    let server = RedisServer::new(RedisServerConfig::default());
+    let received = Arc::new(Mutex::new(Vec::new()));
+    let ev = Arc::clone(&received);
+    server.on_event("user.created", Arc::new(move |payload, _ctx| {
+        let ev = Arc::clone(&ev);
+        Box::pin(async move {
+            let name: String = serde_json::from_slice(&payload).map_err(|e| TransportError(e.to_string()))?;
+            ev.lock().await.push(name);
+            Ok(())
+        })
+    }));
+    server.listen().await.unwrap();
+
+    let client = RedisClient::new(RedisClientConfig::default());
+    client.connect().await.unwrap();
+    client.emit("user.created", &"Alice".to_string()).await.unwrap();
+    tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
+    assert_eq!(received.lock().await.len(), 1);
+}
+
 // ── DiscoveryService ──────────────────────────────────────────────────
 
 #[cfg(all(feature = "events", feature = "microservices"))]

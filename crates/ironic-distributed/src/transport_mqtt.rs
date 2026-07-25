@@ -1,4 +1,4 @@
-#![allow(deprecated)]
+#![allow(deprecated, clippy::type_complexity, clippy::too_many_lines)]
 
 //! Live MQTT transport backend using the `rumqttc` crate.
 //! Requires the `transport-mqtt` feature and a running MQTT broker.
@@ -9,7 +9,7 @@ use rumqttc::{AsyncClient, Event, MqttOptions, Packet, QoS};
 use tokio::sync::{Mutex, OnceCell};
 
 use crate::distributed::microservices::{
-    ClientFuture, Envelope, EventHandler, MessageContext, MessageHandler, MicroserviceClient,
+    ClientFuture, EventHandler, MessageContext, MessageHandler, MicroserviceClient,
     MicroserviceServer, ServerFuture, TransportError, generate_correlation_id,
 };
 
@@ -66,10 +66,7 @@ impl MicroserviceClient for MqttClient {
             let (client, mut eventloop) = AsyncClient::new(mqtt_options, 100);
 
             client
-                .subscribe(
-                    &format!("{}/reply/#", config.topic_prefix),
-                    QoS::AtMostOnce,
-                )
+                .subscribe(&format!("{}/reply/#", config.topic_prefix), QoS::AtMostOnce)
                 .await
                 .map_err(|e| TransportError(e.to_string()))?;
 
@@ -122,16 +119,10 @@ impl MicroserviceClient for MqttClient {
                 "correlation_id": correlation_id,
                 "data": data_str,
             });
-            let body = serde_json::to_vec(&envelope)
-                .map_err(|e| TransportError(e.to_string()))?;
+            let body = serde_json::to_vec(&envelope).map_err(|e| TransportError(e.to_string()))?;
 
             client
-                .publish(
-                    &format!("{prefix}/{pattern}"),
-                    QoS::AtMostOnce,
-                    false,
-                    body,
-                )
+                .publish(&format!("{prefix}/{pattern}"), QoS::AtMostOnce, false, body)
                 .await
                 .map_err(|e| TransportError(e.to_string()))?;
 
@@ -163,16 +154,10 @@ impl MicroserviceClient for MqttClient {
                 "correlation_id": generate_correlation_id(),
                 "data": data_str,
             });
-            let body = serde_json::to_vec(&envelope)
-                .map_err(|e| TransportError(e.to_string()))?;
+            let body = serde_json::to_vec(&envelope).map_err(|e| TransportError(e.to_string()))?;
 
             client
-                .publish(
-                    &format!("{prefix}/{pattern}"),
-                    QoS::AtMostOnce,
-                    false,
-                    body,
-                )
+                .publish(&format!("{prefix}/{pattern}"), QoS::AtMostOnce, false, body)
                 .await
                 .map_err(|e| TransportError(e.to_string()))
         })
@@ -270,14 +255,15 @@ impl MicroserviceServer for MqttServer {
                 while let Ok(notification) = eventloop.poll().await {
                     if let Event::Incoming(Packet::Publish(publish)) = notification {
                         let topic = publish.topic;
-                        let pattern = topic.strip_prefix(&format!("{prefix}/")).unwrap_or(&topic).to_string();
+                        let pattern = topic
+                            .strip_prefix(&format!("{prefix}/"))
+                            .unwrap_or(&topic)
+                            .to_string();
                         let payload = publish.payload.to_vec();
 
                         if let Ok(parsed) = serde_json::from_slice::<serde_json::Value>(&payload) {
-                            let correlation_id = parsed["correlation_id"]
-                                .as_str()
-                                .unwrap_or("")
-                                .to_string();
+                            let correlation_id =
+                                parsed["correlation_id"].as_str().unwrap_or("").to_string();
                             let data: Vec<u8> = parsed["data"]
                                 .as_str()
                                 .map(|s| s.as_bytes().to_vec())

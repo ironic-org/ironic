@@ -26,12 +26,14 @@ where
     }
 
     /// Enables Apollo Federation support for this schema.
+    #[must_use]
     pub fn enable_federation(mut self) -> Self {
         self.schema_builder = self.schema_builder.enable_federation();
         self
     }
 
     /// Registers a custom directive.
+    #[must_use]
     pub fn directive(mut self, directive: impl async_graphql::CustomDirectiveFactory) -> Self {
         self.schema_builder = self.schema_builder.directive(directive);
         self

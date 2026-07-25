@@ -13,6 +13,14 @@ type Post = {
 
 const posts: Post[] = [
     {
+        slug: 'v1.1.1',
+        title: 'v1.1.1 — implement MQTT and NATS live transports, Federation helper, MS pipeline docs',
+        description: 'implement MQTT and NATS live transports, Federation helper, MS pipeline docs',
+        date: '2026-07-25',
+        tag: 'release',
+        readTime: '2 min',
+    },
+    {
         slug: 'v1.1.0',
         title: 'v1.1.0 — release.sh: prefer [Unreleased] content over git log when non-empty',
         description: 'release.sh: prefer [Unreleased] content over git log when non-empty',

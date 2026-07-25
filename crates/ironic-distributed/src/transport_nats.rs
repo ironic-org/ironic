@@ -1,15 +1,19 @@
-#![allow(deprecated)]
+#![allow(
+    deprecated,
+    clippy::type_complexity,
+    clippy::too_many_lines,
+    clippy::collapsible_if
+)]
 
 //! Live NATS transport backend using the `async-nats` crate.
 //! Requires the `transport-nats` feature and a running NATS server.
 
 use std::{collections::HashMap, sync::Arc};
 
-use futures_util::StreamExt;
 use tokio::sync::{Mutex, OnceCell};
 
 use crate::distributed::microservices::{
-    ClientFuture, Envelope, EventHandler, MessageContext, MessageHandler, MicroserviceClient,
+    ClientFuture, EventHandler, MessageContext, MessageHandler, MicroserviceClient,
     MicroserviceServer, ServerFuture, TransportError, generate_correlation_id,
 };
 
@@ -123,8 +127,7 @@ impl MicroserviceClient for NatsClient {
                 "correlation_id": correlation_id,
                 "data": data_str,
             });
-            let body = serde_json::to_vec(&envelope)
-                .map_err(|e| TransportError(e.to_string()))?;
+            let body = serde_json::to_vec(&envelope).map_err(|e| TransportError(e.to_string()))?;
 
             client
                 .publish(format!("{prefix}.{pattern}"), body.into())
@@ -159,8 +162,7 @@ impl MicroserviceClient for NatsClient {
                 "correlation_id": generate_correlation_id(),
                 "data": data_str,
             });
-            let body = serde_json::to_vec(&envelope)
-                .map_err(|e| TransportError(e.to_string()))?;
+            let body = serde_json::to_vec(&envelope).map_err(|e| TransportError(e.to_string()))?;
 
             client
                 .publish(format!("{prefix}.{pattern}"), body.into())
@@ -247,17 +249,30 @@ impl MicroserviceServer for NatsServer {
                 tokio::spawn(async move {
                     let mut sub = sub;
                     while let Some(msg) = futures_util::StreamExt::next(&mut sub).await {
-                        let pattern = msg.subject.strip_prefix(&format!("{p}.")).unwrap_or(&msg.subject).to_string();
-                        if let Ok(parsed) = serde_json::from_slice::<serde_json::Value>(&msg.payload) {
-                            let correlation_id = parsed["correlation_id"].as_str().unwrap_or("").to_string();
-                            let data: Vec<u8> = parsed["data"].as_str().map(|s| s.as_bytes().to_vec()).unwrap_or_default();
+                        let pattern = msg
+                            .subject
+                            .strip_prefix(&format!("{p}."))
+                            .unwrap_or(&msg.subject)
+                            .to_string();
+                        if let Ok(parsed) =
+                            serde_json::from_slice::<serde_json::Value>(&msg.payload)
+                        {
+                            let correlation_id =
+                                parsed["correlation_id"].as_str().unwrap_or("").to_string();
+                            let data: Vec<u8> = parsed["data"]
+                                .as_str()
+                                .map(|s| s.as_bytes().to_vec())
+                                .unwrap_or_default();
                             let cid = correlation_id.clone();
                             let context = MessageContext {
                                 pattern: pattern.clone(),
                                 correlation_id,
                                 headers: std::collections::BTreeMap::new(),
                             };
-                            let handler_opt = { let g = h.lock().unwrap(); g.get(&pattern).cloned() };
+                            let handler_opt = {
+                                let g = h.lock().unwrap();
+                                g.get(&pattern).cloned()
+                            };
                             if let Some(handler) = handler_opt {
                                 let result = handler(data, context).await;
                                 if let Ok(response) = result {
@@ -266,7 +281,10 @@ impl MicroserviceServer for NatsServer {
                                         .await;
                                 }
                             } else {
-                                let handler_opt = { let g = eh.lock().unwrap(); g.get(&pattern).cloned() };
+                                let handler_opt = {
+                                    let g = eh.lock().unwrap();
+                                    g.get(&pattern).cloned()
+                                };
                                 if let Some(handler) = handler_opt {
                                     let _ = handler(data, context).await;
                                 }
@@ -285,15 +303,27 @@ impl MicroserviceServer for NatsServer {
                 tokio::spawn(async move {
                     let mut sub = sub;
                     while let Some(msg) = futures_util::StreamExt::next(&mut sub).await {
-                        let pattern = msg.subject.strip_prefix(&format!("{p}.")).unwrap_or(&msg.subject).to_string();
-                        if let Ok(parsed) = serde_json::from_slice::<serde_json::Value>(&msg.payload) {
-                            let data: Vec<u8> = parsed["data"].as_str().map(|s| s.as_bytes().to_vec()).unwrap_or_default();
+                        let pattern = msg
+                            .subject
+                            .strip_prefix(&format!("{p}."))
+                            .unwrap_or(&msg.subject)
+                            .to_string();
+                        if let Ok(parsed) =
+                            serde_json::from_slice::<serde_json::Value>(&msg.payload)
+                        {
+                            let data: Vec<u8> = parsed["data"]
+                                .as_str()
+                                .map(|s| s.as_bytes().to_vec())
+                                .unwrap_or_default();
                             let context = MessageContext {
                                 pattern,
                                 correlation_id: String::new(),
                                 headers: std::collections::BTreeMap::new(),
                             };
-                            let handler_opt = { let g = eh.lock().unwrap(); g.get(&context.pattern).cloned() };
+                            let handler_opt = {
+                                let g = eh.lock().unwrap();
+                                g.get(&context.pattern).cloned()
+                            };
                             if let Some(handler) = handler_opt {
                                 let _ = handler(data, context).await;
                             }

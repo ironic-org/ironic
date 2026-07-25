@@ -125,7 +125,7 @@ pub fn create(
 
 // ── Workspace Manifest (Monorepo) ───────────────────────────────────────
 
-fn workspace_manifest(name: &str) -> String {
+pub(crate) fn workspace_manifest(name: &str) -> String {
     let version = env!("CARGO_PKG_VERSION");
     let range = version.splitn(3, '.').take(2).collect::<Vec<_>>().join(".");
     format!(
@@ -215,7 +215,7 @@ pub struct AppModule;
     .into()
 }
 
-fn lib_manifest(name: &str) -> String {
+pub(crate) fn lib_manifest(name: &str) -> String {
     format!(
         r#"[package]
 name = "{name}"

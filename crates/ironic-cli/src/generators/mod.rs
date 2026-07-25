@@ -67,6 +67,12 @@ pub fn generate_app(root: &Path, name: &str) -> Result<GenerationReport, CliErro
     let names = naming::Names::parse(name)?;
     let mut report = GenerationReport::default();
 
+    // Auto-convert single-service project to monorepo if needed
+    let apps_dir = root.join("apps");
+    if !apps_dir.is_dir() {
+        convert_to_monorepo(root, &mut report)?;
+    }
+
     let dest = root.join("apps").join(&names.kebab);
     if dest.exists() {
         return Err(CliError::InvalidName {
@@ -177,6 +183,137 @@ fn app_module(_names: &naming::Names) -> String {
 pub struct AppModule;
 "
     .to_string()
+}
+
+/// Converts a single-service project to a monorepo workspace by moving
+/// the existing source into `apps/<current-name>/` and rewriting Cargo.toml.
+fn convert_to_monorepo(root: &Path, report: &mut GenerationReport) -> Result<(), CliError> {
+    let cargo_toml = root.join("Cargo.toml");
+    if !cargo_toml.is_file() {
+        return Err(CliError::InvalidName {
+            name: "Cargo.toml not found — are you in an Ironic project?".into(),
+        });
+    }
+
+    // Read current package name from Cargo.toml
+    let toml_content = std::fs::read_to_string(&cargo_toml)
+        .map_err(|e| CliError::io("read Cargo.toml", &cargo_toml, e))?;
+    let pkg_name = toml_content
+        .lines()
+        .find_map(|l| l.strip_prefix("name = \""))
+        .and_then(|l| l.split('"').next())
+        .unwrap_or("app")
+        .to_string();
+
+    let app_dir = root.join("apps").join(&pkg_name);
+    let src_dir = root.join("src");
+
+    // Move src/ into apps/<name>/src/
+    if src_dir.is_dir() {
+        fs::create_dir_all(app_dir.join("src")).map_err(|e| CliError::Io {
+            action: "create apps directory",
+            path: app_dir.clone(),
+            source: e,
+        })?;
+
+        // Copy all files from src/ to apps/<name>/src/
+        copy_dir_recursive(&src_dir, &app_dir.join("src"))?;
+
+        // Remove old src/ directory
+        fs::remove_dir_all(&src_dir).map_err(|e| CliError::Io {
+            action: "remove old src directory",
+            path: src_dir,
+            source: e,
+        })?;
+
+        record(report, &app_dir.join("src"), true);
+    }
+
+    // Rewrite Cargo.toml as workspace manifest
+    let workspace_toml = crate::generators::project::workspace_manifest(&pkg_name);
+    std::fs::write(&cargo_toml, workspace_toml).map_err(|e| CliError::Io {
+        action: "write workspace Cargo.toml",
+        path: cargo_toml.clone(),
+        source: e,
+    })?;
+
+    // Create the new app's Cargo.toml
+    let app_cargo = app_dir.join("Cargo.toml");
+    let new_app_cargo = crate::generators::project::app_manifest(&pkg_name);
+    std::fs::write(&app_cargo, new_app_cargo).map_err(|e| CliError::Io {
+        action: "write app Cargo.toml",
+        path: app_cargo,
+        source: e,
+    })?;
+
+    // Create libs/ directories
+    for lib in &["shared-config", "proto", "observability"] {
+        let lib_dir = root.join("libs").join(lib);
+        let lib_dir_src = lib_dir.join("src");
+        fs::create_dir_all(&lib_dir_src).map_err(|e| CliError::Io {
+            action: "create lib directory",
+            path: lib_dir.clone(),
+            source: e,
+        })?;
+        let cargo_path = lib_dir.join("Cargo.toml");
+        std::fs::write(&cargo_path, crate::generators::project::lib_manifest(lib))
+            .map_err(|e| CliError::Io {
+                action: "write lib Cargo.toml",
+                path: cargo_path,
+                source: e,
+            })?;
+        let lib_rs = lib_dir_src.join("lib.rs");
+        std::fs::write(&lib_rs, b"// shared library\n")
+            .map_err(|e| CliError::Io {
+                action: "write lib src",
+                path: lib_rs,
+                source: e,
+            })?;
+    }
+
+    report.manual_instructions.push(format!(
+        "converted to monorepo — moved source to apps/{pkg_name}/"
+    ));
+
+    Ok(())
+}
+
+/// Recursively copies a directory.
+fn copy_dir_recursive(src: &Path, dst: &Path) -> Result<(), CliError> {
+    for entry in std::fs::read_dir(src).map_err(|e| CliError::Io {
+        action: "read source directory",
+        path: src.to_path_buf(),
+        source: e,
+    })? {
+        let entry = entry.map_err(|e| CliError::Io {
+            action: "read directory entry",
+            path: src.to_path_buf(),
+            source: e,
+        })?;
+        let entry_path = entry.path();
+        let file_type = entry.file_type().map_err(|e| CliError::Io {
+            action: "get file type",
+            path: entry_path.clone(),
+            source: e,
+        })?;
+        let relative = entry_path.strip_prefix(src).unwrap();
+        let target = dst.join(relative);
+        if file_type.is_dir() {
+            fs::create_dir_all(&target).map_err(|e| CliError::Io {
+                action: "create directory",
+                path: target.clone(),
+                source: e,
+            })?;
+            copy_dir_recursive(&entry.path(), &target)?;
+        } else {
+            fs::copy(entry.path(), &target).map_err(|e| CliError::Io {
+                action: "copy file",
+                path: entry.path(),
+                source: e,
+            })?;
+        }
+    }
+    Ok(())
 }
 
 fn ensure_workspace_member(manifest: &Path, member: &str) {

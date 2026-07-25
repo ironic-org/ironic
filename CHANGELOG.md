@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v1.1.7] - 2026-07-26
+
+### Added
+- enhance app generation with platform module and logging configuration (d46a656)
+
+
 ## [v1.1.6] - 2026-07-26
 ### Changed
 - Simplify generated app template to minimal skeleton

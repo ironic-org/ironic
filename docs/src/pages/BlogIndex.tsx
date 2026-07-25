@@ -13,6 +13,14 @@ type Post = {
 
 const posts: Post[] = [
     {
+        slug: 'v1.1.7',
+        title: 'v1.1.7 — enhance app generation with platform module and logging configuration',
+        description: 'enhance app generation with platform module and logging configuration',
+        date: '2026-07-26',
+        tag: 'release',
+        readTime: '2 min',
+    },
+    {
         slug: 'v1.1.6',
         title: 'v1.1.6 — Simplify generated app template to minimal skeleton',
         description: 'Simplify generated app template to minimal skeleton',

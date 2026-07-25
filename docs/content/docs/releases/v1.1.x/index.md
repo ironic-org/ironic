@@ -9,6 +9,14 @@ All versions in the v1.1.x series. Visit the [Blog](/blog) for detailed release 
 
 ---
 
+## v1.1.7 — 2026-07-26
+
+# v1.1.7
+
+### Added
+- enhance app generation with platform module and logging configuration (d46a656)
+
+---
 ## v1.1.6 — 2026-07-26
 
 # v1.1.6

@@ -52,60 +52,126 @@ pub fn create(
     framework_workspace: Option<&Path>,
 ) -> Result<ProjectReport, CliError> {
     let names = Names::parse(name)?;
-    let app_name = "api-gateway";
+    let manifest = manifest(&names.kebab, framework_workspace);
+    let files = [
+        (destination.join("Cargo.toml"), manifest),
+        (
+            destination.join("ironic.toml"),
+            project_config(&names.kebab),
+        ),
+        (
+            destination.join(".env.example"),
+            dotenv_example(&names.kebab),
+        ),
+        (destination.join(".gitignore"), gitignore().into()),
+        (destination.join("Dockerfile"), dockerfile(&names.kebab)),
+        (
+            destination.join("docker-compose.yml"),
+            docker_compose(&names.kebab),
+        ),
+        (destination.join("Makefile"), makefile().into()),
+        (destination.join("justfile"), justfile().into()),
+        (
+            destination.join("rust-toolchain.toml"),
+            rust_toolchain().into(),
+        ),
+        (destination.join("README.md"), readme(&names.kebab)),
+        (destination.join("src/main.rs"), main_source(&names.kebab)),
+        (destination.join("src/app.rs"), app_source().into()),
+        (
+            destination.join("src/welcome.rs"),
+            welcome_source(&names.kebab),
+        ),
+        (
+            destination.join("src/platform/mod.rs"),
+            platform_mod().into(),
+        ),
+        (
+            destination.join("src/platform/config.rs"),
+            platform_config().into(),
+        ),
+        (
+            destination.join("src/platform/database.rs"),
+            platform_database(),
+        ),
+        (
+            destination.join("src/platform/telemetry.rs"),
+            platform_telemetry().into(),
+        ),
+        (destination.join("src/modules/mod.rs"), modules_mod().into()),
+        (
+            destination.join("src/modules/example/mod.rs"),
+            example_module().into(),
+        ),
+        (
+            destination.join("src/modules/example/controller/mod.rs"),
+            example_controller_mod().into(),
+        ),
+        (
+            destination.join("src/modules/example/controller/example_controller.rs"),
+            example_controller().into(),
+        ),
+        (
+            destination.join("src/modules/example/services/mod.rs"),
+            example_service_mod().into(),
+        ),
+        (
+            destination.join("src/modules/example/services/example_service.rs"),
+            example_service().into(),
+        ),
+        (
+            destination.join("src/modules/example/repositories/mod.rs"),
+            example_repository_mod().into(),
+        ),
+        (
+            destination.join("src/modules/example/repositories/example_repository.rs"),
+            example_repository().into(),
+        ),
+        (
+            destination.join("src/modules/example/dto/mod.rs"),
+            example_dto_mod().into(),
+        ),
+        (
+            destination.join("src/modules/example/dto/create_example_dto.rs"),
+            example_create_dto().into(),
+        ),
+        (
+            destination.join("src/modules/example/dto/update_example_dto.rs"),
+            example_update_dto().into(),
+        ),
+        (
+            destination.join("src/modules/example/entities/mod.rs"),
+            example_entity_mod().into(),
+        ),
+        (
+            destination.join("src/modules/example/entities/example.rs"),
+            example_entity().into(),
+        ),
+        (
+            destination.join("src/modules/example/tests/mod.rs"),
+            example_test_mod().into(),
+        ),
+        (
+            destination.join("src/modules/example/tests/unit.rs"),
+            example_test_unit().into(),
+        ),
+        (
+            destination.join("src/modules/example/tests/integration.rs"),
+            example_test_integration().into(),
+        ),
+    ];
+    let cidir = destination.join(".github/workflows");
+    fs::create_dir_all(&cidir).map_err(|error| CliError::io("create directory", &cidir, error))?;
+    fs::write(cidir.join("ci.yml"), ci_workflow())
+        .map_err(|error| CliError::io("write", cidir.join("ci.yml"), error))?;
 
-    // Build the workspace file list
-    let mut files: Vec<(std::path::PathBuf, String)> = Vec::new();
-
-    // ── Root workspace files ──
-    files.push((destination.join("Cargo.toml"), workspace_manifest(&names.kebab)));
-    files.push((destination.join(".env.example"), dotenv_example(&names.kebab)));
-    files.push((destination.join(".gitignore"), gitignore().into()));
-    files.push((destination.join("Makefile"), makefile().into()));
-    files.push((destination.join("justfile"), justfile().into()));
-    files.push((destination.join("rust-toolchain.toml"), rust_toolchain().into()));
-    files.push((destination.join("README.md"), readme(&names.kebab)));
-    files.push((destination.join("docker-compose.yml"), docker_compose(&names.kebab)));
-
-    // ── First app: api-gateway ──
-    let app_dir = destination.join("apps").join(app_name);
-    files.push((app_dir.join("Cargo.toml"), app_manifest(app_name)));
-    files.push((app_dir.join("src/main.rs"), app_main_source(app_name)));
-    files.push((app_dir.join("src/app.rs"), app_source()));
-    files.push((app_dir.join("src/modules/mod.rs"), modules_mod().into()));
-
-    // ── Shared libraries ──
-    let shared = destination.join("libs/shared-config");
-    files.push((shared.join("Cargo.toml"), lib_manifest("shared-config")));
-    files.push((shared.join("src/lib.rs"), "pub mod config;\n".into()));
-
-    let proto_dir = destination.join("libs/proto");
-    files.push((proto_dir.join("Cargo.toml"), lib_manifest("proto")));
-    files.push((proto_dir.join("build.rs"), proto_build_source()));
-    files.push((proto_dir.join("src/lib.rs"), proto_lib_source()));
-    files.push((proto_dir.join("proto/greeter.proto"), greeter_proto()));
-
-    let obs_dir = destination.join("libs/observability");
-    files.push((obs_dir.join("Cargo.toml"), lib_manifest("observability")));
-    files.push((obs_dir.join("src/lib.rs"), observability_lib_source()));
-
-    // ── Scripts & Docs ──
-    files.push((destination.join("scripts/deploy.sh"), "#!/usr/bin/env bash\necho \"deploy script\"\n".into()));
-    files.push((destination.join("docs/architecture.md"), "# Architecture\n\nMonorepo workspace for microservices.\n".into()));
-
-    // Validate and write
-    let source_patterns = ["Cargo.toml", "src/", "libs/", "apps/", ".github/"];
+    // Validate all owned paths before writing. Allow pre-existing non-source files
+    // (README.md, .gitignore, etc.) to be preserved; error on source file conflicts.
+    let source_patterns = ["Cargo.toml", "ironic.toml", "src/", ".github/"];
     for (path, contents) in &files {
-        if let Some(parent) = path.parent() {
-            fs::create_dir_all(parent).map_err(|e| CliError::Io {
-                action: "create directory",
-                path: parent.to_path_buf(),
-                source: e,
-            })?;
-        }
         if path.exists() {
-            let existing = fs::read_to_string(path)
-                .map_err(|error| CliError::io("read", path, error))?;
+            let existing =
+                fs::read_to_string(path).map_err(|error| CliError::io("read", path, error))?;
             let path_str = path.to_string_lossy();
             let is_source = source_patterns.iter().any(|p| path_str.contains(p));
             if is_source && existing != *contents {
@@ -113,163 +179,22 @@ pub fn create(
                     path: path.to_owned(),
                 });
             }
-        } else {
-            write_generated(path, contents)?;
         }
     }
 
+    fs::create_dir_all(destination)
+        .map_err(|error| CliError::io("create directory", destination, error))?;
+    for (path, contents) in files {
+        if !path.exists() {
+            write_generated(&path, &contents)?;
+        }
+    }
     Ok(ProjectReport {
         destination: destination.to_owned(),
     })
 }
 
-// ── Workspace Manifest (Monorepo) ───────────────────────────────────────
-
-pub(crate) fn workspace_manifest(name: &str) -> String {
-    let version = env!("CARGO_PKG_VERSION");
-    let range = version.splitn(3, '.').take(2).collect::<Vec<_>>().join(".");
-    format!(
-        r#"[workspace]
-resolver = "3"
-members = [
-    "apps/api-gateway",
-    "libs/shared-config",
-    "libs/proto",
-    "libs/observability",
-]
-
-[workspace.dependencies]
-ironic = {{ version = "{range}" }}
-tokio = {{ version = "1", features = ["macros", "rt-multi-thread", "net", "signal"] }}
-serde = {{ version = "1", features = ["derive"] }}
-serde_json = "1"
-tracing = {{ version = "0.1", features = ["attributes"] }}
-tracing-subscriber = {{ version = "0.3", features = ["env-filter"] }}
-anyhow = "1"
-tonic = "0.14"
-prost = "0.13"
-
-[package]
-name = "{name}"
-version = "0.1.0"
-edition = "2024"
-publish = false
-"#,
-    )
-}
-
-// ── Single App Manifest (for ironic generate app) ───────────────────────
-
-pub(crate) fn app_manifest(name: &str) -> String {
-    format!(
-        r#"[package]
-name = "{name}"
-version = "0.1.0"
-edition = "2024"
-
-[dependencies]
-ironic = {{ workspace = true, features = ["security", "openapi", "logging"] }}
-tokio = {{ workspace = true }}
-serde = {{ workspace = true }}
-serde_json = {{ workspace = true }}
-tracing = {{ workspace = true }}
-tracing-subscriber = {{ workspace = true }}
-anyhow = {{ workspace = true }}
-
-[lib]
-name = "{name}"
-"#,
-    )
-}
-
-fn app_main_source(name: &str) -> String {
-    format!(
-        r#"use {name}::app::AppModule;
-use ironic::prelude::*;
-
-#[ironic::main]
-async fn main() -> Result<(), anyhow::Error> {{
-    tracing_subscriber::fmt::init();
-
-    Application::builder()
-        .module(AppModule::definition())
-        .platform(AxumAdapter::new())
-        .build()
-        .await?
-        .listen("0.0.0.0:3000")
-        .await?;
-
-    Ok(())
-}}
-"#,
-    )
-}
-
-fn app_source() -> String {
-    r#"use ironic::prelude::*;
-
-#[derive(Module)]
-#[module]
-pub struct AppModule;
-"#
-    .into()
-}
-
-pub(crate) fn lib_manifest(name: &str) -> String {
-    format!(
-        r#"[package]
-name = "{name}"
-version = "0.1.0"
-edition = "2024"
-
-[dependencies]
-serde = {{ workspace = true }}
-"#,
-    )
-}
-
-fn proto_lib_source() -> String {
-    r#"tonic::include_proto!("greeter");
-"#
-    .into()
-}
-
-fn greeter_proto() -> String {
-    r#"syntax = "proto3";
-package greeter;
-
-service Greeter {
-    rpc SayHello (HelloRequest) returns (HelloReply);
-}
-
-message HelloRequest { string name = 1; }
-message HelloReply   { string message = 1; }
-"#
-    .into()
-}
-
-fn proto_build_source() -> String {
-    r#"fn main() -> Result<(), Box<dyn std::error::Error>> {
-    tonic_build::compile_protos("proto/greeter.proto")?;
-    Ok(())
-}
-"#
-    .into()
-}
-
-fn observability_lib_source() -> String {
-    r#"use tracing_subscriber::EnvFilter;
-
-pub fn init() {
-    tracing_subscriber::fmt()
-        .with_env_filter(EnvFilter::from_default_env())
-        .init();
-}
-"#
-    .into()
-}
-
-// ── Legacy single-app manifest (for backward compatibility) ─────────────
+// ── Manifest ───────────────────────────────────────────────────────────
 
 fn manifest(name: &str, workspace: Option<&Path>) -> String {
     let version = env!("CARGO_PKG_VERSION");
@@ -409,7 +334,7 @@ async fn main() {{
     )
 }
 
-fn _legacy_app_source() -> &'static str {
+fn app_source() -> &'static str {
     r"use ironic::prelude::*;
 use crate::welcome::WelcomeModule;
 use crate::modules::example::ExampleModule;

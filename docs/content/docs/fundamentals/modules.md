@@ -48,17 +48,13 @@ src/
 ### mod.rs
 
 ```rust
+#[derive(Module)]
+#[module(
+    imports = [DatabaseModule],
+    providers = [UserService],
+    controllers = [controller::UsersController],
+)]
 pub struct UsersModule;
-
-impl Module for UsersModule {
-    fn definition() -> ModuleDefinition {
-        ModuleDefinition::builder::<Self>()
-            .import::<DatabaseModule>()
-            .provider(ProviderDefinition::value(UserService::new))
-            .controller(UsersController::definition())
-            .build()
-    }
-}
 ```
 
 ### controller.rs

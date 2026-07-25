@@ -11,7 +11,7 @@ If you know NestJS, you already understand most of Ironic's architecture. The pa
 
 | NestJS | Ironic | Notes |
 |--------|--------|-------|
-| `@Module({})` | `impl Module for X` | Module wiring is explicit in code, not decorators |
+| `@Module({})` | `#[derive(Module)]` + `#[module(...)]` | Attribute-based module wiring |
 | `@Injectable()` | `#[injectable]` | Proc macro that generates DI registration |
 | `@Controller()` | `#[controller]` | Path prefix on a struct |
 | `@Get()` / `@Post()` | `#[get]` / `#[post]` | Route method decorators |

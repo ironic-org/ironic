@@ -196,16 +196,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 ```rust
 use ironic::prelude::*;
 
+#[derive(Module)]
+#[module(
+    imports = [modules::auth::AuthModule, modules::health::HealthModule],
+)]
 pub struct AppModule;
-
-impl Module for AppModule {
-    fn definition() -> ModuleDefinition {
-        ModuleDefinition::builder::<Self>()
-            .import::<modules::auth::AuthModule>()
-            .import::<modules::health::HealthModule>()
-            .build()
-    }
-}
 ```
 
 ## Microservice Communication Patterns

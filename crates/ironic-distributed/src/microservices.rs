@@ -13,6 +13,38 @@
 )]
 //! Transport-neutral microservice envelopes and duplex in-memory endpoints.
 //!
+//! # Pipeline Patterns
+//!
+//! Unlike HTTP, the transport layer doesn't use the same pipeline
+//! (filters/pipes/guards/interceptors). Instead, error handling and
+//! validation are built into the message handler pattern:
+//!
+//! - **Error handling**: Handlers return `Result<T, TransportError>`.
+//!   Errors are serialized and returned to the caller as error responses.
+//! - **Validation**: Handlers validate payloads using serde deserialization.
+//!   Invalid payloads return `TransportError` before handler execution.
+//! - **Authorization**: Implement authorization as wrapper functions
+//!   that compose around message handlers.
+//!
+//! ## Example: Authorized Handler
+//!
+//! ```ignore
+//! fn authorized(pattern: &str, handler: MessageHandler) -> MessageHandler {
+//!     Arc::new(move |payload, ctx| {
+//!         let handler = Arc::clone(&handler);
+//!         Box::pin(async move {
+//!             // Authorization check
+//!             if !ctx.headers.contains_key("auth-token") {
+//!                 return Err(TransportError("unauthorized".into()));
+//!             }
+//!             handler(payload, ctx).await
+//!         })
+//!     })
+//! }
+//!
+//! server.on_message("admin.action", authorized("admin.action", handler));
+//! ```
+//!
 //! Additional transport backends are available behind feature flags:
 //! - `transport-redis`: [`RedisTransportConfig`]
 //! - `transport-rabbitmq`: [`RabbitMqTransportConfig`]

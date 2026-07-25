@@ -7,6 +7,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v1.1.3] - 2026-07-25
+
+### Added
+- enhance app generation with health module and controller scaffolding (aae2a7b)
+- auto-convert single-service to monorepo when running ironic generate app (52b2dec)
+- monorepo workspace as default project structure — ironic new creates apps/ + libs/ layout (aae39c6)
+- add package argument to CargoArgs for monorepo support and update documentation (3aaed0b)
+
+### Changed
+- cargo fmt (14acd27)
+- update project creation instructions in install script (38e0e66)
+- fix clippy -D warnings — add .. patterns for CargoArgs, change execute to take reference (bdecd4c)
+- remove outdated Production Release Guide (0a63098)
+- Refactor lifecycle documentation and add new hooks (ae10eed)
+- Enhance documentation for Container Override, Dependency Management, Service Lifetimes, and Hot-Reload Config (302fa22)
+- enhance circular dependencies documentation with detailed explanations and examples (2299cd0)
+- simplify module definitions using derive macros for improved readability (a5b2a19)
+- update module definitions to use derive macros for cleaner syntax (8a32a48)
+- add detailed explanation of monorepo architecture and service interactions (0d617f4)
+- Add project structure documentation and new modules (a17024d)
+- remove microservices example and related proto files (231267c)
+- fix clippy issues in app_module generator (b40649e)
+- fix unused variable warning in app_module (9b98b09)
+
+
 ## [v1.1.2] - 2026-07-25
 
 ### Added

@@ -13,6 +13,14 @@ type Post = {
 
 const posts: Post[] = [
     {
+        slug: 'v1.1.3',
+        title: 'v1.1.3 — enhance app generation with health module and controller scaffolding',
+        description: 'enhance app generation with health module and controller scaffolding',
+        date: '2026-07-25',
+        tag: 'release',
+        readTime: '2 min',
+    },
+    {
         slug: 'v1.1.2',
         title: 'v1.1.2 — add package argument to CargoArgs for monorepo support and update documentation',
         description: 'add package argument to CargoArgs for monorepo support and update documentation',

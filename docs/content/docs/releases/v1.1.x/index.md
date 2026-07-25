@@ -9,6 +9,18 @@ All versions in the v1.1.x series. Visit the [Blog](/blog) for detailed release 
 
 ---
 
+## v1.1.6 — 2026-07-26
+
+# v1.1.6
+### Changed
+- Simplify generated app template to minimal skeleton
+- Split generators/mod.rs into app.rs resource.rs monorepo.rs graphql.rs
+### Added
+- Generate PRODUCTION.md with production readiness guide for new apps
+- ironic openapi command to auto-generate OpenAPI JSON spec
+- [profile.release] section to all generated Cargo.toml templates
+
+---
 ## v1.1.5 — 2026-07-25
 
 # v1.1.5

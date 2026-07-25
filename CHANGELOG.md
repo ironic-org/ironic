@@ -7,15 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v1.1.6] - 2026-07-26
 ### Changed
 - Simplify generated app template to minimal skeleton
 - Split generators/mod.rs into app.rs resource.rs monorepo.rs graphql.rs
-
 ### Added
 - Generate PRODUCTION.md with production readiness guide for new apps
 - ironic openapi command to auto-generate OpenAPI JSON spec
 - [profile.release] section to all generated Cargo.toml templates
-
 ## [v1.1.5] - 2026-07-25
 ### Changed
 - generate_app creates revallens-style microservice with platform/welcome/example module, per-app Dockerfile/.env, unique port

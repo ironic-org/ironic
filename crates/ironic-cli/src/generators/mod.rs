@@ -530,7 +530,10 @@ impl Module for {name}Module {{
 }
 
 use naming::Names;
-use source::{ensure_items, ensure_module_import, write_generated, write_module_shell};
+use source::{
+    ensure_items, ensure_module_array_item, ensure_module_import, write_generated,
+    write_module_shell,
+};
 
 use crate::CliError;
 
@@ -593,10 +596,16 @@ pub fn generate_controller(root: &Path, name: &str) -> Result<GenerationReport, 
             &format!("pub use controller::{}Controller;", names.pascal),
         ],
     )?;
-    report.manual_instructions.push(format!(
-        "add `{}Controller` to `controllers = [...]` on `{}Module`",
-        names.pascal, names.pascal
-    ));
+    let module_mod = module_dir.join("mod.rs");
+    if module_mod.is_file() {
+        let controller_type = format!("{}Controller", names.pascal);
+        if let Err(error) = ensure_module_array_item(&module_mod, &controller_type, "controllers") {
+            report.manual_instructions.push(format!(
+                "add `{controller_type}` to `controllers = [...]` on `{}Module` ({error})",
+                names.pascal
+            ));
+        }
+    }
     Ok(report)
 }
 
@@ -627,10 +636,16 @@ pub fn generate_repository(root: &Path, name: &str) -> Result<GenerationReport, 
             &format!("pub use repositories::{}Repository;", names.pascal),
         ],
     )?;
-    report.manual_instructions.push(format!(
-        "add `{}Repository` to `providers = [...]` on `{}Module`",
-        names.pascal, names.pascal
-    ));
+    let module_mod = module_dir.join("mod.rs");
+    if module_mod.is_file() {
+        let repo_type = format!("{}Repository", names.pascal);
+        if let Err(error) = ensure_module_array_item(&module_mod, &repo_type, "providers") {
+            report.manual_instructions.push(format!(
+                "add `{repo_type}` to `providers = [...]` on `{}Module` ({error})",
+                names.pascal
+            ));
+        }
+    }
     Ok(report)
 }
 
@@ -661,10 +676,16 @@ pub fn generate_service(root: &Path, name: &str) -> Result<GenerationReport, Cli
             &format!("pub use services::{}Service;", names.pascal),
         ],
     )?;
-    report.manual_instructions.push(format!(
-        "add `{}Service` to `providers = [...]` on `{}Module`",
-        names.pascal, names.pascal
-    ));
+    let module_mod = module_dir.join("mod.rs");
+    if module_mod.is_file() {
+        let service_type = format!("{}Service", names.pascal);
+        if let Err(error) = ensure_module_array_item(&module_mod, &service_type, "providers") {
+            report.manual_instructions.push(format!(
+                "add `{service_type}` to `providers = [...]` on `{}Module` ({error})",
+                names.pascal
+            ));
+        }
+    }
     Ok(report)
 }
 
@@ -1053,12 +1074,6 @@ mod tests {
         let report = super::generate_controller(dir.path(), "products").unwrap();
         assert!(!report.created.is_empty());
         assert!(dir.path().join("src/modules/products/controller").is_dir());
-        assert!(
-            report
-                .manual_instructions
-                .iter()
-                .any(|i| i.contains("ProductsController"))
-        );
     }
 
     #[test]

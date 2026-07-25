@@ -13,6 +13,14 @@ type Post = {
 
 const posts: Post[] = [
     {
+        slug: 'v1.1.4',
+        title: 'v1.1.4 — New app scaffolding matches RivalLens structure: multi-line #[module()], repositories/tests in module template',
+        description: 'New app scaffolding matches RivalLens structure: multi-line #[module()], repositories/tests in module template',
+        date: '2026-07-25',
+        tag: 'release',
+        readTime: '2 min',
+    },
+    {
         slug: 'v1.1.3',
         title: 'v1.1.3 — enhance app generation with health module and controller scaffolding',
         description: 'enhance app generation with health module and controller scaffolding',

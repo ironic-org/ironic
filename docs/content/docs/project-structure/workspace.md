@@ -430,17 +430,26 @@ apps/service-a/
 ## Build & Test Commands
 
 ```bash
-# Build all services
-cargo build --workspace
+# Build the current project
+ironic build
+
+# Build all services in workspace
+ironic build -- --workspace
+
+# Run the current project
+ironic start
+
+# Run a specific app in the workspace
+ironic start -p api-gateway           # cargo run -p api-gateway
+
+# Run with release profile
+ironic start -- --release
+
+# Run a specific app with features
+ironic start -p auth-service -- --features transport-redis
 
 # Test all services
 cargo test --workspace
-
-# Build a single service
-cargo build -p auth-service
-
-# Run a single service
-cargo run -p api-gateway
 ```
 
 ## Makefile

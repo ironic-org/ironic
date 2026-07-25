@@ -78,6 +78,10 @@ pub struct NewArgs {
 /// Arguments passed through to Cargo after `--`.
 #[derive(Debug, Args)]
 pub struct CargoArgs {
+    /// App name to run (for monorepo workspaces). Runs `cargo run -p <name>`.
+    /// When omitted, runs the current project's default binary.
+    #[arg(short = 'p', long)]
+    pub package: Option<String>,
     /// Additional Cargo arguments.
     #[arg(last = true, allow_hyphen_values = true)]
     pub cargo_args: Vec<String>,

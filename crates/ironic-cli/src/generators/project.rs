@@ -242,8 +242,9 @@ tracing-subscriber = {{ version = "0.3", features = ["env-filter"] }}
 [profile.release]
 lto = true
 codegen-units = 1
-opt-level = 3
+opt-level = "z"
 panic = "abort"
+strip = true
 "#,
     )
 }

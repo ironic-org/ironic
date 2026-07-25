@@ -102,8 +102,9 @@ dotenvy = "0.15"
 [profile.release]
 lto = true
 codegen-units = 1
-opt-level = 3
+opt-level = "z"
 panic = "abort"
+strip = true
 "#,
     );
     std::fs::write(&cargo_toml, &workspace_manifest).map_err(|e| CliError::Io {

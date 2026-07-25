@@ -139,31 +139,47 @@ dotenvy = {{ workspace = true }}
 [profile.release]
 lto = true
 codegen-units = 1
-opt-level = 3
+opt-level = "z"
 panic = "abort"
+strip = true
 "#,
         name = names.raw
     )
 }
 
 /// Returns the content for the app's multi-stage `Dockerfile`.
+///
+/// Uses Alpine + musl for fully static binaries and a `scratch` final stage
+/// for minimal production images (~10 MB).
 fn app_dockerfile(names: &naming::Names, port: u16) -> String {
+    let bin = &names.raw;
     format!(
-        r#"FROM rust:1.97-slim-bookworm AS builder
+        r#"FROM rust:1.97-alpine AS builder
 WORKDIR /app
-COPY Cargo.toml Cargo.lock* ./
-COPY src ./src
-RUN cargo build --release
 
-FROM gcr.io/distroless/cc-debian12
-WORKDIR /app
-COPY --from=builder /app/target/release/{name} /app/{name}
+# musl + static deps for fully linked binaries
+RUN apk add --no-cache musl-dev openssl-dev pkgconfig && \
+    rustup target add x86_64-unknown-linux-musl
+
+# Cache dependencies first (dummy source, then real build)
+COPY Cargo.toml Cargo.lock ./
+RUN mkdir -p src && echo "fn main() {{}}" > src/main.rs
+RUN --mount=type=cache,target=/root/.cargo/registry \
+    cargo build --release --target x86_64-unknown-linux-musl 2>/dev/null; true
+
+# Real build with actual source
+COPY src ./src
+RUN --mount=type=cache,target=/root/.cargo/registry \
+    cargo build --release --target x86_64-unknown-linux-musl
+
+FROM scratch
+COPY --from=builder /app/target/x86_64-unknown-linux-musl/release/{bin} /{bin}
 ENV SERVER_HOST=0.0.0.0
 ENV SERVER_PORT={port}
 EXPOSE {port}
-CMD ["./{name}"]
+CMD ["/{bin}"]
 "#,
-        name = names.raw,
+        bin = bin,
         port = port
     )
 }
@@ -548,8 +564,9 @@ name = "{name}"
 [profile.release]
 lto = true
 codegen-units = 1
-opt-level = 3
+opt-level = "z"
 panic = "abort"
+strip = true
 "#
     )
 }

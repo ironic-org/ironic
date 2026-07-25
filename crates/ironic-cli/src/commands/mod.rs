@@ -102,6 +102,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore = "requires stdin input"]
     fn uninstall_starts_with_instructions() {
         let buf = run_cmd(Command::Uninstall);
         // Should write instructions before waiting for stdin

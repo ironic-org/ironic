@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v1.1.5] - 2026-07-25
+### Changed
+- generate_app creates revallens-style microservice with platform/welcome/example module, per-app Dockerfile/.env, unique port
+- app_module uses #[derive(Module)] macro pattern instead of impl Module for
+- Remove shared-config and observability libs from monorepo scaffold
+- Remove Dockerfile from generated app template
+### Added
+- ironic dev -p <name> monorepo support with hot reload
 ## [v1.1.4] - 2026-07-25
 ### Changed
 - New app scaffolding matches RivalLens structure: multi-line #[module()], repositories/tests in module template

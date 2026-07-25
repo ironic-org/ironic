@@ -66,16 +66,70 @@ my-platform/
 ├── apps/                   # Microservice binaries
 │   ├── api-gateway/        # HTTP API gateway (entry point)
 │   │   ├── Cargo.toml
+│   │   ├── Dockerfile
+│   │   ├── .env
 │   │   └── src/
-│   │       └── main.rs
+│   │       ├── main.rs
+│   │       ├── app.rs
+│   │       ├── welcome.rs
+│   │       ├── platform/
+│   │       │   ├── mod.rs
+│   │       │   ├── config.rs
+│   │       │   ├── telemetry.rs
+│   │       │   └── database.rs
+│   │       └── modules/
+│   │           └── example/
+│   │               ├── mod.rs
+│   │               ├── controller/
+│   │               ├── services/
+│   │               ├── repositories/
+│   │               ├── dto/
+│   │               ├── entities/
+│   │               └── tests/
 │   ├── auth-service/       # Authentication microservice
 │   │   ├── Cargo.toml
+│   │   ├── Dockerfile
+│   │   ├── .env
 │   │   └── src/
-│   │       └── main.rs
+│   │       ├── main.rs
+│   │       ├── app.rs
+│   │       ├── welcome.rs
+│   │       ├── platform/
+│   │       │   ├── mod.rs
+│   │       │   ├── config.rs
+│   │       │   ├── telemetry.rs
+│   │       │   └── database.rs
+│   │       └── modules/
+│   │           └── example/
+│   │               ├── mod.rs
+│   │               ├── controller/
+│   │               ├── services/
+│   │               ├── repositories/
+│   │               ├── dto/
+│   │               ├── entities/
+│   │               └── tests/
 │   └── analytics-service/  # Analytics microservice
 │       ├── Cargo.toml
+│       ├── Dockerfile
+│       ├── .env
 │       └── src/
-│           └── main.rs
+│           ├── main.rs
+│           ├── app.rs
+│           ├── welcome.rs
+│           ├── platform/
+│           │   ├── mod.rs
+│           │   ├── config.rs
+│           │   ├── telemetry.rs
+│           │   └── database.rs
+│           └── modules/
+│               └── example/
+│                   ├── mod.rs
+│                   ├── controller/
+│                   ├── services/
+│                   ├── repositories/
+│                   ├── dto/
+│                   ├── entities/
+│                   └── tests/
 │
 ├── libs/                   # Shared libraries
 │   ├── shared-config/      # Configuration types shared across services
@@ -101,6 +155,7 @@ my-platform/
 
 ```toml
 [workspace]
+resolver = "3"
 members = [
     "apps/api-gateway",
     "apps/auth-service",
@@ -110,9 +165,15 @@ members = [
 ]
 
 [workspace.dependencies]
-ironic = { git = "https://github.com/ironic-org/ironic", tag = "v1.1.1" }
-tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
+ironic = { version = "0.2", features = ["security", "compression", "metrics", "openapi"] }
+tokio = { version = "1", features = ["macros", "rt-multi-thread", "net", "signal"] }
 serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+garde = "0.23"
+sqlx = { version = "0.9", features = ["runtime-tokio", "postgres"] }
+tracing = { version = "0.1", features = ["attributes"] }
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+dotenvy = "0.15"
 tonic = "0.14"
 ```
 
@@ -145,44 +206,69 @@ ironic generate library shared-config
 Each microservice follows the same internal structure:
 
 ```
-apps/auth-service/
+apps/<name>/
 ├── Cargo.toml
+├── Dockerfile
+├── .env
 └── src/
-    ├── main.rs           # Entry point
-    ├── app.rs            # Root module: imports + providers
+    ├── main.rs            # Entry point — full middleware stack
+    ├── app.rs             # Root module — #[derive(Module)] macro
+    ├── welcome.rs         # WelcomeController + WelcomeModule
+    ├── platform/          # Service infrastructure
+    │   ├── mod.rs
+    │   ├── config.rs      # Environment variable helpers
+    │   ├── telemetry.rs   # Tracing/logging initialisation
+    │   └── database.rs    # SQLx connection pool setup
     └── modules/
-        ├── mod.rs        # Module registry
-        ├── auth/         # Auth domain
-        │   ├── mod.rs
-        │   ├── controller/
-        │   │   └── auth_controller.rs
-        │   ├── services/
-        │   │   └── auth_service.rs
-        │   ├── repositories/
-        │   │   └── user_repository.rs
-        │   ├── dto/
-        │   │   ├── mod.rs
-        │   │   ├── login_dto.rs
-        │   │   └── register_dto.rs
-        │   └── entities/
-        │       ├── mod.rs
-        │       └── user.rs
-        └── health/       # Health check module
+        ├── mod.rs         # Module registry
+        └── example/       # Generated CRUD resource
             ├── mod.rs
-            └── controller/
-                └── health_controller.rs
+            ├── controller/   # REST endpoints
+            ├── services/     # Business logic
+            ├── repositories/ # Data access layer
+            ├── dto/          # Request/response types
+            ├── entities/     # Domain models
+            └── tests/        # Unit + integration tests
 ```
 
 ### Entry Point (`src/main.rs`)
 
 ```rust
+mod app;
+mod modules;
+mod platform;
+mod welcome;
+
+use std::time::Duration;
+
 use ironic::prelude::*;
+use ironic::security::{
+    CorsConfig, CorsMiddleware,
+    RateLimitMiddleware,
+    SecurityHeadersConfig, SecurityHeadersMiddleware,
+};
+use ironic::{AxumAdapter, OpenApiConfig, OpenApiAxumExt};
+use app::AppModule;
 
 #[ironic::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    dotenvy::dotenv().ok();
+    platform::telemetry::init_tracing();
+
     Application::builder()
         .module(AppModule::definition())
-        .platform(AxumAdapter::new())
+        .middleware(GlobalExceptionMiddleware)
+        .middleware(SecurityHeadersMiddleware::new(SecurityHeadersConfig::default()))
+        .middleware(RateLimitMiddleware::new(100, 60))
+        .middleware(CorsMiddleware::new(CorsConfig::new()))
+        .platform(
+            AxumAdapter::new()
+                .compression()
+                .request_body_limit(5 * 1024 * 1024)
+                .request_timeout(Duration::from_secs(30))
+                .with_openapi(OpenApiConfig::new("my-app", "0.1.0"))
+                .swagger_ui("/docs"),
+        )
         .build()
         .await?
         .listen("0.0.0.0:3000")

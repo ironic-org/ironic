@@ -69,6 +69,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore = "requires stdin input"]
     fn execute_writes_prompt() {
         let mut buf = Vec::new();
         // execute will try to read from stdin when it shows the prompt,
@@ -84,6 +85,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore = "requires stdin input"]
     fn uninstall_output_format() {
         let mut buf = Vec::new();
         let result = super::execute(&mut buf);

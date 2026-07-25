@@ -84,61 +84,138 @@ pub fn generate_app(root: &Path, name: &str) -> Result<GenerationReport, CliErro
         });
     }
 
-    let files: Vec<(std::path::PathBuf, String)> = vec![
-        (dest.join("Cargo.toml"), app_manifest(&names)),
-        (dest.join("src/main.rs"), app_main(&names)),
-        (dest.join("src/app.rs"), app_module(&names)),
-        (
-            dest.join("src/lib.rs"),
-            "pub mod app;\npub mod modules;\npub use app::AppModule;\n".to_string(),
-        ),
-        (dest.join("src/modules/mod.rs"), "pub mod health;\n".into()),
-        (
-            dest.join("src/modules/health/mod.rs"),
-            r"use ironic::prelude::*;
-
-#[derive(Module)]
-#[module()]
-pub struct HealthModule;
-"
-            .into(),
-        ),
-        (
-            dest.join("src/modules/health/controller/mod.rs"),
-            "pub mod health_controller;\n".into(),
-        ),
-        (
-            dest.join("src/modules/health/controller/health_controller.rs"),
-            r#"use ironic::prelude::*;
-
-#[controller("/health")]
-pub struct HealthController;
-
-#[routes]
-impl HealthController {
-    #[get("/")]
-    async fn check(&self) -> Json<serde_json::Value> {
-        Json(serde_json::json!({"status": "ok"}))
-    }
-}
-"#
-            .into(),
-        ),
-    ];
+    let port = next_port(root);
+    let files = generate_app_files(&dest, &names, port);
 
     for (path, contents) in &files {
-        if let Some(parent) = path.parent() {
-            fs::create_dir_all(parent).map_err(|e| CliError::Io {
-                action: "create directory",
-                path: parent.to_path_buf(),
-                source: e,
-            })?;
-        }
-        let changed = source::write_generated(path, contents)?;
-        record(&mut report, path, changed);
+        write_app_file(path, contents, &mut report)?;
     }
 
-    // Update workspace Cargo.toml to include the new app
+    add_app_to_workspace(root, &names, &mut report);
+
+    let dev_guide = format!(
+        "run `cd apps/{} && cargo run` to start the service on port {}",
+        names.kebab, port
+    );
+    report.manual_instructions.push(dev_guide);
+
+    Ok(report)
+}
+
+fn generate_app_files(
+    dest: &Path,
+    names: &naming::Names,
+    port: u16,
+) -> Vec<(std::path::PathBuf, String)> {
+    let example_mod = "src/modules/example";
+    vec![
+        (dest.join("Cargo.toml"), app_manifest(names)),
+        (dest.join("Dockerfile"), app_dockerfile(names, port)),
+        (dest.join(".env"), app_env(names, port)),
+        (dest.join("src/main.rs"), app_main(names, port)),
+        (dest.join("src/app.rs"), app_module(names)),
+        (dest.join("src/welcome.rs"), app_welcome(names)),
+        (dest.join("src/platform/mod.rs"), app_platform_mod().into()),
+        (dest.join("src/platform/config.rs"), app_platform_config()),
+        (
+            dest.join("src/platform/telemetry.rs"),
+            app_platform_telemetry(),
+        ),
+        (
+            dest.join("src/platform/database.rs"),
+            app_platform_database(),
+        ),
+        (
+            dest.join("src/modules/mod.rs"),
+            "pub mod example;\n".to_string(),
+        ),
+        (
+            dest.join(format!("{example_mod}/mod.rs")),
+            app_example_module(names),
+        ),
+        (
+            dest.join(format!("{example_mod}/controller/mod.rs")),
+            app_controller_mod(names),
+        ),
+        (
+            dest.join(format!(
+                "{example_mod}/controller/{}_controller.rs",
+                names.snake
+            )),
+            app_example_controller(names),
+        ),
+        (
+            dest.join(format!("{example_mod}/services/mod.rs")),
+            app_services_mod(names),
+        ),
+        (
+            dest.join(format!("{example_mod}/services/{}_service.rs", names.snake)),
+            app_example_service(names),
+        ),
+        (
+            dest.join(format!("{example_mod}/repositories/mod.rs")),
+            app_repository_mod(names),
+        ),
+        (
+            dest.join(format!(
+                "{example_mod}/repositories/{}_repository.rs",
+                names.snake
+            )),
+            app_example_repository(names),
+        ),
+        (
+            dest.join(format!("{example_mod}/dto/mod.rs")),
+            app_dto_mod(names),
+        ),
+        (
+            dest.join(format!("{example_mod}/dto/create_{}_dto.rs", names.snake)),
+            app_create_dto(names),
+        ),
+        (
+            dest.join(format!("{example_mod}/dto/update_{}_dto.rs", names.snake)),
+            app_update_dto(names),
+        ),
+        (
+            dest.join(format!("{example_mod}/entities/mod.rs")),
+            app_entities_mod(names),
+        ),
+        (
+            dest.join(format!("{example_mod}/entities/{}.rs", names.snake)),
+            app_entity(names),
+        ),
+        (
+            dest.join(format!("{example_mod}/tests/mod.rs")),
+            app_test_mod(),
+        ),
+        (
+            dest.join(format!("{example_mod}/tests/unit.rs")),
+            app_test_unit(names),
+        ),
+        (
+            dest.join(format!("{example_mod}/tests/integration.rs")),
+            app_test_integration(names),
+        ),
+    ]
+}
+
+fn write_app_file(
+    path: &Path,
+    contents: &str,
+    report: &mut GenerationReport,
+) -> Result<(), CliError> {
+    if let Some(parent) = path.parent() {
+        fs::create_dir_all(parent).map_err(|e| CliError::Io {
+            action: "create directory",
+            path: parent.to_path_buf(),
+            source: e,
+        })?;
+    }
+    let changed = source::write_generated(path, contents)?;
+    record(report, path, changed);
+    Ok(())
+}
+
+fn add_app_to_workspace(root: &Path, names: &naming::Names, report: &mut GenerationReport) {
     let workspace_toml = root.join("Cargo.toml");
     if workspace_toml.is_file() {
         let contents = std::fs::read_to_string(&workspace_toml).unwrap_or_default();
@@ -151,13 +228,14 @@ impl HealthController {
             names.kebab
         ));
     }
+}
 
-    report.manual_instructions.push(format!(
-        "run `cd apps/{} && cargo run` to start the service",
-        names.kebab
-    ));
-
-    Ok(report)
+fn next_port(root: &Path) -> u16 {
+    let apps_dir = root.join("apps");
+    let count = std::fs::read_dir(&apps_dir).ok().map_or(0, |entries| {
+        entries.filter_map(std::result::Result::ok).count()
+    });
+    8080 + u16::try_from(count).unwrap_or(0)
 }
 
 fn app_manifest(names: &naming::Names) -> String {
@@ -166,61 +244,733 @@ fn app_manifest(names: &naming::Names) -> String {
 name = "{name}"
 version = "0.1.0"
 edition = "2024"
-description = "Microservice generated by Ironic"
 
 [dependencies]
 ironic = {{ workspace = true }}
 tokio = {{ workspace = true }}
 serde = {{ workspace = true }}
 serde_json = {{ workspace = true }}
-anyhow = "1"
-tracing = "0.1"
-tracing-subscriber = "0.3"
-
-[lib]
-name = "{name}"
+garde = {{ workspace = true }}
+sqlx = {{ workspace = true }}
+tracing = {{ workspace = true }}
+tracing-subscriber = {{ workspace = true }}
+dotenvy = {{ workspace = true }}
 "#,
         name = names.kebab
     )
 }
 
-fn app_main(names: &naming::Names) -> String {
+fn app_dockerfile(names: &naming::Names, port: u16) -> String {
     format!(
-        r#"use {name}::app::AppModule;
+        r#"FROM rust:1.97-slim-bookworm AS builder
+WORKDIR /app
+COPY Cargo.toml Cargo.lock* ./
+COPY src ./src
+RUN cargo build --release
+
+FROM gcr.io/distroless/cc-debian12
+WORKDIR /app
+COPY --from=builder /app/target/release/{name} /app/{name}
+ENV SERVER_HOST=0.0.0.0
+ENV SERVER_PORT={port}
+EXPOSE {port}
+CMD ["./{name}"]
+"#,
+        name = names.kebab,
+        port = port
+    )
+}
+
+fn app_env(names: &naming::Names, port: u16) -> String {
+    format!(
+        r"SERVER_HOST=0.0.0.0
+SERVER_PORT={port}
+RUST_LOG=info
+CORS_ORIGINS=[]
+RATE_LIMIT_MAX=100
+DATABASE_URL=postgres://user:CHANGE_ME@localhost:5432/{name}
+",
+        port = port,
+        name = names.kebab
+    )
+}
+
+fn app_main(names: &naming::Names, port: u16) -> String {
+    let version = env!("CARGO_PKG_VERSION");
+    format!(
+        r#"mod app;
+mod modules;
+mod platform;
+mod welcome;
+
+use std::time::Duration;
+
+use ironic::{{AxumAdapter, OpenApiConfig, OpenApiAxumExt}};
+use ironic::metrics::{{MetricsLayer, MetricsConfig}};
 use ironic::prelude::*;
+use ironic::security::{{
+    CorsConfig, CorsMiddleware,
+    RateLimitMiddleware,
+    SecurityHeadersConfig, SecurityHeadersMiddleware,
+}};
+
+use app::AppModule;
+
+struct GlobalExceptionMiddleware;
+
+impl ironic::Middleware for GlobalExceptionMiddleware {{
+    fn handle<'a>(
+        &'a self,
+        context: &'a mut ironic::RequestContext,
+        next: ironic::MiddlewareNext<'a>,
+    ) -> ironic::PipelineFuture<'a> {{
+        Box::pin(async move {{
+            match next.run(context).await {{
+                Ok(response) => Ok(response),
+                Err(error) => {{
+                    let body = ironic::json::json!({{
+                        "error": error.code(),
+                        "message": error.message(),
+                        "status": error.status().as_u16(),
+                    }});
+                    ironic::Response::json(error.status(), &body)
+                }}
+            }}
+        }})
+    }}
+}}
 
 #[ironic::main]
-async fn main() -> Result<(), anyhow::Error> {{
-    tracing_subscriber::fmt::init();
+async fn main() {{
+    dotenvy::dotenv().ok();
+    platform::telemetry::init_tracing();
 
-    Application::builder()
+    let addr = format!(
+        "{{}}:{{}}",
+        platform::config::env("SERVER_HOST").unwrap_or_else(|| "0.0.0.0".into()),
+        platform::config::env("SERVER_PORT").unwrap_or_else(|| "{port}".into()),
+    );
+    let cors_origins = platform::config::env_json_array("CORS_ORIGINS");
+    let rate_limit_max: u64 = platform::config::env_parsed("RATE_LIMIT_MAX", 100u64);
+
+    let application = Application::builder()
         .module(AppModule::definition())
-        .platform(AxumAdapter::new())
+        .middleware(GlobalExceptionMiddleware)
+        .middleware(SecurityHeadersMiddleware::new(SecurityHeadersConfig::default()))
+        .middleware(RateLimitMiddleware::new(rate_limit_max, 60))
+        .middleware(CorsMiddleware::new(CorsConfig::new().allowed_origins(cors_origins)))
+        .platform(
+            AxumAdapter::new()
+                .compression()
+                .request_body_limit(5 * 1024 * 1024)
+                .request_timeout(Duration::from_secs(30))
+                .configure_router(|r| {{
+                    r.layer(MetricsLayer::new(MetricsConfig::default()))
+                }})
+                .with_openapi(OpenApiConfig::new("{name}", "0.1.0"))
+                .swagger_ui("/docs"),
+        )
         .build()
-        .await?
-        .listen("0.0.0.0:3000")
-        .await?;
+        .await
+        .expect("application must initialise");
 
-    Ok(())
+    println!("🚀 {name} → http://{{}} (ironic v{version})", addr);
+
+    application
+        .listen(&addr)
+        .await
+        .expect("application server failed");
 }}
+"#,
+        name = names.kebab,
+        port = port
+    )
+}
+
+fn app_module(names: &naming::Names) -> String {
+    format!(
+        r"use ironic::prelude::*;
+use crate::welcome::WelcomeModule;
+use crate::modules::example::{}Module;
+use ironic::metrics::MetricsModule;
+
+#[derive(Module)]
+#[module(
+    imports = [HealthModule,
+    MetricsModule,
+    WelcomeModule,
+    {}Module],
+    providers = [],
+    controllers = [],
+    exports = [],
+)]
+pub struct AppModule;
+",
+        names.pascal, names.pascal
+    )
+}
+
+fn app_welcome(names: &naming::Names) -> String {
+    let version = env!("CARGO_PKG_VERSION");
+    format!(
+        r#"use ironic::prelude::*;
+
+#[controller("/")]
+#[derive(Injectable)]
+struct WelcomeController;
+
+#[routes]
+impl WelcomeController {{
+    #[get]
+    async fn index(&self) -> Result<Json<serde_json::Value>, HttpError> {{
+        Ok(Json(serde_json::json!({{
+            "name": "{name}",
+            "framework": "Ironic",
+            "version": "{version}",
+            "status": "running",
+            "health": "/health",
+            "docs": "/docs"
+        }})))
+    }}
+}}
+
+#[derive(Module)]
+#[module(controllers = [WelcomeController])]
+pub struct WelcomeModule;
 "#,
         name = names.kebab
     )
 }
 
-fn app_module(_names: &naming::Names) -> String {
-    r"use ironic::prelude::*;
-
-pub struct AppModule;
-
-impl Module for AppModule {
-    fn definition() -> ModuleDefinition {
-        ModuleDefinition::builder::<Self>()
-            .build()
-    }
+fn app_platform_mod() -> &'static str {
+    "pub mod config;\npub mod telemetry;\n// pub mod database;\n"
 }
+
+fn app_platform_config() -> String {
+    r#"use std::env;
+
+pub fn env(key: &str) -> Option<String> {
+    env::var(key).ok()
+}
+
+pub fn env_parsed<T: std::str::FromStr>(key: &str, default: T) -> T {
+    env::var(key)
+        .ok()
+        .and_then(|v| v.parse().ok())
+        .unwrap_or(default)
+}
+
+pub fn env_json_array(key: &str) -> Vec<String> {
+    env::var(key)
+        .ok()
+        .and_then(|v| serde_json::from_str(&v).ok())
+        .unwrap_or_default()
+}
+
+#[allow(dead_code)]
+pub fn server_address() -> String {
+    let host = env("SERVER_HOST").unwrap_or_else(|| "0.0.0.0".into());
+    let port = env("SERVER_PORT").unwrap_or_else(|| "8080".into());
+    format!("{host}:{port}")
+}
+"#
+    .to_string()
+}
+
+fn app_platform_telemetry() -> String {
+    r#"use tracing_subscriber::EnvFilter;
+
+pub fn init_tracing() {
+    tracing_subscriber::fmt()
+        .with_env_filter(
+            EnvFilter::try_from_default_env()
+                .unwrap_or_else(|_| EnvFilter::new("info")),
+        )
+        .with_target(true)
+        .with_thread_ids(true)
+        .with_file(true)
+        .with_line_number(true)
+        .compact()
+        .init();
+}
+"#
+    .to_string()
+}
+
+fn app_platform_database() -> String {
+    r#"//! Database connection pool (PostgreSQL via SQLx).
+//!
+//! # Setup
+//!
+//! 1. Set `DATABASE_URL` in your `.env` file:
+//!
+//!    ```env
+//!    DATABASE_URL=postgres://user:password@localhost:5432/my_app
+//!    ```
+//!
+//! 2. Uncomment `pub mod database;` in `src/platform/mod.rs`.
+//!
+//! 3. Initialize the pool at application startup (e.g. in `main.rs`):
+//!
+//!    ```rust
+//!    use platform::database::build_pool;
+//!    let pool = build_pool().await;
+//!    ```
+//!
+//! 4. Access the pool anywhere in your app:
+//!
+//!    ```rust
+//!    use platform::database::db;
+//!    let row = sqlx::query("SELECT ..").fetch_one(db()).await?;
+//!    ```
+//!
+//! # Migrations
+//!
+//! Create a `migrations/` directory with SQL migration files named using the
+//! standard SQLx convention: `YYYYMMDD_HHMMSS_description.sql`.
+//! Migrations are run automatically when `build_pool()` is called.
+
+use std::sync::OnceLock;
+
+pub static DB_POOL: OnceLock<sqlx::PgPool> = OnceLock::new();
+
+pub fn db() -> &'static sqlx::PgPool {
+    DB_POOL
+        .get()
+        .expect("DATABASE_URL must be set and pool initialized")
+}
+
+#[allow(dead_code)]
+pub async fn build_pool() -> sqlx::PgPool {
+    let url = dotenvy::var("DATABASE_URL").expect("DATABASE_URL must be set");
+
+    let pool = sqlx::postgres::PgPoolOptions::new()
+        .max_connections(super::config::env("DB_POOL_SIZE")
+            .and_then(|v| v.parse().ok())
+            .unwrap_or(10))
+        .connect(&url)
+        .await
+        .expect("failed to connect to database");
+
+    sqlx::migrate::Migrator::new(std::path::Path::new("./migrations"))
+        .await
+        .expect("invalid migrations directory")
+        .run(&pool)
+        .await
+        .expect("failed to run migrations");
+
+    tracing::info!("database pool ready (max: {})", pool.size());
+    pool
+}
+"#
+    .to_string()
+}
+
+fn app_example_module(names: &naming::Names) -> String {
+    format!(
+        r"use ironic::prelude::*;
+
+pub mod controller;
+pub mod repositories;
+pub mod services;
+pub mod dto;
+pub mod entities;
+
+#[cfg(test)]
+mod tests;
+
+pub use controller::{}Controller;
+pub use repositories::{}Repository;
+pub use services::{}Service;
+
+#[derive(Module)]
+#[module(providers = [{}Repository, {}Service], controllers = [{}Controller])]
+pub struct {}Module;
+",
+        names.pascal,
+        names.pascal,
+        names.pascal,
+        names.pascal,
+        names.pascal,
+        names.pascal,
+        names.pascal
+    )
+}
+
+fn app_controller_mod(names: &naming::Names) -> String {
+    format!(
+        "pub mod {0}_controller;\npub use {0}_controller::{1}Controller;\n",
+        names.snake, names.pascal
+    )
+}
+
+fn app_example_controller(names: &naming::Names) -> String {
+    format!(
+        r#"use std::sync::Arc;
+use ironic::prelude::*;
+use super::super::services::{0}Service;
+use crate::modules::example::dto::{{Create{0}Dto, Update{0}Dto}};
+use crate::modules::example::entities::{0};
+
+#[controller("/{1}")]
+#[derive(Injectable)]
+pub struct {0}Controller {{ service: Arc<{0}Service> }}
+
+#[routes]
+impl {0}Controller {{
+    #[get]
+    #[api(summary = "List all {1}", tag = "{0}", security = "bearer")]
+    #[resp(200, "A list of {1}", json = Vec<{0}>)]
+    async fn list(&self) -> Result<Json<Vec<{0}>>, HttpError> {{
+        Ok(Json(self.service.list()))
+    }}
+
+    #[get("/:id")]
+    #[api(summary = "Get a {1} by ID", tag = "{0}")]
+    #[resp(200, "The requested {1}", json = {0})]
+    #[resp(404, "{0} not found")]
+    async fn get(&self, #[param] id: u64) -> Result<Json<{0}>, HttpError> {{
+        self.service.find(id).map(Json)
+    }}
+
+    #[post]
+    #[api(summary = "Create a new {1}", tag = "{0}")]
+    #[body(json = Create{0}Dto)]
+    #[resp(201, "{0} created", json = {0})]
+    #[resp(400, "Validation error")]
+    async fn create(&self, #[body] dto: Create{0}Dto) -> Result<Json<{0}>, HttpError> {{
+        Ok(Json(self.service.create(dto)))
+    }}
+
+    #[put("/:id")]
+    #[api(summary = "Update an existing {1}", tag = "{0}")]
+    #[body(json = Update{0}Dto)]
+    #[resp(200, "{0} updated", json = {0})]
+    #[resp(404, "{0} not found")]
+    async fn update(&self, #[param] id: u64, #[body] dto: Update{0}Dto) -> Result<Json<{0}>, HttpError> {{
+        self.service.update(id, dto).map(Json)
+    }}
+
+    #[delete("/:id")]
+    #[api(summary = "Delete a {1}", tag = "{0}")]
+    #[resp(204, "{0} deleted")]
+    #[resp(404, "{0} not found")]
+    async fn delete(&self, #[param] id: u64) -> Result<(), HttpError> {{
+        self.service.delete(id)
+    }}
+}}
+"#,
+        names.pascal, names.kebab
+    )
+}
+
+fn app_services_mod(names: &naming::Names) -> String {
+    format!(
+        "pub mod {0}_service;\npub use {0}_service::{1}Service;\n",
+        names.snake, names.pascal
+    )
+}
+
+fn app_example_service(names: &naming::Names) -> String {
+    format!(
+        r"use std::sync::Arc;
+use ironic::prelude::*;
+use crate::modules::example::dto::{{Create{0}Dto, Update{0}Dto}};
+use crate::modules::example::entities::{0};
+use crate::modules::example::repositories::{0}Repository;
+
+#[derive(Injectable)]
+pub struct {0}Service {{
+    pub repository: Arc<{0}Repository>,
+}}
+
+impl {0}Service {{
+    pub fn list(&self) -> Vec<{0}> {{
+        self.repository.list()
+    }}
+
+    pub fn find(&self, id: u64) -> Result<{0}, HttpError> {{
+        self.repository.find(id)
+    }}
+
+    pub fn create(&self, dto: Create{0}Dto) -> {0} {{
+        self.repository.create(dto.name, dto.description)
+    }}
+
+    pub fn update(&self, id: u64, dto: Update{0}Dto) -> Result<{0}, HttpError> {{
+        self.repository.update(id, dto.name, dto.description)
+    }}
+
+    pub fn delete(&self, id: u64) -> Result<(), HttpError> {{
+        self.repository.delete(id)
+    }}
+}}
+",
+        names.pascal
+    )
+}
+
+fn app_repository_mod(names: &naming::Names) -> String {
+    format!(
+        "pub mod {0}_repository;\npub use {0}_repository::{1}Repository;\n",
+        names.snake, names.pascal
+    )
+}
+
+fn app_example_repository(names: &naming::Names) -> String {
+    format!(
+        r#"use std::collections::HashMap;
+use std::sync::Mutex;
+use ironic::prelude::*;
+use crate::modules::example::entities::{0};
+
+static STORE: std::sync::LazyLock<Mutex<Store>> = std::sync::LazyLock::new(|| Mutex::new(Store {{ items: HashMap::new(), next_id: 1 }}));
+
+struct Store {{ items: HashMap<u64, {0}>, next_id: u64 }}
+
+#[derive(Injectable)]
+pub struct {0}Repository;
+
+impl {0}Repository {{
+    pub fn list(&self) -> Vec<{0}> {{
+        STORE.lock().unwrap().items.values().cloned().collect()
+    }}
+
+    pub fn find(&self, id: u64) -> Result<{0}, HttpError> {{
+        STORE.lock().unwrap().items.get(&id).cloned()
+            .ok_or_else(|| HttpError::not_found("{0}_NOT_FOUND", format!("Item {{id}} not found")))
+    }}
+
+    pub fn create(&self, name: String, description: Option<String>) -> {0} {{
+        let mut store = STORE.lock().unwrap();
+        let id = store.next_id;
+        store.next_id += 1;
+        let item = {0} {{ id, name, description: description.unwrap_or_default() }};
+        store.items.insert(id, item.clone());
+        item
+    }}
+
+    pub fn update(&self, id: u64, name: Option<String>, description: Option<String>) -> Result<{0}, HttpError> {{
+        let mut store = STORE.lock().unwrap();
+        let item = store.items.get_mut(&id)
+            .ok_or_else(|| HttpError::not_found("{0}_NOT_FOUND", format!("Item {{id}} not found")))?;
+        if let Some(name) = name {{ item.name = name; }}
+        if let Some(desc) = description {{ item.description = desc; }}
+        Ok(item.clone())
+    }}
+
+    pub fn delete(&self, id: u64) -> Result<(), HttpError> {{
+        STORE.lock().unwrap().items.remove(&id)
+            .map(|_| ())
+            .ok_or_else(|| HttpError::not_found("{0}_NOT_FOUND", format!("Item {{id}} not found")))
+    }}
+}}
+"#,
+        names.pascal
+    )
+}
+
+fn app_dto_mod(names: &naming::Names) -> String {
+    format!(
+        r"pub mod create_{0}_dto;
+pub mod update_{0}_dto;
+pub use create_{0}_dto::Create{1}Dto;
+pub use update_{0}_dto::Update{1}Dto;
+",
+        names.snake, names.pascal
+    )
+}
+
+fn app_create_dto(names: &naming::Names) -> String {
+    format!(
+        r"use garde::Validate;
+use ironic::OpenApiSchema;
+use serde::{{Deserialize, Serialize}};
+
+#[derive(Debug, Clone, Serialize, Deserialize, Validate, OpenApiSchema)]
+pub struct Create{0}Dto {{
+    #[garde(length(min = 1, max = 256))]
+    /// Item name (1–256 characters).
+    pub name: String,
+    #[garde(skip)]
+    /// Optional description.
+    pub description: Option<String>,
+}}
+",
+        names.pascal
+    )
+}
+
+fn app_update_dto(names: &naming::Names) -> String {
+    format!(
+        r"use ironic::OpenApiSchema;
+use serde::{{Deserialize, Serialize}};
+
+#[derive(Debug, Clone, Serialize, Deserialize, OpenApiSchema)]
+pub struct Update{0}Dto {{
+    /// New name (leave `null` to keep unchanged).
+    pub name: Option<String>,
+    /// New description (leave `null` to keep unchanged).
+    pub description: Option<String>,
+}}
+",
+        names.pascal
+    )
+}
+
+fn app_entities_mod(names: &naming::Names) -> String {
+    format!(
+        "pub mod {0};\npub use {0}::{1};\n",
+        names.snake, names.pascal
+    )
+}
+
+fn app_entity(names: &naming::Names) -> String {
+    format!(
+        r"use ironic::OpenApiSchema;
+use serde::{{Deserialize, Serialize}};
+
+#[derive(Debug, Clone, Serialize, Deserialize, OpenApiSchema)]
+pub struct {0} {{
+    /// Unique identifier.
+    pub id: u64,
+    /// Item name.
+    pub name: String,
+    /// Item description.
+    pub description: String,
+}}
+",
+        names.pascal
+    )
+}
+
+fn app_test_mod() -> String {
+    r"/// Unit tests — service and business logic in isolation (no HTTP).
+#[cfg(test)]
+mod unit;
+/// Integration tests — full HTTP request/response through the framework.
+#[cfg(test)]
+mod integration;
 "
     .to_string()
+}
+
+fn app_test_unit(names: &naming::Names) -> String {
+    format!(
+        r#"//! Unit tests for `{}Service`.
+
+use std::sync::Arc;
+use crate::modules::example::dto::{{Create{0}Dto, Update{0}Dto}};
+use crate::modules::example::repositories::{0}Repository;
+use crate::modules::example::services::{0}Service;
+
+fn service() -> {0}Service {{
+    {0}Service {{ repository: Arc::new({0}Repository) }}
+}}
+
+#[test]
+fn create_and_find() {{
+    let svc = service();
+    let item = svc.create(Create{0}Dto {{ name: "Test".into(), description: None }});
+    assert_eq!(item.name, "Test");
+    let found = svc.find(item.id).unwrap();
+    assert_eq!(found.name, "Test");
+}}
+
+#[test]
+fn update_works() {{
+    let svc = service();
+    let item = svc.create(Create{0}Dto {{ name: "Old".into(), description: None }});
+    let updated = svc.update(item.id, Update{0}Dto {{ name: Some("New".into()), description: None }}).unwrap();
+    assert_eq!(updated.name, "New");
+}}
+
+#[test]
+fn delete_works() {{
+    let svc = service();
+    let item = svc.create(Create{0}Dto {{ name: "Del".into(), description: None }});
+    assert!(svc.delete(item.id).is_ok());
+    assert!(svc.find(item.id).is_err());
+}}
+
+#[test]
+fn not_found_error() {{
+    let svc = service();
+    let err = svc.find(999).unwrap_err();
+    assert_eq!(err.status(), ironic::HttpStatus::NOT_FOUND);
+}}
+
+#[test]
+fn list_works() {{
+    let svc = service();
+    svc.create(Create{0}Dto {{ name: "A".into(), description: None }});
+    svc.create(Create{0}Dto {{ name: "B".into(), description: None }});
+    assert!(svc.list().len() >= 2);
+}}
+"#,
+        names.pascal
+    )
+}
+
+fn app_test_integration(names: &naming::Names) -> String {
+    format!(
+        r#"//! Integration tests for {0} — full HTTP request/response cycles.
+
+use ironic::{{HttpStatus, TestApplication}};
+use serde_json::json;
+
+use super::super::*;
+
+async fn app() -> TestApplication {{
+    TestApplication::new::<{0}Module>().await.expect("test app must initialise")
+}}
+
+#[ironic::test]
+async fn list_returns_ok() {{
+    let a = app().await;
+    assert_eq!(a.get("/{1}").send().await.status(), HttpStatus::OK);
+    a.shutdown().await.unwrap();
+}}
+
+#[ironic::test]
+async fn create_and_get() {{
+    let a = app().await;
+    let resp = a.post("/{1}").json(&json!({{"name": "Test", "description": null}})).send().await;
+    assert_eq!(resp.status(), HttpStatus::OK);
+    let id = resp.json::<serde_json::Value>().unwrap()["id"].as_u64().unwrap();
+    assert_eq!(a.get(&format!("/{1}/{{id}}")).send().await.status(), HttpStatus::OK);
+    a.shutdown().await.unwrap();
+}}
+
+#[ironic::test]
+async fn update_works() {{
+    let a = app().await;
+    let id = a.post("/{1}").json(&json!({{"name": "Old"}})).send().await
+        .json::<serde_json::Value>().unwrap()["id"].as_u64().unwrap();
+    let resp = a.put(&format!("/{1}/{{id}}")).json(&json!({{"name": "New"}})).send().await;
+    assert_eq!(resp.json::<serde_json::Value>().unwrap()["name"], "New");
+    a.shutdown().await.unwrap();
+}}
+
+#[ironic::test]
+async fn delete_works() {{
+    let a = app().await;
+    let id = a.post("/{1}").json(&json!({{"name": "Del"}})).send().await
+        .json::<serde_json::Value>().unwrap()["id"].as_u64().unwrap();
+    a.delete(&format!("/{1}/{{id}}")).send().await;
+    assert_eq!(a.get(&format!("/{1}/{{id}}")).send().await.status(), HttpStatus::NOT_FOUND);
+    a.shutdown().await.unwrap();
+}}
+
+#[ironic::test]
+async fn not_found_returns_404() {{
+    let a = app().await;
+    a.get("/{1}/999").send().await.assert_status(404);
+    a.shutdown().await.unwrap();
+}}
+"#,
+        names.pascal, names.kebab
+    )
 }
 
 /// Converts a single-service project to a monorepo workspace.
@@ -330,36 +1080,33 @@ dotenvy = "0.15"
     Ok(())
 }
 
-/// Creates shared library directories in a monorepo workspace.
+/// Creates a shared protobuf library directory in a monorepo workspace.
 fn create_monorepo_libs(root: &Path) -> Result<(), CliError> {
-    for lib in &["shared-config", "proto", "observability"] {
-        let lib_dir = root.join("libs").join(lib);
-        let lib_dir_src = lib_dir.join("src");
-        fs::create_dir_all(&lib_dir_src).map_err(|e| CliError::Io {
-            action: "create lib directory",
-            path: lib_dir.clone(),
-            source: e,
-        })?;
-        let lib_cargo = format!(
-            r#"[package]
-name = "{lib}"
+    let lib_dir = root.join("libs").join("proto");
+    let lib_dir_src = lib_dir.join("src");
+    fs::create_dir_all(&lib_dir_src).map_err(|e| CliError::Io {
+        action: "create lib directory",
+        path: lib_dir.clone(),
+        source: e,
+    })?;
+    let lib_cargo = r#"[package]
+name = "proto"
 version = "0.1.0"
 edition = "2024"
 "#
-        );
-        std::fs::write(lib_dir.join("Cargo.toml"), &lib_cargo).map_err(|e| CliError::Io {
-            action: "write lib Cargo.toml",
-            path: lib_dir.join("Cargo.toml"),
+    .to_string();
+    std::fs::write(lib_dir.join("Cargo.toml"), &lib_cargo).map_err(|e| CliError::Io {
+        action: "write lib Cargo.toml",
+        path: lib_dir.join("Cargo.toml"),
+        source: e,
+    })?;
+    std::fs::write(lib_dir_src.join("lib.rs"), b"// shared library\n").map_err(|e| {
+        CliError::Io {
+            action: "write lib src",
+            path: lib_dir_src.join("lib.rs"),
             source: e,
-        })?;
-        std::fs::write(lib_dir_src.join("lib.rs"), b"// shared library\n").map_err(|e| {
-            CliError::Io {
-                action: "write lib src",
-                path: lib_dir_src.join("lib.rs"),
-                source: e,
-            }
-        })?;
-    }
+        }
+    })?;
     Ok(())
 }
 
@@ -514,17 +1261,12 @@ pub use r#mod::{name}Module;
 
 fn library_module_shell(names: &naming::Names) -> String {
     format!(
-        r#"use ::ironic::prelude::*;
+        r"use ::ironic::prelude::*;
 
+#[derive(Module)]
+#[module()]
 pub struct {name}Module;
-
-impl Module for {name}Module {{
-    fn definition() -> ModuleDefinition {{
-        ModuleDefinition::builder("{name}")
-            .build()
-    }}
-}}
-"#,
+",
         name = names.pascal
     )
 }

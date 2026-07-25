@@ -5,12 +5,13 @@ description: Version history and release notes for the Ironic framework.
 
 # Releases
 
-## Current version: v1.1.4
+## Current version: v1.1.5
 
 All notable changes to Ironic are documented here. The project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 | Version | Date | Highlights |
 |---------|------|-----------|
+| [v1.1.5](/blog/v1.1.5) | 2026-07-25 | generate_app creates revallens-style microservice with platform/welcome/example module, per-app Dockerfile/.env, unique  |
 | [v1.1.4](/blog/v1.1.4) | 2026-07-25 | New app scaffolding matches RivalLens structure: multi-line #[module()], repositories/tests in module template |
 | [v1.1.3](/blog/v1.1.3) | 2026-07-25 | enhance app generation with health module and controller scaffolding |
 | [v1.1.2](/blog/v1.1.2) | 2026-07-25 | add package argument to CargoArgs for monorepo support and update documentation |

@@ -12,15 +12,21 @@ my-platform/
 ├── Cargo.toml                     # ── Workspace manifest
 ├── Cargo.lock                     # ── Single lock file
 ├── Makefile                       # ── Unified build commands
-├── docker-compose.yml             # ── Shared infrastructure
 ├── .env                           # ── Root env vars
 │
 ├── apps/                          # ── Microservice binaries
 │   ├── api-gateway/               #    HTTP API gateway
 │   │   ├── Cargo.toml
+│   │   ├── .env
 │   │   └── src/
 │   │       ├── main.rs
 │   │       ├── app.rs             #    Root module
+│   │       ├── welcome.rs         #    Welcome endpoint
+│   │       ├── platform/          #    Service infrastructure
+│   │       │   ├── mod.rs
+│   │       │   ├── config.rs
+│   │       │   ├── telemetry.rs
+│   │       │   └── database.rs
 │   │       └── modules/
 │   │           ├── mod.rs
 │   │           ├── users/         #    Users domain
@@ -38,20 +44,29 @@ my-platform/
 │   │           │   │   ├── mod.rs
 │   │           │   │   ├── create_user_dto.rs
 │   │           │   │   └── user_response.rs
-│   │           │   └── entities/
+│   │           │   ├── entities/
+│   │           │   │   ├── mod.rs
+│   │           │   │   └── user.rs
+│   │           │   └── tests/     #    Unit + integration tests
 │   │           │       ├── mod.rs
-│   │           │       └── user.rs
+│   │           │       ├── unit.rs
+│   │           │       └── integration.rs
 │   │           └── health/        #    Health check
-│   │               ├── mod.rs
 │   │               └── controller/
-│   │                   ├── mod.rs
 │   │                   └── health_controller.rs
 │   │
 │   ├── auth-service/              #    Authentication service
 │   │   ├── Cargo.toml
+│   │   ├── .env
 │   │   └── src/
 │   │       ├── main.rs
 │   │       ├── app.rs
+│   │       ├── welcome.rs
+│   │       ├── platform/
+│   │       │   ├── mod.rs
+│   │       │   ├── config.rs
+│   │       │   ├── telemetry.rs
+│   │       │   └── database.rs
 │   │       └── modules/
 │   │           ├── mod.rs
 │   │           ├── auth/
@@ -70,9 +85,13 @@ my-platform/
 │   │           │   │   ├── mod.rs
 │   │           │   │   ├── login_dto.rs
 │   │           │   │   └── register_dto.rs
-│   │           │   └── entities/
+│   │           │   ├── entities/
+│   │           │   │   ├── mod.rs
+│   │           │   │   └── credential.rs
+│   │           │   └── tests/
 │   │           │       ├── mod.rs
-│   │           │       └── credential.rs
+│   │           │       ├── unit.rs
+│   │           │       └── integration.rs
 │   │           └── rbac/
 │   │               ├── mod.rs
 │   │               ├── services/
@@ -84,9 +103,16 @@ my-platform/
 │   │
 │   └── analytics-service/         #    Analytics service
 │       ├── Cargo.toml
+│       ├── .env
 │       └── src/
 │           ├── main.rs
 │           ├── app.rs
+│           ├── welcome.rs
+│           ├── platform/
+│           │   ├── mod.rs
+│           │   ├── config.rs
+│           │   ├── telemetry.rs
+│           │   └── database.rs
 │           └── modules/
 │               ├── mod.rs
 │               ├── events/        #    Kafka event handlers
@@ -109,25 +135,17 @@ my-platform/
 │                   ├── dto/
 │                   │   ├── mod.rs
 │                   │   └── report_response.rs
-│                   └── entities/
-│                       ├── mod.rs
-│                       └── analytics_event.rs
-│
-├── libs/                          # ── Shared libraries
-│   ├── shared-config/             #    Shared config types
-│   │   ├── Cargo.toml
-│   │   └── src/
-│   │       └── lib.rs
-│   ├── proto/                     #    Protobuf definitions
-│   │   ├── Cargo.toml
-│   │   ├── build.rs
-│   │   ├── src/lib.rs
-│   │   └── proto/
-│   │       └── greeter.proto
-│   └── observability/             #    Shared tracing setup
+│                   ├── entities/
+│                   │   ├── mod.rs
+│                   │   └── analytics_event.rs
+│                   └── tests/
+├── libs/                          # ── Shared libraries (add your own with `ironic generate library <name>`)
+│   └── proto/                     #    Optional protobuf definitions
 │       ├── Cargo.toml
-│       └── src/
-│           └── lib.rs
+│       ├── build.rs
+│       ├── src/lib.rs
+│       └── proto/
+│           └── greeter.proto
 │
 ├── scripts/                       # ── CI/CD scripts
 │   └── deploy.sh
@@ -145,20 +163,20 @@ members = [
     "apps/api-gateway",
     "apps/auth-service",
     "apps/analytics-service",
-    "libs/shared-config",
-    "libs/proto",
-    "libs/observability",
 ]
 
 [workspace.dependencies]
-ironic = { git = "https://github.com/ironic-org/ironic", tag = "v1.1.1" }
-tokio = { version = "1", features = ["macros", "rt-multi-thread", "net"] }
+ironic = { version = "0.2", features = ["security", "compression", "metrics", "openapi"] }
+tokio = { version = "1", features = ["macros", "rt-multi-thread", "net", "signal"] }
 serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+garde = "0.23"
+sqlx = { version = "0.9", features = ["runtime-tokio", "postgres"] }
+tracing = { version = "0.1", features = ["attributes"] }
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+dotenvy = "0.15"
 tonic = "0.14"
 prost = "0.13"
-anyhow = "1"
-tracing = "0.1"
-tracing-subscriber = "0.3"
 ```
 
 Key points:
@@ -178,37 +196,16 @@ edition = "2024"
 ironic = { workspace = true, features = ["auth", "transport-redis"] }
 tokio = { workspace = true }
 serde = { workspace = true }
-proto = { path = "../../libs/proto" }
-shared-config = { path = "../../libs/shared-config" }
-tonic = { workspace = true }
-anyhow = { workspace = true }
+serde_json = { workspace = true }
+garde = { workspace = true }
+sqlx = { workspace = true }
 tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+dotenvy = { workspace = true }
+# proto = { path = "../../libs/proto" }  # uncomment if you need gRPC
 ```
 
 Each service only enables the Ironic features it needs.
-
-## Shared Library (`libs/<name>/`)
-
-### Library Manifest
-
-```toml
-[package]
-name = "shared-config"
-version = "0.1.0"
-edition = "2024"
-
-[dependencies]
-serde = { workspace = true }
-ironic = { workspace = true }
-```
-
-### Library Source
-
-```rust
-// libs/shared-config/src/lib.rs
-pub mod config;
-pub mod types;
-```
 
 ## How Controllers, Services, and Modules Behave in a Monorepo
 
@@ -306,8 +303,8 @@ pub struct AuthService {
     // Local repository (same crate)
     user_repo: Arc<UserRepository>,
 
-    // Shared library types
-    config: Arc<shared_config::config::AuthConfig>,
+    // Shared library types (from `libs/` workspace members)
+    // config: Arc<my_lib::config::AuthConfig>,
 
     // gRPC client to communicate with other services
     // (defined and injected within this same crate)
@@ -346,11 +343,8 @@ dependencies but their types can be registered as providers:
 )]
 pub struct AppModule;
 
-// Shared library values can be registered in a separate config:
-// Application::builder()
-//     .provider(ProviderDefinition::value(
-//         shared_config::config::AppConfig::from_env()
-//     ))
+// Shared library values can be registered via a provider in the module:
+// my_lib::config::AppConfig::from_env()
 ```
 
 ### Cross-Service Call Flow Diagram
@@ -386,20 +380,13 @@ pub struct AppModule;
 │                                                         │
 │  libs/proto ◀────── apps/service-a                      │
 │      │                 │                                 │
-│      │                 ├── depends on: ironic           │
-│      │                 ├── depends on: libs/proto        │
-│      │                 ├── depends on:                   │
-│      │                 │   libs/shared-config            │
-│      │                 │                                 │
+│      │                 ├── depends on: ironic            │
+│      │                 └── depends on: libs/proto        │
+│      │                                                   │
 │      ├────── apps/service-b                              │
 │      │         │                                         │
 │      │         ├── depends on: ironic                    │
-│      │         ├── depends on: libs/proto                │
-│      │         └── depends on: libs/shared-config        │
-│      │                                                   │
-│  libs/shared-config                                      │
-│      │                                                   │
-│      └────── all services                                │
+│      │         └── depends on: libs/proto                │
 └─────────────────────────────────────────────────────────┘
 ```
 
@@ -414,14 +401,20 @@ pub struct AppModule;
 | Testing | Single `cargo test` | `cargo test --workspace` |
 | Deployment | One binary | Multiple binaries |
 
-## Cross-Service Dependencies
+## Development
 
 ```bash
-# Service A depends on shared-config library
-apps/service-a/
-└── Cargo.toml
-    [dependencies]
-    shared-config = { path = "../../libs/shared-config" }
+# Run a specific app with hot reload (from any directory in the repo)
+ironic dev -p api-gateway           # watches apps/api-gateway/src/
+
+# Run from within the app directory
+cd apps/api-gateway && ironic dev
+
+# Run without hot reload
+ironic start -p api-gateway
+
+# Additional Cargo flags
+ironic dev -p auth-service -- --features transport-redis
 ```
 
 ## Build & Test Commands
@@ -470,32 +463,4 @@ run-all:
 run-%:
 	cargo run -p $*
 
-docker-up:
-	docker compose up -d
-
-docker-down:
-	docker compose down
 ```
-
-## Docker Compose
-
-```yaml
-version: "3.9"
-services:
-  redis:
-    image: redis:7-alpine
-    ports: ["6379:6379"]
-
-  kafka:
-    image: confluentinc/cp-kafka:latest
-    ports: ["9092:9092"]
-    environment:
-      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092
-
-  postgres:
-    image: postgres:16-alpine
-    ports: ["5432:5432"]
-    environment:
-      POSTGRES_USER: platform
-      POSTGRES_PASSWORD: development
-      POSTGRES_DB: platform

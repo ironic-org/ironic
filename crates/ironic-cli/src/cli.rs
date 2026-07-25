@@ -144,6 +144,9 @@ pub enum Generator {
     /// Generates a production-ready module with authentication and authorization.
     #[command(alias = "rr")]
     ReadyResource(ReadyResourceArgs),
+    /// Generates a new microservice app in the monorepo.
+    #[command(alias = "a")]
+    App(NameArgs),
     /// Generates a reusable library crate.
     #[command(alias = "lib")]
     Library(NameArgs),

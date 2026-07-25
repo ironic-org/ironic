@@ -5,12 +5,13 @@ description: Version history and release notes for the Ironic framework.
 
 # Releases
 
-## Current version: v1.1.3
+## Current version: v1.1.4
 
 All notable changes to Ironic are documented here. The project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 | Version | Date | Highlights |
 |---------|------|-----------|
+| [v1.1.4](/blog/v1.1.4) | 2026-07-25 | New app scaffolding matches RivalLens structure: multi-line #[module()], repositories/tests in module template |
 | [v1.1.3](/blog/v1.1.3) | 2026-07-25 | enhance app generation with health module and controller scaffolding |
 | [v1.1.2](/blog/v1.1.2) | 2026-07-25 | add package argument to CargoArgs for monorepo support and update documentation |
 | [v1.1.1](/blog/v1.1.1) | 2026-07-25 | implement MQTT and NATS live transports, Federation helper, MS pipeline docs |

@@ -341,7 +341,15 @@ use crate::modules::example::ExampleModule;
 use ironic::metrics::MetricsModule;
 
 #[derive(Module)]
-#[module(imports = [HealthModule, MetricsModule, WelcomeModule, ExampleModule])]
+#[module(
+    imports = [HealthModule,
+    MetricsModule,
+    WelcomeModule,
+    ExampleModule],
+    providers = [],
+    controllers = [],
+    exports = [],
+)]
 pub struct AppModule;
 "
 }

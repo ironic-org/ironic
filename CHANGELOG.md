@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v1.1.4] - 2026-07-25
+### Changed
+- New app scaffolding matches RivalLens structure: multi-line #[module()], repositories/tests in module template
+- generate controller/service/repository auto-inject into #[module()] providers/controllers arrays
 ## [v1.1.3] - 2026-07-25
 
 ### Added

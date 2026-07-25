@@ -147,21 +147,26 @@ impl Parse for ModuleMetadata {
     }
 }
 
-/// Adds `import` to the `imports = [...]` list of the first `#[module(...)]` attribute
-/// found in `path`, unless it is already present. Returns `true` if the file was modified.
+/// Adds `item` to one of the arrays (`imports`, `providers`, `controllers`, `exports`)
+/// in the first `#[module(...)]` attribute found in `path`, unless it is already present.
+/// Returns `true` if the file was modified.
 ///
 /// # Errors
 ///
 /// Returns [`CliError::SourceParse`] when the file cannot be parsed, no `#[module(...)]`
-/// attribute is found, or multiple module declarations exist.
+/// attribute is found, multiple module declarations exist, or `array_key` is invalid.
 /// Returns [`CliError::Io`] if the file read or write fails.
-pub(crate) fn ensure_module_import(path: &Path, import: &str) -> Result<bool, CliError> {
+pub(crate) fn ensure_module_array_item(
+    path: &Path,
+    item: &str,
+    array_key: &str,
+) -> Result<bool, CliError> {
     let source = fs::read_to_string(path).map_err(|error| CliError::io("read", path, error))?;
     let mut file = syn::parse_file(&source).map_err(|error| CliError::SourceParse {
         path: path.to_owned(),
         message: error.to_string(),
     })?;
-    let import = syn::parse_str::<Type>(import).map_err(|error| CliError::SourceParse {
+    let import = syn::parse_str::<Type>(item).map_err(|error| CliError::SourceParse {
         path: path.to_owned(),
         message: error.to_string(),
     })?;
@@ -193,18 +198,29 @@ pub(crate) fn ensure_module_import(path: &Path, import: &str) -> Result<bool, Cl
                 message: error.to_string(),
             })?;
     let canonical = quote!(#import).to_string();
-    if metadata
-        .imports
+    let target = match array_key {
+        "imports" => &mut metadata.imports,
+        "providers" => &mut metadata.providers,
+        "controllers" => &mut metadata.controllers,
+        "exports" => &mut metadata.exports,
+        _ => {
+            return Err(CliError::SourceParse {
+                path: path.to_owned(),
+                message: format!("unsupported module metadata key: `{array_key}`"),
+            });
+        }
+    };
+    if target
         .iter()
         .any(|existing| quote!(#existing).to_string() == canonical)
     {
         return Ok(false);
     }
-    metadata.imports.push(import);
-    let imports = metadata.imports;
-    let providers = metadata.providers;
-    let controllers = metadata.controllers;
-    let exports = metadata.exports;
+    target.push(import);
+    let imports = &metadata.imports;
+    let providers = &metadata.providers;
+    let controllers = &metadata.controllers;
+    let exports = &metadata.exports;
     attribute.meta = syn::parse_quote!(module(
         imports = [#(#imports),*],
         providers = [#(#providers),*],
@@ -214,6 +230,16 @@ pub(crate) fn ensure_module_import(path: &Path, import: &str) -> Result<bool, Cl
     fs::write(path, prettyplease::unparse(&file))
         .map_err(|error| CliError::io("write", path, error))?;
     Ok(true)
+}
+
+/// Adds `import` to the `imports = [...]` list of the first `#[module(...)]` attribute
+/// found in `path`, unless it is already present. Returns `true` if the file was modified.
+///
+/// # Errors
+///
+/// Delegates to [`ensure_module_array_item`].
+pub(crate) fn ensure_module_import(path: &Path, import: &str) -> Result<bool, CliError> {
+    ensure_module_array_item(path, import, "imports")
 }
 
 #[cfg(test)]
@@ -361,6 +387,87 @@ struct AppModule;
         let path = dir.path().join("no_module.rs");
         std::fs::write(&path, r"struct NoModuleHere;").unwrap();
         let result = super::ensure_module_import(&path, "Something");
+        assert!(matches!(result, Err(CliError::SourceParse { .. })));
+    }
+
+    #[test]
+    fn ensure_module_array_item_adds_to_controllers() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("module.rs");
+        std::fs::write(
+            &path,
+            r"
+use ironic::prelude::*;
+
+#[derive(Module)]
+#[module()]
+pub struct MyModule;
+",
+        )
+        .unwrap();
+        let result = super::ensure_module_array_item(&path, "MyController", "controllers").unwrap();
+        assert!(result);
+        let content = std::fs::read_to_string(&path).unwrap();
+        assert!(content.contains("MyController"));
+    }
+
+    #[test]
+    fn ensure_module_array_item_adds_to_providers() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("module.rs");
+        std::fs::write(
+            &path,
+            r"
+use ironic::prelude::*;
+
+#[derive(Module)]
+#[module()]
+pub struct MyModule;
+",
+        )
+        .unwrap();
+        let result = super::ensure_module_array_item(&path, "MyService", "providers").unwrap();
+        assert!(result);
+        let content = std::fs::read_to_string(&path).unwrap();
+        assert!(content.contains("MyService"));
+    }
+
+    #[test]
+    fn ensure_module_array_item_noop_when_already_present() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("module.rs");
+        std::fs::write(
+            &path,
+            r"
+use ironic::prelude::*;
+
+#[derive(Module)]
+#[module(providers = [ExistingProvider])]
+pub struct MyModule;
+",
+        )
+        .unwrap();
+        let result =
+            super::ensure_module_array_item(&path, "ExistingProvider", "providers").unwrap();
+        assert!(!result);
+    }
+
+    #[test]
+    fn ensure_module_array_item_rejects_invalid_key() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("module.rs");
+        std::fs::write(
+            &path,
+            r"
+use ironic::prelude::*;
+
+#[derive(Module)]
+#[module()]
+pub struct MyModule;
+",
+        )
+        .unwrap();
+        let result = super::ensure_module_array_item(&path, "X", "invalid_key");
         assert!(matches!(result, Err(CliError::SourceParse { .. })));
     }
 

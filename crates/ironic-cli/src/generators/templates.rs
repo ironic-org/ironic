@@ -2,7 +2,7 @@ use super::naming::Names;
 
 pub(crate) fn module(pascal: &str) -> String {
     format!(
-        "use ironic::prelude::*;\n\npub mod controller;\npub mod services;\npub mod dto;\npub mod entities;\n\n#[derive(Module)]\n#[module()]\npub struct {pascal}Module;\n"
+        "use ironic::prelude::*;\n\npub mod controller;\npub mod repositories;\npub mod services;\npub mod dto;\npub mod entities;\n\n#[cfg(test)]\nmod tests;\n\n#[derive(Module)]\n#[module()]\npub struct {pascal}Module;\n"
     )
 }
 

@@ -1082,7 +1082,7 @@ dotenvy = "0.15"
 
 /// Creates shared library directories in a monorepo workspace.
 fn create_monorepo_libs(root: &Path) -> Result<(), CliError> {
-    for lib in &["shared-config", "proto", "observability"] {
+    for lib in &["proto"] {
         let lib_dir = root.join("libs").join(lib);
         let lib_dir_src = lib_dir.join("src");
         fs::create_dir_all(&lib_dir_src).map_err(|e| CliError::Io {
@@ -1266,14 +1266,9 @@ fn library_module_shell(names: &naming::Names) -> String {
     format!(
         r#"use ::ironic::prelude::*;
 
+#[derive(Module)]
+#[module()]
 pub struct {name}Module;
-
-impl Module for {name}Module {{
-    fn definition() -> ModuleDefinition {{
-        ModuleDefinition::builder("{name}")
-            .build()
-    }}
-}}
 "#,
         name = names.pascal
     )

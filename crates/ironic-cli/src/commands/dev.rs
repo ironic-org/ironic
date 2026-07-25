@@ -1,6 +1,6 @@
 use std::{
     io::Write,
-    path::Path,
+    path::{Path, PathBuf},
     process::{Child, Command, Stdio},
     sync::{
         Arc, Mutex,
@@ -21,26 +21,23 @@ pub(crate) fn execute(
 ) -> Result<(), CliError> {
     let root = std::env::current_dir()
         .map_err(|error| CliError::io("read current directory", ".", error))?;
-    let src_dir = root.join("src");
 
-    if !src_dir.is_dir() {
-        return Err(CliError::io(
-            "read",
-            &src_dir,
-            std::io::Error::new(
-                std::io::ErrorKind::NotFound,
-                "src/ directory not found — are you in an Ironic project?",
-            ),
-        ));
-    }
+    let (src_dir, package_flag) = resolve_target(&root, cargo_args)?;
 
-    writeln!(output, "ironic dev — watching for changes in src/").map_err(io_err)?;
+    let label = package_flag.as_deref().unwrap_or("src");
+    writeln!(output, "ironic dev — watching for changes in {label}/").map_err(io_err)?;
     writeln!(output, "Press Ctrl+C to stop").map_err(io_err)?;
 
     let running = Arc::new(AtomicBool::new(true));
     let child = Arc::new(Mutex::new(None::<Child>));
 
-    start_process(&root, &cargo_args.cargo_args, &child, output)?;
+    start_process(
+        &root,
+        package_flag.as_deref(),
+        &cargo_args.cargo_args,
+        &child,
+        output,
+    )?;
 
     let r = running.clone();
     ctrlc::set_handler(move || {
@@ -54,6 +51,7 @@ pub(crate) fn execute(
     let child_clone = child.clone();
     let running_clone = running.clone();
     let root_clone = root.clone();
+    let package_flag_clone = package_flag.clone();
     let args_clone = cargo_args.cargo_args.clone();
 
     let restart = move || {
@@ -62,6 +60,7 @@ pub(crate) fn execute(
         if running_clone.load(Ordering::SeqCst) {
             let _ = start_process(
                 &root_clone,
+                package_flag_clone.as_deref(),
                 &args_clone,
                 &child_clone,
                 &mut std::io::stdout(),
@@ -95,7 +94,7 @@ pub(crate) fn execute(
             status: error.to_string(),
         })?;
 
-    let cargo_toml = root.join("Cargo.toml");
+    let cargo_toml = resolve_cargo_toml(&root, package_flag.as_deref());
     if cargo_toml.is_file() {
         let _ = watcher.watch(&cargo_toml, RecursiveMode::NonRecursive);
     }
@@ -114,6 +113,100 @@ pub(crate) fn execute(
     Ok(())
 }
 
+/// Resolves the source directory and optional package name for dev mode.
+///
+/// When `-p <name>` is given, looks for `apps/<name>/src/` (monorepo) or
+/// `<name>/src/` (adjacent directory). Otherwise uses `src/` in the current
+/// directory.
+fn resolve_target(
+    root: &Path,
+    cargo_args: &crate::cli::CargoArgs,
+) -> Result<(PathBuf, Option<String>), CliError> {
+    if let Some(pkg) = &cargo_args.package {
+        let app_root = find_app_root(root, pkg)?;
+        let app_src = app_root.join("src");
+        if !app_src.is_dir() {
+            return Err(CliError::io(
+                "read",
+                &app_src,
+                std::io::Error::new(
+                    std::io::ErrorKind::NotFound,
+                    format!(
+                        "app `{pkg}` has no src/ directory at `{}`",
+                        app_src.display()
+                    ),
+                ),
+            ));
+        }
+        Ok((app_src, Some(pkg.clone())))
+    } else {
+        let local_src = root.join("src");
+        if !local_src.is_dir() {
+            if root.join("apps").is_dir() {
+                return Err(CliError::io(
+                    "read",
+                    &local_src,
+                    std::io::Error::new(
+                        std::io::ErrorKind::NotFound,
+                        "src/ directory not found — use `ironic dev -p <app-name>` to run a specific app in this monorepo",
+                    ),
+                ));
+            }
+            return Err(CliError::io(
+                "read",
+                &local_src,
+                std::io::Error::new(
+                    std::io::ErrorKind::NotFound,
+                    "src/ directory not found — are you in an Ironic project?",
+                ),
+            ));
+        }
+        Ok((local_src, None))
+    }
+}
+
+/// Finds the app root for a given package name, checking both `apps/<name>/`
+/// and `<name>/` paths.
+fn find_app_root(root: &Path, pkg: &str) -> Result<PathBuf, CliError> {
+    // Check apps/<pkg>/ (monorepo convention) first
+    let apps_dir = root.join("apps");
+    if apps_dir.is_dir() {
+        let app_root = apps_dir.join(pkg);
+        if app_root.is_dir() {
+            return Ok(app_root);
+        }
+    }
+    // Fallback: <pkg>/ as a cargo workspace member adjacent to root
+    let app_root = root.join(pkg);
+    if app_root.is_dir() && app_root.join("Cargo.toml").is_file() {
+        return Ok(app_root);
+    }
+    Err(CliError::io(
+        "read",
+        &root.join("apps").join(pkg),
+        std::io::Error::new(
+            std::io::ErrorKind::NotFound,
+            format!(
+                "app `{pkg}` not found — have you run `ironic generate app {pkg}`?"
+            ),
+        ),
+    ))
+}
+
+/// Returns the Cargo.toml path for the target app, or the root Cargo.toml.
+fn resolve_cargo_toml(root: &Path, package: Option<&str>) -> PathBuf {
+    if let Some(pkg) = package {
+        // Try apps/<pkg>/Cargo.toml, then <pkg>/Cargo.toml
+        let apps_path = root.join("apps").join(pkg).join("Cargo.toml");
+        if apps_path.is_file() {
+            return apps_path;
+        }
+        root.join(pkg).join("Cargo.toml")
+    } else {
+        root.join("Cargo.toml")
+    }
+}
+
 fn kill_child(child: &Arc<Mutex<Option<Child>>>) {
     if let Ok(mut guard) = child.lock()
         && let Some(ref mut c) = *guard
@@ -125,6 +218,7 @@ fn kill_child(child: &Arc<Mutex<Option<Child>>>) {
 
 fn start_process(
     root: &Path,
+    package: Option<&str>,
     cargo_args: &[String],
     child: &Arc<Mutex<Option<Child>>>,
     output: &mut impl Write,
@@ -133,6 +227,10 @@ fn start_process(
 
     let mut cmd = Command::new("cargo");
     cmd.arg("run");
+    if let Some(pkg) = package {
+        cmd.arg("-p");
+        cmd.arg(pkg);
+    }
     for arg in cargo_args {
         if arg == "--" {
             continue;

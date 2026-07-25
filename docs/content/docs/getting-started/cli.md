@@ -22,7 +22,9 @@ description: Master the Ironic command-line tools — create, generate, run, tes
 | `ironic new <name>` | Create a new project |
 | `ironic new .` | Create project in the current directory |
 | `ironic start` | Run the server (`cargo run`) |
+| `ironic start -p <name>` | Run a specific app in a monorepo (`cargo run -p <name>`) |
 | `ironic dev` | Run with hot reload — auto-restarts on file changes |
+| `ironic dev -p <name>` | Dev mode for a monorepo app — watches `apps/<name>/src/` |
 | `ironic build` | Build the project (`cargo build`) |
 | `ironic test` | Run tests (`cargo test`) |
 

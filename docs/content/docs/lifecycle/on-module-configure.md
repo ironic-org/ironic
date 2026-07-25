@@ -1,83 +1,157 @@
 ---
 title: OnModuleConfigure
-description: Dynamic module setup before any providers are constructed.
+description: Dynamic module configuration before providers are built — conditional routes, environment-specific setup
 ---
 
 # OnModuleConfigure
 
-Runs during module graph compilation, **before any providers are built**.
+`OnModuleConfigure` fires during module graph compilation, **before any
+providers are constructed**. It's your chance to modify the module definition
+based on runtime conditions.
 
-## Use cases
+## Position in the Lifecycle
 
-- Dynamic route registration
-- Conditional provider setup based on feature flags
-- Validating module configuration
-- Registering middleware conditionally
+```
+COMPILE TIME
+  │
+  ▼
+OnModuleConfigure ◀── YOU ARE HERE
+  │
+  ▼
+AsyncModuleInit
+  │
+  ▼
+OnModuleInit
+  │
+  ▼
+...startup continues...
+```
 
-## Signature
+## Trait Signature
 
 ```rust
-pub trait OnModuleConfigure: Send + Sync + 'static {
-    fn on_module_configure(&self, module_name: &str) -> LifecycleFuture<'_>;
+pub trait OnModuleConfigure {
+    fn configure(&self, module: &mut ModuleDefinitionBuilder);
 }
 ```
 
-## Example
+Note: This is a **synchronous** hook. It fires during graph compilation,
+before any async runtime is available.
+
+## Basic Usage
 
 ```rust
-use ironic::{OnModuleConfigure, LifecycleError};
+use ironic::prelude::*;
 
-struct RoutingModule;
+pub struct RouteRegistrar;
 
-impl OnModuleConfigure for RoutingModule {
-    async fn on_module_configure(&self, _module_name: &str) -> Result<(), LifecycleError> {
-        // Register dynamic routes based on feature flags
-        Ok(())
+impl OnModuleConfigure for RouteRegistrar {
+    fn configure(&self, module: &mut ModuleDefinitionBuilder) {
+        // Only import the admin module in development
+        if cfg!(debug_assertions) {
+            module.import::<AdminModule>();
+        }
     }
 }
+
+// Register via:
+#[derive(Module)]
+#[module(
+    lifecycle_configure = [RouteRegistrar],
+)]
+pub struct AppModule;
 ```
 
-## When it runs
+## What You Can Do Here
 
-```
-Compile time ──► OnModuleConfigure ──► AsyncModuleInit ──► OnModuleInit
-```
-
-It's the **first** hook to execute — before any providers exist, before the DI container is fully built.
+| Operation | Allowed? | Example |
+|-----------|----------|---------|
+| Add imports | ✅ | `.import::<Module>()` |
+| Add providers | ✅ | `.provider(ProviderDefinition::value(...))` |
+| Add controllers | ✅ | `.controller(Controller::definition())` |
+| Access environment vars | ✅ | `std::env::var("FEATURE_FLAG")` |
+| Access config files | ✅ | Read from disk, env, etc. |
+| Async operations | ❌ | Hook is synchronous |
+| Access DI container | ❌ | Container doesn't exist yet |
 
 ## Registration
 
+### Via `#[derive(Module)]`
+
 ```rust
-ModuleDefinition::builder::<RoutingModule>()
-    .module_configure()
-    .build()
+#[derive(Module)]
+#[module(
+    lifecycle_configure = [RouteRegistrar],
+)]
+pub struct AppModule;
 ```
 
-## Common patterns
-
-### Conditional route registration
+### Via `LifecycleDefinition`
 
 ```rust
-impl OnModuleConfigure for AdminModule {
-    async fn on_module_configure(&self, name: &str) -> Result<(), LifecycleError> {
-        if self.config.admin_enabled {
-            // Register admin routes dynamically
-            register_admin_routes();
+ModuleDefinition::builder::<MyModule>()
+    .lifecycle(
+        LifecycleDefinition::builder::<RouteRegistrar>()
+            .module_configure()
+            .build(),
+    )
+    .build();
+```
+
+## Pattern: Feature Flag Routes
+
+```rust
+pub struct FeatureFlagRouter;
+
+impl OnModuleConfigure for FeatureFlagRouter {
+    fn configure(&self, module: &mut ModuleDefinitionBuilder) {
+        // Conditionally import based on environment
+        let env = std::env::var("APP_ENV").unwrap_or_default();
+        match env.as_str() {
+            "production" => {
+                module.import::<ProdModule>();
+                module.import::<MonitoringModule>();
+            }
+            "staging" => {
+                module.import::<StagingModule>();
+            }
+            _ => {
+                module.import::<DevModule>();
+                module.import::<DebugModule>();
+            }
         }
-        Ok(())
     }
 }
 ```
 
-### Configuration validation
+## Pattern: Database-Specific Module Loading
 
 ```rust
-impl OnModuleConfigure for DatabaseModule {
-    async fn on_module_configure(&self, _name: &str) -> Result<(), LifecycleError> {
-        if self.config.url.is_empty() {
-            return Err(LifecycleError::new("database.url is required"));
+pub struct DatabaseRouter;
+
+impl OnModuleConfigure for DatabaseRouter {
+    fn configure(&self, module: &mut ModuleDefinitionBuilder) {
+        let db_url = std::env::var("DATABASE_URL")
+            .unwrap_or_default();
+
+        if db_url.contains("postgres") {
+            module.import::<PostgresModule>();
+        } else if db_url.contains("mysql") {
+            module.import::<MysqlModule>();
+        } else {
+            module.import::<SqliteModule>();
         }
-        Ok(())
     }
 }
 ```
+
+## How It's Different From Other Hooks
+
+| Hook | Timing | Has Container? | Async? |
+|------|--------|---------------|--------|
+| `OnModuleConfigure` | Graph compilation | ❌ | ❌ |
+| `AsyncModuleInit` | After container built | ✅ | ✅ |
+| `OnModuleInit` | After deps resolved | ❌ | ✅ |
+
+Use `OnModuleConfigure` for structural changes. Use `AsyncModuleInit`
+or `OnModuleInit` for runtime initialization.

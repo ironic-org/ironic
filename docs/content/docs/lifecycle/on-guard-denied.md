@@ -1,81 +1,68 @@
 ---
 title: OnGuardDenied
-description: Hook for centralized auth failure tracking when a Guard denies access.
+description: Track authentication and authorization failures — audit logging, suspicious activity detection
 ---
 
 # OnGuardDenied
 
-Called when any `Guard` returns `GuardDecision::Deny`. This is the centralized place to track authentication and authorization failures.
+`OnGuardDenied` fires when a **Guard** returns `GuardDecision::Deny`,
+rejecting access to a route or controller.
 
-## Use cases
+## Position
 
-- Centralized auth failure logging
-- Brute-force detection (tracking failed logins per IP)
-- Rate-limit counters per guard type
-- Security auditing
+```
+Incoming Request
+  │
+  ▼
+Guard.check()
+  │
+  ├── Allow → continue to handler
+  │
+  └── Deny ──▶ OnGuardDenied ◀── YOU ARE HERE
+                  │
+                  ▼
+              403 Forbidden response
+```
+
+## Trait
+
+```rust
+pub trait OnGuardDenied {
+    async fn on_guard_denied(&self, context: &RequestContext, guard: &str);
+}
+```
+
+## Basic Usage
+
+```rust
+pub struct AuditLogger;
+
+impl OnGuardDenied for AuditLogger {
+    async fn on_guard_denied(&self, context: &RequestContext, guard: &str) {
+        tracing::warn!(
+            guard = %guard,
+            path = %context.request().uri(),
+            method = %context.request().method(),
+            "access denied — guard rejected request"
+        );
+
+        metrics::counter!("auth_denied_total", 1,
+            "guard" => guard,
+        );
+    }
+}
+
+// Register:
+#[derive(Module)]
+#[module(
+    lifecycle_guard_denied = [AuditLogger],
+)]
+pub struct AppModule;
+```
+
+## Common Uses
+
+- Audit logging for security compliance
+- Rate limit tracking (too many denied requests)
+- Suspicious activity detection (brute force attempts)
 - Alerting on repeated denial patterns
-
-## Signature
-
-```rust
-pub trait OnGuardDenied: Send + Sync + 'static {
-    fn on_guard_denied(&self, guard_name: &str) -> LifecycleFuture<'_>;
-}
-```
-
-## Example
-
-```rust
-use ironic::{OnGuardDenied, LifecycleError};
-
-struct SecurityAuditor;
-
-impl OnGuardDenied for SecurityAuditor {
-    async fn on_guard_denied(&self, guard_name: &str) -> Result<(), LifecycleError> {
-        tracing::warn!(guard_name, "Access denied");
-        metrics::counter!("auth.denials", "guard" => guard_name.to_string())
-            .increment(1);
-        Ok(())
-    }
-}
-```
-
-## When it runs
-
-```
-Guard::allow()
-    |
-    +-- true  --> continue to handler
-    |
-    +-- false --> OnGuardDenied --> 403/401 response
-```
-
-## Registration
-
-```rust
-ModuleDefinition::builder::<SecurityAuditor>()
-    .guard_denied()
-    .build()
-```
-
-## Brute-force detection
-
-```rust
-impl OnGuardDenied for RateLimitTracker {
-    async fn on_guard_denied(&self, guard_name: &str) -> Result<(), LifecycleError> {
-        if guard_name == "login" {
-            self.record_failed_attempt().await;
-            if self.recent_failures() > 5 {
-                alert!("Brute force attack detected");
-            }
-        }
-        Ok(())
-    }
-}
-```
-
-## Best practices
-
-- Use `guard_name` to identify which guard denied — not where it happened
-- Track per-IP counters for rate limiting
-- Don't block the request — `OnGuardDenied` runs after the denial decision

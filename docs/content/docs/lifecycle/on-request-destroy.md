@@ -53,4 +53,4 @@ pub struct AppModule;
 | Close DB transactions | Rollback/commit per-request transactions |
 | Flush log buffers | Ensure all log entries are written |
 | Record request duration | Log elapsed time from OnRequestInit timer |
-| Release per-request memory | Drop large request-scoped allocations |
+| Release per-request memory | Clean up request-scoped allocations |

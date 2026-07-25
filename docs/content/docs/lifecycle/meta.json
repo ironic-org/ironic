@@ -8,6 +8,7 @@
     "on-application-bootstrap",
     "on-server-ready",
     "on-request-init",
+    "on-request-destroy",
     "on-error",
     "on-guard-denied",
     "before-shutdown",

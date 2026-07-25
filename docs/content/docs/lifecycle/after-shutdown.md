@@ -1,83 +1,61 @@
 ---
 title: AfterShutdown
-description: Final cleanup hook — runs after all modules destroyed and application shutdown complete.
+description: Final hook — guaranteed to run even if other shutdown hooks fail
 ---
 
 # AfterShutdown
 
-Runs after **all** `OnModuleDestroy` and `OnApplicationShutdown` callbacks have completed. This is the absolute last hook before the process exits.
+`AfterShutdown` is the **LAST hook** to fire during the lifecycle.
+It is guaranteed to run even if previous shutdown hooks failed.
 
-## Use cases
-
-- Final metrics flush (last resort)
-- Logging shutdown duration and summary
-- Cleaning up OS-level resources (temp files, named pipes)
-- Sending final heartbeat to monitoring
-
-## Signature
-
-```rust
-pub trait AfterShutdown: Send + Sync + 'static {
-    fn after_shutdown(&self) -> LifecycleFuture<'_>;
-}
-```
-
-## Example
-
-```rust
-use ironic::{AfterShutdown, LifecycleError};
-
-struct ShutdownLogger {
-    start_time: std::time::Instant,
-}
-
-impl AfterShutdown for ShutdownLogger {
-    async fn after_shutdown(&self) -> Result<(), LifecycleError> {
-        let elapsed = self.start_time.elapsed();
-        tracing::info!("Application shut down in {:?}", elapsed);
-        Ok(())
-    }
-}
-```
-
-## When it runs
+## Position
 
 ```
-OnApplicationShutdown  -->  AfterShutdown  -->  [Process exits]
-```
-
-## Registration
-
-```rust
-ModuleDefinition::builder::<ShutdownLogger>()
-    .after_shutdown()
-    .build()
-```
-
-## Complete shutdown sequence
-
-```
-Shutdown signal received
-    |
-    v
-BeforeShutdown              -- drain connections
-    |
-    v
-OnModuleDestroy (reverse)  -- release resources
-    |
-    v
-OnApplicationShutdown       -- final flush
-    |
-    v
-AfterShutdown               -- last cleanup
-    |
-    v
+OnApplicationShutdown
+  │
+  ▼
+AfterShutdown ◀── YOU ARE HERE (guaranteed to fire)
+  │
+  ▼
 Process exits
 ```
 
-## Best practices
+## Trait
 
-- Keep it **absolutely minimal** — the process is about to exit
-- Don't rely on network resources (they may already be down)
-- Log shutdown summary here for debugging
-- Avoid allocations — GC/tokio may not run
+```rust
+pub trait AfterShutdown {
+    async fn after_shutdown(&self);
+}
+```
+
+## Basic Usage
+
+```rust
+pub struct FinalFlusher;
+
+impl AfterShutdown for FinalFlusher {
+    async fn after_shutdown(&self) {
+        // Guaranteed to run — even if other shutdown hooks fail
+        tracing::info!("goodbye from Ironic!");
+        metrics::flush();
+    }
+}
+
+// Register:
+#[derive(Module)]
+#[module(
+    lifecycle_after_shutdown = [FinalFlusher],
+)]
+pub struct AppModule;
+```
+
+## Guarantee
+
+Unlike other shutdown hooks, `AfterShutdown` **always runs**:
+
+```
+BeforeShutdown → may fail → logged
+OnModuleDestroy → may fail → logged but other destroys still run
+OnApplicationShutdown → may fail → logged
+AfterShutdown → ALWAYS RUNS ✓
+```

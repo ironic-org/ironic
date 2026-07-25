@@ -84,24 +84,23 @@ pub fn generate_app(root: &Path, name: &str) -> Result<GenerationReport, CliErro
         });
     }
 
-    let lib_name = names.kebab.replace('-', "_");
-    let mut files: Vec<(std::path::PathBuf, String)> = vec![
+    let files: Vec<(std::path::PathBuf, String)> = vec![
         (dest.join("Cargo.toml"), app_manifest(&names)),
         (dest.join("src/main.rs"), app_main(&names)),
         (dest.join("src/app.rs"), app_module(&names)),
         (
             dest.join("src/lib.rs"),
-            format!("pub mod app;\npub mod modules;\npub use app::AppModule;\n"),
+            "pub mod app;\npub mod modules;\npub use app::AppModule;\n".to_string(),
         ),
         (dest.join("src/modules/mod.rs"), "pub mod health;\n".into()),
         (
             dest.join("src/modules/health/mod.rs"),
-            r#"use ironic::prelude::*;
+            r"use ironic::prelude::*;
 
 #[derive(Module)]
 #[module()]
 pub struct HealthModule;
-"#
+"
             .into(),
         ),
         (
@@ -322,7 +321,17 @@ dotenvy = "0.15"
         source: e,
     })?;
 
-    // Create libs/ directories for shared code
+    create_monorepo_libs(root)?;
+
+    report
+        .manual_instructions
+        .push("converted to monorepo — run `cargo check` to refresh Rust Analyzer".into());
+
+    Ok(())
+}
+
+/// Creates shared library directories in a monorepo workspace.
+fn create_monorepo_libs(root: &Path) -> Result<(), CliError> {
     for lib in &["shared-config", "proto", "observability"] {
         let lib_dir = root.join("libs").join(lib);
         let lib_dir_src = lib_dir.join("src");
@@ -351,11 +360,6 @@ edition = "2024"
             }
         })?;
     }
-
-    report
-        .manual_instructions
-        .push("converted to monorepo — run `cargo check` to refresh Rust Analyzer".into());
-
     Ok(())
 }
 

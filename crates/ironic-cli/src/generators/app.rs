@@ -135,6 +135,12 @@ sqlx = {{ workspace = true }}
 tracing = {{ workspace = true }}
 tracing-subscriber = {{ workspace = true }}
 dotenvy = {{ workspace = true }}
+
+[profile.release]
+lto = true
+codegen-units = 1
+opt-level = 3
+panic = "abort"
 "#,
         name = names.raw
     )
@@ -230,6 +236,67 @@ Add compression, timeouts, and OpenAPI to the `AxumAdapter`:
         .with_openapi(OpenApiConfig::new("{name}", "0.1.0"))
         .swagger_ui("/docs"),
 )
+```
+
+## OpenAPI / Swagger Docs
+
+Once configured, the framework auto-generates an OpenAPI 3.1 JSON spec at runtime:
+
+```
+Service     Spec URL              Swagger UI
+───────     ────────              ──────────
+api-gateway http://localhost:8080/openapi.json  http://localhost:8080/docs
+auth        http://localhost:8081/openapi.json  http://localhost:8081/docs
+```
+
+Each service serves its own spec independently because each is a separate binary
+with its own route tree.
+
+### Via the CLI (Recommended)
+
+The `ironic openapi` command handles build, startup, fetch, and shutdown automatically:
+
+```bash
+# Generate openapi.json for the current service
+ironic openapi
+
+# For a specific app in a monorepo
+ironic openapi -p api-gateway
+
+# Custom port and output path
+ironic openapi -p auth-service --port 8081 -o docs/openapi.json
+```
+
+### Via curl (Manual)
+
+Useful for CI/CD pipelines:
+
+```bash
+curl http://localhost:8080/openapi.json > api-gateway-spec.json
+
+# Validate with a linter
+npx @redocly/cli lint api-gateway-spec.json
+```
+
+### Client SDK Generation
+
+Use the exported JSON spec to generate typed clients:
+
+```bash
+# TypeScript / JavaScript
+npx openapi-typescript openapi.json -o client.ts
+
+# Python
+openapi-python-client generate --path openapi.json
+
+# Go
+openapi-generator-cli generate -i openapi.json -g go -o ./client
+```
+
+Requires the `openapi` feature in your `Cargo.toml` to enable the spec endpoint:
+
+```toml
+ironic = {{ workspace = true, features = ["openapi"] }}
 ```
 
 ## Observability
@@ -477,6 +544,12 @@ ironic = {{ workspace = true }}
 
 [lib]
 name = "{name}"
+
+[profile.release]
+lto = true
+codegen-units = 1
+opt-level = 3
+panic = "abort"
 "#
     )
 }

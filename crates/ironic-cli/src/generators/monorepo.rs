@@ -98,6 +98,12 @@ sqlx = {{ version = "0.9", features = ["runtime-tokio", "postgres"] }}
 tracing = {{ version = "0.1", features = ["attributes"] }}
 tracing-subscriber = {{ version = "0.3", features = ["env-filter"] }}
 dotenvy = "0.15"
+
+[profile.release]
+lto = true
+codegen-units = 1
+opt-level = 3
+panic = "abort"
 "#,
     );
     std::fs::write(&cargo_toml, &workspace_manifest).map_err(|e| CliError::Io {

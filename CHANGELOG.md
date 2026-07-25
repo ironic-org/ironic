@@ -13,6 +13,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 - Generate PRODUCTION.md with production readiness guide for new apps
+- ironic openapi command to auto-generate OpenAPI JSON spec
+- [profile.release] section to all generated Cargo.toml templates
 
 ## [v1.1.5] - 2026-07-25
 ### Changed

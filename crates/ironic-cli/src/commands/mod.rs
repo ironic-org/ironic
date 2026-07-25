@@ -6,6 +6,7 @@ mod generate;
 mod inspect;
 mod migrate;
 mod new;
+mod openapi;
 mod uninstall;
 mod update;
 
@@ -42,6 +43,7 @@ pub(crate) fn execute(command: Cli, output: &mut impl Write) -> Result<(), CliEr
         Command::Routes(arguments) => inspect::routes(&arguments.path, output),
         Command::Graph(arguments) => inspect::graph(&arguments.path, output),
         Command::Migrate(arguments) => migrate::execute(arguments.action, output),
+        Command::Openapi(arguments) => openapi::execute(&arguments, output),
         Command::Run(arguments) => run_script(&arguments.name, &arguments.args, output),
     }
 }

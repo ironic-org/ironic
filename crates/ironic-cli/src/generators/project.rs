@@ -238,6 +238,12 @@ tracing-subscriber = {{ version = "0.3", features = ["env-filter"] }}
 # telemetry       — Distributed tracing (OTLP)
 # auth            — Password hashing, JWT, OAuth2, sessions
 # distributed     — Queues, microservices, CQRS, sagas, gRPC, GraphQL
+
+[profile.release]
+lto = true
+codegen-units = 1
+opt-level = 3
+panic = "abort"
 "#,
     )
 }

@@ -53,6 +53,9 @@ pub enum Command {
     Migrate(MigrateArgs),
     /// Runs a script defined in `[package.metadata.ironic.scripts]`.
     Run(RunArgs),
+    /// Generates the `OpenAPI` specification file from the running service.
+    #[command(alias = "oas")]
+    Openapi(OpenapiArgs),
 }
 
 /// Arguments for the `run` command.
@@ -85,6 +88,23 @@ pub struct CargoArgs {
     /// Additional Cargo arguments.
     #[arg(last = true, allow_hyphen_values = true)]
     pub cargo_args: Vec<String>,
+}
+
+/// Arguments for the `openapi` command.
+#[derive(Debug, Args)]
+pub struct OpenapiArgs {
+    /// App name (for monorepo workspaces). Runs `cargo build -p <name>`.
+    #[arg(short = 'p', long)]
+    pub package: Option<String>,
+    /// Output file path (default: openapi.json).
+    #[arg(short = 'o', long, default_value = "openapi.json")]
+    pub output: String,
+    /// Port to use when starting the service (default: 8080).
+    #[arg(long, default_value_t = 8080)]
+    pub port: u16,
+    /// Maximum seconds to wait for the service to start.
+    #[arg(long, default_value_t = 15)]
+    pub timeout: u64,
 }
 
 /// Arguments shared by source inspection commands.

@@ -22,6 +22,7 @@ mod route;
 mod serialization;
 #[cfg(feature = "sqlx")]
 mod sqlx;
+pub mod ws_adapter;
 
 pub use error::HttpError;
 pub(crate) use exception_filter::ExceptionFilterSet;
@@ -30,7 +31,7 @@ pub use extract::{
     ExtractFuture, ExtractedValue, FormBody, HeaderParameter, JsonBody, ParameterExtractor,
     PathParameter, QueryParameters,
 };
-pub use extractors::Pagination;
+pub use extractors::{CookieParameter, Pagination, RawBody};
 pub use handler::{ErasedHandler, HandlerArguments, HandlerFuture, handler_fn};
 pub use metadata::{
     CacheKeyMetadata, CacheMetadata, CacheTtlMetadata, VersionMetadata, VersioningStrategy,

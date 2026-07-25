@@ -6,7 +6,7 @@ use std::{collections::HashMap, sync::Arc};
 
 use futures_util::StreamExt;
 use lapin::{
-    BasicProperties, Channel, Connection, ConnectionProperties, Consumer,
+    BasicProperties, Channel, Connection, ConnectionProperties,
     ExchangeKind,
     options::{
         BasicConsumeOptions, BasicPublishOptions, ExchangeDeclareOptions, QueueBindOptions,
@@ -375,7 +375,7 @@ impl MicroserviceServer for RmqServer {
 
             let handlers_clone = Arc::clone(&handlers);
             let event_handlers_clone = Arc::clone(&event_handlers);
-            let exchange = config.exchange.clone();
+            let _exchange = config.exchange.clone();
 
             tokio::spawn(async move {
                 let mut stream = consumer;

@@ -1,10 +1,12 @@
 //! Built-in request parameter extractors.
-//!
-//! Currently provides the [`Pagination`] extractor for query-string paging.
 
 pub(super) mod pagination;
+pub(super) mod raw_body;
+pub(super) mod cookie;
 
 pub use pagination::Pagination;
+pub use raw_body::RawBody;
+pub use cookie::CookieParameter;
 
 #[cfg(test)]
 mod tests {

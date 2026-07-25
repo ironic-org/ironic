@@ -30,3 +30,7 @@ pub mod tracing;
 pub mod transport_kafka;
 #[cfg(feature = "microservices")]
 pub mod transport_tcp;
+#[cfg(feature = "transport-mqtt")]
+pub mod transport_mqtt;
+#[cfg(feature = "transport-nats")]
+pub mod transport_nats;

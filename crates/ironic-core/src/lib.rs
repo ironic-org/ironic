@@ -664,6 +664,7 @@ impl DiscoveryService {
     }
 
     /// Sets the container reference. Called during application build.
+    #[allow(dead_code)]
     pub(crate) fn set_container(&self, container: ironic_di::Container) {
         let _ = self.container.set(container);
     }

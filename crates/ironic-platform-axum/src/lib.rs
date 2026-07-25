@@ -74,12 +74,15 @@ pub struct AxumAdapter {
     request_body_limit: usize,
     request_timeout: Duration,
     drain_timeout: Duration,
+    keep_alive_interval: Option<Duration>,
+    tcp_nodelay: bool,
     #[cfg(feature = "compression")]
     enable_compression: bool,
     api_prefix: Option<String>,
     /// Additional addresses to listen on (e.g., separate HTTPS port).
     additional_addrs: Vec<SocketAddr>,
     #[cfg(feature = "tls")]
+    #[allow(dead_code)]
     tls_config: Option<TlsConfig>,
     configure_router: Vec<RouterConfigurator>,
     #[cfg(feature = "static-files")]
@@ -137,6 +140,8 @@ impl AxumAdapter {
             request_body_limit: DEFAULT_REQUEST_BODY_LIMIT,
             request_timeout: DEFAULT_REQUEST_TIMEOUT,
             drain_timeout: DEFAULT_DRAIN_TIMEOUT,
+            keep_alive_interval: None,
+            tcp_nodelay: true,
             #[cfg(feature = "compression")]
             enable_compression: false,
             api_prefix: None,
@@ -177,6 +182,20 @@ impl AxumAdapter {
     #[must_use]
     pub fn api_prefix(mut self, prefix: impl Into<String>) -> Self {
         self.api_prefix = Some(prefix.into());
+        self
+    }
+
+    /// Sets the TCP keep-alive interval for connections.
+    #[must_use]
+    pub const fn keep_alive(mut self, interval: Duration) -> Self {
+        self.keep_alive_interval = Some(interval);
+        self
+    }
+
+    /// Enables or disables TCP_NODELAY on accepted connections.
+    #[must_use]
+    pub const fn tcp_nodelay(mut self, enabled: bool) -> Self {
+        self.tcp_nodelay = enabled;
         self
     }
 
@@ -419,6 +438,7 @@ pub struct AxumApplication {
     drain_timeout: Duration,
     additional_addrs: Vec<SocketAddr>,
     #[cfg(feature = "tls")]
+    #[allow(dead_code)]
     tls_config: Option<TlsConfig>,
 }
 

@@ -82,7 +82,7 @@ impl MicroserviceClient for KafkaClient {
                     let hosts = hosts_clone.clone();
                     let topic = reply_topic.clone();
                     let h = Arc::clone(&handlers_clone);
-                    tokio::task::spawn_blocking(move || {
+                    let _ = tokio::task::spawn_blocking(move || {
                         let mut consumer = match kafka::consumer::Consumer::from_hosts(hosts)
                             .with_topic(topic)
                             .with_fallback_offset(kafka::consumer::FetchOffset::Earliest)
@@ -92,7 +92,7 @@ impl MicroserviceClient for KafkaClient {
                             Err(_) => return,
                         };
                         loop {
-                            if let Ok(mut message_sets) = consumer.poll() {
+                            if let Ok(message_sets) = consumer.poll() {
                                 for ms in message_sets.iter() {
                                     for msg in ms.messages() {
                                         let val = msg.value;
@@ -277,7 +277,7 @@ impl MicroserviceServer for KafkaServer {
 
             // Create a producer for sending replies
             let prod_hosts = hosts.clone();
-            let prod = tokio::task::spawn_blocking(move || {
+            let _prod = tokio::task::spawn_blocking(move || {
                 kafka::producer::Producer::from_hosts(prod_hosts)
                     .create()
                     .map_err(|e| TransportError(e.to_string()))
@@ -298,7 +298,7 @@ impl MicroserviceServer for KafkaServer {
                     let h = Arc::clone(&handlers_clone);
                     let eh = Arc::clone(&event_handlers_clone);
 
-                    tokio::task::spawn_blocking(move || {
+                    let _ = tokio::task::spawn_blocking(move || {
                         let mut consumer = match kafka::consumer::Consumer::from_hosts(hosts)
                             .with_topic(topic)
                             .with_fallback_offset(kafka::consumer::FetchOffset::Earliest)
@@ -308,7 +308,7 @@ impl MicroserviceServer for KafkaServer {
                             Err(_) => return,
                         };
                         loop {
-                            if let Ok(mut message_sets) = consumer.poll() {
+                            if let Ok(message_sets) = consumer.poll() {
                                 for ms in message_sets.iter() {
                                     for msg in ms.messages() {
                                         let key = String::from_utf8_lossy(msg.key).to_string();

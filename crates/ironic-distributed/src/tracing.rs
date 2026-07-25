@@ -9,7 +9,9 @@ use std::collections::BTreeMap;
 
 use crate::distributed::microservices::Envelope;
 
+#[allow(dead_code)]
 const TRACEPARENT_HEADER: &str = "traceparent";
+#[allow(dead_code)]
 const TRACESTATE_HEADER: &str = "tracestate";
 
 /// Injects the current tracing context into the envelope headers.
@@ -80,7 +82,7 @@ fn inject_w3c_otel(headers: &mut BTreeMap<String, String>) {
     use opentelemetry::global;
     use tracing_opentelemetry::OpenTelemetrySpanExt;
 
-    let cx = tracing::Span::current().context();
+    let _cx = tracing::Span::current().context();
     global::get_text_map_propagator(|propagator| {
         propagator.inject(&mut HeaderInjector(headers))
     });

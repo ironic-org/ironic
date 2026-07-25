@@ -106,6 +106,8 @@ hot-reload = ["dep:notify"]
 transport-redis = ["microservices", "dep:redis"]
 transport-rabbitmq = ["microservices", "dep:lapin"]
 transport-kafka = ["microservices", "dep:kafka"]
+transport-mqtt = ["microservices"]
+transport-nats = ["microservices"]
 mcp = ["axum/json"]
 
 [[bin]]

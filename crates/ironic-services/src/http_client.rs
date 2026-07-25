@@ -152,7 +152,7 @@ impl RetryClient {
         loop {
             match f().await {
                 Ok(result) => return Ok(result),
-                Err(e) if attempt < self.max_retries => {
+                Err(_e) if attempt < self.max_retries => {
                     attempt += 1;
                     let delay = Duration::from_millis(self.base_delay_ms * u64::from(attempt));
                     tokio::time::sleep(delay).await;
@@ -210,7 +210,7 @@ pub struct CircuitBreakerClient {
 impl CircuitBreakerClient {
     /// Creates a new circuit breaker client.
     #[must_use]
-    pub fn new(name: &str) -> Self {
+    pub fn new(_name: &str) -> Self {
         Self {
             state: Arc::new(Mutex::new(BreakerState::Closed)),
             failure_count: Arc::new(AtomicU64::new(0)),

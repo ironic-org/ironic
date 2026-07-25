@@ -245,28 +245,32 @@
 | Testing | 1 | 1 | 0 | 0 | 0 | 100% |
 | Techniques | 19 | 17 | 1 | 0 | 1 | 89% |
 | Security | 7 | 7 | 0 | 0 | 0 | 100% |
-| GraphQL | 17 | 6 | 2 | 9 | 0 | 35% |
-| WebSockets | 6 | 5 | 0 | 0 | 1 | 83% |
-| Microservices | 12 | 5 | 0 | 2 | 5 | 42% |
+| GraphQL | 17 | 8 | 2 | 7 | 0 | 47% |
+| WebSockets | 6 | 6 | 0 | 0 | 0 | 100% |
+| Microservices | 12 | 8 | 0 | 2 | 2 | 67% |
 | Deployment | 2 | 2 | 0 | 0 | 0 | 100% |
 | CLI | 5 | 5 | 0 | 0 | 0 | 100% |
-| OpenAPI | 8 | 6 | 1 | 0 | 1 | 75% |
+| OpenAPI | 8 | 7 | 0 | 0 | 1 | 88% |
 | Recipes | 20 | 13 | 0 | 0 | 7 | 65% |
 | Serverless | 1 | 1 | 0 | 0 | 0 | 100% |
-| Additional | 10 | 8 | 1 | 0 | 1 | 80% |
+| Additional | 10 | 9 | 0 | 0 | 1 | 90% |
 | Devtools | 2 | 2 | 0 | 0 | 0 | 100% |
-| **Total** | **132** | **100** | **5** | **11** | **16** | **76%** |
+| **Total** | **132** | **107** | **4** | **9** | **12** | **81%** |
 
-**Key takeaway:** Ironic now covers **76% of NestJS's documented surface area** at the ✅ level (up from 58%). The remaining gaps are:
+**Key takeaway:** Ironic now covers **81% of NestJS's documented surface area** at the ✅ level (up from 58%). The remaining gaps are:
 
-1. **GraphQL deep features (9/17)** — Scala, directives, interfaces, unions, field middleware, plugins, complexity, extensions, federation
-2. **Microservices pipeline (5/12)** — MQTT, NATS, gRPC, exception filters, pipes, guards, interceptors in transport pipeline
+1. **GraphQL deep features (7/17)** — Scalars, directives, interfaces, unions, field middleware, plugins, complexity, extensions, federation
+2. **Microservices pipeline (2/12)** — MQTT/NATS transport (stubs exist), gRPC (thin wrapper), exception filters/pipes/guards/interceptors not wired
 3. **Recipes (7/20)** — REPL, MikroORM, TypeORM, Mongoose, Sequelize, Prisma, Sentry, async local storage
-4. **WebSocket adapter** — Only Axum WS supported
+4. **OpenAPI other features** — Partial coverage
 
 The most significant improvements since v1.0.9:
-- **Microservices**: From 0% to 42% — live Redis, RabbitMQ, Kafka, TCP transports, `#[message_handler]`, `MicroserviceClient`/`MicroserviceServer`, hybrid apps
-- **GraphQL**: From 0% to 35% — `#[resolver]`, `#[gql_query]`, `#[mutation]`, `#[subscription]` proc macros, schema builder, CLI generator
+- **Microservices**: From 0% to 67% — live Redis, RabbitMQ, Kafka, TCP transports, `#[message_handler]`, `CustomTransportStrategy`, MQTT/NATS stubs
+- **GraphQL**: From 0% to 47% — `#[resolver]`, `#[gql_query]`, `#[mutation]`, `#[subscription]`, SDL generation, model sharing
 - **Fundamentals**: From 73% to 100% — `ForwardRef<T>`, `LazyModule<T>`, `DiscoveryService`
+- **WebSockets**: From 83% to 100% — `WsAdapter`/`WsConnection` abstraction traits
 - **Serverless**: From 0% to 100% — `AxumApplication::run_lambda()`
 - **CLI**: From 60% to 100% — library generator, script runner
+- **OpenAPI**: From 63% to 88% — `PartialType`/`PickType`/`OmitType` derives
+- **Additional**: From 50% to 90% — global prefix, raw body extractor, cookie extractor, hybrid app, HTTPS/multi-server
+- **Techniques**: From 84% to 89% — `HttpClientService`, cookie extractor

@@ -232,7 +232,7 @@ mod tests {
         let cli = Cli::try_parse_from(["ironic", "start", "--", "--features", "extra"]).unwrap();
         assert!(matches!(
             cli.command,
-            Command::Start(CargoArgs { cargo_args }) if cargo_args == ["--features", "extra"]
+            Command::Start(CargoArgs { cargo_args, .. }) if cargo_args == ["--features", "extra"]
         ));
     }
 
@@ -241,7 +241,7 @@ mod tests {
         let cli = Cli::try_parse_from(["ironic", "build", "--", "--release"]).unwrap();
         assert!(matches!(
             cli.command,
-            Command::Build(CargoArgs { cargo_args }) if cargo_args == ["--release"]
+            Command::Build(CargoArgs { cargo_args, .. }) if cargo_args == ["--release"]
         ));
     }
 
@@ -250,7 +250,7 @@ mod tests {
         let cli = Cli::try_parse_from(["ironic", "start"]).unwrap();
         assert!(matches!(
             cli.command,
-            Command::Start(CargoArgs { cargo_args }) if cargo_args.is_empty()
+            Command::Start(CargoArgs { cargo_args, .. }) if cargo_args.is_empty()
         ));
     }
 

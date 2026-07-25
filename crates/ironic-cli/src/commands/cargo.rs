@@ -8,7 +8,7 @@ use crate::{CliError, cli::CargoArgs};
 ///
 /// Returns [`CliError::Io`] if the Cargo binary cannot be launched.
 /// Returns [`CliError::CommandFailed`] if Cargo exits with a non-zero status.
-pub(crate) fn execute(subcommand: &str, arguments: CargoArgs) -> Result<(), CliError> {
+pub(crate) fn execute(subcommand: &str, arguments: &CargoArgs) -> Result<(), CliError> {
     let mut cmd = Command::new("cargo");
     cmd.arg(subcommand);
     if let Some(pkg) = &arguments.package {
@@ -66,7 +66,7 @@ mod tests {
     fn execute_with_nonexistent_subcommand() {
         let result = super::execute(
             "nonexistent_subcommand_xyz",
-            CargoArgs {
+            &CargoArgs {
                 package: None,
                 cargo_args: vec![],
             },

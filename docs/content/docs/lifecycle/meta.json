@@ -14,7 +14,6 @@
     "on-module-destroy",
     "on-application-shutdown",
     "after-shutdown",
-    "on-module-load",
-    "on-module-unload"
+    "on-module-load"
   ]
 }

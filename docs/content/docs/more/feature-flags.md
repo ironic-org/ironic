@@ -45,8 +45,9 @@ Every feature flag in `Cargo.toml` (58 total), organized by category.
 | `events` | `EventBus` — typed in-process pub/sub |
 | `realtime` | WebSocket support (`WsConnections`, `WebSocketHandler`) |
 | `sse` | Server-Sent Events (`SseRoute`, `SseConfig`, `EventBroadcaster`) |
+| `mcp` | Model Context Protocol server (`McpServer`, `McpRouter`, `McpTool`) |
 | `http-client` | Injectable HTTP client (`HttpClientService`, `RetryClient`, `CircuitBreakerClient`) |
-| `application-services` | Bundled: `cache`, `scheduling`, `events`, `realtime`, `sse` |
+| `application-services` | Bundled: `cache`, `scheduling`, `events`, `realtime` |
 
 ## Distributed Systems
 | Flag | Enables |
@@ -65,6 +66,10 @@ Every feature flag in `Cargo.toml` (58 total), organized by category.
 | `transport-redis` | Redis message transport |
 | `transport-rabbitmq` | RabbitMQ message transport (via `lapin`) |
 | `transport-kafka` | Kafka message transport |
+| `transport-mqtt` | MQTT message transport (via `rumqttc`) |
+| `transport-nats` | NATS message transport (via `async-nats`) |
+| `tls` | TLS/HTTPS configuration (`TlsConfig`, cert/key paths) |
+| `serverless` | AWS Lambda deployment (`AxumApplication::run_lambda()`) |
 
 ## Ecosystem
 | Flag | Enables |

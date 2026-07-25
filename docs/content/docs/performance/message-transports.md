@@ -61,6 +61,38 @@ let server = RmqServer::new(RmqServerConfig {
 
 Uses topic exchanges with queue binding. Replies use AMQP's `reply-to` mechanism.
 
+## MQTT
+
+```toml
+[dependencies]
+ironic = { features = ["transport-mqtt"] }
+```
+
+```rust
+use ironic::distributed::transport_mqtt::{
+    MqttClient, MqttClientConfig,
+    MqttServer, MqttServerConfig,
+};
+```
+
+Uses MQTT pub/sub via `rumqttc`. Replies are published to `{prefix}/reply/{correlation_id}`.
+
+## NATS
+
+```toml
+[dependencies]
+ironic = { features = ["transport-nats"] }
+```
+
+```rust
+use ironic::distributed::transport_nats::{
+    NatsClient, NatsClientConfig,
+    NatsServer, NatsServerConfig,
+};
+```
+
+Uses NATS pub/sub via `async-nats`. Replies use `{prefix}.reply.{correlation_id}` subjects.
+
 ## Kafka
 
 ```toml

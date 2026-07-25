@@ -70,7 +70,7 @@ app.middleware(Auth::auth_middleware());
 
 ## Configuration
 
-### [Batteries-Included Presets](/docs/core/configuration)
+### [Batteries-Included Presets](/docs/configuration/overview)
 
 ```rust
 // DatabaseConfig, AuthConfig, ServerConfig, RedisConfig are ready to use.

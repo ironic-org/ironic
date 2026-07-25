@@ -73,12 +73,12 @@ pub fn generate_app(root: &Path, name: &str) -> Result<GenerationReport, CliErro
         convert_to_monorepo(root, &mut report)?;
     }
 
-    let dest = root.join("apps").join(&names.kebab);
+    let dest = root.join("apps").join(&names.raw);
     if dest.exists() {
         return Err(CliError::InvalidName {
             name: format!(
                 "app `{}` already exists at `{}`",
-                names.kebab,
+                names.raw,
                 dest.display()
             ),
         });
@@ -95,7 +95,7 @@ pub fn generate_app(root: &Path, name: &str) -> Result<GenerationReport, CliErro
 
     let dev_guide = format!(
         "run `cd apps/{} && cargo run` to start the service on port {}",
-        names.kebab, port
+        names.raw, port
     );
     report.manual_instructions.push(dev_guide);
 
@@ -219,13 +219,13 @@ fn add_app_to_workspace(root: &Path, names: &naming::Names, report: &mut Generat
     let workspace_toml = root.join("Cargo.toml");
     if workspace_toml.is_file() {
         let contents = std::fs::read_to_string(&workspace_toml).unwrap_or_default();
-        if !contents.contains(&format!("apps/{}", names.kebab)) {
-            ensure_workspace_member(&workspace_toml, &format!("apps/{}", names.kebab));
+        if !contents.contains(&format!("apps/{}", names.raw)) {
+            ensure_workspace_member(&workspace_toml, &format!("apps/{}", names.raw));
         }
     } else {
         report.manual_instructions.push(format!(
             "add `apps/{}` to your workspace members in Cargo.toml",
-            names.kebab
+            names.raw
         ));
     }
 }
@@ -256,7 +256,7 @@ tracing = {{ workspace = true }}
 tracing-subscriber = {{ workspace = true }}
 dotenvy = {{ workspace = true }}
 "#,
-        name = names.kebab
+        name = names.raw
     )
 }
 
@@ -276,7 +276,7 @@ ENV SERVER_PORT={port}
 EXPOSE {port}
 CMD ["./{name}"]
 "#,
-        name = names.kebab,
+        name = names.raw,
         port = port
     )
 }
@@ -291,7 +291,7 @@ RATE_LIMIT_MAX=100
 DATABASE_URL=postgres://user:CHANGE_ME@localhost:5432/{name}
 ",
         port = port,
-        name = names.kebab
+        name = names.raw
     )
 }
 
@@ -382,7 +382,7 @@ async fn main() {{
         .expect("application server failed");
 }}
 "#,
-        name = names.kebab,
+        name = names.raw,
         port = port
     )
 }
@@ -438,7 +438,7 @@ impl WelcomeController {{
 #[module(controllers = [WelcomeController])]
 pub struct WelcomeModule;
 "#,
-        name = names.kebab
+        name = names.raw
     )
 }
 
@@ -660,7 +660,7 @@ impl {0}Controller {{
     }}
 }}
 "#,
-        names.pascal, names.kebab
+        names.pascal, names.raw
     )
 }
 
@@ -969,7 +969,7 @@ async fn not_found_returns_404() {{
     a.shutdown().await.unwrap();
 }}
 "#,
-        names.pascal, names.kebab
+        names.pascal, names.raw
     )
 }
 

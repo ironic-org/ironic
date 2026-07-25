@@ -8,6 +8,7 @@ use crate::CliError;
 /// across all generator types.
 #[derive(Debug)]
 pub(crate) struct Names {
+    pub(crate) raw: String,
     pub(crate) snake: String,
     pub(crate) pascal: String,
     pub(crate) kebab: String,
@@ -61,6 +62,7 @@ impl Names {
             });
         }
         Ok(Self {
+            raw: value.to_string(),
             snake,
             pascal,
             kebab,
@@ -117,6 +119,7 @@ mod tests {
     #[test]
     fn parse_simple_name() {
         let names = super::Names::parse("users").unwrap();
+        assert_eq!(names.raw, "users");
         assert_eq!(names.snake, "users");
         assert_eq!(names.pascal, "Users");
         assert_eq!(names.kebab, "users");
@@ -125,6 +128,7 @@ mod tests {
     #[test]
     fn parse_multi_word() {
         let names = super::Names::parse("user_profile").unwrap();
+        assert_eq!(names.raw, "user_profile");
         assert_eq!(names.snake, "user_profile");
         assert_eq!(names.pascal, "UserProfile");
         assert_eq!(names.kebab, "user-profile");
@@ -133,6 +137,7 @@ mod tests {
     #[test]
     fn parse_camel_case_input() {
         let names = super::Names::parse("userProfile").unwrap();
+        assert_eq!(names.raw, "userProfile");
         assert_eq!(names.snake, "user_profile");
         assert_eq!(names.pascal, "UserProfile");
     }
@@ -140,12 +145,14 @@ mod tests {
     #[test]
     fn parse_pascal_case_input() {
         let names = super::Names::parse("UserProfile").unwrap();
+        assert_eq!(names.raw, "UserProfile");
         assert_eq!(names.snake, "user_profile");
     }
 
     #[test]
     fn parse_with_special_chars() {
         let names = super::Names::parse("my.api-project").unwrap();
+        assert_eq!(names.raw, "my.api-project");
         assert_eq!(names.snake, "my_api_project");
         assert_eq!(names.pascal, "MyApiProject");
         assert_eq!(names.kebab, "my-api-project");
@@ -154,6 +161,7 @@ mod tests {
     #[test]
     fn parse_with_underscores() {
         let names = super::Names::parse("my_api").unwrap();
+        assert_eq!(names.raw, "my_api");
         assert_eq!(names.snake, "my_api");
     }
 
@@ -210,6 +218,7 @@ mod tests {
     #[test]
     fn parse_normalizes_mixed_case() {
         let names = super::Names::parse("  spaced  name  ").unwrap();
+        assert_eq!(names.raw, "  spaced  name  ");
         assert_eq!(names.snake, "__spaced__name__");
         assert_eq!(names.pascal, "SpacedName");
     }
@@ -217,6 +226,7 @@ mod tests {
     #[test]
     fn parse_with_numbers() {
         let names = super::Names::parse("api_v2").unwrap();
+        assert_eq!(names.raw, "api_v2");
         assert_eq!(names.snake, "api_v_2");
     }
 
@@ -224,6 +234,7 @@ mod tests {
     fn parse_full_round_trip() {
         let input = "my-awesome-service";
         let names = super::Names::parse(input).unwrap();
+        assert_eq!(names.raw, "my-awesome-service");
         assert_eq!(names.snake, "my_awesome_service");
         assert_eq!(names.pascal, "MyAwesomeService");
         assert_eq!(names.kebab, "my-awesome-service");

@@ -2,7 +2,14 @@
     clippy::type_complexity,
     clippy::collapsible_if,
     clippy::while_let_loop,
-    clippy::useless_conversion
+    clippy::useless_conversion,
+    clippy::manual_let_else,
+    clippy::missing_errors_doc,
+    clippy::too_many_lines,
+    clippy::doc_markdown,
+    clippy::implicit_clone,
+    clippy::redundant_closure_for_method_calls,
+    clippy::map_unwrap_or
 )]
 //! Transport-neutral microservice envelopes and duplex in-memory endpoints.
 //!
@@ -884,6 +891,7 @@ impl Transport for KafkaTransport {
 }
 
 #[cfg(test)]
+#[allow(deprecated)]
 mod tests {
     use super::*;
 
@@ -965,6 +973,7 @@ mod tests {
             payload: b"hello".to_vec(),
         };
 
+        #[allow(deprecated)]
         Transport::send(&left, envelope.clone()).await.unwrap();
         let received = Transport::receive(&right).await.unwrap().unwrap();
         assert_eq!(received.correlation_id, "test-1");
@@ -982,6 +991,7 @@ mod tests {
             payload: b"ping".to_vec(),
         };
 
+        #[allow(deprecated)]
         Transport::send(&left, envelope).await.unwrap();
         let received = Transport::receive(&right).await.unwrap().unwrap();
         assert_eq!(received.payload, b"ping");

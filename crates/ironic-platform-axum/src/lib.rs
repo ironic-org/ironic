@@ -192,7 +192,7 @@ impl AxumAdapter {
         self
     }
 
-    /// Enables or disables TCP_NODELAY on accepted connections.
+    /// Enables or disables `TCP_NODELAY` on accepted connections.
     #[must_use]
     pub const fn tcp_nodelay(mut self, enabled: bool) -> Self {
         self.tcp_nodelay = enabled;

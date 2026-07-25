@@ -672,14 +672,16 @@ impl DiscoveryService {
     pub fn provider_count(&self) -> usize {
         self.container
             .get()
-            .map(|c| c.health().total_providers)
-            .unwrap_or(0)
+            .map_or(0, |c| c.health().total_providers)
     }
 
     /// Returns per-provider health statistics.
     #[must_use]
     pub fn provider_health(&self) -> ironic_di::ProviderHealthSummary {
-        self.container.get().map(|c| c.health()).unwrap_or_default()
+        self.container
+            .get()
+            .map(ironic_di::Container::health)
+            .unwrap_or_default()
     }
 }
 

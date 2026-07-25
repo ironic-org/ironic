@@ -86,9 +86,8 @@ impl MicroserviceClient for TcpClient {
                     };
                     acc.extend_from_slice(&buf[..n]);
                     loop {
-                        let pos = match acc.iter().position(|&b| b == b'\n') {
-                            Some(pos) => pos,
-                            None => break,
+                        let Some(pos) = acc.iter().position(|&b| b == b'\n') else {
+                            break;
                         };
                         let line: Vec<u8> = acc.drain(..=pos).collect();
                         let line = &line[..line.len() - 1];

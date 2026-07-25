@@ -1,4 +1,8 @@
-#![allow(clippy::type_complexity)]
+#![allow(
+    clippy::type_complexity,
+    clippy::missing_errors_doc,
+    clippy::map_unwrap_or
+)]
 //! Injectable HTTP client for inter-service communication with retry and
 //! circuit breaker support.
 

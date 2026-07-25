@@ -119,10 +119,10 @@ name = "{name}"
 
 fn library_src_lib(names: &naming::Names) -> String {
     format!(
-        r#"pub mod r#mod;
+        r"pub mod r#mod;
 
 pub use r#mod::{name}Module;
-"#,
+",
         name = names.pascal
     )
 }

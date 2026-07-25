@@ -94,13 +94,12 @@ impl MicroserviceClient for KafkaClient {
                     let topic = reply_topic.clone();
                     let h = Arc::clone(&handlers_clone);
                     let _ = tokio::task::spawn_blocking(move || {
-                        let mut consumer = match kafka::consumer::Consumer::from_hosts(hosts)
+                        let Ok(mut consumer) = kafka::consumer::Consumer::from_hosts(hosts)
                             .with_topic(topic)
                             .with_fallback_offset(kafka::consumer::FetchOffset::Earliest)
                             .create()
-                        {
-                            Ok(c) => c,
-                            Err(_) => return,
+                        else {
+                            return;
                         };
                         loop {
                             if let Ok(message_sets) = consumer.poll() {
@@ -272,11 +271,11 @@ impl KafkaServer {
 }
 
 impl MicroserviceServer for KafkaServer {
+    #[allow(clippy::too_many_lines)]
     fn listen(&self) -> ServerFuture<()> {
         let config = self.config.clone();
         let handlers = Arc::clone(&self.handlers);
         let event_handlers = Arc::clone(&self.event_handlers);
-
         Box::pin(async move {
             let hosts: Vec<String> = config
                 .brokers
@@ -285,7 +284,6 @@ impl MicroserviceServer for KafkaServer {
                 .collect();
             let topic = config.topic.clone();
             let reply_topic = format!("{topic}_reply");
-
             // Create a producer for sending replies
             let prod_hosts = hosts.clone();
             let _prod = tokio::task::spawn_blocking(move || {
@@ -295,12 +293,10 @@ impl MicroserviceServer for KafkaServer {
             })
             .await
             .map_err(|e| TransportError(e.to_string()))?;
-
             let handlers_clone = Arc::clone(&handlers);
             let event_handlers_clone = Arc::clone(&event_handlers);
             let reply_topic_clone = reply_topic.clone();
             let hosts_clone = hosts.clone();
-
             tokio::spawn(async move {
                 loop {
                     let hosts = hosts_clone.clone();
@@ -308,15 +304,13 @@ impl MicroserviceServer for KafkaServer {
                     let reply_topic = reply_topic_clone.clone();
                     let h = Arc::clone(&handlers_clone);
                     let eh = Arc::clone(&event_handlers_clone);
-
                     let _ = tokio::task::spawn_blocking(move || {
-                        let mut consumer = match kafka::consumer::Consumer::from_hosts(hosts)
+                        let Ok(mut consumer) = kafka::consumer::Consumer::from_hosts(hosts)
                             .with_topic(topic)
                             .with_fallback_offset(kafka::consumer::FetchOffset::Earliest)
                             .create()
-                        {
-                            Ok(c) => c,
-                            Err(_) => return,
+                        else {
+                            return;
                         };
                         loop {
                             if let Ok(message_sets) = consumer.poll() {
@@ -337,7 +331,6 @@ impl MicroserviceServer for KafkaServer {
                                                     .unwrap_or("")
                                                     .as_bytes()
                                                     .to_vec();
-
                                                 // Process synchronously in blocking context
                                                 let cid = correlation_id.clone();
                                                 let context = MessageContext {
@@ -345,7 +338,6 @@ impl MicroserviceServer for KafkaServer {
                                                     correlation_id,
                                                     headers: std::collections::BTreeMap::new(),
                                                 };
-
                                                 let handler_opt = {
                                                     let guard = h.lock().unwrap();
                                                     guard.get(&key).cloned()
@@ -389,7 +381,6 @@ impl MicroserviceServer for KafkaServer {
                     .await;
                 }
             });
-
             Ok(())
         })
     }

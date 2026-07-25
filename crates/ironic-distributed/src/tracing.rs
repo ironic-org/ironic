@@ -1,4 +1,8 @@
-#![allow(clippy::type_complexity)]
+#![allow(
+    clippy::type_complexity,
+    clippy::redundant_closure_for_method_calls,
+    clippy::unnecessary_wraps
+)]
 //! Distributed tracing context propagation for microservice envelopes.
 //!
 //! Automatically injects and extracts W3C `traceparent`/`tracestate` headers
@@ -88,6 +92,7 @@ fn inject_w3c_otel(headers: &mut BTreeMap<String, String>) {
 }
 
 #[cfg(feature = "telemetry")]
+#[allow(clippy::unnecessary_wraps)]
 fn extract_w3c_otel(headers: &BTreeMap<String, String>) -> Option<PropagatedSpan> {
     use opentelemetry::global;
     use tracing_opentelemetry::OpenTelemetrySpanExt;
@@ -118,9 +123,9 @@ struct HeaderExtractor<'a>(&'a BTreeMap<String, String>);
 #[cfg(feature = "telemetry")]
 impl opentelemetry::propagation::Extractor for HeaderExtractor<'_> {
     fn get(&self, key: &str) -> Option<&str> {
-        self.0.get(key).map(|s| s.as_str())
+        self.0.get(key).map(String::as_str)
     }
     fn keys(&self) -> Vec<&str> {
-        self.0.keys().map(|s| s.as_str()).collect()
+        self.0.keys().map(String::as_str).collect()
     }
 }

@@ -124,6 +124,7 @@ impl<T: Send + Sync + 'static> ForwardRef<T> {
     /// Populates the forward reference with a resolved value.
     ///
     /// This is called by the DI container after all singletons are constructed.
+    #[allow(clippy::missing_errors_doc)]
     pub fn populate(&self, value: Arc<T>) -> Result<(), ProviderValue> {
         self.inner.set(value as ProviderValue)
     }

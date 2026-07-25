@@ -191,6 +191,7 @@ async fn queue_supports_redelivery() {
 
 #[cfg(feature = "microservices")]
 #[tokio::test]
+#[allow(deprecated)]
 async fn channel_transports_are_duplex() {
     use ironic::distributed::microservices::{ChannelTransport, Envelope, Transport};
     use std::collections::BTreeMap;
@@ -296,7 +297,6 @@ fn plugins_apply_in_order_and_reject_duplicate_names() {
 #[cfg(all(feature = "microservices", feature = "events"))]
 #[tokio::test]
 async fn forward_ref_resolves_after_container_build() {
-    use ironic::distributed::microservices::*;
     use ironic::{ContainerBuilder, Dependency, ForwardRef, ProviderDefinition, Scope};
     use std::sync::Arc;
 
@@ -338,7 +338,7 @@ async fn forward_ref_resolves_after_container_build() {
 #[tokio::test]
 async fn inmemory_client_server_request_response() {
     use ironic::distributed::microservices::{
-        InMemoryServer, MessageHandler, MicroserviceClient, MicroserviceServer, TransportError,
+        InMemoryServer, MicroserviceClient, MicroserviceServer, TransportError,
     };
     use std::sync::Arc;
 
@@ -349,7 +349,7 @@ async fn inmemory_client_server_request_response() {
             Box::pin(async move {
                 let msg: String =
                     serde_json::from_slice(&payload).map_err(|e| TransportError(e.to_string()))?;
-                let resp = format!("pong:{}", msg);
+                let resp = format!("pong:{msg}");
                 serde_json::to_vec(&resp).map_err(|e| TransportError(e.to_string()))
             })
         }),
@@ -432,9 +432,7 @@ async fn custom_transport_strategy_creates_paired_endpoints() {
 #[cfg(feature = "events")]
 #[tokio::test]
 async fn forward_ref_in_di_container() {
-    use ironic::{
-        ContainerBuilder, Dependency, ForwardRef, ProviderDefinition, ResolveError, Scope,
-    };
+    use ironic::{ContainerBuilder, Dependency, ForwardRef, ProviderDefinition, Scope};
     use std::sync::Arc;
 
     struct ServiceA {
@@ -547,15 +545,19 @@ fn graphql_proc_macros_compile() {
     // Verify that the proc-macro attributes exist via ironic_macros directly
     use ironic_macros::{gql_query, mutation, resolver, subscription};
 
+    #[allow(dead_code)]
     #[resolver]
     struct TestResolver;
 
+    #[allow(dead_code, clippy::unused_async)]
     #[mutation]
     async fn test_mutation() {}
 
+    #[allow(dead_code, clippy::unused_async)]
     #[subscription]
     async fn test_subscription() {}
 
+    #[allow(dead_code, clippy::unused_async)]
     #[gql_query]
     async fn test_query() {}
 }
@@ -570,7 +572,7 @@ fn graphql_proc_macros_compile() {
 #[tokio::test]
 async fn redis_transport_request_response() {
     use ironic::distributed::microservices::{
-        MessageHandler, MicroserviceClient, MicroserviceServer, TransportError,
+        MicroserviceClient, MicroserviceServer, TransportError,
     };
     use ironic::distributed::transport_redis::{
         RedisClient, RedisClientConfig, RedisServer, RedisServerConfig,

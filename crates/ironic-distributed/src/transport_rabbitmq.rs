@@ -3,7 +3,7 @@
     clippy::collapsible_if,
     clippy::while_let_loop
 )]
-//! Live RabbitMQ transport backend implementing [`MicroserviceClient`] and
+//! Live `RabbitMQ` transport backend implementing [`MicroserviceClient`] and
 //! [`MicroserviceServer`] using the `lapin` crate.
 
 use std::{collections::HashMap, sync::Arc};
@@ -32,7 +32,7 @@ fn ss(s: &str) -> ShortString {
 // RabbitMQ Client
 // ---------------------------------------------------------------------------
 
-/// A RabbitMQ microservice client.
+/// A `RabbitMQ` microservice client.
 pub struct RmqClient {
     config: RmqClientConfig,
     channel: Arc<tokio::sync::OnceCell<Channel>>,
@@ -43,7 +43,7 @@ pub struct RmqClient {
     >,
 }
 
-/// Configuration for a RabbitMQ microservice client.
+/// Configuration for a `RabbitMQ` microservice client.
 #[derive(Clone, Debug)]
 pub struct RmqClientConfig {
     /// AMQP connection URL.
@@ -62,7 +62,7 @@ impl Default for RmqClientConfig {
 }
 
 impl RmqClient {
-    /// Creates a new RabbitMQ client.
+    /// Creates a new `RabbitMQ` client.
     #[must_use]
     pub fn new(config: RmqClientConfig) -> Self {
         Self {
@@ -139,7 +139,7 @@ impl MicroserviceClient for RmqClient {
                     if let Some(cid) = cid {
                         let mut map = handlers.lock().await;
                         if let Some(tx) = map.remove(&cid) {
-                            let payload = delivery.data.to_vec();
+                            let payload = delivery.data.clone();
                             let _ = tx.send(Ok(payload));
                         }
                     }
@@ -251,14 +251,14 @@ impl MicroserviceClient for RmqClient {
 // RabbitMQ Server
 // ---------------------------------------------------------------------------
 
-/// A RabbitMQ microservice server.
+/// A `RabbitMQ` microservice server.
 pub struct RmqServer {
     config: RmqServerConfig,
     handlers: Arc<std::sync::Mutex<HashMap<String, MessageHandler>>>,
     event_handlers: Arc<std::sync::Mutex<HashMap<String, EventHandler>>>,
 }
 
-/// Configuration for a RabbitMQ microservice server.
+/// Configuration for a `RabbitMQ` microservice server.
 #[derive(Clone, Debug)]
 pub struct RmqServerConfig {
     /// AMQP connection URL.
@@ -280,7 +280,7 @@ impl Default for RmqServerConfig {
 }
 
 impl RmqServer {
-    /// Creates a new RabbitMQ server.
+    /// Creates a new `RabbitMQ` server.
     #[must_use]
     pub fn new(config: RmqServerConfig) -> Self {
         Self {
@@ -292,6 +292,7 @@ impl RmqServer {
 }
 
 impl MicroserviceServer for RmqServer {
+    #[allow(clippy::too_many_lines)]
     fn listen(&self) -> ServerFuture<()> {
         let config = self.config.clone();
         let handlers = Arc::clone(&self.handlers);
@@ -383,67 +384,8 @@ impl MicroserviceServer for RmqServer {
                 .await
                 .map_err(|e| TransportError(e.to_string()))?;
 
-            let handlers_clone = Arc::clone(&handlers);
-            let event_handlers_clone = Arc::clone(&event_handlers);
-            let _exchange = config.exchange.clone();
-
             tokio::spawn(async move {
-                let mut stream = consumer;
-                while let Some(Ok(delivery)) = stream.next().await {
-                    let channel = delivery.routing_key.as_str().to_string();
-                    let payload = delivery.data.to_vec();
-
-                    if let Ok(parsed) = serde_json::from_slice::<serde_json::Value>(&payload) {
-                        let correlation_id =
-                            parsed["correlation_id"].as_str().unwrap_or("").to_string();
-                        let data: Vec<u8> = parsed["data"]
-                            .as_str()
-                            .map(|s| s.as_bytes().to_vec())
-                            .unwrap_or_default();
-                        let reply_to = delivery
-                            .properties
-                            .reply_to()
-                            .as_ref()
-                            .map(|s| s.as_str().to_string());
-
-                        let context = MessageContext {
-                            pattern: channel.clone(),
-                            correlation_id,
-                            headers: std::collections::BTreeMap::new(),
-                        };
-
-                        let handler_opt = {
-                            let h = handlers_clone.lock().unwrap();
-                            h.get(&channel).cloned()
-                        };
-                        if let Some(handler) = handler_opt {
-                            let result = handler(data, context).await;
-                            if let Ok(response) = result {
-                                let _ = reply_ch
-                                    .basic_publish(
-                                        ss(""),
-                                        ss(&reply_to.unwrap_or_default()),
-                                        BasicPublishOptions::default(),
-                                        &response,
-                                        BasicProperties::default(),
-                                    )
-                                    .await;
-                            }
-                        } else {
-                            let handler_opt = {
-                                let h = event_handlers_clone.lock().unwrap();
-                                h.get(&channel).cloned()
-                            };
-                            if let Some(handler) = handler_opt {
-                                let _ = handler(data, context).await;
-                            }
-                        }
-                    }
-                    let _ = delivery
-                        .acker
-                        .ack(lapin::options::BasicAckOptions::default())
-                        .await;
-                }
+                Self::run_consumer(consumer, reply_ch, handlers, event_handlers).await;
             });
 
             Ok(())
@@ -466,5 +408,70 @@ impl MicroserviceServer for RmqServer {
 
     fn close(&self) -> ServerFuture<()> {
         Box::pin(async move { Ok(()) })
+    }
+}
+
+impl RmqServer {
+    async fn run_consumer(
+        consumer: lapin::Consumer,
+        reply_ch: Channel,
+        handlers: Arc<std::sync::Mutex<HashMap<String, MessageHandler>>>,
+        event_handlers: Arc<std::sync::Mutex<HashMap<String, EventHandler>>>,
+    ) {
+        let mut stream = consumer;
+        while let Some(Ok(delivery)) = stream.next().await {
+            let channel = delivery.routing_key.as_str().to_string();
+            let payload = delivery.data.clone();
+
+            if let Ok(parsed) = serde_json::from_slice::<serde_json::Value>(&payload) {
+                let correlation_id = parsed["correlation_id"].as_str().unwrap_or("").to_string();
+                let data: Vec<u8> = parsed["data"]
+                    .as_str()
+                    .map(|s| s.as_bytes().to_vec())
+                    .unwrap_or_default();
+                let reply_to = delivery
+                    .properties
+                    .reply_to()
+                    .as_ref()
+                    .map(|s| s.as_str().to_string());
+
+                let context = MessageContext {
+                    pattern: channel.clone(),
+                    correlation_id,
+                    headers: std::collections::BTreeMap::new(),
+                };
+
+                let handler_opt = {
+                    let h = handlers.lock().unwrap();
+                    h.get(&channel).cloned()
+                };
+                if let Some(handler) = handler_opt {
+                    let result = handler(data, context).await;
+                    if let Ok(response) = result {
+                        let _ = reply_ch
+                            .basic_publish(
+                                ss(""),
+                                ss(&reply_to.unwrap_or_default()),
+                                BasicPublishOptions::default(),
+                                &response,
+                                BasicProperties::default(),
+                            )
+                            .await;
+                    }
+                } else {
+                    let handler_opt = {
+                        let h = event_handlers.lock().unwrap();
+                        h.get(&channel).cloned()
+                    };
+                    if let Some(handler) = handler_opt {
+                        let _ = handler(data, context).await;
+                    }
+                }
+            }
+            let _ = delivery
+                .acker
+                .ack(lapin::options::BasicAckOptions::default())
+                .await;
+        }
     }
 }

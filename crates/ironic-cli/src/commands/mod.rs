@@ -46,6 +46,9 @@ pub(crate) fn execute(command: Cli, output: &mut impl Write) -> Result<(), CliEr
     }
 }
 
+/// Looks up and executes a script defined in `[package.metadata.ironic.scripts]`.
+///
+/// Scripts are shell commands read from the project's `Cargo.toml` and run via `sh -c`.
 fn run_script(name: &str, _args: &[String], output: &mut impl Write) -> Result<(), CliError> {
     let manifest_path = std::env::current_dir()
         .map_err(|e| CliError::io("read current directory", ".", e))?

@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 - Simplify generated app template to minimal skeleton
+- Split generators/mod.rs into app.rs resource.rs monorepo.rs graphql.rs
 
 ### Added
 - Generate PRODUCTION.md with production readiness guide for new apps

@@ -179,8 +179,6 @@ ENV SERVER_PORT={port}
 EXPOSE {port}
 CMD ["/{bin}"]
 "#,
-        bin = bin,
-        port = port
     )
 }
 

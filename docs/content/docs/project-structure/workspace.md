@@ -18,9 +18,17 @@ my-platform/
 ├── apps/                          # ── Microservice binaries
 │   ├── api-gateway/               #    HTTP API gateway
 │   │   ├── Cargo.toml
+│   │   ├── Dockerfile
+│   │   ├── .env
 │   │   └── src/
 │   │       ├── main.rs
 │   │       ├── app.rs             #    Root module
+│   │       ├── welcome.rs         #    Welcome endpoint
+│   │       ├── platform/          #    Service infrastructure
+│   │       │   ├── mod.rs
+│   │       │   ├── config.rs
+│   │       │   ├── telemetry.rs
+│   │       │   └── database.rs
 │   │       └── modules/
 │   │           ├── mod.rs
 │   │           ├── users/         #    Users domain
@@ -38,20 +46,30 @@ my-platform/
 │   │           │   │   ├── mod.rs
 │   │           │   │   ├── create_user_dto.rs
 │   │           │   │   └── user_response.rs
-│   │           │   └── entities/
+│   │           │   ├── entities/
+│   │           │   │   ├── mod.rs
+│   │           │   │   └── user.rs
+│   │           │   └── tests/     #    Unit + integration tests
 │   │           │       ├── mod.rs
-│   │           │       └── user.rs
+│   │           │       ├── unit.rs
+│   │           │       └── integration.rs
 │   │           └── health/        #    Health check
-│   │               ├── mod.rs
 │   │               └── controller/
-│   │                   ├── mod.rs
 │   │                   └── health_controller.rs
 │   │
 │   ├── auth-service/              #    Authentication service
 │   │   ├── Cargo.toml
+│   │   ├── Dockerfile
+│   │   ├── .env
 │   │   └── src/
 │   │       ├── main.rs
 │   │       ├── app.rs
+│   │       ├── welcome.rs
+│   │       ├── platform/
+│   │       │   ├── mod.rs
+│   │       │   ├── config.rs
+│   │       │   ├── telemetry.rs
+│   │       │   └── database.rs
 │   │       └── modules/
 │   │           ├── mod.rs
 │   │           ├── auth/
@@ -70,9 +88,13 @@ my-platform/
 │   │           │   │   ├── mod.rs
 │   │           │   │   ├── login_dto.rs
 │   │           │   │   └── register_dto.rs
-│   │           │   └── entities/
+│   │           │   ├── entities/
+│   │           │   │   ├── mod.rs
+│   │           │   │   └── credential.rs
+│   │           │   └── tests/
 │   │           │       ├── mod.rs
-│   │           │       └── credential.rs
+│   │           │       ├── unit.rs
+│   │           │       └── integration.rs
 │   │           └── rbac/
 │   │               ├── mod.rs
 │   │               ├── services/
@@ -84,9 +106,17 @@ my-platform/
 │   │
 │   └── analytics-service/         #    Analytics service
 │       ├── Cargo.toml
+│       ├── Dockerfile
+│       ├── .env
 │       └── src/
 │           ├── main.rs
 │           ├── app.rs
+│           ├── welcome.rs
+│           ├── platform/
+│           │   ├── mod.rs
+│           │   ├── config.rs
+│           │   ├── telemetry.rs
+│           │   └── database.rs
 │           └── modules/
 │               ├── mod.rs
 │               ├── events/        #    Kafka event handlers
@@ -109,10 +139,10 @@ my-platform/
 │                   ├── dto/
 │                   │   ├── mod.rs
 │                   │   └── report_response.rs
-│                   └── entities/
-│                       ├── mod.rs
-│                       └── analytics_event.rs
-│
+│                   ├── entities/
+│                   │   ├── mod.rs
+│                   │   └── analytics_event.rs
+│                   └── tests/
 ├── libs/                          # ── Shared libraries
 │   ├── shared-config/             #    Shared config types
 │   │   ├── Cargo.toml
@@ -151,14 +181,17 @@ members = [
 ]
 
 [workspace.dependencies]
-ironic = { git = "https://github.com/ironic-org/ironic", tag = "v1.1.1" }
-tokio = { version = "1", features = ["macros", "rt-multi-thread", "net"] }
+ironic = { version = "0.2", features = ["security", "compression", "metrics", "openapi"] }
+tokio = { version = "1", features = ["macros", "rt-multi-thread", "net", "signal"] }
 serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+garde = "0.23"
+sqlx = { version = "0.9", features = ["runtime-tokio", "postgres"] }
+tracing = { version = "0.1", features = ["attributes"] }
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+dotenvy = "0.15"
 tonic = "0.14"
 prost = "0.13"
-anyhow = "1"
-tracing = "0.1"
-tracing-subscriber = "0.3"
 ```
 
 Key points:
@@ -178,11 +211,15 @@ edition = "2024"
 ironic = { workspace = true, features = ["auth", "transport-redis"] }
 tokio = { workspace = true }
 serde = { workspace = true }
+serde_json = { workspace = true }
+garde = { workspace = true }
+sqlx = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+dotenvy = { workspace = true }
 proto = { path = "../../libs/proto" }
 shared-config = { path = "../../libs/shared-config" }
 tonic = { workspace = true }
-anyhow = { workspace = true }
-tracing = { workspace = true }
 ```
 
 Each service only enables the Ironic features it needs.

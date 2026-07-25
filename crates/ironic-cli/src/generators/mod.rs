@@ -76,11 +76,7 @@ pub fn generate_app(root: &Path, name: &str) -> Result<GenerationReport, CliErro
     let dest = root.join("apps").join(&names.raw);
     if dest.exists() {
         return Err(CliError::InvalidName {
-            name: format!(
-                "app `{}` already exists at `{}`",
-                names.raw,
-                dest.display()
-            ),
+            name: format!("app `{}` already exists at `{}`", names.raw, dest.display()),
         });
     }
 

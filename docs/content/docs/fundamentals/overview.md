@@ -78,5 +78,5 @@ impl UserService {
 
 - [Modules](/docs/fundamentals/modules) — Deep dive into the module system
 - [Providers](/docs/fundamentals/providers) — Provider scopes, registration, health
-- [Lifecycle](/docs/fundamentals/lifecycle) — Application startup, runtime, shutdown
+- [Lifecycle](/docs/lifecycle/overview) — Application startup, runtime, shutdown
 - [Request Lifecycle](/docs/fundamentals/request-lifecycle) — How a request flows through the pipeline

@@ -5,12 +5,13 @@ description: Version history and release notes for the Ironic framework.
 
 # Releases
 
-## Current version: v1.1.0
+## Current version: v1.1.1
 
 All notable changes to Ironic are documented here. The project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 | Version | Date | Highlights |
 |---------|------|-----------|
+| [v1.1.1](/blog/v1.1.1) | 2026-07-25 | implement MQTT and NATS live transports, Federation helper, MS pipeline docs |
 | [v1.1.0](/blog/v1.1.0) | 2026-07-23 | release.sh: prefer [Unreleased] content over git log when non-empty |
 | [v1.0.9](/blog/v1.0.9) | 2026-07-21 | add documentation for backtrace and UUID features, and implement message queues and saga orchestration |
 | [v1.0.8](/blog/v1.0.8) | 2026-07-18 | add pagination extractor and SQL error mapping utilities |

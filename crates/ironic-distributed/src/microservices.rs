@@ -1,12 +1,67 @@
+#![allow(
+    clippy::type_complexity,
+    clippy::collapsible_if,
+    clippy::while_let_loop,
+    clippy::useless_conversion,
+    clippy::manual_let_else,
+    clippy::missing_errors_doc,
+    clippy::too_many_lines,
+    clippy::doc_markdown,
+    clippy::implicit_clone,
+    clippy::redundant_closure_for_method_calls,
+    clippy::map_unwrap_or
+)]
 //! Transport-neutral microservice envelopes and duplex in-memory endpoints.
+//!
+//! # Pipeline Patterns
+//!
+//! Unlike HTTP, the transport layer doesn't use the same pipeline
+//! (filters/pipes/guards/interceptors). Instead, error handling and
+//! validation are built into the message handler pattern:
+//!
+//! - **Error handling**: Handlers return `Result<T, TransportError>`.
+//!   Errors are serialized and returned to the caller as error responses.
+//! - **Validation**: Handlers validate payloads using serde deserialization.
+//!   Invalid payloads return `TransportError` before handler execution.
+//! - **Authorization**: Implement authorization as wrapper functions
+//!   that compose around message handlers.
+//!
+//! ## Example: Authorized Handler
+//!
+//! ```ignore
+//! fn authorized(pattern: &str, handler: MessageHandler) -> MessageHandler {
+//!     Arc::new(move |payload, ctx| {
+//!         let handler = Arc::clone(&handler);
+//!         Box::pin(async move {
+//!             // Authorization check
+//!             if !ctx.headers.contains_key("auth-token") {
+//!                 return Err(TransportError("unauthorized".into()));
+//!             }
+//!             handler(payload, ctx).await
+//!         })
+//!     })
+//! }
+//!
+//! server.on_message("admin.action", authorized("admin.action", handler));
+//! ```
 //!
 //! Additional transport backends are available behind feature flags:
 //! - `transport-redis`: [`RedisTransportConfig`]
 //! - `transport-rabbitmq`: [`RabbitMqTransportConfig`]
 //! - `transport-kafka`: [`KafkaTransportConfig`]
 
-use std::{collections::BTreeMap, future::Future, pin::Pin, sync::Arc};
-use tokio::sync::{Mutex, mpsc};
+use std::sync::atomic::{AtomicU64, Ordering};
+use std::{
+    collections::{BTreeMap, HashMap},
+    future::Future,
+    pin::Pin,
+    sync::Arc,
+};
+use tokio::sync::{Mutex, mpsc, oneshot};
+
+// ---------------------------------------------------------------------------
+// Core Message Types
+// ---------------------------------------------------------------------------
 
 /// A transport-neutral message envelope.
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -30,13 +85,445 @@ pub struct TransportError(pub String);
 pub type TransportFuture<'a, T> =
     Pin<Box<dyn Future<Output = Result<T, TransportError>> + Send + 'a>>;
 
+// ---------------------------------------------------------------------------
+// Serialization
+// ---------------------------------------------------------------------------
+
+// ---------------------------------------------------------------------------
+// Serializer & Deserializer
+// ---------------------------------------------------------------------------
+
+/// Serializes a value to bytes for transport.
+pub trait Serializer: Send + Sync + 'static {
+    /// Serializes a JSON-serializable value to bytes.
+    fn to_bytes<T: serde::Serialize>(&self, value: &T) -> Result<Vec<u8>, TransportError>;
+}
+
+/// Deserializes a value from bytes received from transport.
+pub trait Deserializer: Send + Sync + 'static {
+    /// Deserializes bytes to a JSON-deserializable value.
+    fn read_bytes<T: serde::de::DeserializeOwned>(&self, data: &[u8]) -> Result<T, TransportError>;
+}
+
+/// Identity serializer that uses JSON encoding.
+#[derive(Clone, Debug)]
+pub struct IdentitySerializer;
+
+impl Serializer for IdentitySerializer {
+    fn to_bytes<T: serde::Serialize>(&self, value: &T) -> Result<Vec<u8>, TransportError> {
+        serde_json::to_vec(value).map_err(|e| TransportError(e.to_string()))
+    }
+}
+
+impl Deserializer for IdentitySerializer {
+    fn read_bytes<T: serde::de::DeserializeOwned>(&self, data: &[u8]) -> Result<T, TransportError> {
+        serde_json::from_slice(data).map_err(|e| TransportError(e.to_string()))
+    }
+}
+
+/// Default JSON-based serializer/deserializer.
+pub type JsonCodec = IdentitySerializer;
+
+// ---------------------------------------------------------------------------
+// Legacy Transport trait (deprecated)
+// ---------------------------------------------------------------------------
+
 /// A bidirectional transport endpoint.
+///
+/// **Deprecated**: Use [`MicroserviceClient`] and [`MicroserviceServer`] instead.
+#[allow(deprecated)]
+#[deprecated(
+    since = "1.1.0",
+    note = "Use MicroserviceClient and MicroserviceServer instead"
+)]
 pub trait Transport: Send + Sync + 'static {
     /// Sends an envelope.
     fn send(&self, envelope: Envelope) -> TransportFuture<'_, ()>;
     /// Receives the next envelope.
     fn receive(&self) -> TransportFuture<'_, Option<Envelope>>;
 }
+
+// ---------------------------------------------------------------------------
+// Microservice Client
+// ---------------------------------------------------------------------------
+
+/// Boxed future for microservice client operations.
+pub type ClientFuture<T> = Pin<Box<dyn Future<Output = Result<T, TransportError>> + Send>>;
+
+/// A microservice client for sending request-response messages and events.
+pub trait MicroserviceClient: Send + Sync + 'static {
+    /// Connects to the transport broker.
+    fn connect(&self) -> ClientFuture<()>;
+
+    /// Sends a message and awaits a response (request-response pattern).
+    fn send<T, R>(&self, pattern: &str, data: &T) -> ClientFuture<R>
+    where
+        T: serde::Serialize + Send + Sync + ?Sized,
+        R: serde::de::DeserializeOwned + Send;
+
+    /// Emits an event without awaiting a response (fire-and-forget pattern).
+    fn emit<T>(&self, pattern: &str, data: &T) -> ClientFuture<()>
+    where
+        T: serde::Serialize + Send + Sync + ?Sized;
+
+    /// Closes the connection.
+    fn close(&self) -> ClientFuture<()>;
+}
+
+// ---------------------------------------------------------------------------
+// Microservice Server
+// ---------------------------------------------------------------------------
+
+/// A handler for incoming request-response messages.
+pub type MessageHandler = Arc<
+    dyn Fn(
+            Vec<u8>,
+            MessageContext,
+        ) -> Pin<Box<dyn Future<Output = Result<Vec<u8>, TransportError>> + Send>>
+        + Send
+        + Sync,
+>;
+
+/// A handler for incoming events (fire-and-forget).
+pub type EventHandler = Arc<
+    dyn Fn(
+            Vec<u8>,
+            MessageContext,
+        ) -> Pin<Box<dyn Future<Output = Result<(), TransportError>> + Send>>
+        + Send
+        + Sync,
+>;
+
+/// A message pattern that can be matched against incoming messages.
+///
+/// Patterns are either simple strings or complex JSON values. String patterns
+/// match exact channel names. JSON patterns are serialized for matching.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum MsPattern {
+    /// A simple string pattern (e.g., `"user.get"`).
+    String(String),
+    /// A complex JSON pattern (e.g., `{"service":"users"}`).
+    Value(serde_json::Value),
+}
+
+impl MsPattern {
+    /// Normalizes this pattern to a canonical route string for handler lookup.
+    #[must_use]
+    pub fn normalize(&self) -> String {
+        match self {
+            Self::String(s) => s.clone(),
+            Self::Value(v) => v.to_string(),
+        }
+    }
+}
+
+impl From<&str> for MsPattern {
+    fn from(s: &str) -> Self {
+        Self::String(s.to_string())
+    }
+}
+
+impl From<String> for MsPattern {
+    fn from(s: String) -> Self {
+        Self::String(s)
+    }
+}
+
+impl From<serde_json::Value> for MsPattern {
+    fn from(v: serde_json::Value) -> Self {
+        Self::Value(v)
+    }
+}
+
+/// Normalizes a pattern to a canonical route string.
+///
+/// String patterns are used as-is. Object/JSON patterns are serialized to a
+/// deterministic JSON string for consistent matching.
+///
+/// # Example
+///
+/// ```
+/// use ironic::distributed::microservices::normalize_pattern;
+/// use serde_json::json;
+///
+/// assert_eq!(normalize_pattern("user.get"), "user.get");
+/// assert_eq!(normalize_pattern(json!({"s":"u"})), "{\"s\":\"u\"}");
+/// ```
+#[must_use]
+pub fn normalize_pattern(pattern: impl Into<MsPattern>) -> String {
+    pattern.into().normalize()
+}
+
+/// Context for an incoming message.
+#[derive(Clone, Debug)]
+pub struct MessageContext {
+    /// The pattern that matched this message.
+    pub pattern: String,
+    /// The correlation ID from the request.
+    pub correlation_id: String,
+    /// The message headers.
+    pub headers: BTreeMap<String, String>,
+}
+
+/// Boxed future for microservice server operations.
+pub type ServerFuture<T> = Pin<Box<dyn Future<Output = Result<T, TransportError>> + Send>>;
+
+/// A microservice server for handling incoming messages and events.
+pub trait MicroserviceServer: Send + Sync + 'static {
+    /// Starts listening for incoming messages.
+    fn listen(&self) -> ServerFuture<()>;
+
+    /// Registers a message handler for a pattern (request-response).
+    fn on_message(&self, pattern: &str, handler: MessageHandler);
+
+    /// Registers an event handler for a pattern (fire-and-forget).
+    fn on_event(&self, pattern: &str, handler: EventHandler);
+
+    /// Closes the server.
+    fn close(&self) -> ServerFuture<()>;
+}
+
+// ---------------------------------------------------------------------------
+// Custom Transport Strategy
+// ---------------------------------------------------------------------------
+
+/// A user-defined transport strategy that creates paired client/server endpoints.
+///
+/// Implement this trait to support custom transport protocols registered with
+/// the hybrid application builder.
+///
+/// # Example
+///
+/// ```ignore
+/// use ironic::distributed::microservices::{
+///     CustomTransportStrategy, MicroserviceClient, MicroserviceServer,
+///     InMemoryClient, InMemoryServer,
+/// };
+///
+/// struct MyTransport;
+///
+/// impl CustomTransportStrategy for MyTransport {
+///     type Client = InMemoryClient;
+///     type Server = InMemoryServer;
+///     fn create(self) -> (Self::Client, Self::Server) {
+///         InMemoryServer::pair(16)
+///     }
+/// }
+/// ```
+pub trait CustomTransportStrategy: Sized {
+    /// The client type for this transport.
+    type Client: MicroserviceClient;
+    /// The server type for this transport.
+    type Server: MicroserviceServer;
+    /// Creates a paired client and server.
+    fn create(self) -> (Self::Client, Self::Server);
+}
+
+// ---------------------------------------------------------------------------
+// Correlation ID helpers
+// ---------------------------------------------------------------------------
+
+/// Generates a unique correlation ID using a monotonic counter.
+#[must_use]
+pub fn generate_correlation_id() -> String {
+    static COUNTER: AtomicU64 = AtomicU64::new(0);
+    let id = COUNTER.fetch_add(1, Ordering::Relaxed);
+    format!("{id:x}")
+}
+
+// ---------------------------------------------------------------------------
+// In-Memory Client & Server
+// ---------------------------------------------------------------------------
+
+struct InMemoryServerInner {
+    handlers: std::sync::Mutex<HashMap<String, MessageHandler>>,
+    event_handlers: std::sync::Mutex<HashMap<String, EventHandler>>,
+}
+
+struct IncomingMessage {
+    envelope: Envelope,
+    reply_tx: oneshot::Sender<Result<Vec<u8>, TransportError>>,
+    is_event: bool,
+}
+
+/// In-memory microservice client (paired with [`InMemoryServer`]).
+#[derive(Clone)]
+pub struct InMemoryClient {
+    sender: mpsc::Sender<IncomingMessage>,
+}
+
+/// In-memory microservice server (paired with [`InMemoryClient`]).
+pub struct InMemoryServer {
+    inner: Arc<InMemoryServerInner>,
+    receiver: std::sync::Mutex<Option<mpsc::Receiver<IncomingMessage>>>,
+}
+
+impl InMemoryServer {
+    /// Creates a paired client and server.
+    #[must_use]
+    pub fn pair(capacity: usize) -> (InMemoryClient, Self) {
+        let (tx, rx) = mpsc::channel(capacity.max(1));
+        let server = Self {
+            inner: Arc::new(InMemoryServerInner {
+                handlers: std::sync::Mutex::new(HashMap::new()),
+                event_handlers: std::sync::Mutex::new(HashMap::new()),
+            }),
+            receiver: std::sync::Mutex::new(Some(rx)),
+        };
+        let client = InMemoryClient { sender: tx };
+        (client, server)
+    }
+}
+
+impl MicroserviceClient for InMemoryClient {
+    fn connect(&self) -> ClientFuture<()> {
+        Box::pin(async move { Ok(()) })
+    }
+
+    fn send<T, R>(&self, pattern: &str, data: &T) -> ClientFuture<R>
+    where
+        T: serde::Serialize + Send + Sync + ?Sized,
+        R: serde::de::DeserializeOwned + Send,
+    {
+        let sender = self.sender.clone();
+        let pattern = pattern.to_string();
+        let payload = serde_json::to_vec(data).map_err(|e| TransportError(e.to_string()));
+
+        Box::pin(async move {
+            let correlation_id = generate_correlation_id();
+            let payload_bytes = payload?;
+            let (reply_tx, reply_rx) = oneshot::channel();
+
+            let envelope = Envelope {
+                correlation_id: correlation_id.clone(),
+                route: pattern.clone(),
+                headers: BTreeMap::new(),
+                payload: payload_bytes,
+            };
+
+            sender
+                .send(IncomingMessage {
+                    envelope,
+                    reply_tx,
+                    is_event: false,
+                })
+                .await
+                .map_err(|e| TransportError(e.to_string()))?;
+
+            let response = reply_rx
+                .await
+                .map_err(|e| TransportError(e.to_string()))??;
+
+            serde_json::from_slice(&response).map_err(|e| TransportError(e.to_string()))
+        })
+    }
+
+    fn emit<T>(&self, pattern: &str, data: &T) -> ClientFuture<()>
+    where
+        T: serde::Serialize + Send + Sync + ?Sized,
+    {
+        let sender = self.sender.clone();
+        let pattern = pattern.to_string();
+        let payload = serde_json::to_vec(data).map_err(|e| TransportError(e.to_string()));
+
+        Box::pin(async move {
+            let payload_bytes = payload?;
+            let (reply_tx, _reply_rx) = oneshot::channel();
+
+            let envelope = Envelope {
+                correlation_id: generate_correlation_id(),
+                route: pattern.clone(),
+                headers: BTreeMap::new(),
+                payload: payload_bytes,
+            };
+
+            sender
+                .send(IncomingMessage {
+                    envelope,
+                    reply_tx,
+                    is_event: true,
+                })
+                .await
+                .map_err(|e| TransportError(e.to_string()))
+        })
+    }
+
+    fn close(&self) -> ClientFuture<()> {
+        Box::pin(async move { Ok(()) })
+    }
+}
+
+impl MicroserviceServer for InMemoryServer {
+    fn listen(&self) -> ServerFuture<()> {
+        let receiver_opt = self.receiver.lock().unwrap().take();
+        let mut receiver = match receiver_opt {
+            Some(rx) => rx,
+            None => {
+                return Box::pin(
+                    async move { Err(TransportError("server already started".into())) },
+                );
+            }
+        };
+
+        let inner = Arc::clone(&self.inner);
+
+        tokio::spawn(async move {
+            while let Some(msg) = receiver.recv().await {
+                let inner = Arc::clone(&inner);
+                tokio::spawn(async move {
+                    let context = MessageContext {
+                        pattern: msg.envelope.route.clone(),
+                        correlation_id: msg.envelope.correlation_id,
+                        headers: msg.envelope.headers.clone(),
+                    };
+
+                    if msg.is_event {
+                        let handler = {
+                            let handlers = inner.event_handlers.lock().unwrap();
+                            handlers.get(&context.pattern).cloned()
+                        };
+                        if let Some(handler) = handler {
+                            let _ = handler(msg.envelope.payload, context).await;
+                        }
+                    } else {
+                        let handler = {
+                            let handlers = inner.handlers.lock().unwrap();
+                            handlers.get(&context.pattern).cloned()
+                        };
+                        if let Some(handler) = handler {
+                            let result = handler(msg.envelope.payload, context).await;
+                            let _ = msg.reply_tx.send(result);
+                        } else {
+                            let _ = msg
+                                .reply_tx
+                                .send(Err(TransportError("NO_MESSAGE_HANDLER".into())));
+                        }
+                    }
+                });
+            }
+        });
+
+        Box::pin(async move { Ok(()) })
+    }
+
+    fn on_message(&self, pattern: &str, handler: MessageHandler) {
+        let mut handlers = self.inner.handlers.lock().unwrap();
+        handlers.insert(pattern.to_string(), handler);
+    }
+
+    fn on_event(&self, pattern: &str, handler: EventHandler) {
+        let mut handlers = self.inner.event_handlers.lock().unwrap();
+        handlers.insert(pattern.to_string(), handler);
+    }
+
+    fn close(&self) -> ServerFuture<()> {
+        Box::pin(async move { Ok(()) })
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Legacy ChannelTransport (implements both old and new traits)
+// ---------------------------------------------------------------------------
 
 /// One endpoint of a bounded in-memory duplex transport.
 #[derive(Clone)]
@@ -64,10 +551,12 @@ impl ChannelTransport {
     }
 }
 
+#[allow(deprecated)]
 impl Transport for ChannelTransport {
     fn send(&self, envelope: Envelope) -> TransportFuture<'_, ()> {
+        let sender = self.sender.clone();
         Box::pin(async move {
-            self.sender
+            sender
                 .send(envelope)
                 .await
                 .map_err(|error| TransportError(error.to_string()))
@@ -75,12 +564,86 @@ impl Transport for ChannelTransport {
     }
 
     fn receive(&self) -> TransportFuture<'_, Option<Envelope>> {
-        Box::pin(async move { Ok(self.receiver.lock().await.recv().await) })
+        let receiver = Arc::clone(&self.receiver);
+        Box::pin(async move {
+            let mut guard = receiver.lock().await;
+            Ok(guard.recv().await)
+        })
+    }
+}
+
+impl MicroserviceClient for ChannelTransport {
+    fn connect(&self) -> ClientFuture<()> {
+        Box::pin(async move { Ok(()) })
+    }
+
+    fn send<T, R>(&self, pattern: &str, data: &T) -> ClientFuture<R>
+    where
+        T: serde::Serialize + Send + Sync + ?Sized,
+        R: serde::de::DeserializeOwned + Send,
+    {
+        let sender = self.sender.clone();
+        let receiver = Arc::clone(&self.receiver);
+        let pattern = pattern.to_string();
+        let payload = serde_json::to_vec(data).map_err(|e| TransportError(e.to_string()));
+
+        Box::pin(async move {
+            let correlation_id = generate_correlation_id();
+            let payload = payload?;
+            let envelope = Envelope {
+                correlation_id: correlation_id.clone(),
+                route: pattern,
+                headers: BTreeMap::new(),
+                payload,
+            };
+            sender
+                .send(envelope)
+                .await
+                .map_err(|e| TransportError(e.to_string()))?;
+            loop {
+                let mut guard = receiver.lock().await;
+                if let Some(reply) = guard.recv().await {
+                    if reply.correlation_id == correlation_id {
+                        return serde_json::from_slice(&reply.payload)
+                            .map_err(|e| TransportError(e.to_string()));
+                    }
+                } else {
+                    return Err(TransportError("channel closed".into()));
+                }
+            }
+        })
+    }
+
+    fn emit<T>(&self, pattern: &str, data: &T) -> ClientFuture<()>
+    where
+        T: serde::Serialize + Send + Sync + ?Sized,
+    {
+        let sender = self.sender.clone();
+        let pattern = pattern.to_string();
+        let payload = serde_json::to_vec(data).map_err(|e| TransportError(e.to_string()));
+
+        Box::pin(async move {
+            let payload = payload?;
+            let envelope = Envelope {
+                correlation_id: generate_correlation_id(),
+                route: pattern,
+                headers: BTreeMap::new(),
+                payload,
+            };
+            sender
+                .send(envelope)
+                .await
+                .map_err(|e| TransportError(e.to_string()))
+        })
+    }
+
+    fn close(&self) -> ClientFuture<()> {
+        Box::pin(async move { Ok(()) })
     }
 }
 
 // ---------------------------------------------------------------------------
-// Transport backend adapters
+// Deprecated — legacy transport backend adapters (config stubs)
 // ---------------------------------------------------------------------------
 
 /// Configuration for a Redis pub/sub transport.
@@ -132,8 +695,6 @@ impl RedisTransportBuilder {
     ///
     /// Returns [`TransportError`] when the connection or subscription fails.
     pub fn connect(self) -> Result<RedisTransport, TransportError> {
-        // Connection is established lazily — the struct stores config
-        // so the caller does not need redis running at build time.
         Ok(RedisTransport {
             config: RedisTransportConfig {
                 url: self.url,
@@ -155,6 +716,7 @@ pub struct RedisTransport {
 }
 
 #[cfg(feature = "transport-redis")]
+#[allow(deprecated)]
 impl Transport for RedisTransport {
     fn send(&self, _envelope: Envelope) -> TransportFuture<'_, ()> {
         Box::pin(async move {
@@ -252,6 +814,7 @@ pub struct RabbitMqTransport {
 }
 
 #[cfg(feature = "transport-rabbitmq")]
+#[allow(deprecated)]
 impl Transport for RabbitMqTransport {
     fn send(&self, _envelope: Envelope) -> TransportFuture<'_, ()> {
         Box::pin(async move {
@@ -340,6 +903,7 @@ pub struct KafkaTransport {
 }
 
 #[cfg(feature = "transport-kafka")]
+#[allow(deprecated)]
 impl Transport for KafkaTransport {
     fn send(&self, _envelope: Envelope) -> TransportFuture<'_, ()> {
         Box::pin(async move {
@@ -359,8 +923,77 @@ impl Transport for KafkaTransport {
 }
 
 #[cfg(test)]
+#[allow(deprecated)]
 mod tests {
     use super::*;
+
+    #[tokio::test]
+    async fn inmemory_client_server_request_response() {
+        let (client, server) = InMemoryServer::pair(16);
+
+        server.on_message(
+            "greet",
+            Arc::new(|payload, _ctx| {
+                Box::pin(async move {
+                    let name: String = serde_json::from_slice(&payload)
+                        .map_err(|e| TransportError(e.to_string()))?;
+                    let response = format!("Hello, {name}!");
+                    serde_json::to_vec(&response).map_err(|e| TransportError(e.to_string()))
+                })
+            }),
+        );
+
+        server.listen().await.unwrap();
+
+        let response: String = client.send("greet", &"World".to_string()).await.unwrap();
+        assert_eq!(response, "Hello, World!");
+    }
+
+    #[tokio::test]
+    async fn inmemory_client_server_event() {
+        let (client, server) = InMemoryServer::pair(16);
+        let received = Arc::new(Mutex::new(Vec::new()));
+
+        let events = Arc::clone(&received);
+        server.on_event(
+            "user.created",
+            Arc::new(move |payload, _ctx| {
+                let events = Arc::clone(&events);
+                Box::pin(async move {
+                    let name: String = serde_json::from_slice(&payload)
+                        .map_err(|e| TransportError(e.to_string()))?;
+                    events.lock().await.push(name);
+                    Ok(())
+                })
+            }),
+        );
+
+        server.listen().await.unwrap();
+        client
+            .emit("user.created", &"Alice".to_string())
+            .await
+            .unwrap();
+        client
+            .emit("user.created", &"Bob".to_string())
+            .await
+            .unwrap();
+
+        tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
+        let events = received.lock().await;
+        assert_eq!(events.len(), 2);
+        assert!(events.contains(&"Alice".to_string()));
+        assert!(events.contains(&"Bob".to_string()));
+    }
+
+    #[tokio::test]
+    async fn inmemory_no_handler_returns_error() {
+        let (client, server) = InMemoryServer::pair(16);
+        server.listen().await.unwrap();
+
+        let result: Result<String, TransportError> =
+            client.send("missing", &"data".to_string()).await;
+        assert!(result.is_err());
+    }
 
     #[tokio::test]
     async fn channel_transport_send_and_receive() {
@@ -372,8 +1005,9 @@ mod tests {
             payload: b"hello".to_vec(),
         };
 
-        left.send(envelope.clone()).await.unwrap();
-        let received = right.receive().await.unwrap().unwrap();
+        #[allow(deprecated)]
+        Transport::send(&left, envelope.clone()).await.unwrap();
+        let received = Transport::receive(&right).await.unwrap().unwrap();
         assert_eq!(received.correlation_id, "test-1");
         assert_eq!(received.route, "test.route");
         assert_eq!(received.payload, b"hello");
@@ -389,21 +1023,53 @@ mod tests {
             payload: b"ping".to_vec(),
         };
 
-        left.send(envelope).await.unwrap();
-        let received = right.receive().await.unwrap().unwrap();
+        #[allow(deprecated)]
+        Transport::send(&left, envelope).await.unwrap();
+        let received = Transport::receive(&right).await.unwrap().unwrap();
         assert_eq!(received.payload, b"ping");
 
-        right
-            .send(Envelope {
+        Transport::send(
+            &right,
+            Envelope {
                 correlation_id: "reply".into(),
                 route: "echo.reply".into(),
                 headers: BTreeMap::new(),
                 payload: b"pong".to_vec(),
-            })
-            .await
-            .unwrap();
+            },
+        )
+        .await
+        .unwrap();
         let reply = left.receive().await.unwrap().unwrap();
         assert_eq!(reply.payload, b"pong");
+    }
+
+    #[tokio::test]
+    async fn channel_transport_client_server_pattern() {
+        let (client, server) = ChannelTransport::pair(16);
+
+        let client2 = client.clone();
+        tokio::spawn(async move {
+            let result: String = MicroserviceClient::send(&client2, "test", &"ping".to_string())
+                .await
+                .unwrap();
+            assert_eq!(result, "pong");
+        });
+
+        // Simulate server receiving the request via the deprecated Transport trait
+        #[allow(deprecated)]
+        let req = Transport::receive(&server).await.unwrap().unwrap();
+        assert_eq!(req.route, "test");
+
+        let response = Envelope {
+            correlation_id: req.correlation_id,
+            route: "test.reply".into(),
+            headers: BTreeMap::new(),
+            payload: serde_json::to_vec(&"pong".to_string()).unwrap(),
+        };
+        #[allow(deprecated)]
+        Transport::send(&server, response).await.unwrap();
+        // Give the spawned task time to complete
+        tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
     }
 
     #[cfg(feature = "transport-redis")]

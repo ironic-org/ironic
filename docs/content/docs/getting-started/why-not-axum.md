@@ -79,4 +79,4 @@ Ironic adds minimal overhead on top of axum:
 - **Middleware pipeline**: ~50ns per layer (tower layer overhead)
 - **Total overhead vs raw axum**: ~1µs per request (negligible for 99% of use cases)
 
-See [Benchmarks](/docs/getting-started/benchmarks) for detailed numbers.
+See [Benchmarks](/docs/more/benchmarks) for detailed numbers.

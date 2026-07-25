@@ -4,6 +4,8 @@
 pub mod cache;
 #[cfg(feature = "events")]
 pub mod events;
+#[cfg(feature = "http-client")]
+pub mod http_client;
 #[cfg(feature = "realtime")]
 pub mod realtime;
 #[cfg(feature = "scheduling")]

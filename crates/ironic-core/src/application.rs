@@ -1,5 +1,8 @@
 use std::{future::Future, net::SocketAddr, pin::Pin, sync::Arc};
 
+#[cfg(feature = "microservices")]
+type ServerStartup = Box<dyn FnOnce() -> Pin<Box<dyn Future<Output = ()> + Send>> + Send>;
+
 use ironic_di::{Container, ProviderDefinition, ProviderKey, ProviderValue, ResolveError};
 use ironic_http::{Middleware, RequestLogging};
 use ironic_platform::{HttpPlatformAdapter, HttpPlatformApplication, Shutdown, ShutdownSignal};
@@ -78,6 +81,8 @@ pub struct ApplicationBuilder<A = MissingPlatform> {
     middlewares: Vec<Arc<dyn Middleware>>,
     adapter: A,
     disable_request_logging: bool,
+    #[cfg(feature = "microservices")]
+    microservice_servers: Vec<ServerStartup>,
 }
 
 type ModuleConfigurationFuture =
@@ -113,6 +118,8 @@ impl Default for ApplicationBuilder<MissingPlatform> {
             middlewares: Vec::new(),
             adapter: MissingPlatform,
             disable_request_logging: false,
+            #[cfg(feature = "microservices")]
+            microservice_servers: Vec::new(),
         }
     }
 }
@@ -135,6 +142,49 @@ impl<A> ApplicationBuilder<A> {
         F: Future<Output = Result<ModuleDefinition, ModuleConfigurationError>> + Send + 'static,
     {
         self.root = Some(RootModule::Deferred(Box::pin(module)));
+        self
+    }
+
+    /// Registers a microservice server that starts alongside the HTTP server.
+    ///
+    /// The server's `listen()` is called during application bootstrap.
+    #[cfg(feature = "microservices")]
+    #[must_use]
+    pub fn microservice_server(
+        mut self,
+        server: impl crate::distributed::microservices::MicroserviceServer + 'static,
+    ) -> Self {
+        self.microservice_servers.push(Box::new(move || {
+            Box::pin(async move {
+                let _ = server.listen().await;
+            })
+        }));
+        self
+    }
+
+    /// Registers a custom transport strategy (client + server pair).
+    #[cfg(feature = "microservices")]
+    #[must_use]
+    pub fn custom_transport(
+        self,
+        strategy: impl crate::distributed::microservices::CustomTransportStrategy,
+    ) -> Self {
+        let (client, server) = strategy.create();
+        self.microservice_server(server).microservice_client(client)
+    }
+
+    /// Registers a microservice client that connects during application startup.
+    #[cfg(feature = "microservices")]
+    #[must_use]
+    pub fn microservice_client(
+        mut self,
+        client: impl crate::distributed::microservices::MicroserviceClient + 'static,
+    ) -> Self {
+        self.microservice_servers.push(Box::new(move || {
+            Box::pin(async move {
+                let _ = client.connect().await;
+            })
+        }));
         self
     }
 
@@ -176,6 +226,8 @@ impl<A> ApplicationBuilder<A> {
             middlewares: self.middlewares,
             adapter,
             disable_request_logging: self.disable_request_logging,
+            #[cfg(feature = "microservices")]
+            microservice_servers: self.microservice_servers,
         }
     }
 }
@@ -204,10 +256,12 @@ where
         };
         let module_ref = std::sync::Arc::new(ModuleRef::new());
         let module_ref_provider = ProviderDefinition::value(module_ref.clone());
+        let discovery = std::sync::Arc::new(ironic_di::DiscoveryService::new());
+        let discovery_provider = ProviderDefinition::value(discovery.clone());
         let graph = compile_module_graph(root)?;
         let http = build_http_application_with_extra_providers(
             &graph,
-            [module_ref_provider],
+            [module_ref_provider, discovery_provider],
             self.overrides,
         )?
         .extend_middleware(self.middlewares);
@@ -222,6 +276,14 @@ where
         configure_modules(&graph, &container).await?;
         run_async_module_init(&graph, &container).await?;
         initialize_eager_providers(&graph, &container).await?;
+        container
+            .resolve_forward_refs()
+            .await
+            .map_err(|error| ApplicationError::Lifecycle {
+                provider: ProviderKey::of::<ironic_di::ForwardRefPlaceholder>(),
+                stage: "forward_ref_resolution",
+                message: error.to_string(),
+            })?;
         let mut initialized = Vec::new();
         if let Err(error) = initialize_lifecycle(&graph, &container, &mut initialized).await {
             let _ = destroy_modules(&initialized).await;
@@ -245,6 +307,11 @@ where
                 });
             }
         };
+
+        #[cfg(feature = "microservices")]
+        for startup in self.microservice_servers {
+            tokio::spawn(startup());
+        }
 
         Ok(Application {
             graph,

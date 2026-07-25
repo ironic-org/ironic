@@ -6,6 +6,7 @@
     "websocket",
     "graphql",
     "openapi",
-    "mcp"
+    "mcp",
+    "sse"
   ]
 }

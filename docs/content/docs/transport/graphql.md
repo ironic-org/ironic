@@ -1,89 +1,78 @@
 ---
-title: GraphQL Transport
-description: GraphQL API support with schema-first or code-first approach, queries, mutations, and subscriptions.
+title: GraphQL
+description: GraphQL API with resolver decorators, mutations, subscriptions, and Federation
 ---
 
-# GraphQL Transport
+# GraphQL
 
-GraphQL support lets you expose a query language API alongside your REST endpoints. Ironic uses `async-graphql` under the hood, integrated with the DI container for resolver resolution.
+Ironic provides deep GraphQL integration through `async-graphql` with DI-powered
+resolver decorators and schema building.
 
-## Enabling GraphQL
-
-Enable the `graphql` feature:
+## Enabling
 
 ```toml
 [dependencies]
-ironic = { version = "1.0", features = ["graphql"] }
+ironic = { features = ["graphql"] }
 ```
 
-## Schema Provider
+## Resolvers
 
-Register a GraphQL schema provider as an injectable service:
+Use `#[resolver]` to create DI-injectable GraphQL resolvers:
 
 ```rust
-use ironic::*;
-use async_graphql::*;
+use ironic::{resolver, gql_query, mutation, subscription};
 
-struct QueryRoot;
+#[resolver]
+struct UserResolver {
+    user_service: UserService,
+}
 
+#[gql_query]
+async fn users(&self) -> Vec<User> {
+    self.user_service.list().await
+}
+
+#[mutation]
+async fn create_user(&self, name: String) -> User {
+    self.user_service.create(name).await
+}
+
+#[subscription]
+async fn user_added(&self) -> impl futures_util::Stream<Item = User> {
+    self.user_service.subscribe()
+}
+```
+
+## Schema Builder
+
+```rust
+use ironic::graphql_integration::{GraphqlSchemaBuilder, QueryOnlySchema};
+use async_graphql::{EmptyMutation, EmptySubscription};
+
+struct Query;
 #[Object]
-impl QueryRoot {
-    async fn users(&self, ctx: &Context<'_>) -> Vec<User> {
-        // Resolver can access DI container
-        let repo = ctx.data::<Arc<UserRepository>>()?;
-        repo.find_all().await
-    }
+impl Query {
+    async fn hello(&self) -> &str { "world" }
 }
 
-#[injectable]
-fn schema_provider() -> Schema<QueryRoot, EmptyMutation, EmptySubscription> {
-    Schema::build(QueryRoot, EmptyMutation, EmptySubscription)
-        .finish()
-}
+let schema: QueryOnlySchema<Query> = GraphqlSchemaBuilder::new(
+    Query, EmptyMutation, EmptySubscription
+).finish();
 ```
 
-Then wire it into a controller:
+## Federation
 
 ```rust
-#[controller("/graphql")]
-struct GraphqlController {
-    schema: Arc<Schema<QueryRoot, EmptyMutation, EmptySubscription>>,
-}
-
-#[routes]
-impl GraphqlController {
-    #[post("/")]
-    async fn execute(&self, body: JsonBody<GraphQLRequest>) -> Json<GraphQLResponse> {
-        let response = body.0.execute(&self.schema).await;
-        Json(response)
-    }
-}
+let schema = GraphqlSchemaBuilder::new(Query, EmptyMutation, EmptySubscription)
+    .enable_federation()
+    .finish();
 ```
 
-## What's Supported
+## Full async-graphql Access
 
-- **Queries**: Read-only data fetching with filtering, pagination, sorting
-- **Mutations**: Data modification with validation
-- **Subscriptions**: Real-time updates via WebSocket (requires `realtime` feature)
-- **DI Integration**: Resolvers can inject dependencies from the container
-- **Error Handling**: GraphQL errors mapped from framework exceptions
-
-## Configuration
+All `async-graphql` types are available via `ironic::graphql_integration::driver`:
 
 ```rust
-use ironic::distributed::graphql::GraphQLConfig;
-
-let config = GraphQLConfig {
-    max_depth: 32,
-    max_complexity: 1000,
-    enable_federation: false,
-    // ...
-};
+use ironic::graphql_integration::driver;
+// driver::Scalar, driver::Interface, driver::Union, driver::CustomDirective, etc.
 ```
-
-## Roadmap
-
-- **Federation support** for microservice GraphQL gateways
-- **Automatic schema generation** from entity definitions
-- **Batch query optimization** (DataLoader integration)
-- **Persisted queries** for production optimization

@@ -1,4 +1,4 @@
 {
   "title": "Performance",
-  "pages": ["cache-decorators", "scheduling", "distributed", "message-transports", "queues", "sagas"]
+  "pages": ["cache-decorators", "scheduling", "distributed", "message-transports", "queues", "sagas", "microservices", "message-handler", "hybrid-application", "http-client", "distributed-tracing", "serverless", "events"]
 }

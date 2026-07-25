@@ -43,7 +43,10 @@ Every feature flag in `Cargo.toml` (58 total), organized by category.
 | `cache` | `Cache` trait, `InMemoryCache`, `RedisCache` (with `redis`), `CacheInterceptor` |
 | `scheduling` | `ScheduledTask`, `interval()`, `cron()`, `cron_schedule()` |
 | `events` | `EventBus` — typed in-process pub/sub |
-| `realtime` | WebSocket + SSE support (`WsConnections`, `WebSocketHandler`, `sse_channel()`) |
+| `realtime` | WebSocket support (`WsConnections`, `WebSocketHandler`) |
+| `sse` | Server-Sent Events (`SseRoute`, `SseConfig`, `EventBroadcaster`) |
+| `mcp` | Model Context Protocol server (`McpServer`, `McpRouter`, `McpTool`) |
+| `http-client` | Injectable HTTP client (`HttpClientService`, `RetryClient`, `CircuitBreakerClient`) |
 | `application-services` | Bundled: `cache`, `scheduling`, `events`, `realtime` |
 
 ## Distributed Systems
@@ -63,6 +66,10 @@ Every feature flag in `Cargo.toml` (58 total), organized by category.
 | `transport-redis` | Redis message transport |
 | `transport-rabbitmq` | RabbitMQ message transport (via `lapin`) |
 | `transport-kafka` | Kafka message transport |
+| `transport-mqtt` | MQTT message transport (via `rumqttc`) |
+| `transport-nats` | NATS message transport (via `async-nats`) |
+| `tls` | TLS/HTTPS configuration (`TlsConfig`, cert/key paths) |
+| `serverless` | AWS Lambda deployment (`AxumApplication::run_lambda()`) |
 
 ## Ecosystem
 | Flag | Enables |

@@ -1,120 +1,131 @@
 ---
-title: Message Transports
-description: Connect to Redis, RabbitMQ, and Kafka for distributed messaging — queues, pub/sub, and microservice communication.
+title: Transport Backends
+description: Configure Redis, RabbitMQ, Kafka, and TCP microservice transports
 ---
 
-# Message Transports
+# Transport Backends
 
-## What you'll learn
-
-- Configure Redis as a message transport
-- Connect to RabbitMQ for AMQP messaging
-- Set up Kafka for high-throughput event streaming
-
-Enable individually:
+## Redis
 
 ```toml
+[dependencies]
 ironic = { features = ["transport-redis"] }
+```
+
+```rust
+use ironic::distributed::transport_redis::{
+    RedisClient, RedisClientConfig,
+    RedisServer, RedisServerConfig,
+};
+
+// Server
+let server = RedisServer::new(RedisServerConfig {
+    url: "redis://127.0.0.1:6379".into(),
+    wildcards: false,
+    retry_attempts: 3,
+    retry_delay_ms: 1000,
+    ..Default::default()
+});
+
+// Client
+let client = RedisClient::new(RedisClientConfig {
+    url: "redis://127.0.0.1:6379".into(),
+    retry_attempts: 3,
+    retry_delay_ms: 1000,
+    ..Default::default()
+});
+```
+
+Uses Redis pub/sub with `PUBLISH`/`SUBSCRIBE`. Replies are sent on `{pattern}.reply` channels.
+
+## RabbitMQ
+
+```toml
+[dependencies]
 ironic = { features = ["transport-rabbitmq"] }
+```
+
+```rust
+use ironic::distributed::transport_rabbitmq::{
+    RmqClient, RmqClientConfig,
+    RmqServer, RmqServerConfig,
+};
+
+let server = RmqServer::new(RmqServerConfig {
+    url: "amqp://guest:guest@127.0.0.1:5672".into(),
+    exchange: "ironic".into(),
+    queue: String::new(),
+    ..Default::default()
+});
+```
+
+Uses topic exchanges with queue binding. Replies use AMQP's `reply-to` mechanism.
+
+## MQTT
+
+```toml
+[dependencies]
+ironic = { features = ["transport-mqtt"] }
+```
+
+```rust
+use ironic::distributed::transport_mqtt::{
+    MqttClient, MqttClientConfig,
+    MqttServer, MqttServerConfig,
+};
+```
+
+Uses MQTT pub/sub via `rumqttc`. Replies are published to `{prefix}/reply/{correlation_id}`.
+
+## NATS
+
+```toml
+[dependencies]
+ironic = { features = ["transport-nats"] }
+```
+
+```rust
+use ironic::distributed::transport_nats::{
+    NatsClient, NatsClientConfig,
+    NatsServer, NatsServerConfig,
+};
+```
+
+Uses NATS pub/sub via `async-nats`. Replies use `{prefix}.reply.{correlation_id}` subjects.
+
+## Kafka
+
+```toml
+[dependencies]
 ironic = { features = ["transport-kafka"] }
 ```
 
----
-
-## Redis transport
-
 ```rust
-use ironic::distributed::microservices::RedisTransportConfig;
-
-let config = RedisTransportConfig {
-    url: "redis://localhost:6379".into(),
-    channel_prefix: Some("myapp".into()),  // Namespace channels
-    pool_size: Some(8),                     // Connection pool
+use ironic::distributed::transport_kafka::{
+    KafkaClient, KafkaClientConfig,
+    KafkaServer, KafkaServerConfig,
 };
-
-let transport = config.connect().await?;
 ```
 
-### Redis pub/sub
+Uses topics with producer/consumer pattern. Reply topic is `{topic}_reply`.
+
+## TCP
 
 ```rust
-// Publisher
-transport.publish("orders.new", order_payload).await?;
-
-// Subscriber
-let mut stream = transport.subscribe("orders.new").await?;
-while let Some(msg) = stream.next().await {
-    process_order(msg).await;
-}
-```
-
-## RabbitMQ transport
-
-```rust
-use ironic::distributed::microservices::RabbitMqTransportConfig;
-
-let config = RabbitMqTransportConfig {
-    url: "amqp://guest:guest@localhost:5672".into(),
-    exchange: "myapp.events".into(),
-    queue_prefix: Some("myapp".into()),
+use ironic::distributed::transport_tcp::{
+    TcpClient, TcpClientConfig,
+    TcpServer, TcpServerConfig,
 };
-
-let transport = config.connect().await?;
 ```
 
-### RabbitMQ routing
+Simple TCP socket transport. Messages are newline-delimited JSON.
+
+## In-Memory
+
+For testing, use `InMemoryServer::pair()`:
 
 ```rust
-// Publish to exchange with routing key
-transport.publish("order.created", &routing_key, payload).await?;
+use ironic::distributed::microservices::InMemoryServer;
 
-// Bind queue to exchange
-transport.bind_queue("orders", "order.*").await?;
-
-// Consume
-let mut consumer = transport.consume("orders").await?;
+let (client, server) = InMemoryServer::pair(16);
 ```
-
-## Kafka transport
-
-```rust
-use ironic::distributed::microservices::KafkaTransportConfig;
-
-let config = KafkaTransportConfig {
-    brokers: "localhost:9092".into(),
-    group_id: "myapp-consumers".into(),
-    client_id: Some("myapp-producer".into()),
-};
-
-let transport = config.connect().await?;
-```
-
-### Kafka producer/consumer
-
-```rust
-// Producer
-transport.produce("orders", key, payload).await?;
-
-// Consumer
-let mut stream = transport.consume(&["orders"]).await?;
-while let Some(record) = stream.next().await {
-    handle_order(record.key, record.value).await;
-}
-```
-
-## Which transport should I use?
-
-| Transport | Best for | Throughput |
-|-----------|----------|-----------|
-| **Redis** | Lightweight pub/sub, caching, simple queues | ~100k msg/s |
-| **RabbitMQ** | Reliable delivery, complex routing, enterprise | ~50k msg/s |
-| **Kafka** | High-volume event streaming, replay, log-based | ~1M+ msg/s |
-
-> **Start with Redis** for simple pub/sub. Move to Kafka when you need event replay or millions of messages per second.
-
-## What you learned
-
-- [x] Redis: simple pub/sub, good for most use cases
-- [x] RabbitMQ: reliable delivery with routing keys
-- [x] Kafka: high-throughput event streaming
-- [x] All transports integrate with Ironic's DI and queues

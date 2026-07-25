@@ -3,7 +3,7 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use super::{naming::Names, source::write_generated};
+use super::{app::app_production_guide, naming::Names, source::write_generated};
 use crate::CliError;
 
 /// Result of creating a new project.
@@ -77,26 +77,23 @@ pub fn create(
         ),
         (destination.join("README.md"), readme(&names.kebab)),
         (destination.join("src/main.rs"), main_source(&names.kebab)),
-        (destination.join("src/app.rs"), app_source().into()),
+        (destination.join("src/app.rs"), app_source()),
+        (
+            destination.join("PRODUCTION.md"),
+            app_production_guide(&names.kebab, 8080),
+        ),
         (
             destination.join("src/welcome.rs"),
             welcome_source(&names.kebab),
         ),
+        (destination.join("src/platform/mod.rs"), platform_mod()),
         (
-            destination.join("src/platform/mod.rs"),
-            platform_mod().into(),
+            destination.join("src/platform/logging.rs"),
+            platform_logging(),
         ),
         (
             destination.join("src/platform/config.rs"),
-            platform_config().into(),
-        ),
-        (
-            destination.join("src/platform/database.rs"),
-            platform_database(),
-        ),
-        (
-            destination.join("src/platform/telemetry.rs"),
-            platform_telemetry().into(),
+            platform_config(),
         ),
         (destination.join("src/modules/mod.rs"), modules_mod().into()),
         (
@@ -255,110 +252,34 @@ fn main_source(name: &str) -> String {
     let version = env!("CARGO_PKG_VERSION");
     format!(
         r#"mod app;
-mod modules;
 mod platform;
-mod welcome;
 
-use std::time::Duration;
-
-use ironic::{{AxumAdapter, OpenApiConfig, OpenApiAxumExt}};
-use ironic::metrics::{{MetricsLayer, MetricsConfig}};
 use ironic::prelude::*;
-use ironic::security::{{
-    CorsConfig, CorsMiddleware,
-    RateLimitMiddleware,
-    SecurityHeadersConfig, SecurityHeadersMiddleware,
-}};
 
 use app::AppModule;
-
-struct GlobalExceptionMiddleware;
-
-impl ironic::Middleware for GlobalExceptionMiddleware {{
-    fn handle<'a>(
-        &'a self,
-        context: &'a mut ironic::RequestContext,
-        next: ironic::MiddlewareNext<'a>,
-    ) -> ironic::PipelineFuture<'a> {{
-        Box::pin(async move {{
-            match next.run(context).await {{
-                Ok(response) => Ok(response),
-                Err(error) => {{
-                    let body = ironic::json::json!({{
-                        "error": error.code(),
-                        "message": error.message(),
-                        "status": error.status().as_u16(),
-                    }});
-                    ironic::Response::json(error.status(), &body)
-                }}
-            }}
-        }})
-    }}
-}}
 
 #[ironic::main]
 async fn main() {{
     dotenvy::dotenv().ok();
-    platform::telemetry::init_tracing();
+    platform::logging::init();
 
-    let addr = format!(
-        "{{}}:{{}}",
-        platform::config::env("SERVER_HOST").unwrap_or_else(|| "0.0.0.0".into()),
-        platform::config::env("SERVER_PORT").unwrap_or_else(|| "8080".into()),
-    );
-    let cors_origins = platform::config::env_json_array("CORS_ORIGINS");
-    let rate_limit_max: u64 = platform::config::env_parsed("RATE_LIMIT_MAX", 100u64);
-
-    let application = Application::builder()
+    let addr = platform::config::listen_addr("8080");
+    let app = Application::builder()
         .module(AppModule::definition())
-        .middleware(GlobalExceptionMiddleware)
-        .middleware(SecurityHeadersMiddleware::new(SecurityHeadersConfig::default()))
-        .middleware(RateLimitMiddleware::new(rate_limit_max, 60))
-        .middleware(CorsMiddleware::new(CorsConfig::new().allowed_origins(cors_origins)))
-        .platform(
-            AxumAdapter::new()
-                .compression()
-                .request_body_limit(5 * 1024 * 1024)
-                .request_timeout(Duration::from_secs(30))
-                .configure_router(|r| {{
-                    r.layer(MetricsLayer::new(MetricsConfig::default()))
-                }})
-                .with_openapi(OpenApiConfig::new("{name}", "0.1.0"))
-                .swagger_ui("/docs"),
-        )
+        .platform(AxumAdapter::new())
         .build()
         .await
         .expect("application must initialise");
 
-    println!("🚀 {name} → http://{{}} (ironic v{version})", addr);
-
-    application
-        .listen(&addr)
-        .await
-        .expect("application server failed");
+    println!("🚀 {name} → http://{{addr}} (ironic v{version})");
+    app.listen(&addr).await.expect("server failed");
 }}
 "#,
     )
 }
 
-fn app_source() -> &'static str {
-    r"use ironic::prelude::*;
-use crate::welcome::WelcomeModule;
-use crate::modules::example::ExampleModule;
-use ironic::metrics::MetricsModule;
-
-#[derive(Module)]
-#[module(
-    imports = [HealthModule,
-    MetricsModule,
-    WelcomeModule,
-    ExampleModule],
-    providers = [],
-    controllers = [],
-    exports = [],
-)]
-pub struct AppModule;
-"
+fn app_source() -> String {
+    "use ironic::prelude::*;\n\n#[derive(Module)]\n#[module()]\npub struct AppModule;\n".to_string()
 }
 
 fn welcome_source(name: &str) -> String {
@@ -779,125 +700,37 @@ async fn not_found_returns_404() {
 
 // ── Platform ───────────────────────────────────────────────────────────
 
-fn platform_mod() -> &'static str {
-    "pub mod config;\npub mod telemetry;\n// pub mod database;\n"
+fn platform_mod() -> String {
+    "pub mod config;\npub mod logging;\n".to_string()
 }
 
-fn platform_config() -> &'static str {
-    r#"use std::env;
-
-pub fn env(key: &str) -> Option<String> {
-    env::var(key).ok()
-}
-
-pub fn env_parsed<T: std::str::FromStr>(key: &str, default: T) -> T {
-    env::var(key).ok()
-        .and_then(|v| v.parse().ok())
-        .unwrap_or(default)
-}
-
-pub fn env_json_array(key: &str) -> Vec<String> {
-    env::var(key)
-        .ok()
-        .and_then(|v| serde_json::from_str(&v).ok())
-        .unwrap_or_default()
-}
-
-#[allow(dead_code)]
-pub fn server_address() -> String {
-    let host = env("SERVER_HOST").unwrap_or_else(|| "0.0.0.0".into());
-    let port = env("SERVER_PORT").unwrap_or_else(|| "8080".into());
-    format!("{host}:{port}")
-}
-"#
-}
-
-fn platform_database() -> String {
-    r#"//! Database connection pool (PostgreSQL via SQLx).
-//!
-//! # Setup
-//!
-//! 1. Set `DATABASE_URL` in your `.env` file:
-//!
-//!    ```env
-//!    DATABASE_URL=postgres://user:password@localhost:5432/my_app
-//!    ```
-//!
-//! 2. Uncomment `pub mod database;` in `src/platform/mod.rs`.
-//!
-//! 3. Initialize the pool at application startup (e.g. in `main.rs`):
-//!
-//!    ```rust
-//!    use platform::database::build_pool;
-//!    let pool = build_pool().await;
-//!    ```
-//!
-//! 4. Access the pool anywhere in your app:
-//!
-//!    ```rust
-//!    use platform::database::db;
-//!    let row = sqlx::query("SELECT ...").fetch_one(db()).await?;
-//!    ```
-//!
-//! # Migrations
-//!
-//! Create a `migrations/` directory with SQL migration files named using the
-//! standard SQLx convention: `YYYYMMDD_HHMMSS_description.sql`.
-//! Migrations are run automatically when `build_pool()` is called.
-
-use std::sync::OnceLock;
-
-pub static DB_POOL: OnceLock<sqlx::PgPool> = OnceLock::new();
-
-pub fn db() -> &'static sqlx::PgPool {
-    DB_POOL
-        .get()
-        .expect("DATABASE_URL must be set and pool initialized")
-}
-
-#[allow(dead_code)]
-pub async fn build_pool() -> sqlx::PgPool {
-    let url = dotenvy::var("DATABASE_URL").expect("DATABASE_URL must be set");
-
-    let pool = sqlx::postgres::PgPoolOptions::new()
-        .max_connections(super::config::env("DB_POOL_SIZE")
-            .and_then(|v| v.parse().ok())
-            .unwrap_or(10))
-        .connect(&url)
-        .await
-        .expect("failed to connect to database");
-
-    sqlx::migrate::Migrator::new(std::path::Path::new("./migrations"))
-        .await
-        .expect("invalid migrations directory")
-        .run(&pool)
-        .await
-        .expect("failed to run migrations");
-
-    tracing::info!("database pool ready (max: {})", pool.size());
-    pool
-}
-"#
-    .to_owned()
-}
-
-fn platform_telemetry() -> &'static str {
+fn platform_logging() -> String {
     r#"use tracing_subscriber::EnvFilter;
 
-pub fn init_tracing() {
+pub fn init() {
+    let filter = EnvFilter::try_from_default_env()
+        .unwrap_or_else(|_| "info".into());
     tracing_subscriber::fmt()
-        .with_env_filter(
-            EnvFilter::try_from_default_env()
-                .unwrap_or_else(|_| EnvFilter::new("info")),
-        )
-        .with_target(true)
-        .with_thread_ids(true)
-        .with_file(true)
-        .with_line_number(true)
-        .compact()
+        .with_env_filter(filter)
+        .with_target(false)
+        .with_file(false)
+        .with_line_number(false)
         .init();
 }
 "#
+    .to_string()
+}
+
+fn platform_config() -> String {
+    r#"use std::env;
+
+pub fn listen_addr(default_port: &str) -> String {
+    let host = env::var("SERVER_HOST").unwrap_or_else(|_| "0.0.0.0".into());
+    let port = env::var("SERVER_PORT").unwrap_or_else(|_| default_port.into());
+    format!("{host}:{port}")
+}
+"#
+    .to_string()
 }
 
 // ── Infrastructure ─────────────────────────────────────────────────────
@@ -937,21 +770,27 @@ fn gitignore() -> &'static str {
 fn dockerfile(name: &str) -> String {
     let binary = name.replace('-', "_");
     format!(
-        r#"# Stage 1: Build
-FROM rust:1.97-slim-bookworm AS builder
+        r#"FROM rust:1.97-alpine AS builder
 WORKDIR /app
-COPY Cargo.toml Cargo.lock* ./
-COPY src ./src
-RUN cargo build --release
 
-# Stage 2: Distroless runtime
-FROM gcr.io/distroless/cc-debian12
-WORKDIR /app
-COPY --from=builder /app/target/release/{binary} /app/{binary}
+RUN apk add --no-cache musl-dev openssl-dev pkgconfig && \
+    rustup target add x86_64-unknown-linux-musl
+
+COPY Cargo.toml Cargo.lock ./
+RUN mkdir -p src && echo "fn main() {{}}" > src/main.rs
+RUN --mount=type=cache,target=/root/.cargo/registry \
+    cargo build --release --target x86_64-unknown-linux-musl 2>/dev/null; true
+
+COPY src ./src
+RUN --mount=type=cache,target=/root/.cargo/registry \
+    cargo build --release --target x86_64-unknown-linux-musl
+
+FROM scratch
+COPY --from=builder /app/target/x86_64-unknown-linux-musl/release/{binary} /{binary}
 ENV SERVER_HOST=0.0.0.0
 ENV SERVER_PORT=8080
 EXPOSE 8080
-CMD ["./{binary}"]
+CMD ["/{binary}"]
 "#,
     )
 }

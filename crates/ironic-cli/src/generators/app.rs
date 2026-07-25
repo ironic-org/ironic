@@ -66,9 +66,12 @@ fn generate_app_files(
         (dest.join(".env"), app_env(names, port)),
         (dest.join("src/main.rs"), app_main(names, port)),
         (dest.join("src/app.rs"), app_module()),
+        (dest.join("src/platform/mod.rs"), app_platform_mod()),
+        (dest.join("src/platform/logging.rs"), app_platform_logging()),
+        (dest.join("src/platform/config.rs"), app_platform_config()),
         (
             dest.join("PRODUCTION.md"),
-            app_production_guide(names, port),
+            app_production_guide(&names.raw, port),
         ),
     ]
 }
@@ -198,7 +201,7 @@ DATABASE_URL=postgres://user:CHANGE_ME@localhost:5432/{name}
 }
 
 #[allow(clippy::too_many_lines)]
-fn app_production_guide(names: &naming::Names, _port: u16) -> String {
+pub(super) fn app_production_guide(name: &str, _port: u16) -> String {
     format!(
         r#"# Production Readiness Guide — {name}
 
@@ -431,7 +434,6 @@ The framework handles SIGTERM/SIGINT automatically. Ensure your reverse proxy (n
 - [ ] Metrics exported and scraped by Prometheus
 - [ ] Structured JSON logging for log aggregation
 "#,
-        name = names.raw
     )
 }
 
@@ -440,6 +442,7 @@ fn app_main(names: &naming::Names, port: u16) -> String {
     let version = env!("CARGO_PKG_VERSION");
     format!(
         r#"mod app;
+mod platform;
 
 use ironic::prelude::*;
 
@@ -448,26 +451,18 @@ use app::AppModule;
 #[ironic::main]
 async fn main() {{
     dotenvy::dotenv().ok();
+    platform::logging::init();
 
-    let addr = format!(
-        "{{}}:{{}}",
-        std::env::var("SERVER_HOST").unwrap_or_else(|_| "0.0.0.0".into()),
-        std::env::var("SERVER_PORT").unwrap_or_else(|_| "{port}".into()),
-    );
-
-    let application = Application::builder()
+    let addr = platform::config::listen_addr("{port}");
+    let app = Application::builder()
         .module(AppModule::definition())
         .platform(AxumAdapter::new())
         .build()
         .await
         .expect("application must initialise");
 
-    println!("🚀 {name} → http://{{}} (ironic v{version})", addr);
-
-    application
-        .listen(&addr)
-        .await
-        .expect("application server failed");
+    println!("🚀 {name} → http://{{addr}} (ironic v{version})");
+    app.listen(&addr).await.expect("server failed");
 }}
 "#,
         name = names.raw,
@@ -478,6 +473,42 @@ async fn main() {{
 /// Returns the content for the root module `src/app.rs`.
 fn app_module() -> String {
     "use ironic::prelude::*;\n\n#[derive(Module)]\n#[module()]\npub struct AppModule;\n".to_string()
+}
+
+/// Returns the content for `src/platform/mod.rs`.
+fn app_platform_mod() -> String {
+    "pub mod config;\npub mod logging;\n".to_string()
+}
+
+/// Returns the content for `src/platform/logging.rs`.
+fn app_platform_logging() -> String {
+    r#"use tracing_subscriber::EnvFilter;
+
+pub fn init() {
+    let filter = EnvFilter::try_from_default_env()
+        .unwrap_or_else(|_| "info".into());
+    tracing_subscriber::fmt()
+        .with_env_filter(filter)
+        .with_target(false)
+        .with_file(false)
+        .with_line_number(false)
+        .init();
+}
+"#
+    .to_string()
+}
+
+/// Returns the content for `src/platform/config.rs`.
+fn app_platform_config() -> String {
+    r#"use std::env;
+
+pub fn listen_addr(default_port: &str) -> String {
+    let host = env::var("SERVER_HOST").unwrap_or_else(|_| "0.0.0.0".into());
+    let port = env::var("SERVER_PORT").unwrap_or_else(|_| default_port.into());
+    format!("{host}:{port}")
+}
+"#
+    .to_string()
 }
 
 /// Generates a reusable library crate with an Ironic module scaffold.

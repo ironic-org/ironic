@@ -22,20 +22,16 @@ UsersModule
 ## Defining a module
 
 ```rust
-use ironic::*;
+use ironic::prelude::*;
 
+#[derive(Module)]
+#[module(
+    imports = [DatabaseModule],
+    providers = [UsersService],
+    controllers = [UsersController],
+    exports = [UsersService],
+)]
 pub struct UsersModule;
-
-impl Module for UsersModule {
-    fn definition() -> ModuleDefinition {
-        ModuleDefinition::builder::<Self>()
-            .import::<DatabaseModule>()
-            .provider(ProviderDefinition::value(UserService::new))
-            .controller(UsersController::definition())
-            .export::<UserService>()
-            .build()
-    }
-}
 ```
 
 ## Module structure

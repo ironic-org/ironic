@@ -48,17 +48,13 @@ src/
 Modules declare what controllers and services they provide, and what other modules they need:
 
 ```rust
-impl Module for UsersModule {
-    fn definition() -> ModuleDefinition {
-        ModuleDefinition::builder::<Self>()
-            .import::<DatabaseModule>()          // depends on DatabaseModule
-            .provider(ProviderDefinition::value(  // registers UserService
-                UserService::new,
-            ))
-            .controller(UsersController::definition())
-            .build()
-    }
-}
+#[derive(Module)]
+#[module(
+    imports = [DatabaseModule],    // depends on DatabaseModule
+    providers = [UserService],     // registers UserService
+    controllers = [controller::UsersController],
+)]
+pub struct UsersModule;
 ```
 
 ## Dependency Injection

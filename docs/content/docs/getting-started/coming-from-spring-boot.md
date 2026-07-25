@@ -118,16 +118,12 @@ public class SecurityConfig {
 
 Ironic:
 ```rust
-impl Module for SecurityModule {
-    fn definition() -> ModuleDefinition {
-        ModuleDefinition::builder::<Self>()
-            .provider(ProviderDefinition::constructor(
-                Scope::Singleton,
-                Vec::new(),
-                |_| Ok(SecurityConfig::default()),
-            ))
-            .build()
-    }
+#[derive(Module)]
+#[module(
+    providers = [SecurityConfig],
+)]
+pub struct SecurityModule;
+```
 }
 ```
 

@@ -83,15 +83,13 @@ export class UsersModule {}
 
 Ironic:
 ```rust
-impl Module for UsersModule {
-    fn definition() -> ModuleDefinition {
-        ModuleDefinition::builder::<Self>()
-            .import::<DatabaseModule>()
-            .provider(ProviderDefinition::value(UsersService::new))
-            .controller(UsersController::definition())
-            .build()
-    }
-}
+#[derive(Module)]
+#[module(
+    imports = [DatabaseModule],
+    providers = [UsersService],
+    controllers = [controller::UsersController],
+)]
+pub struct UsersModule;
 ```
 
 ## Guards

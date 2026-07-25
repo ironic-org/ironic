@@ -336,24 +336,21 @@ dependencies but their types can be registered as providers:
 
 ```rust
 // apps/auth-service/src/app.rs
-impl Module for AppModule {
-    fn definition() -> ModuleDefinition {
-        ModuleDefinition::builder::<Self>()
-            // Local providers (this service only)
-            .provider(AuthService::provider_definition())
-            .provider(UserRepository::provider_definition())
+#[derive(Module)]
+#[module(
+    providers = [
+        AuthService,
+        UserRepository,
+        AnalyticsClient,
+    ],
+)]
+pub struct AppModule;
 
-            // gRPC client providers (this service only)
-            .provider(AnalyticsClient::provider_definition())
-
-            // Shared library value (registered per-service)
-            .provider(ProviderDefinition::value(
-                shared_config::config::AppConfig::from_env()
-            ))
-
-            .build()
-    }
-}
+// Shared library values can be registered in a separate config:
+// Application::builder()
+//     .provider(ProviderDefinition::value(
+//         shared_config::config::AppConfig::from_env()
+//     ))
 ```
 
 ### Cross-Service Call Flow Diagram

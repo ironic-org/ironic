@@ -103,16 +103,11 @@ Required for integration tests to access application internals.
 ```rust
 use ironic::prelude::*;
 
+#[derive(Module)]
+#[module(
+    imports = [modules::users::UsersModule, modules::health::HealthModule],
+)]
 pub struct AppModule;
-
-impl Module for AppModule {
-    fn definition() -> ModuleDefinition {
-        ModuleDefinition::builder::<Self>()
-            .import::<modules::users::UsersModule>()
-            .import::<modules::health::HealthModule>()
-            .build()
-    }
-}
 ```
 
 The root module:

@@ -33,17 +33,12 @@ modules/<domain>/
 ```rust
 use ironic::prelude::*;
 
+#[derive(Module)]
+#[module(
+    providers = [UsersService, UsersRepository],
+    controllers = [controller::UsersController],
+)]
 pub struct UsersModule;
-
-impl Module for UsersModule {
-    fn definition() -> ModuleDefinition {
-        ModuleDefinition::builder::<Self>()
-            .provider(UsersService::provider_definition())
-            .provider(UsersRepository::provider_definition())
-            .controller(UsersController::definition())
-            .build()
-    }
-}
 ```
 
 ## Controller (`controller/<domain>_controller.rs`)

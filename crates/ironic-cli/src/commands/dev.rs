@@ -183,12 +183,10 @@ fn find_app_root(root: &Path, pkg: &str) -> Result<PathBuf, CliError> {
     }
     Err(CliError::io(
         "read",
-        &root.join("apps").join(pkg),
+        root.join("apps").join(pkg),
         std::io::Error::new(
             std::io::ErrorKind::NotFound,
-            format!(
-                "app `{pkg}` not found — have you run `ironic generate app {pkg}`?"
-            ),
+            format!("app `{pkg}` not found — have you run `ironic generate app {pkg}`?"),
         ),
     ))
 }

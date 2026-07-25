@@ -1080,36 +1080,33 @@ dotenvy = "0.15"
     Ok(())
 }
 
-/// Creates shared library directories in a monorepo workspace.
+/// Creates a shared protobuf library directory in a monorepo workspace.
 fn create_monorepo_libs(root: &Path) -> Result<(), CliError> {
-    for lib in &["proto"] {
-        let lib_dir = root.join("libs").join(lib);
-        let lib_dir_src = lib_dir.join("src");
-        fs::create_dir_all(&lib_dir_src).map_err(|e| CliError::Io {
-            action: "create lib directory",
-            path: lib_dir.clone(),
-            source: e,
-        })?;
-        let lib_cargo = format!(
-            r#"[package]
-name = "{lib}"
+    let lib_dir = root.join("libs").join("proto");
+    let lib_dir_src = lib_dir.join("src");
+    fs::create_dir_all(&lib_dir_src).map_err(|e| CliError::Io {
+        action: "create lib directory",
+        path: lib_dir.clone(),
+        source: e,
+    })?;
+    let lib_cargo = r#"[package]
+name = "proto"
 version = "0.1.0"
 edition = "2024"
 "#
-        );
-        std::fs::write(lib_dir.join("Cargo.toml"), &lib_cargo).map_err(|e| CliError::Io {
-            action: "write lib Cargo.toml",
-            path: lib_dir.join("Cargo.toml"),
+    .to_string();
+    std::fs::write(lib_dir.join("Cargo.toml"), &lib_cargo).map_err(|e| CliError::Io {
+        action: "write lib Cargo.toml",
+        path: lib_dir.join("Cargo.toml"),
+        source: e,
+    })?;
+    std::fs::write(lib_dir_src.join("lib.rs"), b"// shared library\n").map_err(|e| {
+        CliError::Io {
+            action: "write lib src",
+            path: lib_dir_src.join("lib.rs"),
             source: e,
-        })?;
-        std::fs::write(lib_dir_src.join("lib.rs"), b"// shared library\n").map_err(|e| {
-            CliError::Io {
-                action: "write lib src",
-                path: lib_dir_src.join("lib.rs"),
-                source: e,
-            }
-        })?;
-    }
+        }
+    })?;
     Ok(())
 }
 
@@ -1264,12 +1261,12 @@ pub use r#mod::{name}Module;
 
 fn library_module_shell(names: &naming::Names) -> String {
     format!(
-        r#"use ::ironic::prelude::*;
+        r"use ::ironic::prelude::*;
 
 #[derive(Module)]
 #[module()]
 pub struct {name}Module;
-"#,
+",
         name = names.pascal
     )
 }

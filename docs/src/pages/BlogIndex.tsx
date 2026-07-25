@@ -13,6 +13,14 @@ type Post = {
 
 const posts: Post[] = [
     {
+        slug: 'v1.1.5',
+        title: 'v1.1.5 — generate_app creates revallens-style microservice with platform/welcome/example module, per-app Dockerfile/.env, unique ',
+        description: 'generate_app creates revallens-style microservice with platform/welcome/example module, per-app Dockerfile/.env, unique ',
+        date: '2026-07-25',
+        tag: 'release',
+        readTime: '2 min',
+    },
+    {
         slug: 'v1.1.4',
         title: 'v1.1.4 — New app scaffolding matches RivalLens structure: multi-line #[module()], repositories/tests in module template',
         description: 'New app scaffolding matches RivalLens structure: multi-line #[module()], repositories/tests in module template',

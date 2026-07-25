@@ -9,6 +9,18 @@ All versions in the v1.1.x series. Visit the [Blog](/blog) for detailed release 
 
 ---
 
+## v1.1.5 — 2026-07-25
+
+# v1.1.5
+### Changed
+- generate_app creates revallens-style microservice with platform/welcome/example module, per-app Dockerfile/.env, unique port
+- app_module uses #[derive(Module)] macro pattern instead of impl Module for
+- Remove shared-config and observability libs from monorepo scaffold
+- Remove Dockerfile from generated app template
+### Added
+- ironic dev -p <name> monorepo support with hot reload
+
+---
 ## v1.1.4 — 2026-07-25
 
 # v1.1.4

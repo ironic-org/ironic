@@ -89,20 +89,27 @@ pub fn generate_app(root: &Path, name: &str) -> Result<GenerationReport, CliErro
         (dest.join("Cargo.toml"), app_manifest(&names)),
         (dest.join("src/main.rs"), app_main(&names)),
         (dest.join("src/app.rs"), app_module(&names)),
-        (dest.join("src/lib.rs"), format!(
-            "pub mod app;\npub mod modules;\npub use app::AppModule;\n"
-        )),
+        (
+            dest.join("src/lib.rs"),
+            format!("pub mod app;\npub mod modules;\npub use app::AppModule;\n"),
+        ),
         (dest.join("src/modules/mod.rs"), "pub mod health;\n".into()),
-        (dest.join("src/modules/health/mod.rs"),
+        (
+            dest.join("src/modules/health/mod.rs"),
             r#"use ironic::prelude::*;
 
 #[derive(Module)]
 #[module()]
 pub struct HealthModule;
-"#.into()),
-        (dest.join("src/modules/health/controller/mod.rs"),
-            "pub mod health_controller;\n".into()),
-        (dest.join("src/modules/health/controller/health_controller.rs"),
+"#
+            .into(),
+        ),
+        (
+            dest.join("src/modules/health/controller/mod.rs"),
+            "pub mod health_controller;\n".into(),
+        ),
+        (
+            dest.join("src/modules/health/controller/health_controller.rs"),
             r#"use ironic::prelude::*;
 
 #[controller("/health")]
@@ -115,7 +122,9 @@ impl HealthController {
         Json(serde_json::json!({"status": "ok"}))
     }
 }
-"#.into()),
+"#
+            .into(),
+        ),
     ];
 
     for (path, contents) in &files {
@@ -282,7 +291,11 @@ dotenvy = {{ workspace = true }}
     })?;
 
     let ironic_version = env!("CARGO_PKG_VERSION");
-    let version_range = ironic_version.splitn(3, '.').take(2).collect::<Vec<_>>().join(".");
+    let version_range = ironic_version
+        .splitn(3, '.')
+        .take(2)
+        .collect::<Vec<_>>()
+        .join(".");
     // Rewrite root Cargo.toml as pure workspace manifest (no [package])
     let workspace_manifest = format!(
         r#"[workspace]
@@ -330,17 +343,18 @@ edition = "2024"
             path: lib_dir.join("Cargo.toml"),
             source: e,
         })?;
-        std::fs::write(lib_dir_src.join("lib.rs"), b"// shared library\n")
-            .map_err(|e| CliError::Io {
+        std::fs::write(lib_dir_src.join("lib.rs"), b"// shared library\n").map_err(|e| {
+            CliError::Io {
                 action: "write lib src",
                 path: lib_dir_src.join("lib.rs"),
                 source: e,
-            })?;
+            }
+        })?;
     }
 
-    report.manual_instructions.push(
-        "converted to monorepo — run `cargo check` to refresh Rust Analyzer".into(),
-    );
+    report
+        .manual_instructions
+        .push("converted to monorepo — run `cargo check` to refresh Rust Analyzer".into());
 
     Ok(())
 }
@@ -363,9 +377,11 @@ fn copy_dir_recursive(src: &Path, dst: &Path) -> Result<(), CliError> {
             path: entry_path.clone(),
             source: e,
         })?;
-        let relative = entry_path.strip_prefix(src).map_err(|_| CliError::InvalidName {
-            name: "path error during copy".into(),
-        })?;
+        let relative = entry_path
+            .strip_prefix(src)
+            .map_err(|_| CliError::InvalidName {
+                name: "path error during copy".into(),
+            })?;
         let target = dst.join(relative);
         if file_type.is_dir() {
             fs::create_dir_all(&target).map_err(|e| CliError::Io {

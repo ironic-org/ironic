@@ -20,4 +20,3 @@ impl AxumApplication {
 
 /// A type alias for Lambda-compatible function errors.
 pub type LambdaError = lambda_http::Error;
-

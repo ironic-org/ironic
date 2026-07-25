@@ -1,12 +1,12 @@
 //! Built-in request parameter extractors.
 
+pub(super) mod cookie;
 pub(super) mod pagination;
 pub(super) mod raw_body;
-pub(super) mod cookie;
 
+pub use cookie::CookieParameter;
 pub use pagination::Pagination;
 pub use raw_body::RawBody;
-pub use cookie::CookieParameter;
 
 #[cfg(test)]
 mod tests {

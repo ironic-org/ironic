@@ -86,16 +86,19 @@ pub(crate) fn expand(input: TokenStream) -> syn::Result<TokenStream> {
                         let inner_type_str = quote!(#inner_type).to_string();
 
                         if optional_types.contains(&inner_type_str) {
-                            dependencies.push(quote!(::ironic::Dependency::optional::<#inner_type>()));
+                            dependencies
+                                .push(quote!(::ironic::Dependency::optional::<#inner_type>()));
                             initializers.push(quote!(
                                 #field_name: ::std::option::Option::Some(
                                     resolver.resolve_optional::<#inner_type>().await?
                                 )
                             ));
                         } else {
-                            dependencies.push(quote!(::ironic::Dependency::required::<#inner_type>()));
-                            initializers
-                                .push(quote!(#field_name: resolver.resolve::<#inner_type>().await?));
+                            dependencies
+                                .push(quote!(::ironic::Dependency::required::<#inner_type>()));
+                            initializers.push(
+                                quote!(#field_name: resolver.resolve::<#inner_type>().await?),
+                            );
                         }
                     }
                 }

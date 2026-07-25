@@ -213,8 +213,6 @@ impl ModuleDefinitionBuilder {
         self.import::<T>()
     }
 
-
-
     /// Adds a runtime-created module definition as a direct import.
     #[must_use]
     pub fn import_definition(mut self, definition: ModuleDefinition) -> Self {
@@ -681,10 +679,7 @@ impl DiscoveryService {
     /// Returns per-provider health statistics.
     #[must_use]
     pub fn provider_health(&self) -> ironic_di::ProviderHealthSummary {
-        self.container
-            .get()
-            .map(|c| c.health())
-            .unwrap_or_default()
+        self.container.get().map(|c| c.health()).unwrap_or_default()
     }
 }
 

@@ -5,7 +5,7 @@
 
 pub use async_graphql as driver;
 
-use async_graphql::{Schema, SchemaBuilder, EmptySubscription};
+use async_graphql::{EmptySubscription, Schema, SchemaBuilder};
 
 /// A builder for constructing a merged GraphQL schema from resolvers.
 pub struct GraphqlSchemaBuilder<Q, M, S> {

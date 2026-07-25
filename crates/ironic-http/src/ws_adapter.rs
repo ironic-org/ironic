@@ -6,7 +6,8 @@ use std::{future::Future, pin::Pin};
 /// A platform-neutral WebSocket connection.
 pub trait WsConnection: Send + Sync + 'static {
     /// Sends a message to the connected client.
-    fn send(&self, message: WsMessage) -> Pin<Box<dyn Future<Output = Result<(), WsError>> + Send>>;
+    fn send(&self, message: WsMessage)
+    -> Pin<Box<dyn Future<Output = Result<(), WsError>> + Send>>;
     /// Receives the next message from the client.
     fn recv(&self) -> Pin<Box<dyn Future<Output = Option<Result<WsMessage, WsError>>> + Send>>;
     /// Closes the connection.

@@ -1,4 +1,8 @@
-#![allow(clippy::type_complexity, clippy::collapsible_if, clippy::while_let_loop)]
+#![allow(
+    clippy::type_complexity,
+    clippy::collapsible_if,
+    clippy::while_let_loop
+)]
 //! Live RabbitMQ transport backend implementing [`MicroserviceClient`] and
 //! [`MicroserviceServer`] using the `lapin` crate.
 
@@ -6,14 +10,13 @@ use std::{collections::HashMap, sync::Arc};
 
 use futures_util::StreamExt;
 use lapin::{
-    BasicProperties, Channel, Connection, ConnectionProperties,
-    ExchangeKind,
+    BasicProperties, Channel, Connection, ConnectionProperties, ExchangeKind,
     options::{
         BasicConsumeOptions, BasicPublishOptions, ExchangeDeclareOptions, QueueBindOptions,
         QueueDeclareOptions,
     },
-    types::ShortString,
     types::FieldTable,
+    types::ShortString,
 };
 
 use crate::distributed::microservices::{
@@ -33,8 +36,11 @@ fn ss(s: &str) -> ShortString {
 pub struct RmqClient {
     config: RmqClientConfig,
     channel: Arc<tokio::sync::OnceCell<Channel>>,
-    response_handlers:
-        Arc<tokio::sync::Mutex<HashMap<String, tokio::sync::oneshot::Sender<Result<Vec<u8>, TransportError>>>>>,
+    response_handlers: Arc<
+        tokio::sync::Mutex<
+            HashMap<String, tokio::sync::oneshot::Sender<Result<Vec<u8>, TransportError>>>,
+        >,
+    >,
 }
 
 /// Configuration for a RabbitMQ microservice client.
@@ -320,7 +326,11 @@ impl MicroserviceServer for RmqServer {
 
             let queue_name = if config.queue.is_empty() {
                 let q = ch
-                    .queue_declare(ss(""), QueueDeclareOptions::default(), FieldTable::default())
+                    .queue_declare(
+                        ss(""),
+                        QueueDeclareOptions::default(),
+                        FieldTable::default(),
+                    )
                     .await
                     .map_err(|e| TransportError(e.to_string()))?;
                 q.name().as_str().to_string()
@@ -384,10 +394,8 @@ impl MicroserviceServer for RmqServer {
                     let payload = delivery.data.to_vec();
 
                     if let Ok(parsed) = serde_json::from_slice::<serde_json::Value>(&payload) {
-                        let correlation_id = parsed["correlation_id"]
-                            .as_str()
-                            .unwrap_or("")
-                            .to_string();
+                        let correlation_id =
+                            parsed["correlation_id"].as_str().unwrap_or("").to_string();
                         let data: Vec<u8> = parsed["data"]
                             .as_str()
                             .map(|s| s.as_bytes().to_vec())

@@ -210,7 +210,10 @@ impl AxumAdapter {
     #[cfg(feature = "tls")]
     #[must_use]
     pub fn tls(mut self, cert_path: PathBuf, key_path: PathBuf) -> Self {
-        self.tls_config = Some(TlsConfig { cert_path, key_path });
+        self.tls_config = Some(TlsConfig {
+            cert_path,
+            key_path,
+        });
         self
     }
 
@@ -510,12 +513,12 @@ impl HttpPlatformApplication for AxumApplication {
             for addr in self.additional_addrs {
                 let router = router.clone();
                 let drain_rx = tokio::sync::watch::Receiver::clone(&drain_rx);
-                let listener = tokio::net::TcpListener::bind(addr)
-                    .await
-                    .map_err(|error| AxumPlatformError::Bind {
+                let listener = tokio::net::TcpListener::bind(addr).await.map_err(|error| {
+                    AxumPlatformError::Bind {
                         address: addr,
                         message: error.to_string(),
-                    })?;
+                    }
+                })?;
                 let graceful = {
                     let mut rx = drain_rx;
                     async move {
@@ -523,7 +526,9 @@ impl HttpPlatformApplication for AxumApplication {
                     }
                 };
                 handles.push(tokio::spawn(async move {
-                    let _ = axum::serve(listener, router).with_graceful_shutdown(graceful).await;
+                    let _ = axum::serve(listener, router)
+                        .with_graceful_shutdown(graceful)
+                        .await;
                 }));
             }
 

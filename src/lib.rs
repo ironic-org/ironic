@@ -54,6 +54,9 @@ pub mod telemetry;
 #[cfg(any(feature = "plugins", feature = "devtools"))]
 #[path = "../crates/ironic-devtools/src/lib.rs"]
 pub mod ecosystem;
+#[cfg(feature = "graphql")]
+#[path = "../crates/ironic-graphql/src/lib.rs"]
+pub mod graphql_integration;
 #[path = "../crates/ironic-http/src/lib.rs"]
 mod http_impl;
 #[path = "../crates/ironic-integrations/src/lib.rs"]
@@ -67,9 +70,6 @@ pub mod mcp;
 #[cfg(feature = "openapi")]
 #[path = "../crates/ironic-openapi/src/lib.rs"]
 mod openapi;
-#[cfg(feature = "graphql")]
-#[path = "../crates/ironic-graphql/src/lib.rs"]
-pub mod graphql_integration;
 #[path = "../crates/ironic-platform/src/lib.rs"]
 mod platform;
 #[path = "../crates/ironic-platform-axum/src/lib.rs"]
@@ -253,14 +253,10 @@ macro_rules! create_param_decorator {
 
 /// Commonly used Ironic types and macros.
 pub mod prelude {
-#[cfg(feature = "hot-reload")]
-pub use crate::ConfigWatcher;
-#[cfg(feature = "graphql")]
-pub use crate::graphql_integration::*;
-#[cfg(feature = "graphql")]
-pub use ironic_macros::{resolver, gql_query, mutation, subscription};
-#[cfg(feature = "sse")]
-pub use crate::EventBroadcaster;
+    #[cfg(feature = "hot-reload")]
+    pub use crate::ConfigWatcher;
+    #[cfg(feature = "sse")]
+    pub use crate::EventBroadcaster;
     #[cfg(feature = "sqlx")]
     pub use crate::FromRow;
     #[cfg(feature = "openapi")]
@@ -276,6 +272,10 @@ pub use crate::EventBroadcaster;
     pub use crate::distributed::queues::{QueueConfig, RedisQueue};
     #[cfg(feature = "events")]
     pub use crate::event_handler;
+    #[cfg(feature = "graphql")]
+    pub use crate::graphql_integration::*;
+    #[cfg(feature = "graphql")]
+    pub use ironic_macros::{gql_query, mutation, resolver, subscription};
 
     #[cfg(feature = "logging")]
     pub use crate::logging::{
@@ -298,17 +298,17 @@ pub use crate::EventBroadcaster;
         HealthStatus, HttpError, HttpMethod, HttpPlatformAdapter, HttpPlatformApplication,
         Injectable, Interceptor, InterceptorNext, Json, JsonBody, LazyModule, LifecycleDefinition,
         Merge, Middleware, Module, ModuleDefinition, ModuleRef, OnApplicationBootstrap,
-        OnApplicationShutdown,
-        OnError, OnGuardDenied, OnModuleConfigure, OnModuleDestroy, OnModuleInit, OnModuleLoad,
-        OnModuleUnload, OnRequestDestroy, OnRequestInit, OnServerReady, Pagination, ParameterPipe,
-        PathParameter, PipelineFuture, ProviderDefinition, QueryParameters, RequestContext,
-        RequestId, RequestLogging, RequestScope, RequestTracing, Response, RouteDefinition,
-        RouteMetadata, Scope, Secret, SecretString, Serializable, ShutdownSignal,
-        ValidateConfiguration, Value, VersionMetadata, VersioningStrategy, WsGatewayDefinition,
-        api, body, cache, cache_key, cache_ttl, controller, create_param_decorator, cron,
-        decorator, delete, form, forward_ref, get, guard, guard_fn, handler_fn, head, header,
-        intercept_fn, interceptor, interval, middleware, options, param, patch, pipe, pipe_fn, post,
-        put, query, resp, routes, subscribe_message, timeout, web_socket_gateway,
+        OnApplicationShutdown, OnError, OnGuardDenied, OnModuleConfigure, OnModuleDestroy,
+        OnModuleInit, OnModuleLoad, OnModuleUnload, OnRequestDestroy, OnRequestInit, OnServerReady,
+        Pagination, ParameterPipe, PathParameter, PipelineFuture, ProviderDefinition,
+        QueryParameters, RequestContext, RequestId, RequestLogging, RequestScope, RequestTracing,
+        Response, RouteDefinition, RouteMetadata, Scope, Secret, SecretString, Serializable,
+        ShutdownSignal, ValidateConfiguration, Value, VersionMetadata, VersioningStrategy,
+        WsGatewayDefinition, api, body, cache, cache_key, cache_ttl, controller,
+        create_param_decorator, cron, decorator, delete, form, forward_ref, get, guard, guard_fn,
+        handler_fn, head, header, intercept_fn, interceptor, interval, middleware, options, param,
+        patch, pipe, pipe_fn, post, put, query, resp, routes, subscribe_message, timeout,
+        web_socket_gateway,
     };
     #[cfg(feature = "serialization")]
     pub use crate::{FieldRule, FieldRules, SerializeInterceptor, set_current_roles};

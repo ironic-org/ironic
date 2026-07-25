@@ -1,4 +1,8 @@
-#![allow(clippy::type_complexity, clippy::collapsible_if, clippy::while_let_loop)]
+#![allow(
+    clippy::type_complexity,
+    clippy::collapsible_if,
+    clippy::while_let_loop
+)]
 //! Live Redis pub/sub transport backend implementing [`MicroserviceClient`] and
 //! [`MicroserviceServer`].
 //!
@@ -38,8 +42,11 @@ async fn redis_publish(
 pub struct RedisClient {
     config: RedisClientConfig,
     pub_conn: Arc<tokio::sync::OnceCell<MultiplexedConnection>>,
-    response_handlers:
-        Arc<tokio::sync::Mutex<HashMap<String, tokio::sync::oneshot::Sender<Result<Vec<u8>, TransportError>>>>>,
+    response_handlers: Arc<
+        tokio::sync::Mutex<
+            HashMap<String, tokio::sync::oneshot::Sender<Result<Vec<u8>, TransportError>>>,
+        >,
+    >,
 }
 
 /// Configuration for a Redis microservice client.
@@ -150,12 +157,11 @@ impl MicroserviceClient for RedisClient {
 
             let data_str = String::from_utf8(payload)
                 .map_err(|e| TransportError(format!("payload not utf8: {e}")))?;
-            let envelope =
-                serde_json::to_vec(&serde_json::json!({
-                    "correlation_id": correlation_id,
-                    "data": data_str,
-                }))
-                .map_err(|e| TransportError(e.to_string()))?;
+            let envelope = serde_json::to_vec(&serde_json::json!({
+                "correlation_id": correlation_id,
+                "data": data_str,
+            }))
+            .map_err(|e| TransportError(e.to_string()))?;
 
             let mut conn_clone = conn.clone();
             redis_publish(&mut conn_clone, &pattern, &envelope).await?;
@@ -184,12 +190,11 @@ impl MicroserviceClient for RedisClient {
 
             let data_str = String::from_utf8(payload)
                 .map_err(|e| TransportError(format!("payload not utf8: {e}")))?;
-            let envelope =
-                serde_json::to_vec(&serde_json::json!({
-                    "correlation_id": generate_correlation_id(),
-                    "data": data_str,
-                }))
-                .map_err(|e| TransportError(e.to_string()))?;
+            let envelope = serde_json::to_vec(&serde_json::json!({
+                "correlation_id": generate_correlation_id(),
+                "data": data_str,
+            }))
+            .map_err(|e| TransportError(e.to_string()))?;
 
             let mut conn_clone = conn.clone();
             redis_publish(&mut conn_clone, &pattern, &envelope).await
@@ -307,10 +312,8 @@ impl MicroserviceServer for RedisServer {
                             if let Ok(parsed) =
                                 serde_json::from_slice::<serde_json::Value>(&payload)
                             {
-                                let correlation_id = parsed["correlation_id"]
-                                    .as_str()
-                                    .unwrap_or("")
-                                    .to_string();
+                                let correlation_id =
+                                    parsed["correlation_id"].as_str().unwrap_or("").to_string();
                                 let data: Vec<u8> = parsed["data"]
                                     .as_str()
                                     .map(|s| s.as_bytes().to_vec())
@@ -330,8 +333,7 @@ impl MicroserviceServer for RedisServer {
                                 if let Some(handler) = handler_opt {
                                     let result = handler(data, context).await;
                                     if let Ok(response) = result {
-                                        let reply_channel =
-                                            format!("{channel}.reply");
+                                        let reply_channel = format!("{channel}.reply");
                                         let mut rc = reply_conn.clone();
                                         let _: redis::RedisResult<()> = redis::cmd("PUBLISH")
                                             .arg(&reply_channel)

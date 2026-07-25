@@ -31,9 +31,7 @@ pub fn inject_trace_context(envelope: &mut Envelope) {
 ///
 /// Call this at the start of a message handler to link the incoming trace
 /// to the current processing context.
-pub fn extract_trace_context(
-    envelope: &Envelope,
-) -> Option<PropagatedSpan> {
+pub fn extract_trace_context(envelope: &Envelope) -> Option<PropagatedSpan> {
     #[cfg(feature = "telemetry")]
     return extract_w3c_otel(&envelope.headers);
 
@@ -58,7 +56,10 @@ pub struct PropagatedSpan {
 fn inject_tracing_span(headers: &mut BTreeMap<String, String>) {
     let span = tracing::Span::current();
     let id = span.id().map(|id| id.into_u64()).unwrap_or(0);
-    headers.insert(TRACEPARENT_HEADER.to_string(), format!("00-{id:x}-{id:x}-01"));
+    headers.insert(
+        TRACEPARENT_HEADER.to_string(),
+        format!("00-{id:x}-{id:x}-01"),
+    );
 }
 
 #[cfg(not(feature = "telemetry"))]
@@ -83,9 +84,7 @@ fn inject_w3c_otel(headers: &mut BTreeMap<String, String>) {
     use tracing_opentelemetry::OpenTelemetrySpanExt;
 
     let _cx = tracing::Span::current().context();
-    global::get_text_map_propagator(|propagator| {
-        propagator.inject(&mut HeaderInjector(headers))
-    });
+    global::get_text_map_propagator(|propagator| propagator.inject(&mut HeaderInjector(headers)));
 }
 
 #[cfg(feature = "telemetry")]
@@ -93,9 +92,8 @@ fn extract_w3c_otel(headers: &BTreeMap<String, String>) -> Option<PropagatedSpan
     use opentelemetry::global;
     use tracing_opentelemetry::OpenTelemetrySpanExt;
 
-    let parent_cx = global::get_text_map_propagator(|propagator| {
-        propagator.extract(&HeaderExtractor(headers))
-    });
+    let parent_cx =
+        global::get_text_map_propagator(|propagator| propagator.extract(&HeaderExtractor(headers)));
     let span = tracing::info_span!("extracted");
     let cx = parent_cx.clone();
     span.set_parent(cx);

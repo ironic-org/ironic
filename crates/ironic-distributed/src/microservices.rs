@@ -1,4 +1,9 @@
-#![allow(clippy::type_complexity, clippy::collapsible_if, clippy::while_let_loop, clippy::useless_conversion)]
+#![allow(
+    clippy::type_complexity,
+    clippy::collapsible_if,
+    clippy::while_let_loop,
+    clippy::useless_conversion
+)]
 //! Transport-neutral microservice envelopes and duplex in-memory endpoints.
 //!
 //! Additional transport backends are available behind feature flags:
@@ -6,6 +11,7 @@
 //! - `transport-rabbitmq`: [`RabbitMqTransportConfig`]
 //! - `transport-kafka`: [`KafkaTransportConfig`]
 
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::{
     collections::{BTreeMap, HashMap},
     future::Future,
@@ -13,7 +19,6 @@ use std::{
     sync::Arc,
 };
 use tokio::sync::{Mutex, mpsc, oneshot};
-use std::sync::atomic::{AtomicU64, Ordering};
 
 // ---------------------------------------------------------------------------
 // Core Message Types
@@ -88,7 +93,10 @@ pub type JsonCodec = IdentitySerializer;
 ///
 /// **Deprecated**: Use [`MicroserviceClient`] and [`MicroserviceServer`] instead.
 #[allow(deprecated)]
-#[deprecated(since = "1.1.0", note = "Use MicroserviceClient and MicroserviceServer instead")]
+#[deprecated(
+    since = "1.1.0",
+    note = "Use MicroserviceClient and MicroserviceServer instead"
+)]
 pub trait Transport: Send + Sync + 'static {
     /// Sends an envelope.
     fn send(&self, envelope: Envelope) -> TransportFuture<'_, ()>;
@@ -129,14 +137,22 @@ pub trait MicroserviceClient: Send + Sync + 'static {
 
 /// A handler for incoming request-response messages.
 pub type MessageHandler = Arc<
-    dyn Fn(Vec<u8>, MessageContext) -> Pin<Box<dyn Future<Output = Result<Vec<u8>, TransportError>> + Send>>
-        + Send + Sync,
+    dyn Fn(
+            Vec<u8>,
+            MessageContext,
+        ) -> Pin<Box<dyn Future<Output = Result<Vec<u8>, TransportError>> + Send>>
+        + Send
+        + Sync,
 >;
 
 /// A handler for incoming events (fire-and-forget).
 pub type EventHandler = Arc<
-    dyn Fn(Vec<u8>, MessageContext) -> Pin<Box<dyn Future<Output = Result<(), TransportError>> + Send>>
-        + Send + Sync,
+    dyn Fn(
+            Vec<u8>,
+            MessageContext,
+        ) -> Pin<Box<dyn Future<Output = Result<(), TransportError>> + Send>>
+        + Send
+        + Sync,
 >;
 
 /// A message pattern that can be matched against incoming messages.
@@ -315,9 +331,7 @@ impl InMemoryServer {
             }),
             receiver: std::sync::Mutex::new(Some(rx)),
         };
-        let client = InMemoryClient {
-            sender: tx,
-        };
+        let client = InMemoryClient { sender: tx };
         (client, server)
     }
 }
@@ -405,7 +419,11 @@ impl MicroserviceServer for InMemoryServer {
         let receiver_opt = self.receiver.lock().unwrap().take();
         let mut receiver = match receiver_opt {
             Some(rx) => rx,
-            None => return Box::pin(async move { Err(TransportError("server already started".into())) }),
+            None => {
+                return Box::pin(
+                    async move { Err(TransportError("server already started".into())) },
+                );
+            }
         };
 
         let inner = Arc::clone(&self.inner);
@@ -437,9 +455,9 @@ impl MicroserviceServer for InMemoryServer {
                             let result = handler(msg.envelope.payload, context).await;
                             let _ = msg.reply_tx.send(result);
                         } else {
-                            let _ = msg.reply_tx.send(Err(TransportError(
-                                "NO_MESSAGE_HANDLER".into(),
-                            )));
+                            let _ = msg
+                                .reply_tx
+                                .send(Err(TransportError("NO_MESSAGE_HANDLER".into())));
                         }
                     }
                 });
@@ -873,13 +891,17 @@ mod tests {
     async fn inmemory_client_server_request_response() {
         let (client, server) = InMemoryServer::pair(16);
 
-        server.on_message("greet", Arc::new(|payload, _ctx| {
-            Box::pin(async move {
-                let name: String = serde_json::from_slice(&payload).map_err(|e| TransportError(e.to_string()))?;
-                let response = format!("Hello, {name}!");
-                serde_json::to_vec(&response).map_err(|e| TransportError(e.to_string()))
-            })
-        }));
+        server.on_message(
+            "greet",
+            Arc::new(|payload, _ctx| {
+                Box::pin(async move {
+                    let name: String = serde_json::from_slice(&payload)
+                        .map_err(|e| TransportError(e.to_string()))?;
+                    let response = format!("Hello, {name}!");
+                    serde_json::to_vec(&response).map_err(|e| TransportError(e.to_string()))
+                })
+            }),
+        );
 
         server.listen().await.unwrap();
 
@@ -893,18 +915,28 @@ mod tests {
         let received = Arc::new(Mutex::new(Vec::new()));
 
         let events = Arc::clone(&received);
-        server.on_event("user.created", Arc::new(move |payload, _ctx| {
-            let events = Arc::clone(&events);
-            Box::pin(async move {
-                let name: String = serde_json::from_slice(&payload).map_err(|e| TransportError(e.to_string()))?;
-                events.lock().await.push(name);
-                Ok(())
-            })
-        }));
+        server.on_event(
+            "user.created",
+            Arc::new(move |payload, _ctx| {
+                let events = Arc::clone(&events);
+                Box::pin(async move {
+                    let name: String = serde_json::from_slice(&payload)
+                        .map_err(|e| TransportError(e.to_string()))?;
+                    events.lock().await.push(name);
+                    Ok(())
+                })
+            }),
+        );
 
         server.listen().await.unwrap();
-        client.emit("user.created", &"Alice".to_string()).await.unwrap();
-        client.emit("user.created", &"Bob".to_string()).await.unwrap();
+        client
+            .emit("user.created", &"Alice".to_string())
+            .await
+            .unwrap();
+        client
+            .emit("user.created", &"Bob".to_string())
+            .await
+            .unwrap();
 
         tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
         let events = received.lock().await;
@@ -918,7 +950,8 @@ mod tests {
         let (client, server) = InMemoryServer::pair(16);
         server.listen().await.unwrap();
 
-        let result: Result<String, TransportError> = client.send("missing", &"data".to_string()).await;
+        let result: Result<String, TransportError> =
+            client.send("missing", &"data".to_string()).await;
         assert!(result.is_err());
     }
 
@@ -974,7 +1007,9 @@ mod tests {
 
         let client2 = client.clone();
         tokio::spawn(async move {
-            let result: String = MicroserviceClient::send(&client2, "test", &"ping".to_string()).await.unwrap();
+            let result: String = MicroserviceClient::send(&client2, "test", &"ping".to_string())
+                .await
+                .unwrap();
             assert_eq!(result, "pong");
         });
 

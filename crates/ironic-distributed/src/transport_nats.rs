@@ -3,7 +3,7 @@
 //! NATS transport backend (config stub).
 //! Requires the `transport-nats` feature and a running NATS server.
 
-use crate::distributed::microservices::{Transport, TransportError, TransportFuture, Envelope};
+use crate::distributed::microservices::{Envelope, Transport, TransportError, TransportFuture};
 
 /// Configuration for a NATS transport.
 #[cfg(feature = "transport-nats")]

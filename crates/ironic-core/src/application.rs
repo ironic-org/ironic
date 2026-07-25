@@ -165,7 +165,10 @@ impl<A> ApplicationBuilder<A> {
     /// Registers a custom transport strategy (client + server pair).
     #[cfg(feature = "microservices")]
     #[must_use]
-    pub fn custom_transport(self, strategy: impl crate::distributed::microservices::CustomTransportStrategy) -> Self {
+    pub fn custom_transport(
+        self,
+        strategy: impl crate::distributed::microservices::CustomTransportStrategy,
+    ) -> Self {
         let (client, server) = strategy.create();
         self.microservice_server(server).microservice_client(client)
     }

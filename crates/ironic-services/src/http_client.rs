@@ -66,7 +66,10 @@ impl HttpClientService {
     }
 
     /// Sends a POST request with JSON body.
-    pub async fn post<T: serde::Serialize + Send + 'static, R: DeserializeOwned + Send + 'static>(
+    pub async fn post<
+        T: serde::Serialize + Send + 'static,
+        R: DeserializeOwned + Send + 'static,
+    >(
         &self,
         url: &str,
         body: &T,
@@ -172,10 +175,7 @@ impl RetryClient {
             let url = url.clone();
             async move {
                 tokio::task::spawn_blocking(move || {
-                    let body = ureq::get(&url)
-                        .call()?
-                        .into_body()
-                        .read_to_string()?;
+                    let body = ureq::get(&url).call()?.into_body().read_to_string()?;
                     serde_json::from_str(&body).map_err(HttpClientError::Deserialize)
                 })
                 .await
@@ -279,10 +279,7 @@ impl CircuitBreakerClient {
             let url = url.clone();
             async move {
                 tokio::task::spawn_blocking(move || {
-                    let body = ureq::get(&url)
-                        .call()?
-                        .into_body()
-                        .read_to_string()?;
+                    let body = ureq::get(&url).call()?.into_body().read_to_string()?;
                     serde_json::from_str(&body).map_err(HttpClientError::Deserialize)
                 })
                 .await
@@ -323,13 +320,15 @@ mod tests {
         let retry = client.with_retry(2, 1);
         let calls = std::sync::Arc::new(std::sync::atomic::AtomicU32::new(0));
         let c = std::sync::Arc::clone(&calls);
-        let result: Result<i32, HttpClientError> = retry.retry_inner(move || {
-            let c = std::sync::Arc::clone(&c);
-            async move {
-                c.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
-                Err(HttpClientError::Internal("fail".into()))
-            }
-        }).await;
+        let result: Result<i32, HttpClientError> = retry
+            .retry_inner(move || {
+                let c = std::sync::Arc::clone(&c);
+                async move {
+                    c.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+                    Err(HttpClientError::Internal("fail".into()))
+                }
+            })
+            .await;
         assert!(result.is_err());
         assert_eq!(calls.load(std::sync::atomic::Ordering::SeqCst), 3);
     }
@@ -340,17 +339,19 @@ mod tests {
         let retry = client.with_retry(3, 1);
         let calls = std::sync::Arc::new(std::sync::atomic::AtomicU32::new(0));
         let c = std::sync::Arc::clone(&calls);
-        let result: Result<i32, HttpClientError> = retry.retry_inner(move || {
-            let c = std::sync::Arc::clone(&c);
-            async move {
-                let attempt = c.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
-                if attempt == 0 {
-                    Err(HttpClientError::Internal("fail".into()))
-                } else {
-                    Ok(42)
+        let result: Result<i32, HttpClientError> = retry
+            .retry_inner(move || {
+                let c = std::sync::Arc::clone(&c);
+                async move {
+                    let attempt = c.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+                    if attempt == 0 {
+                        Err(HttpClientError::Internal("fail".into()))
+                    } else {
+                        Ok(42)
+                    }
                 }
-            }
-        }).await;
+            })
+            .await;
         assert_eq!(result.unwrap(), 42);
         assert_eq!(calls.load(std::sync::atomic::Ordering::SeqCst), 2);
     }

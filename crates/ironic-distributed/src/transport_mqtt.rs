@@ -3,7 +3,7 @@
 //! MQTT transport backend (config stub).
 //! Requires the `transport-mqtt` feature and a running MQTT broker.
 
-use crate::distributed::microservices::{Transport, TransportError, TransportFuture, Envelope};
+use crate::distributed::microservices::{Envelope, Transport, TransportError, TransportFuture};
 
 /// Configuration for an MQTT transport.
 #[cfg(feature = "transport-mqtt")]

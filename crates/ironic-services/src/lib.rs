@@ -4,6 +4,8 @@
 pub mod cache;
 #[cfg(feature = "events")]
 pub mod events;
+#[cfg(feature = "http-client")]
+pub mod http_client;
 #[cfg(feature = "realtime")]
 pub mod realtime;
 #[cfg(feature = "scheduling")]
@@ -13,5 +15,3 @@ pub mod sse;
 #[cfg(feature = "realtime")]
 /// WebSocket gateway runtime: connections, rooms, and broadcasting.
 pub mod ws;
-#[cfg(feature = "http-client")]
-pub mod http_client;

@@ -46,6 +46,50 @@ pub(crate) fn execute(command: Cli, output: &mut impl Write) -> Result<(), CliEr
     }
 }
 
+fn run_script(name: &str, _args: &[String], output: &mut impl Write) -> Result<(), CliError> {
+    let manifest_path = std::env::current_dir()
+        .map_err(|e| CliError::io("read current directory", ".", e))?
+        .join("Cargo.toml");
+
+    let contents = std::fs::read_to_string(&manifest_path)
+        .map_err(|e| CliError::io("read Cargo.toml", &manifest_path, e))?;
+
+    // Simple TOML section parser: find [package.metadata.ironic.scripts]
+    let script_section = contents
+        .lines()
+        .skip_while(|line| !line.trim().starts_with("[package.metadata.ironic.scripts]"))
+        .skip(1)
+        .take_while(|line| !line.starts_with('['))
+        .collect::<Vec<_>>()
+        .join("\n");
+
+    let target = format!("{name} = ");
+    let script = script_section
+        .lines()
+        .find_map(|line| line.trim().strip_prefix(&target))
+        .map(|s| s.trim().trim_matches('"').to_string())
+        .ok_or_else(|| CliError::InvalidName {
+            name: format!("script `{name}` not found in [package.metadata.ironic.scripts]"),
+        })?;
+
+    writeln!(output, "running script `{name}`: {script}")
+        .map_err(|e| CliError::io("write output", "stdout", e))?;
+
+    let status = std::process::Command::new("sh")
+        .arg("-c")
+        .arg(&script)
+        .status()
+        .map_err(|e| CliError::io("execute script", "sh", e))?;
+
+    if !status.success() {
+        return Err(CliError::InvalidName {
+            name: format!("script `{name}` exited with {status}"),
+        });
+    }
+
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use crate::cli::*;
@@ -89,49 +133,4 @@ mod tests {
         let result = super::execute(Cli { command: cmd }, &mut buf);
         let _ = result;
     }
-}
-
-/// Runs a script defined in `[package.metadata.ironic.scripts]`.
-fn run_script(name: &str, _args: &[String], output: &mut impl Write) -> Result<(), CliError> {
-    let manifest_path = std::env::current_dir()
-        .map_err(|e| CliError::io("read current directory", ".", e))?
-        .join("Cargo.toml");
-
-    let contents = std::fs::read_to_string(&manifest_path)
-        .map_err(|e| CliError::io("read Cargo.toml", &manifest_path, e))?;
-
-    // Simple TOML section parser: find [package.metadata.ironic.scripts]
-    let script_section = contents
-        .lines()
-        .skip_while(|line| !line.trim().starts_with("[package.metadata.ironic.scripts]"))
-        .skip(1)
-        .take_while(|line| !line.starts_with('['))
-        .collect::<Vec<_>>()
-        .join("\n");
-
-    let target = format!("{name} = ");
-    let script = script_section
-        .lines()
-        .find_map(|line| line.trim().strip_prefix(&target))
-        .map(|s| s.trim().trim_matches('"').to_string())
-        .ok_or_else(|| CliError::InvalidName {
-            name: format!("script `{name}` not found in [package.metadata.ironic.scripts]"),
-        })?;
-
-    writeln!(output, "running script `{name}`: {script}")
-        .map_err(|e| CliError::io("write output", "stdout", e))?;
-
-    let status = std::process::Command::new("sh")
-        .arg("-c")
-        .arg(&script)
-        .status()
-        .map_err(|e| CliError::io("execute script", "sh", e))?;
-
-    if !status.success() {
-        return Err(CliError::InvalidName {
-            name: format!("script `{name}` exited with {status}"),
-        });
-    }
-
-    Ok(())
 }

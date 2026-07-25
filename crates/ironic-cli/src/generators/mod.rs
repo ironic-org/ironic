@@ -21,7 +21,9 @@ pub use ready_resource::generate_ready_resource;
 pub fn generate_graphql_resolver(root: &Path, name: &str) -> Result<GenerationReport, CliError> {
     let names = naming::Names::parse(name)?;
     let mut report = GenerationReport::default();
-    let path = root.join("src").join(format!("{}_resolver.rs", names.snake));
+    let path = root
+        .join("src")
+        .join(format!("{}_resolver.rs", names.snake));
     let contents = format!(
         r#"use ::ironic::prelude::*;
 
@@ -48,7 +50,10 @@ pub use ready_resource::generate_ready_resource_jwt;
 /// Generates an OAuth-only auth module.
 pub use ready_resource::generate_ready_resource_oauth;
 
-use std::{fs, path::{Path, PathBuf}};
+use std::{
+    fs,
+    path::{Path, PathBuf},
+};
 
 /// Generates a reusable library crate.
 ///

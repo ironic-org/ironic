@@ -296,9 +296,9 @@ fn plugins_apply_in_order_and_reject_duplicate_names() {
 #[cfg(all(feature = "microservices", feature = "events"))]
 #[tokio::test]
 async fn forward_ref_resolves_after_container_build() {
-    use std::sync::Arc;
-    use ironic::{ForwardRef, ContainerBuilder, ProviderDefinition, Dependency, Scope};
     use ironic::distributed::microservices::*;
+    use ironic::{ContainerBuilder, Dependency, ForwardRef, ProviderDefinition, Scope};
+    use std::sync::Arc;
 
     struct ServiceB;
     struct ServiceA {
@@ -337,17 +337,23 @@ async fn forward_ref_resolves_after_container_build() {
 #[cfg(all(feature = "microservices", feature = "events"))]
 #[tokio::test]
 async fn inmemory_client_server_request_response() {
-    use ironic::distributed::microservices::{InMemoryServer, MicroserviceClient, MicroserviceServer, MessageHandler, TransportError};
+    use ironic::distributed::microservices::{
+        InMemoryServer, MessageHandler, MicroserviceClient, MicroserviceServer, TransportError,
+    };
     use std::sync::Arc;
 
     let (client, server) = InMemoryServer::pair(16);
-    server.on_message("ping", Arc::new(|payload, _ctx| {
-        Box::pin(async move {
-            let msg: String = serde_json::from_slice(&payload).map_err(|e| TransportError(e.to_string()))?;
-            let resp = format!("pong:{}", msg);
-            serde_json::to_vec(&resp).map_err(|e| TransportError(e.to_string()))
-        })
-    }));
+    server.on_message(
+        "ping",
+        Arc::new(|payload, _ctx| {
+            Box::pin(async move {
+                let msg: String =
+                    serde_json::from_slice(&payload).map_err(|e| TransportError(e.to_string()))?;
+                let resp = format!("pong:{}", msg);
+                serde_json::to_vec(&resp).map_err(|e| TransportError(e.to_string()))
+            })
+        }),
+    );
     server.listen().await.unwrap();
 
     let result: String = client.send("ping", &"hello".to_string()).await.unwrap();
@@ -357,25 +363,34 @@ async fn inmemory_client_server_request_response() {
 #[cfg(all(feature = "microservices", feature = "events"))]
 #[tokio::test]
 async fn inmemory_client_server_event() {
+    use ironic::distributed::microservices::{
+        InMemoryServer, MicroserviceClient, MicroserviceServer, TransportError,
+    };
     use std::sync::Arc;
     use tokio::sync::Mutex;
-    use ironic::distributed::microservices::{InMemoryServer, MicroserviceClient, MicroserviceServer, TransportError};
 
     let (client, server) = InMemoryServer::pair(16);
     let received = Arc::new(Mutex::new(Vec::new()));
 
     let ev = Arc::clone(&received);
-    server.on_event("order.created", Arc::new(move |payload, _ctx| {
-        let ev = Arc::clone(&ev);
-        Box::pin(async move {
-            let msg: String = serde_json::from_slice(&payload).map_err(|e| TransportError(e.to_string()))?;
-            ev.lock().await.push(msg);
-            Ok(())
-        })
-    }));
+    server.on_event(
+        "order.created",
+        Arc::new(move |payload, _ctx| {
+            let ev = Arc::clone(&ev);
+            Box::pin(async move {
+                let msg: String =
+                    serde_json::from_slice(&payload).map_err(|e| TransportError(e.to_string()))?;
+                ev.lock().await.push(msg);
+                Ok(())
+            })
+        }),
+    );
     server.listen().await.unwrap();
 
-    client.emit("order.created", &"order-1".to_string()).await.unwrap();
+    client
+        .emit("order.created", &"order-1".to_string())
+        .await
+        .unwrap();
     tokio::time::sleep(tokio::time::Duration::from_millis(50)).await;
     assert_eq!(received.lock().await.len(), 1);
 }
@@ -383,7 +398,7 @@ async fn inmemory_client_server_event() {
 #[cfg(all(feature = "microservices", feature = "events"))]
 #[tokio::test]
 async fn pattern_normalization_works() {
-    use ironic::distributed::microservices::{normalize_pattern, MsPattern};
+    use ironic::distributed::microservices::{MsPattern, normalize_pattern};
 
     assert_eq!(normalize_pattern("user.get"), "user.get");
     let pat = MsPattern::from("order.create");
@@ -417,11 +432,10 @@ async fn custom_transport_strategy_creates_paired_endpoints() {
 #[cfg(feature = "events")]
 #[tokio::test]
 async fn forward_ref_in_di_container() {
-    use std::sync::Arc;
     use ironic::{
-        ContainerBuilder, ProviderDefinition, Dependency, Scope,
-        ForwardRef, ResolveError,
+        ContainerBuilder, Dependency, ForwardRef, ProviderDefinition, ResolveError, Scope,
     };
+    use std::sync::Arc;
 
     struct ServiceA {
         b: ForwardRef<ServiceB>,
@@ -458,7 +472,7 @@ async fn forward_ref_in_di_container() {
 #[cfg(feature = "microservices")]
 #[test]
 fn serializer_round_trips_json() {
-    use ironic::distributed::microservices::{Serializer, Deserializer, IdentitySerializer};
+    use ironic::distributed::microservices::{Deserializer, IdentitySerializer, Serializer};
 
     let codec = IdentitySerializer;
     let bytes = codec.to_bytes(&42_u32).unwrap();
@@ -469,8 +483,8 @@ fn serializer_round_trips_json() {
 #[cfg(feature = "microservices")]
 #[test]
 fn serializer_handles_structs() {
-    use ironic::distributed::microservices::{Serializer, Deserializer, IdentitySerializer};
-    use serde::{Serialize, Deserialize};
+    use ironic::distributed::microservices::{Deserializer, IdentitySerializer, Serializer};
+    use serde::{Deserialize, Serialize};
 
     #[derive(Serialize, Deserialize, Debug, PartialEq)]
     struct Person {
@@ -479,7 +493,10 @@ fn serializer_handles_structs() {
     }
 
     let codec = IdentitySerializer;
-    let person = Person { name: "Alice".into(), age: 30 };
+    let person = Person {
+        name: "Alice".into(),
+        age: 30,
+    };
     let bytes = codec.to_bytes(&person).unwrap();
     let decoded: Person = codec.read_bytes(&bytes).unwrap();
     assert_eq!(person, decoded);
@@ -527,11 +544,20 @@ fn graphql_schema_builder_constructs() {
 #[cfg(feature = "graphql")]
 #[test]
 fn graphql_proc_macros_compile() {
-    // Verify that the proc-macro attributes exist and can be applied
-    let _ = ironic::graphql_resolver;
-    let _ = ironic::graphql_query;
-    let _ = ironic::graphql_mutation;
-    let _ = ironic::graphql_subscription;
+    // Verify that the proc-macro attributes exist via ironic_macros directly
+    use ironic_macros::{gql_query, mutation, resolver, subscription};
+
+    #[resolver]
+    struct TestResolver;
+
+    #[mutation]
+    async fn test_mutation() {}
+
+    #[subscription]
+    async fn test_subscription() {}
+
+    #[gql_query]
+    async fn test_query() {}
 }
 
 // ── Redis Integration Tests (require running Redis) ────────────────────
@@ -543,18 +569,26 @@ fn graphql_proc_macros_compile() {
 #[ignore = "requires running Redis instance"]
 #[tokio::test]
 async fn redis_transport_request_response() {
-    use ironic::distributed::transport_redis::{RedisClient, RedisClientConfig, RedisServer, RedisServerConfig};
-    use ironic::distributed::microservices::{MicroserviceClient, MicroserviceServer, MessageHandler, TransportError};
+    use ironic::distributed::microservices::{
+        MessageHandler, MicroserviceClient, MicroserviceServer, TransportError,
+    };
+    use ironic::distributed::transport_redis::{
+        RedisClient, RedisClientConfig, RedisServer, RedisServerConfig,
+    };
     use std::sync::Arc;
 
     let server = RedisServer::new(RedisServerConfig::default());
-    server.on_message("ping", Arc::new(|payload, _ctx| {
-        Box::pin(async move {
-            let msg: String = serde_json::from_slice(&payload).map_err(|e| TransportError(e.to_string()))?;
-            let resp = format!("pong:{msg}");
-            serde_json::to_vec(&resp).map_err(|e| TransportError(e.to_string()))
-        })
-    }));
+    server.on_message(
+        "ping",
+        Arc::new(|payload, _ctx| {
+            Box::pin(async move {
+                let msg: String =
+                    serde_json::from_slice(&payload).map_err(|e| TransportError(e.to_string()))?;
+                let resp = format!("pong:{msg}");
+                serde_json::to_vec(&resp).map_err(|e| TransportError(e.to_string()))
+            })
+        }),
+    );
     server.listen().await.unwrap();
 
     let client = RedisClient::new(RedisClientConfig::default());
@@ -570,27 +604,38 @@ async fn redis_transport_request_response() {
 #[ignore = "requires running Redis instance"]
 #[tokio::test]
 async fn redis_transport_cross_process_event() {
-    use ironic::distributed::transport_redis::{RedisClient, RedisClientConfig, RedisServer, RedisServerConfig};
-    use ironic::distributed::microservices::{MicroserviceClient, MicroserviceServer, TransportError};
+    use ironic::distributed::microservices::{
+        MicroserviceClient, MicroserviceServer, TransportError,
+    };
+    use ironic::distributed::transport_redis::{
+        RedisClient, RedisClientConfig, RedisServer, RedisServerConfig,
+    };
     use std::sync::Arc;
     use tokio::sync::Mutex;
 
     let server = RedisServer::new(RedisServerConfig::default());
     let received = Arc::new(Mutex::new(Vec::new()));
     let ev = Arc::clone(&received);
-    server.on_event("user.created", Arc::new(move |payload, _ctx| {
-        let ev = Arc::clone(&ev);
-        Box::pin(async move {
-            let name: String = serde_json::from_slice(&payload).map_err(|e| TransportError(e.to_string()))?;
-            ev.lock().await.push(name);
-            Ok(())
-        })
-    }));
+    server.on_event(
+        "user.created",
+        Arc::new(move |payload, _ctx| {
+            let ev = Arc::clone(&ev);
+            Box::pin(async move {
+                let name: String =
+                    serde_json::from_slice(&payload).map_err(|e| TransportError(e.to_string()))?;
+                ev.lock().await.push(name);
+                Ok(())
+            })
+        }),
+    );
     server.listen().await.unwrap();
 
     let client = RedisClient::new(RedisClientConfig::default());
     client.connect().await.unwrap();
-    client.emit("user.created", &"Alice".to_string()).await.unwrap();
+    client
+        .emit("user.created", &"Alice".to_string())
+        .await
+        .unwrap();
     tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
     assert_eq!(received.lock().await.len(), 1);
 }

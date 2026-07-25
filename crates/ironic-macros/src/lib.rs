@@ -1,4 +1,9 @@
-#![allow(clippy::type_complexity)]
+#![allow(
+    clippy::type_complexity,
+    clippy::doc_markdown,
+    clippy::redundant_closure,
+    clippy::match_wildcard_for_single_variants
+)]
 //! Procedural macros for declaring Ironic application metadata.
 
 use proc_macro::TokenStream;
@@ -9,11 +14,11 @@ mod from_row;
 mod graphql;
 mod injectable;
 mod jwt_guard;
+mod mapped_types;
 mod mcp_tool;
 mod merge;
-mod module;
-mod mapped_types;
 mod message_handler;
+mod module;
 mod openapi;
 mod routes;
 mod serializable;

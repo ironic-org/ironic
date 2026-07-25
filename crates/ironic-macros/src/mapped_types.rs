@@ -1,11 +1,6 @@
 use proc_macro2::TokenStream;
 use quote::quote;
-use syn::{
-    DeriveInput, LitStr, Type,
-    parse::ParseStream,
-    punctuated::Punctuated,
-    Token,
-};
+use syn::{DeriveInput, LitStr, Token, Type, parse::ParseStream, punctuated::Punctuated};
 
 pub(crate) fn expand_partial(input: DeriveInput) -> syn::Result<TokenStream> {
     let base_type = find_base_type(&input.attrs, "partial")?;
@@ -23,7 +18,12 @@ pub(crate) fn expand_partial(input: DeriveInput) -> syn::Result<TokenStream> {
     })
 }
 
-fn pick_omit_impl(name: &syn::Ident, base_type: &Type, fields: &[String], include: bool) -> TokenStream {
+fn pick_omit_impl(
+    name: &syn::Ident,
+    base_type: &Type,
+    fields: &[String],
+    include: bool,
+) -> TokenStream {
     let field_strs: Vec<String> = fields.to_vec();
     let var_name = if include {
         quote! { allowed }
@@ -108,7 +108,7 @@ fn find_type_and_fields(attrs: &[syn::Attribute], name: &str) -> syn::Result<(Ty
                     let content;
                     syn::bracketed!(content in input);
                     let parsed: Punctuated<LitStr, Token![,]> =
-                        content.parse_terminated(|i| i.parse(), Token![,])?;
+                        content.parse_terminated(syn::parse::Parse::parse, Token![,])?;
                     fields = parsed.into_iter().map(|s| s.value()).collect();
                 }
                 if !input.is_empty() {

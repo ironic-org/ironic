@@ -1,4 +1,9 @@
-#![allow(clippy::type_complexity, clippy::collapsible_if, clippy::while_let_loop, clippy::useless_conversion)]
+#![allow(
+    clippy::type_complexity,
+    clippy::collapsible_if,
+    clippy::while_let_loop,
+    clippy::useless_conversion
+)]
 //! Kafka transport backend implementing [`MicroserviceClient`] and
 //! [`MicroserviceServer`] using the `kafka` crate.
 
@@ -19,8 +24,11 @@ use crate::distributed::microservices::{
 pub struct KafkaClient {
     config: KafkaClientConfig,
     producer: Arc<Mutex<Option<kafka::producer::Producer>>>,
-    response_handlers:
-        Arc<tokio::sync::Mutex<HashMap<String, tokio::sync::oneshot::Sender<Result<Vec<u8>, TransportError>>>>>,
+    response_handlers: Arc<
+        tokio::sync::Mutex<
+            HashMap<String, tokio::sync::oneshot::Sender<Result<Vec<u8>, TransportError>>>,
+        >,
+    >,
 }
 
 /// Configuration for a Kafka microservice client.
@@ -60,8 +68,11 @@ impl MicroserviceClient for KafkaClient {
         let handlers = Arc::clone(&self.response_handlers);
 
         Box::pin(async move {
-            let hosts: Vec<String> =
-                config.brokers.split(',').map(|s| s.trim().to_string()).collect();
+            let hosts: Vec<String> = config
+                .brokers
+                .split(',')
+                .map(|s| s.trim().to_string())
+                .collect();
             let brokers = hosts.clone();
             let producer = tokio::task::spawn_blocking(move || {
                 kafka::producer::Producer::from_hosts(brokers)
@@ -97,9 +108,8 @@ impl MicroserviceClient for KafkaClient {
                                     for msg in ms.messages() {
                                         let val = msg.value;
                                         if !val.is_empty() {
-                                            if let Ok(parsed) = serde_json::from_slice::<
-                                                serde_json::Value,
-                                            >(val)
+                                            if let Ok(parsed) =
+                                                serde_json::from_slice::<serde_json::Value>(val)
                                             {
                                                 let cid = parsed["correlation_id"]
                                                     .as_str()
@@ -111,9 +121,7 @@ impl MicroserviceClient for KafkaClient {
                                                     .as_bytes()
                                                     .to_vec();
                                                 // Use block_on to send through oneshot
-                                                if let Ok(mut map) =
-                                                    h.try_lock()
-                                                {
+                                                if let Ok(mut map) = h.try_lock() {
                                                     if let Some(tx) = map.remove(&cid) {
                                                         let _ = tx.send(Ok(data));
                                                     }
@@ -270,8 +278,11 @@ impl MicroserviceServer for KafkaServer {
         let event_handlers = Arc::clone(&self.event_handlers);
 
         Box::pin(async move {
-            let hosts: Vec<String> =
-                config.brokers.split(',').map(|s| s.trim().to_string()).collect();
+            let hosts: Vec<String> = config
+                .brokers
+                .split(',')
+                .map(|s| s.trim().to_string())
+                .collect();
             let topic = config.topic.clone();
             let reply_topic = format!("{topic}_reply");
 
@@ -314,9 +325,8 @@ impl MicroserviceServer for KafkaServer {
                                         let key = String::from_utf8_lossy(msg.key).to_string();
                                         let val = msg.value;
                                         if !val.is_empty() {
-                                            if let Ok(parsed) = serde_json::from_slice::<
-                                                serde_json::Value,
-                                            >(val)
+                                            if let Ok(parsed) =
+                                                serde_json::from_slice::<serde_json::Value>(val)
                                             {
                                                 let correlation_id = parsed["correlation_id"]
                                                     .as_str()
@@ -344,14 +354,18 @@ impl MicroserviceServer for KafkaServer {
                                                     let result = tokio::runtime::Handle::current()
                                                         .block_on(handler(data, context));
                                                     if let Ok(response) = result {
-                                                        let rec = kafka::producer::Record::from_key_value(
-                                                            &reply_topic,
-                                                            cid.as_str(),
-                                                            &response[..],
-                                                        );
-                                                        if let Ok(mut prod) = kafka::producer::Producer::from_hosts(
-                                                            Vec::new()
-                                                        ).create() {
+                                                        let rec =
+                                                            kafka::producer::Record::from_key_value(
+                                                                &reply_topic,
+                                                                cid.as_str(),
+                                                                &response[..],
+                                                            );
+                                                        if let Ok(mut prod) =
+                                                            kafka::producer::Producer::from_hosts(
+                                                                Vec::new(),
+                                                            )
+                                                            .create()
+                                                        {
                                                             let _ = prod.send(&rec);
                                                         }
                                                     }

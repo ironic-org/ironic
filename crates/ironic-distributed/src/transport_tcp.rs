@@ -1,4 +1,9 @@
-#![allow(clippy::type_complexity, clippy::collapsible_if, clippy::while_let_loop, clippy::useless_conversion)]
+#![allow(
+    clippy::type_complexity,
+    clippy::collapsible_if,
+    clippy::while_let_loop,
+    clippy::useless_conversion
+)]
 //! TCP socket transport backend implementing [`MicroserviceClient`] and
 //! [`MicroserviceServer`] using `tokio::net`.
 
@@ -19,8 +24,11 @@ use crate::distributed::microservices::{
 pub struct TcpClient {
     config: TcpClientConfig,
     stream: Arc<tokio::sync::OnceCell<Arc<Mutex<TcpStream>>>>,
-    response_handlers:
-        Arc<tokio::sync::Mutex<HashMap<String, tokio::sync::oneshot::Sender<Result<Vec<u8>, TransportError>>>>>,
+    response_handlers: Arc<
+        tokio::sync::Mutex<
+            HashMap<String, tokio::sync::oneshot::Sender<Result<Vec<u8>, TransportError>>>,
+        >,
+    >,
 }
 
 /// Configuration for a TCP microservice client.
@@ -85,15 +93,8 @@ impl MicroserviceClient for TcpClient {
                         let line: Vec<u8> = acc.drain(..=pos).collect();
                         let line = &line[..line.len() - 1];
                         if let Ok(msg) = serde_json::from_slice::<serde_json::Value>(line) {
-                            let cid = msg["correlation_id"]
-                                .as_str()
-                                .unwrap_or("")
-                                .to_string();
-                            let payload = msg["data"]
-                                .as_str()
-                                .unwrap_or("")
-                                .as_bytes()
-                                .to_vec();
+                            let cid = msg["correlation_id"].as_str().unwrap_or("").to_string();
+                            let payload = msg["data"].as_str().unwrap_or("").as_bytes().to_vec();
                             let mut map = handlers_clone.lock().await;
                             if let Some(tx) = map.remove(&cid) {
                                 let _ = tx.send(Ok(payload));
@@ -137,8 +138,7 @@ impl MicroserviceClient for TcpClient {
                 "pattern": pattern,
                 "data": data_str,
             });
-            let msg_str = serde_json::to_string(&msg)
-                .map_err(|e| TransportError(e.to_string()))?;
+            let msg_str = serde_json::to_string(&msg).map_err(|e| TransportError(e.to_string()))?;
 
             let mut guard = stream.lock().await;
             guard
@@ -179,8 +179,7 @@ impl MicroserviceClient for TcpClient {
                 "pattern": pattern,
                 "data": data_str,
             });
-            let msg_str = serde_json::to_string(&msg)
-                .map_err(|e| TransportError(e.to_string()))?;
+            let msg_str = serde_json::to_string(&msg).map_err(|e| TransportError(e.to_string()))?;
 
             let mut guard = stream.lock().await;
             guard
@@ -244,8 +243,7 @@ fn serialize_msg(correlation_id: &str, data: &[u8]) -> Result<Vec<u8>, Transport
         "correlation_id": correlation_id,
         "data": data_str,
     });
-    let mut bytes = serde_json::to_string(&msg)
-        .map_err(|e| TransportError(e.to_string()))?;
+    let mut bytes = serde_json::to_string(&msg).map_err(|e| TransportError(e.to_string()))?;
     bytes.push('\n');
     Ok(bytes.into_bytes())
 }
@@ -279,15 +277,14 @@ impl MicroserviceServer for TcpServer {
                                             while let Some(pos) =
                                                 acc.iter().position(|&b| b == b'\n')
                                             {
-                                                let line: Vec<u8> =
-                                                    acc.drain(..=pos).collect();
+                                                let line: Vec<u8> = acc.drain(..=pos).collect();
                                                 let line = &line[..line.len() - 1];
-                                                if let Ok(parsed) = serde_json::from_slice::<
-                                                    serde_json::Value,
-                                                >(line)
+                                                if let Ok(parsed) =
+                                                    serde_json::from_slice::<serde_json::Value>(
+                                                        line,
+                                                    )
                                                 {
-                                                    let correlation_id = parsed
-                                                        ["correlation_id"]
+                                                    let correlation_id = parsed["correlation_id"]
                                                         .as_str()
                                                         .unwrap_or("")
                                                         .to_string();
@@ -302,48 +299,36 @@ impl MicroserviceServer for TcpServer {
                                                         .to_vec();
 
                                                     let cid = correlation_id.clone();
-                                                let context = MessageContext {
-                                                    pattern: pattern.clone(),
-                                                    correlation_id,
-                                                    headers:
-                                                        std::collections::BTreeMap::new(),
-                                                };
+                                                    let context = MessageContext {
+                                                        pattern: pattern.clone(),
+                                                        correlation_id,
+                                                        headers: std::collections::BTreeMap::new(),
+                                                    };
 
-                                                let handler_opt = {
-                                                    let h = handlers.lock().unwrap();
-                                                    h.get(&pattern).cloned()
-                                                };
-                                                if let Some(handler) = handler_opt {
-                                                    let result =
-                                                        handler(data, context).await;
-                                                    if let Ok(response) = result {
-                                                        if let Ok(msg_bytes) =
-                                                            serialize_msg(
-                                                                &cid,
-                                                                &response,
-                                                            )
-                                                        {
-                                                            let _ = writer
-                                                                .write_all(
-                                                                    &msg_bytes,
-                                                                )
-                                                                .await;
-                                                        }
-                                                    }
-                                                } else {
                                                     let handler_opt = {
-                                                        let h = event_handlers
-                                                            .lock()
-                                                            .unwrap();
+                                                        let h = handlers.lock().unwrap();
                                                         h.get(&pattern).cloned()
                                                     };
-                                                    if let Some(handler) =
-                                                        handler_opt
-                                                    {
-                                                        let _ =
-                                                            handler(data, context).await;
+                                                    if let Some(handler) = handler_opt {
+                                                        let result = handler(data, context).await;
+                                                        if let Ok(response) = result {
+                                                            if let Ok(msg_bytes) =
+                                                                serialize_msg(&cid, &response)
+                                                            {
+                                                                let _ = writer
+                                                                    .write_all(&msg_bytes)
+                                                                    .await;
+                                                            }
+                                                        }
+                                                    } else {
+                                                        let handler_opt = {
+                                                            let h = event_handlers.lock().unwrap();
+                                                            h.get(&pattern).cloned()
+                                                        };
+                                                        if let Some(handler) = handler_opt {
+                                                            let _ = handler(data, context).await;
+                                                        }
                                                     }
-                                                }
                                                 }
                                             }
                                         }

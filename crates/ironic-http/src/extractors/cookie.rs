@@ -1,6 +1,6 @@
 use std::marker::PhantomData;
 
-use crate::{ExtractFuture, ExtractedValue, ParameterExtractor, RequestContext, HttpError};
+use crate::{ExtractFuture, ExtractedValue, HttpError, ParameterExtractor, RequestContext};
 
 /// Extracts a named cookie value from the request.
 ///
@@ -41,7 +41,9 @@ impl ParameterExtractor for CookieParameter<String> {
 
             for pair in cookies.split(';') {
                 let pair = pair.trim();
-                if let Some((key, value)) = pair.split_once('=') && key.trim() == self.name {
+                if let Some((key, value)) = pair.split_once('=')
+                    && key.trim() == self.name
+                {
                     return Ok(Box::new(value.trim().to_string()) as ExtractedValue);
                 }
             }

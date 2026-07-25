@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- Simplify generated app template to minimal skeleton
+
+### Added
+- Generate PRODUCTION.md with production readiness guide for new apps
+
 ## [v1.1.5] - 2026-07-25
 ### Changed
 - generate_app creates revallens-style microservice with platform/welcome/example module, per-app Dockerfile/.env, unique port

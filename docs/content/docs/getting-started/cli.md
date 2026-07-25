@@ -69,6 +69,49 @@ ironic migrate status
 
 For a full walkthrough, see [Database Migrations](/docs/data-auth/migrations).
 
+## OpenAPI command
+
+| Command | What it does |
+|---------|-------------|
+| `ironic openapi` | Auto-generate `openapi.json` — builds, starts, fetches spec, shuts down |
+| `ironic openapi -p <name>` | Generate spec for a specific monorepo app |
+| `ironic openapi -o spec.json --port 8081` | Custom output path and port |
+| `ironic openapi --timeout 30` | Wait up to 30s for the service to start |
+
+Requires the `openapi` feature in your `Cargo.toml`:
+
+```toml
+ironic = { workspace = true, features = ["openapi"] }
+```
+
+The command:
+1. Builds the project (`cargo build`)
+2. Starts the service on the specified port
+3. Polls `http://localhost:{port}/openapi.json` until ready
+4. Formats and writes the spec to the output file
+5. Shuts the service down
+
+### Generate YAML
+
+Convert the JSON output to YAML with a tool like `yq`:
+
+```bash
+ironic openapi -o spec.json
+yq -P eval spec.json > openapi.yaml
+```
+
+### Client SDK Generation
+
+Use the generated spec to create typed clients:
+
+```bash
+# TypeScript
+npx openapi-typescript spec.json -o client.ts
+
+# Python
+openapi-python-client generate --path spec.json
+```
+
 ## Inspection commands
 
 | Command | What it does |
@@ -109,3 +152,4 @@ Checks crates.io for a newer version and shows update instructions.
 - [x] `ironic migrate create/up/down/status` manages database schema
 - [x] `ironic doctor` diagnoses environment issues
 - [x] `ironic routes` and `ironic graph` inspect projects
+- [x] `ironic openapi` generates OpenAPI JSON specs

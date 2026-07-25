@@ -84,10 +84,38 @@ pub fn generate_app(root: &Path, name: &str) -> Result<GenerationReport, CliErro
         });
     }
 
-    let files = [
+    let lib_name = names.kebab.replace('-', "_");
+    let mut files: Vec<(std::path::PathBuf, String)> = vec![
         (dest.join("Cargo.toml"), app_manifest(&names)),
         (dest.join("src/main.rs"), app_main(&names)),
         (dest.join("src/app.rs"), app_module(&names)),
+        (dest.join("src/lib.rs"), format!(
+            "pub mod app;\npub mod modules;\npub use app::AppModule;\n"
+        )),
+        (dest.join("src/modules/mod.rs"), "pub mod health;\n".into()),
+        (dest.join("src/modules/health/mod.rs"),
+            r#"use ironic::prelude::*;
+
+#[derive(Module)]
+#[module()]
+pub struct HealthModule;
+"#.into()),
+        (dest.join("src/modules/health/controller/mod.rs"),
+            "pub mod health_controller;\n".into()),
+        (dest.join("src/modules/health/controller/health_controller.rs"),
+            r#"use ironic::prelude::*;
+
+#[controller("/health")]
+pub struct HealthController;
+
+#[routes]
+impl HealthController {
+    #[get("/")]
+    async fn check(&self) -> Json<serde_json::Value> {
+        Json(serde_json::json!({"status": "ok"}))
+    }
+}
+"#.into()),
     ];
 
     for (path, contents) in &files {
@@ -227,20 +255,24 @@ fn convert_to_monorepo(root: &Path, report: &mut GenerationReport) -> Result<(),
         })?;
     }
 
-    // Create app Cargo.toml (same deps as original but with workspace = true)
+    // Create app Cargo.toml (binary-only — no [lib] section)
+    // Modules are declared directly in main.rs (mod app; mod modules; etc.)
     let app_manifest = format!(
         r#"[package]
 name = "{pkg_name}"
-version.workspace = true
-edition.workspace = true
+version = "0.1.0"
+edition = "2024"
 
 [dependencies]
 ironic = {{ workspace = true }}
 tokio = {{ workspace = true }}
 serde = {{ workspace = true }}
-
-[lib]
-name = "{pkg_name}"
+serde_json = {{ workspace = true }}
+garde = {{ workspace = true }}
+sqlx = {{ workspace = true }}
+tracing = {{ workspace = true }}
+tracing-subscriber = {{ workspace = true }}
+dotenvy = {{ workspace = true }}
 "#
     );
     std::fs::write(app_dir.join("Cargo.toml"), &app_manifest).map_err(|e| CliError::Io {
@@ -249,8 +281,9 @@ name = "{pkg_name}"
         source: e,
     })?;
 
+    let ironic_version = env!("CARGO_PKG_VERSION");
+    let version_range = ironic_version.splitn(3, '.').take(2).collect::<Vec<_>>().join(".");
     // Rewrite root Cargo.toml as pure workspace manifest (no [package])
-    // This ensures Rust Analyzer correctly identifies the workspace structure.
     let workspace_manifest = format!(
         r#"[workspace]
 resolver = "3"
@@ -259,12 +292,16 @@ members = [
 ]
 
 [workspace.dependencies]
-ironic = {{ path = "{}" }}
-tokio = {{ version = "1", features = ["macros", "rt-multi-thread", "net"] }}
+ironic = {{ version = "{version_range}", features = ["security", "compression", "metrics", "validation", "versioning", "openapi", "logging", "sqlx-postgres"] }}
+tokio = {{ version = "1", features = ["macros", "rt-multi-thread", "net", "signal"] }}
 serde = {{ version = "1", features = ["derive"] }}
 serde_json = "1"
+garde = "0.23"
+sqlx = {{ version = "0.9", features = ["runtime-tokio", "postgres"] }}
+tracing = {{ version = "0.1", features = ["attributes"] }}
+tracing-subscriber = {{ version = "0.3", features = ["env-filter"] }}
+dotenvy = "0.15"
 "#,
-        std::env::var("IRONIC_DEV_PATH").unwrap_or_else(|_| "../..".to_string())
     );
     std::fs::write(&cargo_toml, &workspace_manifest).map_err(|e| CliError::Io {
         action: "write workspace Cargo.toml",
@@ -284,8 +321,8 @@ serde_json = "1"
         let lib_cargo = format!(
             r#"[package]
 name = "{lib}"
-version.workspace = true
-edition.workspace = true
+version = "0.1.0"
+edition = "2024"
 "#
         );
         std::fs::write(lib_dir.join("Cargo.toml"), &lib_cargo).map_err(|e| CliError::Io {

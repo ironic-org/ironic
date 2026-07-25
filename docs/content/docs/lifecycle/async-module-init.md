@@ -1,78 +1,126 @@
 ---
 title: AsyncModuleInit
-description: Container-aware async initialization — for database connections and migrations.
+description: Container-aware asynchronous initialization — database connections, external service setup
 ---
 
 # AsyncModuleInit
 
-Runs after the DI container is built but before any per-provider lifecycle hooks fire. Unlike `OnModuleInit`, this trait **receives the full container** so it can resolve providers during initialization.
+`AsyncModuleInit` fires **after the container is built** but **before
+singletons are resolved**. It receives a reference to the container,
+allowing you to resolve other providers during initialization.
 
-## Use cases
+## Position in the Lifecycle
 
-- Connecting to databases and running migrations
-- Initializing services that depend on multiple providers
-- Setting up infrastructure that needs the container to resolve dependencies
-- Registering eager singletons at startup
+```
+OnModuleConfigure
+  │
+  ▼
+AsyncModuleInit ◀── YOU ARE HERE (container exists, singletons not yet resolved)
+  │
+  ▼
+OnModuleInit (dependencies resolved)
+  │
+  ▼
+...startup continues...
+```
 
-## Signature
+## Trait Signature
 
 ```rust
-pub trait AsyncModuleInit: Send + Sync + 'static {
-    fn async_init<'a>(&'a self, container: &'a Container) -> LifecycleFuture<'a>;
+pub trait AsyncModuleInit {
+    async fn async_init(&self, container: &Container) -> Result<(), LifecycleError>;
 }
 ```
 
-## Example
+## Basic Usage
 
 ```rust
-use ironic::{AsyncModuleInit, LifecycleError, Container};
-use sqlx::PgPool;
+use ironic::prelude::*;
 
-struct DatabaseModule;
+#[derive(Injectable)]
+pub struct DatabaseService;
 
-impl AsyncModuleInit for DatabaseModule {
+impl AsyncModuleInit for DatabaseService {
     async fn async_init(&self, container: &Container) -> Result<(), LifecycleError> {
-        let url = container.resolve::<DatabaseConfig>().await
-            .map_err(|e| LifecycleError::new(e.to_string()))?;
+        // Resolve config from the container
+        let config = container
+            .resolve::<DatabaseConfig>()
+            .await
+            .map_err(|e| LifecycleError::new(format!("config missing: {e}")))?;
 
-        let pool = PgPool::connect(&url.url).await
-            .map_err(|e| LifecycleError::new(e.to_string()))?;
+        tracing::info!("connecting to database at {}", config.url);
+        // ... connect and store the pool
+        Ok(())
+    }
+}
 
-        sqlx::migrate!().run(&pool).await
-            .map_err(|e| LifecycleError::new(format!("Migration failed: {e}")))?;
+// Register:
+#[derive(Module)]
+#[module(
+    async_init = [DatabaseService],
+)]
+pub struct AppModule;
+```
 
-        container.register_eager(pool).await;
+## Key Difference from `OnModuleInit`
+
+| Aspect | `AsyncModuleInit` | `OnModuleInit` |
+|--------|-------------------|----------------|
+| Has `&Container` | ✅ | ❌ |
+| Can resolve providers | ✅ | ❌ |
+| Runs before singletons | ✅ | ❌ (after) |
+| Use case | Set up state that other services need | Use fully-constructed services |
+
+## What You Can Do
+
+```rust
+impl AsyncModuleInit for MyService {
+    async fn async_init(&self, container: &Container) -> Result<(), LifecycleError> {
+        // ✅ Resolve configuration
+        let config: Arc<AppConfig> = container.resolve().await?;
+
+        // ✅ Create external connections
+        let client = ExternalService::connect(&config.url).await?;
+
+        // ✅ Store for later use (e.g., inject into another service)
+        // (store in a shared state that other providers can access)
+
+        // ❌ Cannot use injected dependencies (they don't exist yet)
+        // self.other_service.do_something().await;  // WOULD PANIC
+
         Ok(())
     }
 }
 ```
 
-## When it runs
-
-```
-OnModuleConfigure ──► AsyncModuleInit ──► OnModuleInit ──► OnApplicationBootstrap
-```
-
-It runs once per module, **before** any `OnModuleInit` hooks.
-
-## Key difference from OnModuleInit
-
-| Aspect | OnModuleInit | AsyncModuleInit |
-|--------|-------------|-----------------|
-| Container access | No | Yes |
-| Runs per provider | Yes | Once per module |
-| Use case | Simple initialization | Complex setup requiring DI |
-
-## Registration
+## Pattern: Connection Pool Setup
 
 ```rust
-ModuleDefinition::builder::<DatabaseModule>()
-    .async_init()
-    .build()
+#[derive(Injectable)]
+pub struct DatabasePool {
+    pool: Option<PgPool>,  // None until initialized
+}
+
+impl AsyncModuleInit for DatabasePool {
+    async fn async_init(&self, container: &Container) -> Result<(), LifecycleError> {
+        let config: Arc<DatabaseConfig> = container.resolve().await
+            .map_err(|e| LifecycleError::new(format!("config: {e}")))?;
+
+        let pool = PgPool::connect(&config.url).await
+            .map_err(|e| LifecycleError::new(format!("connect: {e}")))?;
+
+        // Store pool via interior mutability or return it
+        // (Arc<Mutex<Option<PgPool>>> pattern)
+        Ok(())
+    }
+}
 ```
 
-## Best practices
+## Error Handling
 
-- Use `AsyncModuleInit` for **one-time** module-level setup
-- Use `OnModuleInit` for per-provider initialization
-- Don't register providers from within `async_init` — use the container's `register_eager` instead
+If `async_init` returns an error, the application startup fails:
+
+```
+Application::build() will return Err(...) with the lifecycle error.
+All previously initialized modules run their destroy hooks in reverse.
+```

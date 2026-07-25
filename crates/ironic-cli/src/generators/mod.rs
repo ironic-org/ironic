@@ -70,7 +70,11 @@ pub fn generate_app(root: &Path, name: &str) -> Result<GenerationReport, CliErro
     let dest = root.join("apps").join(&names.kebab);
     if dest.exists() {
         return Err(CliError::InvalidName {
-            name: format!("app `{}` already exists at `{}`", names.kebab, dest.display()),
+            name: format!(
+                "app `{}` already exists at `{}`",
+                names.kebab,
+                dest.display()
+            ),
         });
     }
 
@@ -162,20 +166,19 @@ async fn main() -> Result<(), anyhow::Error> {{
     )
 }
 
-fn app_module(names: &naming::Names) -> String {
-    format!(
-        r#"use ironic::prelude::*;
+fn app_module(_names: &naming::Names) -> String {
+    r"use ironic::prelude::*;
 
 pub struct AppModule;
 
-impl Module for AppModule {{
-    fn definition() -> ModuleDefinition {{
+impl Module for AppModule {
+    fn definition() -> ModuleDefinition {
         ModuleDefinition::builder::<Self>()
             .build()
-    }}
-}}
-"#,
-    )
+    }
+}
+"
+    .to_string()
 }
 
 fn ensure_workspace_member(manifest: &Path, member: &str) {
@@ -186,7 +189,9 @@ fn ensure_workspace_member(manifest: &Path, member: &str) {
     }
     let line = format!("        \"{member}\",\n");
     if let Some(pos) = contents.find("members = [") {
-        let insert_pos = contents[pos..].find(']').map(|p| pos + p).unwrap_or(contents.len());
+        let insert_pos = contents[pos..]
+            .find(']')
+            .map_or(contents.len(), |p| pos + p);
         contents.insert_str(insert_pos, &line);
         if let Ok(mut f) = std::fs::File::create(manifest) {
             let _ = f.write_all(contents.as_bytes());

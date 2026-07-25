@@ -1,88 +1,62 @@
 ---
 title: OnServerReady
-description: Hook that fires when the HTTP server is bound and accepting connections.
+description: Server is bound and accepting connections — service discovery, health checks, metrics
 ---
 
 # OnServerReady
 
-Runs after the HTTP server binds to a port and is **ready to accept connections**.
+`OnServerReady` fires after the HTTP server is **bound to its address**
+and **accepting connections**. This is your cue to announce readiness.
 
-## Use cases
+## Position
 
-- Self-health checks (is the server actually working?)
-- Notifying orchestrators (Kubernetes readiness probe callback)
-- Logging the bound address and port
-- Triggering external service registration (service discovery)
-- Sending startup notification to monitoring
+```
+OnApplicationBootstrap
+  │
+  ▼
+OnServerReady ◀── YOU ARE HERE (server is live)
+  │
+  ▼
+─── Request handling begins ───
+```
 
-## Signature
+## Trait
 
 ```rust
-pub trait OnServerReady: Send + Sync + 'static {
-    fn on_server_ready(&self) -> LifecycleFuture<'_>;
+pub trait OnServerReady {
+    async fn on_server_ready(&self) -> Result<(), LifecycleError>;
 }
 ```
 
-## Example
+## Basic Usage
 
 ```rust
-use ironic::{OnServerReady, LifecycleError};
+pub struct HealthAnnouncer;
 
-struct HealthReporter {
-    orchestrator_url: String,
-}
-
-impl OnServerReady for HealthReporter {
+impl OnServerReady for HealthAnnouncer {
     async fn on_server_ready(&self) -> Result<(), LifecycleError> {
-        let client = reqwest::Client::new();
-        client.post(&self.orchestrator_url)
-            .json(&serde_json::json!({"status": "ready"}))
-            .send()
-            .await
-            .map_err(|e| LifecycleError::new(e.to_string()))?;
+        tracing::info!("server is ready — announcing to service discovery");
+
+        // Register with Consul
+        consul::register("api-gateway", 3000).await
+            .map_err(|e| LifecycleError::new(format!("consul: {e}")))?;
+
         Ok(())
     }
 }
+
+// Register:
+#[derive(Module)]
+#[module(
+    lifecycle_server_ready = [HealthAnnouncer],
+)]
+pub struct AppModule;
 ```
 
-## When it runs
+## Common Uses
 
-```
-OnApplicationBootstrap ──► [ Server binds ] ──► OnServerReady
-```
-
-## Registration
-
-```rust
-ModuleDefinition::builder::<HealthReporter>()
-    .server_ready()
-    .build()
-```
-
-## Common patterns
-
-### Logging the bound address
-
-```rust
-impl OnServerReady for ServerLogger {
-    async fn on_server_ready(&self) -> Result<(), LifecycleError> {
-        tracing::info!("Server ready on {}:{}", self.host, self.port);
-        Ok(())
-    }
-}
-```
-
-### Service discovery registration
-
-```rust
-impl OnServerReady for ServiceRegistry {
-    async fn on_server_ready(&self) -> Result<(), LifecycleError> {
-        self.consul.register("my-service", &self.host, self.port).await
-            .map_err(|e| LifecycleError::new(e.to_string()))
-    }
-}
-```
-
-## Error behavior
-
-Errors are logged but do **not** stop the server — it's already running.
+- Register with service discovery (Consul, etcd, K8s)
+- Start accepting load balancer traffic
+- Initialize metrics scraping endpoints
+- Warm up connection pools
+- Log startup timing information

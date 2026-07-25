@@ -5,152 +5,355 @@ description: Control how and when services are created — Singleton, Transient,
 
 # Service Lifetimes
 
-## What you'll learn
+Every provider in Ironic has a **lifetime policy** (scope) that determines
+how many instances are created and when they are destroyed.
 
-- The three provider scopes — Singleton, Transient, and Request
-- How to set a scope via `#[injectable(scope = "...")]`
-- How Request-scoped providers work inside HTTP handlers
-- When to use eager initialization (`#[injectable(eager)]`)
-- How scope violations are detected at runtime
-- How to define scopes manually with `ProviderDefinition`
+## The Three Scopes
 
----
-
-## The three scopes
-
-Ironic has three lifetime policies for providers:
-
-| Scope | Instances | Created | Use case |
-|-------|-----------|---------|----------|
-| **Singleton** *(default)* | One per container | On first resolution | Database pools, config, caches — anything stateful and shared |
-| **Transient** | New every resolution | On every `resolve()` call | Stateless helpers, ID generators, lightweight utilities |
-| **Request** | One per HTTP request | On first resolution within a request | User context, request tracing, per-request state |
-
-```rust
-pub enum Scope {
-    Singleton,  // Default — once per container (backed by OnceCell)
-    Transient,  // Fresh instance on every resolve
-    Request,    // One instance shared within a single HTTP request
-}
+```
+       Singleton                     Transient                      Request
+   ┌───────────────┐           ┌───────────────┐           ┌───────────────┐
+   │   Container   │           │   Container   │           │   HTTP Request│
+   │  ┌─────────┐  │           │  ┌─────────┐  │           │  ┌─────────┐  │
+   │  │Service A│  │           │  │Service A│  │           │  │Service A│  │
+   │  │(shared) │  │           │  │(new)    │  │           │  │(per-req)│  │
+   │  └─────────┘  │           │  └─────────┘  │           │  └─────────┘  │
+   │               │           │               │           │               │
+   │  ┌─────────┐  │           │  ┌─────────┐  │           │  ┌─────────┐  │
+   │  │Service B│──│──same────▶│  │Service B│  │           │  │Service B│  │
+   │  │(shared) │  │           │  │(new)    │  │           │  │(per-req)│  │
+   │  └─────────┘  │           │  └─────────┘  │           │  └─────────┘  │
+   └───────────────┘           └───────────────┘           └───────────────┘
 ```
 
----
+| Scope | Instances | Created | Destroyed | Memory | Use Case |
+|-------|-----------|---------|-----------|--------|----------|
+| **Singleton** | 1 per container | On first resolve (or eager) | Application shutdown | Permanent | DB pools, config, caches |
+| **Transient** | 1 per `resolve()` call | Every injection | After each use (GC) | Temporary | Stateless helpers, builders |
+| **Request** | 1 per HTTP request | First resolve in request | Request end | Per-request | User context, trace ID |
 
-## Setting scope via `#[injectable]`
+## Setting Scope
 
-Use the `scope` option on the `#[injectable(...)]` attribute:
+### Via `#[injectable]` attribute (recommended)
 
 ```rust
+#[derive(Injectable)]
+#[injectable(scope = "singleton")]  // default — can omit
+pub struct DatabasePool;
+
 #[derive(Injectable)]
 #[injectable(scope = "transient")]
 pub struct IdGenerator;
 
 #[derive(Injectable)]
 #[injectable(scope = "request")]
-pub struct RequestContext {
-    pub user_id: Option<u64>,
+pub struct CurrentUser {
+    pub id: u64,
+    pub roles: Vec<String>,
 }
 ```
 
-The default is `"singleton"` — if you omit the `scope` option, your service is a singleton.
-
----
-
-## Request-scoped providers deep dive
-
-Request-scoped providers are created once per HTTP request and discarded afterward. They are **not** resolvable from a bare `Container::resolve()`:
+### Via `ProviderDefinition` (for third-party types)
 
 ```rust
-// Compiles but panics at runtime with RequestScopeRequired
-container.resolve::<RequestContext>().await;
-// Use the request scope instead:
-let scope = container.request_scope();
-let ctx = scope.resolve::<RequestContext>().await.unwrap();
+use ironic::{ProviderDefinition, Scope};
+
+// Third-party type that doesn't have #[derive(Injectable)]
+ProviderDefinition::constructor::<RedisClient, _, _>(
+    Scope::Singleton,   // ← scope defined here
+    vec![Dependency::required::<RedisConfig>()],
+    |resolver| async {
+        let config = resolver.resolve::<RedisConfig>().await?;
+        Ok(RedisClient::new(config.url))
+    },
+)
 ```
 
-**In HTTP handlers** this is automatic — the framework creates a `RequestScope`, inserts it into `RequestContext` extensions, and all route-handler injection goes through it.
+## Singleton (Default)
 
-### Scope violation rules
+**One instance per container.** All consumers share the same instance.
 
-Singletons **cannot** depend on request-scoped providers. Since singletons outlive any individual request, capturing request-scoped state would be unsound:
+```rust
+#[derive(Injectable)]  // scope = "singleton" is implicit
+pub struct DatabasePool {
+    pool: PgPool,
+}
+
+// Both services share the SAME DatabasePool instance
+#[derive(Injectable)]
+struct ServiceA {
+    db: Arc<DatabasePool>,  // same instance
+}
+
+#[derive(Injectable)]
+struct ServiceB {
+    db: Arc<DatabasePool>,  // same instance
+}
+```
+
+### Singleton Storage
+
+Singletons are backed by `tokio::sync::OnceCell`:
+
+```
+First resolve:
+  OnceCell is EMPTY → run factory → store result → return Arc<T>
+
+Subsequent resolves:
+  OnceCell is FULL → return clone of Arc<T>
+```
+
+### Singleton Retry
+
+If a singleton's constructor fails or is cancelled, it can be **retried**:
 
 ```rust
 #[derive(Injectable)]
-pub struct CacheWarmer {
-    ctx: Arc<RequestContext>,  // Compiles — but...
+#[injectable(eager)]
+struct DatabasePool {
+    // If startup fails, the next resolve attempt retries construction
 }
-
-// At runtime: "ScopeViolation: singleton CacheWarmer
-//               depends on request-scoped RequestContext"
 ```
 
-The DI container rejects this at resolution time with a `ResolveError::ScopeViolation` that includes the full dependency path.
+This is safe because Rust's async model allows dropping futures
+without corrupting state.
 
----
+## Transient
 
-## Eager initialization
+**A new instance on every resolution.** No sharing.
 
-By default, providers are lazily constructed on first use. Add `eager` to force construction during application bootstrap:
+```rust
+#[derive(Injectable)]
+#[injectable(scope = "transient")]
+pub struct RequestId {
+    id: String,
+}
+
+impl RequestId {
+    pub fn new() -> Self {
+        Self {
+            id: uuid::Uuid::new_v4().to_string(),
+        }
+    }
+}
+
+// Each injection creates a NEW RequestId with a different UUID
+fn handle(service: Arc<OrderService>) {
+    let id1: Arc<RequestId> = container.resolve().await?;
+    let id2: Arc<RequestId> = container.resolve().await?;
+    assert_ne!(id1.id, id2.id);  // different values!
+}
+```
+
+### When to Use Transient
+
+| Situation | Transient? | Why |
+|-----------|-----------|-----|
+| ID generator | ✅ | Each caller needs a unique ID |
+| Hashing utility | ✅ | No state to share |
+| DTO mapper | ✅ | Stateless transformation |
+| Database connection | ❌ | Connections are expensive — use Singleton |
+| Cache service | ❌ | Cache must be shared — use Singleton |
+
+## Request
+
+**One instance per HTTP request.** Shared within the same request
+but isolated across requests.
+
+```rust
+#[derive(Injectable)]
+#[injectable(scope = "request")]
+pub struct CurrentUser {
+    pub id: u64,
+    pub email: String,
+    pub roles: Vec<String>,
+}
+```
+
+### How Request Scope Works
+
+```
+Request 1                        Request 2
+┌──────────────────────┐        ┌──────────────────────┐
+│  RequestScope        │        │  RequestScope        │
+│  ┌────────────────┐  │        │  ┌────────────────┐  │
+│  │ CurrentUser    │  │        │  │ CurrentUser    │  │
+│  │ id: 1          │  │        │  │ id: 2          │  │
+│  │ email: "a@b"   │  │        │  │ email: "c@d"   │  │
+│  └────────────────┘  │        │  └────────────────┘  │
+│                      │        │                      │
+│  Controller A        │        │  Controller A        │
+│  └─ injects CurrentUser│       │  └─ injects CurrentUser│
+│  Controller B        │        │  Controller B        │
+│  └─ injects same CU  │        │  └─ injects same CU  │
+└──────────────────────┘        └──────────────────────┘
+     ↑                                ↑
+  Different CurrentUser         Different CurrentUser
+  (isolated per request)        (isolated per request)
+```
+
+### Accessing Request Scope
+
+In HTTP handlers, the framework creates the `RequestScope` automatically.
+All route handler injections go through it.
+
+For manual resolution outside HTTP handlers:
+
+```rust
+let scope = container.request_scope();
+let user = scope.resolve::<CurrentUser>().await?;
+```
+
+### Request Scope Internals
+
+Each `RequestScope` has its own cache:
+
+```rust
+struct RequestScope {
+    container: Container,
+    cache: Arc<Mutex<HashMap<ProviderKey, OnceCell<ProviderValue>>>>,
+}
+```
+
+- First resolve within a request → creates and caches the instance
+- Subsequent resolves → returns the cached instance
+- Request ends → `RequestScope` is dropped → cache is cleared
+
+## Scope Cross-Injection Rules
+
+```
+Can inject?      Singleton    Transient    Request
+──────────────────────────────────────────────────
+Singleton          ✅           ✅           ❌
+Transient          ✅           ✅           ✅
+Request            ✅           ✅           ✅
+```
+
+### Singleton → Request (FORBIDDEN)
+
+```rust
+struct CacheWarmer {
+    ctx: Arc<CurrentUser>,  // CurrentUser is request-scoped
+}
+
+// Runtime error:
+// IRONIC_DI_SCOPE_VIOLATION: singleton construction cannot resolve
+//   request provider `CurrentUser`
+//   Chain: CacheWarmer → CurrentUser
+```
+
+**Why:** Singletons live forever. If a singleton captured request-scoped
+state at startup, it would hold stale data for all subsequent requests.
+
+**Fix:** Pass request data as method parameters instead of constructor injection.
+
+### Singleton → Transient (SAFE)
+
+```rust
+struct MetricsService {
+    timestamp: Arc<TimestampGenerator>,  // Transient is fine
+}
+```
+
+Each time `MetricsService` uses `TimestampGenerator`, it gets a fresh instance
+with the current time.
+
+## Eager Initialization
+
+By default, singletons are **lazy** — created on first use.
+Use `#[injectable(eager)]` to force creation at application startup:
 
 ```rust
 #[derive(Injectable)]
 #[injectable(eager)]
 pub struct DatabasePool {
-    pool: PgPool,
+    // Created during Application::build()
+    // If the DB is unreachable, you know immediately
 }
 ```
 
-> **Why eager?** A connection failure at startup gives you a clear error immediately. A connection failure on the 1000th request at 3 AM is much worse.
+### Lazy vs Eager
 
----
+```
+Lazy Singleton:                    Eager Singleton:
+                                   
+Request 1 ──▶ resolve(UserService)  Startup ──▶ resolve(DatabasePool)
+                │                                  │
+                ├── resolve(DatabasePool)           │
+                │       │                           │
+                │    ┌──┴──┐                     ┌──┴──┐
+                │    │ 💥? │ ← error at 3 AM    │ ✅  │ ← error at deploy
+                │    └─────┘                     └─────┘
+                │                                     │
+                ▼                                     ▼
+            500 Error                              Deploy fails
+```
 
-## Manual `ProviderDefinition`
+### Decision Guide
 
-When you need full control (e.g. for third-party types you can't derive on), register a provider manually:
+| Service | Eager? | Reason |
+|---------|--------|--------|
+| Database pool | ✅ | Fail fast on bad credentials |
+| Cache connection | ✅ | Catch Redis outages at startup |
+| Message queue producer | ✅ | Validate broker connectivity |
+| HTTP health check | ✅ | Start responding immediately |
+| Business logic service | ❌ | No startup cost — lazy is fine |
+| Rarely-used service | ❌ | Save memory until needed |
+| Feature flag evaluator | ❌ | Cheap to create, lazy is fine |
+
+## Manual ProviderDefinition
+
+When you can't use `#[derive(Injectable)]` (third-party types, complex
+construction), register providers manually:
 
 ```rust
-use ironic::di::{ProviderDefinition, Scope, Dependency};
+use ironic::{ProviderDefinition, Dependency, Scope};
 
-ProviderDefinition::constructor(
+// Constructor (sync)
+ProviderDefinition::constructor::<DatabasePool, _, _>(
+    Scope::Singleton,
+    vec![Dependency::required::<DatabaseConfig>()],
+    |resolver| {
+        let config = resolver.resolve::<DatabaseConfig>()?;
+        Ok(DatabasePool::new(&config.url))
+    },
+);
+
+// Factory (async)
+ProviderDefinition::factory::<RedisClient, _, _>(
     Scope::Singleton,
     vec![],
-    |_| Ok(MyService::new()),
-)
+    |_| async {
+        Ok(RedisClient::connect("redis://localhost").await?)
+    },
+);
+
+// Value (pre-built)
+ProviderDefinition::value(AppConfig::from_env());
 ```
 
-Use `ProviderDefinition::factory(...)` for async construction and `ProviderDefinition::value(...)` to inject a pre-built instance.
+## Performance Characteristics
 
-```rust
-ProviderDefinition::value(my_prebuilt_config)  // Singleton, no deps
-```
+| Scope | Resolution Cost | Memory | Cleanup |
+|-------|----------------|--------|---------|
+| Singleton | O(1) OnceCell check + Arc clone | Permanent (until shutdown) | None |
+| Transient | Full construction each time | Temporary (GC after use) | Drop when Arc refs reach 0 |
+| Request | O(1) cache check + Arc clone (after first) | Request lifetime | Dropped with RequestScope |
 
----
+## Common Errors
 
-## Scope decision guide
-
-| Situation | Recommended scope |
-|-----------|-------------------|
-| Shared state (DB pool, cache, config) | **Singleton** |
-| Stateless computation (hashing, formatting) | **Transient** |
-| Per-request data (user session, trace ID) | **Request** |
-| Service that validates at startup (DB health) | **Singleton + eager** |
-
----
-
-## Common pitfalls
-
-| Pitfall | What happens | Fix |
-|---------|-------------|-----|
-| Singleton → Request dependency | `ScopeViolation` at runtime | Promote to Transient, or pass data via method args |
-| Using `Request` scope outside HTTP | `RequestScopeRequired` error | Call `container.request_scope()` first |
-| Not marking `eager` on a DB pool | Connection error surfaces on first user request | Add `#[injectable(eager)]` |
-| Confusing Transient with "per call" | A new instance is created every resolve, even within the same request | Use Request scope for per-request state |
+| Error | Cause | Fix |
+|-------|-------|-----|
+| `ScopeViolation` | Singleton → Request | Pass data as method args, not DI |
+| `RequestScopeRequired` | Request provider without scope | Use `container.request_scope()` |
+| `MissingProvider` | Provider not registered | Add to `module(providers = [...])` |
+| `CircularDependency` | Cycle detected | Use `ForwardRef<T>` |
 
 ## What you learned
 
-- [x] `Singleton` (default) creates one shared instance per container
-- [x] `Transient` creates a new instance on every resolution
-- [x] `Request` creates one instance per HTTP request, auto-managed by `RequestScope`
-- [x] Singletons cannot depend on request-scoped providers (`ScopeViolation`)
-- [x] `#[injectable(eager)]` forces construction at bootstrap
-- [x] `ProviderDefinition` gives you manual control over scope and factory
+- [x] Three scopes: Singleton (default), Transient, Request
+- [x] Set scope via `#[injectable(scope = "...")]` or `ProviderDefinition`
+- [x] Request scope is auto-managed in HTTP handlers
+- [x] Singletons cannot inject request-scoped providers
+- [x] `#[injectable(eager)]` forces startup initialization
+- [x] `ProviderDefinition` gives manual control for third-party types

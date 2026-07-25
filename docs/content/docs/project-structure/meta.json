@@ -1,0 +1,10 @@
+{
+  "title": "Project Structure",
+  "pages": [
+    "overview",
+    "single-service",
+    "workspace",
+    "modules",
+    "microservices"
+  ]
+}

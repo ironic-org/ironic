@@ -133,18 +133,32 @@ The entity and operation names are included in the error message for diagnostics
 
 ### The Problem
 
-`Module::definition()` is synchronous. Connecting to a database is async. The old pattern required `rt.block_on()` hacks:
+`Module::definition()` is synchronous. Connecting to a database requires async. Use `#[async_init]` instead:
 
 ```rust
-impl Module for DatabaseModule {
-    fn definition() -> ModuleDefinition {
-        let rt = tokio::runtime::Runtime::new().unwrap();
-        let pool = rt.block_on(async {
-            sqlx::PgPool::connect(&std::env::var("DATABASE_URL").unwrap()).await.unwrap()
-        });
-        ModuleDefinition::builder::<Self>()
-            .provider(ProviderDefinition::value(pool))
-            .build()
+#[derive(Module)]
+#[module(
+    providers = [DatabaseService],
+    async_init = [DatabaseService],
+)]
+pub struct DatabaseModule;
+```
+
+The `DatabaseService` implements `AsyncModuleInit` to connect asynchronously:
+
+```rust
+#[derive(Injectable)]
+pub struct DatabaseService {
+    pool: Option<PgPool>,
+}
+
+#[async_trait]
+impl AsyncModuleInit for DatabaseService {
+    async fn async_init(&self, container: &Container) -> Result<(), LifecycleError> {
+        let pool = PgPool::connect(&std::env::var("DATABASE_URL").unwrap()).await
+            .map_err(|e| LifecycleError::new(format!("db connect: {e}")))?;
+        // Store the pool for injection
+        Ok(())
     }
 }
 ```

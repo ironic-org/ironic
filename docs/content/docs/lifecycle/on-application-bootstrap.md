@@ -1,74 +1,60 @@
 ---
 title: OnApplicationBootstrap
-description: Application-wide initialization after all modules are ready.
+description: Cross-module coordination after all modules have initialized
 ---
 
 # OnApplicationBootstrap
 
-Runs after **every module's** initialization hooks have succeeded. This is the last step before the server starts listening.
+`OnApplicationBootstrap` fires after **ALL modules** have completed their
+`OnModuleInit` hooks. This is the last startup hook before the server
+starts listening.
 
-## Use cases
+## Position
 
-- Seeding default data into the database
-- Warming up caches with data from multiple services
-- Performing final validation of the application graph
-- Starting background task processors
-- Registering periodic timers
+```
+OnModuleInit (all modules)
+  │
+  ▼
+OnApplicationBootstrap ◀── YOU ARE HERE
+  │
+  ▼
+OnServerReady
+```
 
-## Signature
+## Trait
 
 ```rust
-pub trait OnApplicationBootstrap: Send + Sync + 'static {
-    fn on_application_bootstrap(&self) -> LifecycleFuture<'_>;
+pub trait OnApplicationBootstrap {
+    async fn on_application_bootstrap(&self) -> Result<(), LifecycleError>;
 }
 ```
 
-## Example
+## Basic Usage
 
 ```rust
-use ironic::{OnApplicationBootstrap, LifecycleError};
+pub struct ServiceRegistry;
 
-struct AppModule {
-    db: DatabaseService,
-    cache: CacheService,
-}
-
-impl OnApplicationBootstrap for AppModule {
+impl OnApplicationBootstrap for ServiceRegistry {
     async fn on_application_bootstrap(&self) -> Result<(), LifecycleError> {
-        // Seed default roles if they don't exist
-        self.db.seed_roles().await
-            .map_err(|e| LifecycleError::new(e.to_string()))?;
-
-        // Warm the cache with data from the database
-        let popular = self.db.get_popular_items().await
-            .map_err(|e| LifecycleError::new(e.to_string()))?;
-        self.cache.warm(popular).await;
-
+        // All modules are initialized — safe to coordinate across them
+        tracing::info!("all modules initialized");
         Ok(())
     }
 }
+
+// Register:
+#[derive(Module)]
+#[module(
+    lifecycle_bootstrap = [ServiceRegistry],
+)]
+pub struct AppModule;
 ```
 
-## When it runs
+## When to Use
 
-```
-OnModuleInit ──► OnApplicationBootstrap ──► [ Server starts ] ──► OnServerReady
-```
-
-## Registration
-
-```rust
-ModuleDefinition::builder::<AppModule>()
-    .application_bootstrap()
-    .build()
-```
-
-## Error behavior
-
-If `OnApplicationBootstrap` returns an error, the application **fails to start** and performs graceful shutdown of all initialized modules.
-
-## Best practices
-
-- Use `OnApplicationBootstrap` for **cross-module** initialization
-- Keep it **fast** — the server won't start until this completes
-- If you have long-running initialization (e.g., warming a large cache), consider doing it in a background task
+| Scenario | Why Here |
+|----------|----------|
+| Register with Consul/etcd | All services are ready to serve |
+| Cross-module validation | Every module has initialized its state |
+| Emit "startup complete" event | Guaranteed last startup hook |
+| Start accepting traffic signals | Server will start accepting immediately after |

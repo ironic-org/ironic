@@ -53,22 +53,31 @@ ProviderDefinition::constructor(
 Providers are registered in modules:
 
 ```rust
-impl Module for AppModule {
-    fn definition() -> ModuleDefinition {
-        ModuleDefinition::builder::<Self>()
-            .provider(ProviderDefinition::value(
-                CacheService::new(60),
-            ))
-            .provider(ProviderDefinition::constructor(
-                Scope::Singleton,
-                vec![Dependency::required::<CacheService>()],
-                |resolver| async {
-                    let cache = resolver.resolve::<CacheService>().await?;
-                    Ok(UserService::new(cache))
-                },
-            ))
-            .build()
+#[derive(Module)]
+#[module(
+    providers = [CacheService, UserService],
+)]
+pub struct AppModule;
+```
+
+For custom constructor logic, annotate with `#[injectable]` and let the DI container wire dependencies automatically:
+
+```rust
+#[derive(Injectable)]
+#[injectable(scope = "singleton")]
+pub struct CacheService {
+    ttl_secs: u64,
+}
+
+impl CacheService {
+    pub fn new(ttl_secs: u64) -> Self {
+        Self { ttl_secs }
     }
+}
+
+#[derive(Injectable)]
+pub struct UserService {
+    cache: Arc<CacheService>,
 }
 ```
 

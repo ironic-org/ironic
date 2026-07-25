@@ -13,6 +13,14 @@ type Post = {
 
 const posts: Post[] = [
     {
+        slug: 'v1.1.2',
+        title: 'v1.1.2 — add package argument to CargoArgs for monorepo support and update documentation',
+        description: 'add package argument to CargoArgs for monorepo support and update documentation',
+        date: '2026-07-25',
+        tag: 'release',
+        readTime: '2 min',
+    },
+    {
         slug: 'v1.1.1',
         title: 'v1.1.1 — implement MQTT and NATS live transports, Federation helper, MS pipeline docs',
         description: 'implement MQTT and NATS live transports, Federation helper, MS pipeline docs',

@@ -92,22 +92,22 @@ Common async config sources:
 
 ## Conditional module registration
 
-Use feature flags or runtime conditions to decide which modules to register:
+Use feature flags or runtime conditions to decide which modules to register.
+For static modules, use the derive macro. For dynamic registration, use the builder:
 
 ```rust
-impl Module for ConditionalApp {
-    fn definition(&self) -> ModuleDefinition {
-        let mut def = ModuleDefinition::new("conditional_app");
+// Static imports — always included
+#[derive(Module)]
+#[module(imports = [CoreModule])]
+pub struct ConditionalApp;
 
-        def.import(CoreModule::definition());
+// Dynamic imports — conditionally added
+pub fn build_app(is_production: bool) -> ModuleDefinition {
+    let mut def = ModuleDefinition::builder::<ConditionalApp>();
 
-        if std::env::var("ENABLE_CACHE").is_ok() {
-            def.import(CacheModule::definition());
-        }
-
-        if self.config.is_production() {
-            def.import(ProdModule::definition());
-        } else {
+    if is_production {
+        def = def.import::<ProdModule>();
+    } else {
             def.import(DevModule::definition());
         }
 

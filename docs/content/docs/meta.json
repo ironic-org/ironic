@@ -2,6 +2,7 @@
   "title": "Documentation",
   "pages": [
     "getting-started",
+    "project-structure",
     "fundamentals",
     "core",
     "lifecycle",

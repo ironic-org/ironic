@@ -78,6 +78,10 @@ pub struct NewArgs {
 /// Arguments passed through to Cargo after `--`.
 #[derive(Debug, Args)]
 pub struct CargoArgs {
+    /// App name to run (for monorepo workspaces). Runs `cargo run -p <name>`.
+    /// When omitted, runs the current project's default binary.
+    #[arg(short = 'p', long)]
+    pub package: Option<String>,
     /// Additional Cargo arguments.
     #[arg(last = true, allow_hyphen_values = true)]
     pub cargo_args: Vec<String>,
@@ -228,7 +232,7 @@ mod tests {
         let cli = Cli::try_parse_from(["ironic", "start", "--", "--features", "extra"]).unwrap();
         assert!(matches!(
             cli.command,
-            Command::Start(CargoArgs { cargo_args }) if cargo_args == ["--features", "extra"]
+            Command::Start(CargoArgs { cargo_args, .. }) if cargo_args == ["--features", "extra"]
         ));
     }
 
@@ -237,7 +241,7 @@ mod tests {
         let cli = Cli::try_parse_from(["ironic", "build", "--", "--release"]).unwrap();
         assert!(matches!(
             cli.command,
-            Command::Build(CargoArgs { cargo_args }) if cargo_args == ["--release"]
+            Command::Build(CargoArgs { cargo_args, .. }) if cargo_args == ["--release"]
         ));
     }
 
@@ -246,7 +250,7 @@ mod tests {
         let cli = Cli::try_parse_from(["ironic", "start"]).unwrap();
         assert!(matches!(
             cli.command,
-            Command::Start(CargoArgs { cargo_args }) if cargo_args.is_empty()
+            Command::Start(CargoArgs { cargo_args, .. }) if cargo_args.is_empty()
         ));
     }
 

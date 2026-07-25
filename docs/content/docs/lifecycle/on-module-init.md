@@ -1,75 +1,70 @@
 ---
 title: OnModuleInit
-description: Per-provider initialization after dependencies are resolved.
+description: Per-provider initialization after all dependencies are resolved — migrations, seeding, background tasks
 ---
 
 # OnModuleInit
 
-Runs after a provider's module and dependencies are fully resolved by the DI container.
+`OnModuleInit` fires **after all dependencies are resolved** and the provider
+is fully constructed. All `Arc<T>` fields are populated and ready to use.
 
-## Use cases
+## Position
 
-- Opening database connections
-- Loading cached data into memory
-- Connecting to external services
-- Starting background workers
-- Warmup operations
+```
+AsyncModuleInit
+  │
+  ▼
+OnModuleInit ◀── YOU ARE HERE (all deps ready to use)
+  │
+  ▼
+OnApplicationBootstrap
+  │
+  ▼
+OnServerReady
+```
 
-## Signature
+## Trait
 
 ```rust
-pub trait OnModuleInit: Send + Sync + 'static {
-    fn on_module_init(&self) -> LifecycleFuture<'_>;
+pub trait OnModuleInit {
+    async fn on_module_init(&self) -> Result<(), LifecycleError>;
 }
 ```
 
-## Example
+## Basic Usage
 
 ```rust
-use ironic::{OnModuleInit, LifecycleError, Injectable};
-use std::sync::Arc;
-
 #[derive(Injectable)]
-struct CacheService {
-    redis: Arc<RedisPool>,
+pub struct MigrationRunner {
+    pool: Arc<DatabasePool>,  // fully resolved
 }
 
-impl OnModuleInit for CacheService {
+impl OnModuleInit for MigrationRunner {
     async fn on_module_init(&self) -> Result<(), LifecycleError> {
-        let warmed = self.redis.get("popular_items").await
-            .map_err(|e| LifecycleError::new(e.to_string()))?;
-        // Store in-memory
+        // Dependencies are safe to use
+        self.pool.run_migrations().await
+            .map_err(|e| LifecycleError::new(format!("migration failed: {e}")))?;
+
+        tracing::info!("database migrations complete");
         Ok(())
     }
 }
+
+// Register:
+#[derive(Module)]
+#[module(
+    lifecycle_init = [MigrationRunner],
+)]
+pub struct AppModule;
 ```
 
-## When it runs
+## Common Uses
 
-```
-OnModuleConfigure ──► AsyncModuleInit ──► OnModuleInit ──► OnApplicationBootstrap
-```
-
-Hooks run in **dependency order** — if module A depends on module B, B's `OnModuleInit` runs first.
-
-## Registration
-
-```rust
-ModuleDefinition::builder::<CacheService>()
-    .module_init()
-    .build()
-```
-
-## Error behavior
-
-If `OnModuleInit` returns an error:
-- The application startup **fails** with the error message
-- All previously initialized modules have their `OnModuleDestroy` called in reverse order
-- No half-initialized state is left behind
-
-## Best practices
-
-- **Don't panic** — return `Err(LifecycleError::new(...))` instead
-- **Don't leak secrets** — error messages should be safe diagnostics
-- **Keep it quick** — long init delays startup; use background tasks if needed
-- **Idempotent** — design `OnModuleInit` to be safe if called again
+| Use Case | Example |
+|----------|---------|
+| Run DB migrations | `pool.run_migrations().await` |
+| Seed initial data | `repository.seed_defaults().await` |
+| Start background workers | `tokio::spawn(worker.run())` |
+| Warm caches | `cache.preload_popular_items().await` |
+| Validate external services | `health_check.ping_external_apis().await` |
+| Register metrics | `metrics.register_counter("requests_total")` |

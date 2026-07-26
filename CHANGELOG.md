@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v1.2.0] - 2026-07-27
+
+### Added
+- add serde dependency for serialization and re-export in the library (7bc0ff9)
+
+### Changed
+- simplify dependency extraction and formatting in project and monorepo generators (aeb7918)
+
+
 ## [v1.1.9] - 2026-07-27
 
 ### Added

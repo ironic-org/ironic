@@ -5,12 +5,13 @@ description: Version history and release notes for the Ironic framework.
 
 # Releases
 
-## Current version: v1.1.9
+## Current version: v1.2.0
 
 All notable changes to Ironic are documented here. The project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 | Version | Date | Highlights |
 |---------|------|-----------|
+| [v1.2.0](/blog/v1.2.0) | 2026-07-27 | add serde dependency for serialization and re-export in the library |
 | [v1.1.9](/blog/v1.1.9) | 2026-07-27 | update dependencies and enhance GraphQL integration in project generator |
 | [v1.1.8](/blog/v1.1.8) | 2026-07-26 | ironic generate app --grpc for gRPC microservice scaffold |
 | [v1.1.7](/blog/v1.1.7) | 2026-07-26 | enhance app generation with platform module and logging configuration |

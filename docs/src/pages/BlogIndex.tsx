@@ -13,6 +13,14 @@ type Post = {
 
 const posts: Post[] = [
     {
+        slug: 'v1.2.0',
+        title: 'v1.2.0 — add serde dependency for serialization and re-export in the library',
+        description: 'add serde dependency for serialization and re-export in the library',
+        date: '2026-07-27',
+        tag: 'release',
+        readTime: '2 min',
+    },
+    {
         slug: 'v1.1.9',
         title: 'v1.1.9 — update dependencies and enhance GraphQL integration in project generator',
         description: 'update dependencies and enhance GraphQL integration in project generator',

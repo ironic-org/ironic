@@ -251,6 +251,7 @@ pub fn generate_resource(root: &Path, name: &str) -> Result<GenerationReport, Cl
     register_root_module(root, &names, &mut report)?;
     ensure_main_registration(root, &mut report);
     ensure_app_import(root, &names, &mut report);
+    ensure_serde_dep(root, &mut report);
     Ok(report)
 }
 
@@ -408,6 +409,26 @@ pub(super) fn ensure_main_registration(root: &Path, report: &mut GenerationRepor
             "add `mod modules;` to `{}` ({error})",
             main.display()
         ));
+    }
+}
+
+/// Ensures `serde` is in `Cargo.toml` (required for DTO/entity derives).
+fn ensure_serde_dep(root: &Path, report: &mut GenerationReport) {
+    let manifest = root.join("Cargo.toml");
+    if !manifest.is_file() {
+        return;
+    }
+    let content = std::fs::read_to_string(&manifest).unwrap_or_default();
+    if content.contains("serde") {
+        return;
+    }
+    let dep = "serde = { version = \"1\", features = [\"derive\"] }";
+    let new_content = content.replace("[dependencies]\n", &format!("[dependencies]\n{dep}\n"));
+    if new_content != content {
+        std::fs::write(&manifest, new_content).ok();
+        report
+            .manual_instructions
+            .push("`serde` auto-added to Cargo.toml".into());
     }
 }
 

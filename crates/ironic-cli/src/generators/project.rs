@@ -61,12 +61,7 @@ pub fn create(
 
     let dep_spec = framework_workspace.map_or_else(
         || "version = \"1.1\"".to_string(),
-        |workspace| {
-            format!(
-                "path = \"{}\", default-features = false",
-                toml_path(workspace)
-            )
-        },
+        |w| format!("path = \"{}\", default-features = false", toml_path(w)),
     );
     let files: Vec<(std::path::PathBuf, String)> = if graphql {
         vec![
@@ -192,12 +187,7 @@ fn manifest(name: &str, workspace: Option<&Path>) -> String {
     let range = version.splitn(3, '.').take(2).collect::<Vec<_>>().join(".");
     let dep_spec = workspace.map_or_else(
         || format!("version = \"{range}\""),
-        |workspace| {
-            format!(
-                "path = \"{}\", default-features = false",
-                toml_path(workspace)
-            )
-        },
+        |w| format!("path = \"{}\", default-features = false", toml_path(w)),
     );
     format!(
         r#"[package]
@@ -261,28 +251,6 @@ use crate::app_service::AppService;
 pub struct AppModule;
 "
     .to_string()
-}
-
-fn manifest_graphql(name: &str) -> String {
-    format!(
-        r#"[package]
-name = "{name}"
-version = "0.1.0"
-edition = "2024"
-rust-version = "1.97"
-publish = false
-
-[dependencies]
-ironic = {{ features = ["graphql", "logging"], version = "1.1" }}
-
-[profile.release]
-lto = true
-codegen-units = 1
-opt-level = "z"
-panic = "abort"
-strip = true
-"#,
-    )
 }
 
 fn manifest_graphql_with_dep(name: &str, dep_spec: &str) -> String {

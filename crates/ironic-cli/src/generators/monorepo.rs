@@ -123,12 +123,12 @@ fn extract_ironic_dep(toml: &str) -> Option<String> {
                 || trimmed.starts_with("ironic=")
             {
                 // Extract the value after '='
-                if let Some(val) = trimmed.splitn(2, '=').nth(1) {
+                if let Some(val) = trimmed.split_once('=').map(|(_, v)| v) {
                     let val = val
                         .trim()
                         .trim_matches(|c: char| c == ' ' || c == '{' || c == '}');
                     // Extract path, version, etc.
-                    let parts: Vec<&str> = val.split(',').map(|s| s.trim()).collect();
+                    let parts: Vec<&str> = val.split(',').map(str::trim).collect();
                     let mut result = Vec::new();
                     for part in parts {
                         if part.starts_with("version")

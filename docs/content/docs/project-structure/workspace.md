@@ -17,141 +17,50 @@ my-platform/
 ├── apps/                          # ── Microservice binaries
 │   ├── api-gateway/               #    HTTP API gateway
 │   │   ├── Cargo.toml
+│   │   ├── Dockerfile
 │   │   ├── .env
+│   │   ├── PRODUCTION.md          #    Production readiness guide
 │   │   └── src/
-│   │       ├── main.rs
+│   │       ├── main.rs            #    Minimal entry point
 │   │       ├── app.rs             #    Root module
-│   │       ├── welcome.rs         #    Welcome endpoint
-│   │       ├── platform/          #    Service infrastructure
-│   │       │   ├── mod.rs
-│   │       │   ├── config.rs
-│   │       │   ├── telemetry.rs
-│   │       │   └── database.rs
-│   │       └── modules/
+│   │       └── platform/
 │   │           ├── mod.rs
-│   │           ├── users/         #    Users domain
-│   │           │   ├── mod.rs
-│   │           │   ├── controller/
-│   │           │   │   ├── mod.rs
-│   │           │   │   └── users_controller.rs
-│   │           │   ├── services/
-│   │           │   │   ├── mod.rs
-│   │           │   │   └── users_service.rs
-│   │           │   ├── repositories/
-│   │           │   │   ├── mod.rs
-│   │           │   │   └── users_repository.rs
-│   │           │   ├── dto/
-│   │           │   │   ├── mod.rs
-│   │           │   │   ├── create_user_dto.rs
-│   │           │   │   └── user_response.rs
-│   │           │   ├── entities/
-│   │           │   │   ├── mod.rs
-│   │           │   │   └── user.rs
-│   │           │   └── tests/     #    Unit + integration tests
-│   │           │       ├── mod.rs
-│   │           │       ├── unit.rs
-│   │           │       └── integration.rs
-│   │           └── health/        #    Health check
-│   │               └── controller/
-│   │                   └── health_controller.rs
+│   │           ├── config.rs      #    Env helpers (listen_addr)
+│   │           └── logging.rs     #    Tracing setup
 │   │
 │   ├── auth-service/              #    Authentication service
 │   │   ├── Cargo.toml
+│   │   ├── Dockerfile
 │   │   ├── .env
+│   │   ├── PRODUCTION.md
 │   │   └── src/
 │   │       ├── main.rs
 │   │       ├── app.rs
-│   │       ├── welcome.rs
-│   │       ├── platform/
-│   │       │   ├── mod.rs
-│   │       │   ├── config.rs
-│   │       │   ├── telemetry.rs
-│   │       │   └── database.rs
-│   │       └── modules/
+│   │       └── platform/
 │   │           ├── mod.rs
-│   │           ├── auth/
-│   │           │   ├── mod.rs
-│   │           │   ├── controller/
-│   │           │   │   ├── mod.rs
-│   │           │   │   └── auth_controller.rs
-│   │           │   ├── services/
-│   │           │   │   ├── mod.rs
-│   │           │   │   ├── auth_service.rs
-│   │           │   │   └── jwt_service.rs
-│   │           │   ├── repositories/
-│   │           │   │   ├── mod.rs
-│   │           │   │   └── credentials_repository.rs
-│   │           │   ├── dto/
-│   │           │   │   ├── mod.rs
-│   │           │   │   ├── login_dto.rs
-│   │           │   │   └── register_dto.rs
-│   │           │   ├── entities/
-│   │           │   │   ├── mod.rs
-│   │           │   │   └── credential.rs
-│   │           │   └── tests/
-│   │           │       ├── mod.rs
-│   │           │       ├── unit.rs
-│   │           │       └── integration.rs
-│   │           └── rbac/
-│   │               ├── mod.rs
-│   │               ├── services/
-│   │               │   ├── mod.rs
-│   │               │   └── rbac_service.rs
-│   │               └── entities/
-│   │                   ├── mod.rs
-│   │                   └── role.rs
+│   │           ├── config.rs
+│   │           └── logging.rs
 │   │
-│   └── analytics-service/         #    Analytics service
+│   └── greet-service/             #    gRPC service (generated with --grpc)
 │       ├── Cargo.toml
+│       ├── Dockerfile
 │       ├── .env
+│       ├── PRODUCTION.md
+│       ├── build.rs               #    Compiles proto definitions
+│       ├── proto/
+│       │   └── hello.proto
 │       └── src/
 │           ├── main.rs
-│           ├── app.rs
-│           ├── welcome.rs
-│           ├── platform/
-│           │   ├── mod.rs
-│           │   ├── config.rs
-│           │   ├── telemetry.rs
-│           │   └── database.rs
-│           └── modules/
+│           ├── app.rs             #    AppModule with providers
+│           ├── modules/
+│           │   └── greet/
+│           │       ├── mod.rs
+│           │       ├── greeter_service.rs   #    Tonic impl + DI
+│           │       └── greet_repository.rs  #    Data layer
+│           └── platform/
 │               ├── mod.rs
-│               ├── events/        #    Kafka event handlers
-│               │   ├── mod.rs
-│               │   └── handlers/
-│               │       ├── mod.rs
-│               │       ├── user_events.rs
-│               │       └── order_events.rs
-│               └── reports/
-│                   ├── mod.rs
-│                   ├── controller/
-│                   │   ├── mod.rs
-│                   │   └── reports_controller.rs
-│                   ├── services/
-│                   │   ├── mod.rs
-│                   │   └── reports_service.rs
-│                   ├── repositories/
-│                   │   ├── mod.rs
-│                   │   └── analytics_repository.rs
-│                   ├── dto/
-│                   │   ├── mod.rs
-│                   │   └── report_response.rs
-│                   ├── entities/
-│                   │   ├── mod.rs
-│                   │   └── analytics_event.rs
-│                   └── tests/
-├── libs/                          # ── Shared libraries (add your own with `ironic generate library <name>`)
-│   └── proto/                     #    Optional protobuf definitions
-│       ├── Cargo.toml
-│       ├── build.rs
-│       ├── src/lib.rs
-│       └── proto/
-│           └── greeter.proto
-│
-├── scripts/                       # ── CI/CD scripts
-│   └── deploy.sh
-│
-└── docs/                          # ── Shared documentation
-    └── architecture.md
+│               ├── config.rs
+│               └── logging.rs
 ```
 
 ## Workspace Manifest (`Cargo.toml`)

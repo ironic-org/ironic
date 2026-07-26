@@ -45,6 +45,8 @@ description: Master the Ironic command-line tools — create, generate, run, tes
 | `ironic generate middleware <name>` | `g mi` | Middleware |
 | `ironic generate pipe <name>` | `g pi` | Parameter pipe |
 | `ironic generate provider <name>` | `g pr` | Injectable provider |
+| `ironic generate app <name>` | `g a` | New HTTP microservice in the monorepo |
+| `ironic generate app <name> --grpc` | `g a --grpc` | New gRPC microservice with tonic + DI |
 
 ## Migration commands
 
@@ -153,3 +155,4 @@ Checks crates.io for a newer version and shows update instructions.
 - [x] `ironic doctor` diagnoses environment issues
 - [x] `ironic routes` and `ironic graph` inspect projects
 - [x] `ironic openapi` generates OpenAPI JSON specs
+- [x] `ironic generate app --grpc` scaffolds gRPC microservices with DI

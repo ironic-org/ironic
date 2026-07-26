@@ -8,6 +8,25 @@ use super::{
     record,
 };
 
+#[derive(Debug, Clone, Copy, PartialEq)]
+enum TransportType {
+    Http,
+    Grpc,
+    Graphql,
+}
+
+fn detect_transport(root: &Path) -> TransportType {
+    let manifest = root.join("Cargo.toml");
+    let content = std::fs::read_to_string(&manifest).unwrap_or_default();
+    if content.contains("features = [\"grpc\"") || content.contains("\"grpc\"") {
+        TransportType::Grpc
+    } else if content.contains("features = [\"graphql\"") || content.contains("\"graphql\"") {
+        TransportType::Graphql
+    } else {
+        TransportType::Http
+    }
+}
+
 /// Generates an application module.
 ///
 /// # Errors
@@ -188,6 +207,15 @@ pub fn generate_service(root: &Path, name: &str) -> Result<GenerationReport, Cli
 ///
 /// Returns [`CliError`] for invalid names, conflicting files, or unsafe source edits.
 pub fn generate_resource(root: &Path, name: &str) -> Result<GenerationReport, CliError> {
+    let transport = detect_transport(root);
+    match transport {
+        TransportType::Graphql => generate_graphql_resource(root, name),
+        TransportType::Grpc => generate_grpc_resource(root, name),
+        TransportType::Http => generate_http_resource(root, name),
+    }
+}
+
+fn generate_http_resource(root: &Path, name: &str) -> Result<GenerationReport, CliError> {
     let names = Names::parse(name)?;
     let module_dir = root.join("src/modules").join(&names.snake);
     let controller_dir = module_dir.join("controller");
@@ -242,6 +270,124 @@ pub fn generate_resource(root: &Path, name: &str) -> Result<GenerationReport, Cl
         (
             entities_dir.join(format!("{}.rs", names.snake)),
             templates::entity(&names),
+        ),
+    ];
+    for (path, contents) in files {
+        let state = source::write_generated(&path, &contents)?;
+        record(&mut report, &path, state);
+    }
+    register_root_module(root, &names, &mut report)?;
+    ensure_main_registration(root, &mut report);
+    ensure_app_import(root, &names, &mut report);
+    ensure_serde_dep(root, &mut report);
+    Ok(report)
+}
+
+fn generate_graphql_resource(root: &Path, name: &str) -> Result<GenerationReport, CliError> {
+    let names = Names::parse(name)?;
+    let module_dir = root.join("src/modules").join(&names.snake);
+    let repositories_dir = module_dir.join("repositories");
+    let services_dir = module_dir.join("services");
+    let dto_dir = module_dir.join("dto");
+    let entities_dir = module_dir.join("entities");
+    let mut report = GenerationReport::default();
+    let files = [
+        (
+            module_dir.join("mod.rs"),
+            templates::resource_module_graphql(&names),
+        ),
+        (
+            repositories_dir.join("mod.rs"),
+            templates::repository_mod(&names),
+        ),
+        (
+            repositories_dir.join(format!("{}_repository.rs", names.snake)),
+            templates::repository(&names),
+        ),
+        (services_dir.join("mod.rs"), templates::services_mod(&names)),
+        (
+            services_dir.join(format!("{}_service.rs", names.snake)),
+            templates::service(&names),
+        ),
+        (dto_dir.join("mod.rs"), templates::dto_mod(&names)),
+        (
+            dto_dir.join(format!("create_{}_dto.rs", names.snake)),
+            templates::create_dto(&names),
+        ),
+        (
+            dto_dir.join(format!("update_{}_dto.rs", names.snake)),
+            templates::update_dto(&names),
+        ),
+        (entities_dir.join("mod.rs"), templates::entities_mod(&names)),
+        (
+            entities_dir.join(format!("{}.rs", names.snake)),
+            templates::entity(&names),
+        ),
+        (
+            module_dir.join("resolver").join("mod.rs"),
+            templates::resolver_mod(&names),
+        ),
+        (
+            module_dir
+                .join("resolver")
+                .join(format!("{}_resolver.rs", names.snake)),
+            templates::resolver(&names),
+        ),
+    ];
+    for (path, contents) in files {
+        let state = source::write_generated(&path, &contents)?;
+        record(&mut report, &path, state);
+    }
+    register_root_module(root, &names, &mut report)?;
+    ensure_main_registration(root, &mut report);
+    ensure_app_import(root, &names, &mut report);
+    ensure_serde_dep(root, &mut report);
+    Ok(report)
+}
+
+fn generate_grpc_resource(root: &Path, name: &str) -> Result<GenerationReport, CliError> {
+    let names = Names::parse(name)?;
+    let module_dir = root.join("src/modules").join(&names.snake);
+    let repositories_dir = module_dir.join("repositories");
+    let services_dir = module_dir.join("services");
+    let dto_dir = module_dir.join("dto");
+    let entities_dir = module_dir.join("entities");
+    let mut report = GenerationReport::default();
+    let files = [
+        (
+            module_dir.join("mod.rs"),
+            templates::resource_module_grpc(&names),
+        ),
+        (
+            repositories_dir.join("mod.rs"),
+            templates::repository_mod(&names),
+        ),
+        (
+            repositories_dir.join(format!("{}_repository.rs", names.snake)),
+            templates::repository(&names),
+        ),
+        (services_dir.join("mod.rs"), templates::services_mod(&names)),
+        (
+            services_dir.join(format!("{}_service.rs", names.snake)),
+            templates::service(&names),
+        ),
+        (dto_dir.join("mod.rs"), templates::dto_mod(&names)),
+        (
+            dto_dir.join(format!("create_{}_dto.rs", names.snake)),
+            templates::create_dto(&names),
+        ),
+        (
+            dto_dir.join(format!("update_{}_dto.rs", names.snake)),
+            templates::update_dto(&names),
+        ),
+        (entities_dir.join("mod.rs"), templates::entities_mod(&names)),
+        (
+            entities_dir.join(format!("{}.rs", names.snake)),
+            templates::entity(&names),
+        ),
+        (
+            module_dir.join(format!("{}_grpc.rs", names.snake)),
+            templates::grpc_service(&names),
         ),
     ];
     for (path, contents) in files {

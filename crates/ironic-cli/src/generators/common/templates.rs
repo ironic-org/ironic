@@ -165,6 +165,104 @@ pub(crate) fn repository(names: &Names) -> String {
     )
 }
 
+pub(crate) fn resource_module_graphql(names: &Names) -> String {
+    let p = &names.pascal;
+    format!(
+        r"use ironic::prelude::*;
+
+pub mod dto;
+pub mod entities;
+pub mod repositories;
+pub mod resolver;
+pub mod services;
+
+pub use repositories::{p}Repository;
+pub use services::{p}Service;
+pub use resolver::{p}Resolver;
+
+#[derive(Module)]
+#[module(
+    providers = [{p}Repository, {p}Service, {p}Resolver],
+)]
+pub struct {p}Module;
+",
+    )
+}
+
+pub(crate) fn resolver_mod(names: &Names) -> String {
+    let snake = &names.snake;
+    let pascal = &names.pascal;
+    format!("pub mod {snake}_resolver;\npub use {snake}_resolver::{pascal}Resolver;\n")
+}
+
+pub(crate) fn resolver(names: &Names) -> String {
+    let pascal = &names.pascal;
+    format!(
+        r"use std::sync::Arc;
+use ironic::prelude::*;
+use async_graphql::{{Object, Context, Result}};
+use super::services::{pascal}Service;
+
+#[derive(Injectable)]
+pub struct {pascal}Resolver {{
+    service: Arc<{pascal}Service>,
+}}
+
+#[Object]
+impl {pascal}Resolver {{
+    async fn list(&self, _ctx: &Context<'_>) -> Result<Vec<String>> {{
+        Ok(self.service.list().await)
+    }}
+}}
+",
+    )
+}
+
+pub(crate) fn resource_module_grpc(names: &Names) -> String {
+    let snake = &names.snake;
+    let pascal = &names.pascal;
+    format!(
+        r"use ironic::prelude::*;
+
+pub mod dto;
+pub mod entities;
+pub mod repositories;
+pub mod services;
+
+pub use repositories::{pascal}Repository;
+pub use services::{pascal}Service;
+
+pub mod {snake}_grpc;
+
+#[derive(Module)]
+#[module(
+    providers = [{pascal}Repository, {pascal}Service],
+)]
+pub struct {pascal}Module;
+",
+    )
+}
+
+pub(crate) fn grpc_service(names: &Names) -> String {
+    format!(
+        r"use std::sync::Arc;
+use tonic::{{Request, Response, Status}};
+use super::services::{}Service;
+
+pub struct {}GrpcService {{
+    service: Arc<{}Service>,
+}}
+
+impl {}GrpcService {{
+    pub fn new(service: Arc<{}Service>) -> Self {{
+        Self {{ service }}
+    }}
+}}
+",
+        names.pascal, names.pascal, names.pascal, names.pascal, names.pascal
+    )
+}
+
 pub(crate) fn test_mod(_names: &Names) -> String {
     "/// Unit tests — service and business logic in isolation (no HTTP).\n#[cfg(test)]\nmod unit;\n/// Integration tests — full HTTP request/response through the framework.\n#[cfg(test)]\nmod integration;\n"
         .to_owned()

@@ -506,11 +506,11 @@ edition = "2024"
 
 [dependencies]
 ironic = {{ workspace = true, features = ["grpc"] }}
-tokio = {{ workspace = true, features = ["macros", "rt-multi-thread"] }}
-tonic = {{ workspace = true }}
-prost = {{ workspace = true }}
-tracing = {{ workspace = true }}
-tracing-subscriber = {{ workspace = true }}
+tokio = {{ version = "1", features = ["macros", "rt-multi-thread"] }}
+tonic = "0.14"
+prost = "0.13"
+tracing = "0.1"
+tracing-subscriber = {{ version = "0.3", features = ["env-filter"] }}
 
 [build-dependencies]
 tonic-prost-build = "0.14"

@@ -50,10 +50,10 @@ ironic = { version = "1.1", features = ["..."] }
 | Feature | Description | Dependencies Enabled |
 |---------|-------------|---------------------|
 | `validation` | Request body validation with `garde` | `garde` |
-| `serialization` | Role-based field exposure | — |
+| `serialization` | Role-based field exposure | (no external deps) |
 | `security` | CORS, rate limiting, security headers | `ironic-security` |
 | `metrics` | Prometheus metrics endpoint | `ironic-metrics` |
-| `scheduling` | Fixed-interval background tasks | — |
+| `scheduling` | Fixed-interval background tasks | (no external deps) |
 | `cron` | Cron expression scheduling | `cron` |
 
 ### Database Features
@@ -75,7 +75,7 @@ ironic = { version = "1.1", features = ["..."] }
 |---------|-------------|---------------------|
 | `grpc` | gRPC services with tonic | `tonic`, `prost` |
 | `graphql` | GraphQL APIs with async-graphql | `async-graphql`, `async-graphql-derive` |
-| `sse` | Server-Sent Events | — |
+| `sse` | Server-Sent Events | (internal module) |
 | `realtime` | WebSocket gateways | `axum/ws` |
 | `mqtt` | MQTT transport | `rumqttc` |
 | `nats` | NATS transport | `async-nats` |
@@ -87,10 +87,10 @@ ironic = { version = "1.1", features = ["..."] }
 | Feature | Description | Dependencies Enabled |
 |---------|-------------|---------------------|
 | `queues` | Redis-backed job queues | `redis` |
-| `events` | Event bus (in-process) | — |
-| `cqrs` | CQRS pattern support | — |
-| `sagas` | Saga orchestration | — |
-| `microservices` | Microservice scaffolding | — |
+| `events` | Event bus (in-process) | (internal module) |
+| `cqrs` | CQRS pattern support | (internal module) |
+| `sagas` | Saga orchestration | (internal module) |
+| `microservices` | Microservice scaffolding | (internal module) |
 | `distributed` | All distributed features combined | `queues`, `microservices`, `cqrs`, `sagas`, `grpc`, `graphql` |
 
 ### Auth Features
@@ -105,16 +105,16 @@ ironic = { version = "1.1", features = ["..."] }
 
 | Feature | Description | Dependencies Enabled |
 |---------|-------------|---------------------|
-| `cache` | In-memory + Redis cache interceptor | — |
+| `cache` | In-memory + Redis cache interceptor | (internal module) |
 | `multipart` | File upload handling | `multer` |
-| `static-files` | Static file serving | — |
+| `static-files` | Static file serving | `tower-http/fs` |
 | `serverless` | AWS Lambda support | `lambda_http` |
-| `mcp` | MCP protocol server | — |
+| `mcp` | MCP protocol server | (internal module) |
 | `telemetry` | OpenTelemetry distributed tracing | `opentelemetry`, `opentelemetry_sdk` |
 | `resilience` | Retry + circuit breaker | `ironic-resilience` |
-| `versioning` | API versioning | — |
-| `devtools` | Development tooling | — |
-| `plugins` | Plugin ecosystem | — |
+| `versioning` | API versioning | (internal module) |
+| `devtools` | Development tooling | (internal module) |
+| `plugins` | Plugin ecosystem | (internal module) |
 | `uuid` | UUID generation | `uuid` |
 
 ---

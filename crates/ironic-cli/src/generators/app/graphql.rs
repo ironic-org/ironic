@@ -10,12 +10,6 @@ edition = "2024"
 
 [dependencies]
 ironic = {{ workspace = true, features = ["graphql"] }}
-tokio = {{ version = "1", features = ["macros", "rt-multi-thread"] }}
-serde = {{ version = "1", features = ["derive"] }}
-serde_json = "1"
-tracing = "0.1"
-tracing-subscriber = {{ version = "0.3", features = ["env-filter"] }}
-dotenvy = "0.15"
 "#,
         name = names.raw
     )
@@ -32,25 +26,42 @@ mod platform;
 use std::sync::Arc;
 
 use ironic::prelude::*;
-use async_graphql::{{EmptySubscription, Schema}};
 
 use app::AppModule;
 use app_service::AppService;
 
+type GqlSchema = ironic::async_graphql::Schema<AppService, ironic::async_graphql::EmptyMutation, ironic::async_graphql::EmptySubscription>;
+
 #[ironic::main]
 async fn main() {{
-    dotenvy::dotenv().ok();
+    ironic::dotenvy::dotenv().ok();
     platform::logging::init();
 
-    let schema = Schema::build(AppService::new(), AppService::new(), EmptySubscription)
-        .data(AppModule)
-        .finish();
+    let schema = Arc::new(
+        ironic::async_graphql::Schema::build(AppService, ironic::async_graphql::EmptyMutation, ironic::async_graphql::EmptySubscription)
+            .data(AppModule)
+            .finish()
+    );
+
+    async fn graphql_handler(
+        schema: ironic::axum::Extension<Arc<GqlSchema>>,
+        request: ironic::axum::Json<ironic::async_graphql::Request>,
+    ) -> ironic::axum::Json<ironic::async_graphql::Response> {{
+        let response = schema.execute(request.0).await;
+        ironic::axum::Json(response)
+    }}
 
     let addr = platform::config::listen_addr("{port}");
     let app = Application::builder()
         .module(AppModule::definition())
         .middleware(RequestLogging::new())
-        .platform(AxumAdapter::new().graphql_endpoint("/graphql", schema))
+        .platform(
+            AxumAdapter::new().configure_router(move |router| {{
+                router
+                    .route("/graphql", ironic::axum::routing::post(graphql_handler))
+                    .layer(ironic::axum::Extension(schema))
+            }})
+        )
         .build()
         .await
         .expect("application must initialise");
@@ -80,21 +91,16 @@ pub struct AppModule;
 
 /// Returns the content for `src/app_service.rs` — query/mutation root.
 pub(crate) fn app_service_graphql() -> String {
-    r#"use async_graphql::{Object, Context, Result};
+    r#"use ironic::prelude::*;
+use ironic::async_graphql::{Object, Context, Result};
 
-#[derive(Default)]
+#[derive(Injectable)]
 pub struct AppService;
 
 #[Object]
 impl AppService {
     async fn hello(&self, _ctx: &Context<'_>) -> Result<String> {
         Ok("Hello from GraphQL!".into())
-    }
-}
-
-impl AppService {
-    pub fn new() -> Self {
-        Self
     }
 }
 "#

@@ -12,14 +12,6 @@ edition = "2024"
 
 [dependencies]
 ironic = {{ workspace = true, features = ["grpc"] }}
-tokio = {{ version = "1", features = ["macros", "rt-multi-thread"] }}
-tonic = {{ version = "0.14", features = ["transport", "codegen", "router"] }}
-prost = "0.14"
-tonic-prost = "0.14"
-serde_json = "1"
-tracing = "0.1"
-tracing-subscriber = {{ version = "0.3", features = ["env-filter"] }}
-dotenvy = "0.15"
 
 [build-dependencies]
 tonic-prost-build = "0.14"
@@ -72,14 +64,14 @@ mod platform;
 use std::sync::Arc;
 
 use ironic::prelude::*;
-use tonic::transport::Server;
+use ironic::tonic::transport::Server;
 use crate::app_service::AppService;
 
 use app::AppModule;
 use modules::greet::GreeterService;
 
 pub mod hello {{
-    tonic::include_proto!("hello");
+    ironic::tonic::include_proto!("hello");
 }}
 
 fn build_container() -> ironic::Container {{
@@ -96,7 +88,7 @@ fn build_container() -> ironic::Container {{
 
 #[ironic::main]
 async fn main() {{
-    dotenvy::dotenv().ok();
+    ironic::dotenvy::dotenv().ok();
     platform::logging::init();
 
     let container = build_container();
@@ -156,7 +148,7 @@ pub(crate) fn app_greeter_service(_names: &naming::Names) -> String {
     r"use std::sync::Arc;
 
 use ironic::prelude::*;
-use tonic::{Request, Response, Status, async_trait};
+use ironic::tonic::{Request, Response, Status, async_trait};
 use crate::hello;
 use super::greet_repository::GreetRepository;
 

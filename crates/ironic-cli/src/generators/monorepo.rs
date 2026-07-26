@@ -90,17 +90,6 @@ members = [
 
 [workspace.dependencies]
 ironic = {{ version = "{version_range}", features = ["security", "compression", "metrics", "validation", "versioning", "openapi", "logging", "sqlx-postgres"] }}
-tokio = {{ version = "1", features = ["macros", "rt-multi-thread", "net", "signal"] }}
-serde = {{ version = "1", features = ["derive"] }}
-serde_json = "1"
-garde = "0.23"
-sqlx = {{ version = "0.9", features = ["runtime-tokio", "postgres"] }}
-tracing = {{ version = "0.1", features = ["attributes"] }}
-tracing-subscriber = {{ version = "0.3", features = ["env-filter"] }}
-dotenvy = "0.15"
-tonic = {{ version = "0.14", features = ["transport", "codegen", "router"] }}
-prost = "0.14"
-tonic-prost-build = "0.14"
 
 [profile.release]
 lto = true

@@ -247,7 +247,7 @@ use app::AppModule;
 
 #[ironic::main]
 async fn main() {{
-    dotenvy::dotenv().ok();
+    ironic::dotenvy::dotenv().ok();
     platform::logging::init();
 
     let addr = platform::config::listen_addr("8080");
@@ -292,12 +292,6 @@ publish = false
 
 [dependencies]
 ironic = {{ features = ["graphql", "logging"], version = "1.1" }}
-tokio = {{ version = "1", features = ["macros", "rt-multi-thread"] }}
-serde = {{ version = "1", features = ["derive"] }}
-serde_json = "1"
-tracing = "0.1"
-tracing-subscriber = {{ version = "0.3", features = ["env-filter"] }}
-dotenvy = "0.15"
 
 [profile.release]
 lto = true
@@ -316,25 +310,45 @@ fn main_source_graphql(name: &str) -> String {
 mod app_service;
 mod platform;
 
+use std::sync::Arc;
+
 use ironic::prelude::*;
-use async_graphql::{{EmptySubscription, Schema}};
+use async_graphql;
 use app::AppModule;
 use app_service::AppService;
 
+type GqlSchema = async_graphql::Schema<AppService, async_graphql::EmptyMutation, async_graphql::EmptySubscription>;
+
 #[ironic::main]
 async fn main() {{
-    dotenvy::dotenv().ok();
+    ironic::dotenvy::dotenv().ok();
     platform::logging::init();
 
-    let schema = Schema::build(AppService, AppService, EmptySubscription)
-        .data(AppModule)
-        .finish();
+    let schema = Arc::new(
+        async_graphql::Schema::build(AppService, async_graphql::EmptyMutation, async_graphql::EmptySubscription)
+            .data(AppModule)
+            .finish()
+    );
+
+    async fn graphql_handler(
+        schema: axum::Extension<Arc<GqlSchema>>,
+        request: axum::Json<async_graphql::Request>,
+    ) -> axum::Json<async_graphql::Response> {{
+        let response = schema.execute(request.0).await;
+        axum::Json(response)
+    }}
 
     let addr = platform::config::listen_addr("8080");
     let app = Application::builder()
         .module(AppModule::definition())
         .middleware(RequestLogging::new())
-        .platform(AxumAdapter::new().graphql_endpoint("/graphql", schema))
+        .platform(
+            AxumAdapter::new().configure_router(move |router| {{
+                router
+                    .route("/graphql", axum::routing::post(graphql_handler))
+                    .layer(axum::Extension(schema))
+            }})
+        )
         .build()
         .await
         .expect("application must initialise");
@@ -358,9 +372,10 @@ pub struct AppModule;
 }
 
 fn app_service_graphql() -> String {
-    r#"use async_graphql::{Object, Context, Result};
+    r#"use ironic::prelude::*;
+use ironic::async_graphql::{Object, Context, Result};
 
-#[derive(Default)]
+#[derive(Injectable)]
 pub struct AppService;
 
 #[Object]
@@ -393,12 +408,11 @@ fn platform_mod() -> String {
 }
 
 fn platform_logging() -> String {
-    r#"use tracing_subscriber::EnvFilter;
-
+    r#"
 pub fn init() {
-    let filter = EnvFilter::try_from_default_env()
+    let filter = ironic::tracing_subscriber::EnvFilter::try_from_default_env()
         .unwrap_or_else(|_| "info".into());
-    tracing_subscriber::fmt()
+    ironic::tracing_subscriber::fmt()
         .with_env_filter(filter)
         .with_target(false)
         .with_file(false)

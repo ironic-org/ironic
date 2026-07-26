@@ -153,6 +153,32 @@ pub mod time {
     pub use chrono::{DateTime, Duration, Utc};
 }
 
+/// Re-export of [`async_graphql`] when the `graphql` feature is enabled.
+#[cfg(feature = "graphql")]
+pub use async_graphql;
+
+/// Re-export of [`axum`] for use in generated code.
+pub use axum;
+
+/// Re-export of [`dotenvy`] for loading `.env` files.
+pub use dotenvy;
+
+/// Re-export of [`tracing_subscriber`] for logging setup.
+#[cfg(feature = "logging")]
+pub use tracing_subscriber;
+
+/// Re-export of [`tonic`] when the `grpc` feature is enabled.
+#[cfg(feature = "grpc")]
+pub use tonic;
+
+/// Re-export of [`prost`] when the `grpc` feature is enabled.
+#[cfg(feature = "grpc")]
+pub use prost;
+
+/// Re-export of [`tonic_prost`] when the `grpc` feature is enabled.
+#[cfg(feature = "grpc")]
+pub use tonic_prost;
+
 /// Implementation details used by generated code.
 #[doc(hidden)]
 pub mod __private {

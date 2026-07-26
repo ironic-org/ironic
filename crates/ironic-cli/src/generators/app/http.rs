@@ -17,7 +17,7 @@ use app::AppModule;
 
 #[ironic::main]
 async fn main() {{
-    dotenvy::dotenv().ok();
+    ironic::dotenvy::dotenv().ok();
     platform::logging::init();
 
     let addr = platform::config::listen_addr("{port}");
@@ -68,7 +68,7 @@ pub struct AppController {
 #[routes]
 impl AppController {
     #[get]
-    async fn index(&self) -> Result<Json<serde_json::Value>, HttpError> {
+    async fn index(&self) -> Result<Json<ironic::Value>, HttpError> {
         let greeting = self.service.greeting();
         Ok(Json(greeting))
     }
@@ -85,8 +85,8 @@ pub(crate) fn app_service(name: &str, version: &str) -> String {
 pub struct AppService;
 
 impl AppService {{
-    pub fn greeting(&self) -> serde_json::Value {{
-        serde_json::json!({{
+    pub fn greeting(&self) -> ironic::Value {{
+        ironic::json::json!({{
             "app": "{name}",
             "framework": "Ironic",
             "version": "{version}",
@@ -108,14 +108,6 @@ edition = "2024"
 
 [dependencies]
 ironic = {{ workspace = true }}
-tokio = {{ workspace = true }}
-serde = {{ workspace = true }}
-serde_json = {{ workspace = true }}
-garde = {{ workspace = true }}
-sqlx = {{ workspace = true }}
-tracing = {{ workspace = true }}
-tracing-subscriber = {{ workspace = true }}
-dotenvy = {{ workspace = true }}
 "#,
         name = names.raw
     )

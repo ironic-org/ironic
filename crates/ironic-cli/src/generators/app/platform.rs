@@ -5,12 +5,10 @@ pub(crate) fn app_platform_mod() -> String {
 
 /// Returns the content for `src/platform/logging.rs`.
 pub(crate) fn app_platform_logging() -> String {
-    r#"use tracing_subscriber::EnvFilter;
-
-pub fn init() {
-    let filter = EnvFilter::try_from_default_env()
+    r#"pub fn init() {
+    let filter = ironic::tracing_subscriber::EnvFilter::try_from_default_env()
         .unwrap_or_else(|_| "info".into());
-    tracing_subscriber::fmt()
+    ironic::tracing_subscriber::fmt()
         .with_env_filter(filter)
         .with_target(false)
         .with_file(false)

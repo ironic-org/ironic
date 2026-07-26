@@ -2586,6 +2586,7 @@ dependencies = [
  "cron",
  "ctrlc",
  "diesel",
+ "dotenvy",
  "futures-util",
  "garde",
  "getrandom 0.4.3",
@@ -2618,6 +2619,7 @@ dependencies = [
  "tokio",
  "tokio-rustls",
  "tonic 0.14.6",
+ "tonic-prost",
  "tonic-prost-build",
  "tower 0.5.3",
  "tower-http 0.7.0",
@@ -5902,6 +5904,17 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn 2.0.119",
+]
+
+[[package]]
+name = "tonic-prost"
+version = "0.14.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "50849f68853be452acf590cde0b146665b8d507b3b8af17261df47e02c209ea0"
+dependencies = [
+ "bytes",
+ "prost 0.14.4",
+ "tonic 0.14.6",
 ]
 
 [[package]]

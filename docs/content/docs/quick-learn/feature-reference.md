@@ -99,7 +99,7 @@ ironic = { version = "1.1", features = ["..."] }
 |---------|-------------|---------------------|
 | `auth` | Full auth: passwords, JWT, OAuth, sessions, RBAC | `argon2`, `jsonwebtoken`, `oauth2` |
 | `jwt` | JWT token management | `jsonwebtoken` |
-| `sessions` | Session management | — |
+| `sessions` | Session management | `getrandom` |
 
 ### Other Features
 

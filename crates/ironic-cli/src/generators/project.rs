@@ -59,11 +59,15 @@ pub fn create(
     let names = Names::parse(name)?;
     let manifest = manifest(&names.kebab, framework_workspace);
 
+    let dep_spec = framework_workspace.map_or_else(
+        || "version = \"1.1\"".to_string(),
+        |workspace| format!("path = \"{}\", default-features = false", toml_path(workspace)),
+    );
     let files: Vec<(std::path::PathBuf, String)> = if graphql {
         vec![
             (
                 destination.join("Cargo.toml"),
-                manifest_graphql(&names.kebab),
+                manifest_graphql_with_dep(&names.kebab, &dep_spec),
             ),
             (
                 destination.join("ironic.toml"),
@@ -200,33 +204,6 @@ publish = false
 
 [dependencies]
 ironic = {{ features = ["security", "compression", "metrics", "validation", "versioning", "openapi", "logging", "sqlx-postgres"], {dep_spec} }}
-serde = {{ version = "1", features = ["derive"] }}
-serde_json = "1"
-garde = "0.23"
-sqlx = {{ version = "0.9", features = ["runtime-tokio", "postgres"] }}
-tracing = {{ version = "0.1", features = ["attributes"] }}
-dotenvy = "0.15"
-tracing-subscriber = {{ version = "0.3", features = ["env-filter"] }}
-
-[dev-dependencies]
-
-# Available features (uncomment to enable):
-# serialization   — role-based field exposure
-# cache           — CacheInterceptor with InMemoryCache
-# scheduling      — Fixed-interval and cron background tasks
-# cron            — Cron expression scheduling
-# realtime        — WebSocket gateways with rooms/broadcasting
-# resilience      — Retry with backoff + circuit breaker
-# telemetry       — Distributed tracing (OTLP)
-# auth            — Password hashing, JWT, OAuth2, sessions
-# distributed     — Queues, microservices, CQRS, sagas, gRPC, GraphQL
-
-[profile.release]
-lto = true
-codegen-units = 1
-opt-level = "z"
-panic = "abort"
-strip = true
 "#,
     )
 }
@@ -303,6 +280,29 @@ strip = true
     )
 }
 
+fn manifest_graphql_with_dep(name: &str, dep_spec: &str) -> String {
+    format!(
+        r#"[package]
+name = "{name}"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.97"
+publish = false
+
+[dependencies]
+ironic = {{ features = ["graphql", "logging"], {dep_spec} }}
+async-graphql = {{ version = "7", features = ["graphiql"] }}
+
+[profile.release]
+lto = true
+codegen-units = 1
+opt-level = "z"
+panic = "abort"
+strip = true
+"#,
+    )
+}
+
 fn main_source_graphql(name: &str) -> String {
     let version = env!("CARGO_PKG_VERSION");
     format!(
@@ -313,11 +313,10 @@ mod platform;
 use std::sync::Arc;
 
 use ironic::prelude::*;
-use async_graphql;
 use app::AppModule;
 use app_service::AppService;
 
-type GqlSchema = async_graphql::Schema<AppService, async_graphql::EmptyMutation, async_graphql::EmptySubscription>;
+type GqlSchema = ironic::async_graphql::Schema<AppService, ironic::async_graphql::EmptyMutation, ironic::async_graphql::EmptySubscription>;
 
 #[ironic::main]
 async fn main() {{
@@ -325,17 +324,17 @@ async fn main() {{
     platform::logging::init();
 
     let schema = Arc::new(
-        async_graphql::Schema::build(AppService, async_graphql::EmptyMutation, async_graphql::EmptySubscription)
+        ironic::async_graphql::Schema::build(AppService, ironic::async_graphql::EmptyMutation, ironic::async_graphql::EmptySubscription)
             .data(AppModule)
             .finish()
     );
 
     async fn graphql_handler(
-        schema: axum::Extension<Arc<GqlSchema>>,
-        request: axum::Json<async_graphql::Request>,
-    ) -> axum::Json<async_graphql::Response> {{
+        schema: ironic::axum::Extension<Arc<GqlSchema>>,
+        request: ironic::axum::Json<ironic::async_graphql::Request>,
+    ) -> ironic::axum::Json<ironic::async_graphql::Response> {{
         let response = schema.execute(request.0).await;
-        axum::Json(response)
+        ironic::axum::Json(response)
     }}
 
     let addr = platform::config::listen_addr("8080");
@@ -345,8 +344,8 @@ async fn main() {{
         .platform(
             AxumAdapter::new().configure_router(move |router| {{
                 router
-                    .route("/graphql", axum::routing::post(graphql_handler))
-                    .layer(axum::Extension(schema))
+                    .route("/graphql", ironic::axum::routing::post(graphql_handler))
+                    .layer(ironic::axum::Extension(schema))
             }})
         )
         .build()
@@ -373,7 +372,7 @@ pub struct AppModule;
 
 fn app_service_graphql() -> String {
     r#"use ironic::prelude::*;
-use ironic::async_graphql::{Object, Context, Result};
+use async_graphql::{Object, Context, Result};
 
 #[derive(Injectable)]
 pub struct AppService;

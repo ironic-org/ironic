@@ -58,14 +58,6 @@ edition = "2024"
 
 [dependencies]
 ironic = {{ workspace = true }}
-tokio = {{ workspace = true }}
-serde = {{ workspace = true }}
-serde_json = {{ workspace = true }}
-garde = {{ workspace = true }}
-sqlx = {{ workspace = true }}
-tracing = {{ workspace = true }}
-tracing-subscriber = {{ workspace = true }}
-dotenvy = {{ workspace = true }}
 "#
     );
     std::fs::write(app_dir.join("Cargo.toml"), &app_manifest).map_err(|e| CliError::Io {
@@ -74,12 +66,12 @@ dotenvy = {{ workspace = true }}
         source: e,
     })?;
 
-    let ironic_version = env!("CARGO_PKG_VERSION");
-    let version_range = ironic_version
-        .splitn(3, '.')
-        .take(2)
-        .collect::<Vec<_>>()
-        .join(".");
+    // Extract the ironic dependency spec from the original Cargo.toml
+    let ironic_dep = extract_ironic_dep(&toml_content).unwrap_or_else(|| {
+        let v = env!("CARGO_PKG_VERSION");
+        let r = v.splitn(3, '.').take(2).collect::<Vec<_>>().join(".");
+        format!("version = \"{r}\"")
+    });
     // Rewrite root Cargo.toml as pure workspace manifest
     let workspace_manifest = format!(
         r#"[workspace]
@@ -89,7 +81,7 @@ members = [
 ]
 
 [workspace.dependencies]
-ironic = {{ version = "{version_range}", features = ["security", "compression", "metrics", "validation", "versioning", "openapi", "logging", "sqlx-postgres"] }}
+ironic = {{ {ironic_dep}, features = ["security", "compression", "metrics", "validation", "versioning", "openapi", "logging", "sqlx-postgres"] }}
 
 [profile.release]
 lto = true
@@ -110,6 +102,42 @@ strip = true
         .push("converted to monorepo — run `cargo check` to refresh Rust Analyzer".into());
 
     Ok(())
+}
+
+/// Extracts the ironic dependency spec from a `Cargo.toml` string.
+/// Returns `Some("path = \"...\", version = \"...\"")` or `None` for default version.
+fn extract_ironic_dep(toml: &str) -> Option<String> {
+    let mut in_deps = false;
+    for line in toml.lines() {
+        let trimmed = line.trim();
+        if trimmed == "[dependencies]" {
+            in_deps = true;
+            continue;
+        }
+        if in_deps {
+            if trimmed.starts_with('[') {
+                break;
+            }
+            if trimmed.starts_with("ironic") || trimmed.starts_with("ironic ") || trimmed.starts_with("ironic=") {
+                // Extract the value after '='
+                if let Some(val) = trimmed.splitn(2, '=').nth(1) {
+                    let val = val.trim().trim_matches(|c: char| c == ' ' || c == '{' || c == '}');
+                    // Extract path, version, etc.
+                    let parts: Vec<&str> = val.split(',').map(|s| s.trim()).collect();
+                    let mut result = Vec::new();
+                    for part in parts {
+                        if part.starts_with("version") || part.starts_with("path") || part.starts_with("git") {
+                            result.push(part.to_string());
+                        }
+                    }
+                    if !result.is_empty() {
+                        return Some(result.join(", "));
+                    }
+                }
+            }
+        }
+    }
+    None
 }
 
 /// Recursively copies all files and subdirectories from `src` to `dst`.

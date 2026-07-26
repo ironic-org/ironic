@@ -10,6 +10,7 @@ edition = "2024"
 
 [dependencies]
 ironic = {{ workspace = true, features = ["graphql"] }}
+async-graphql = {{ workspace = true }}
 "#,
         name = names.raw
     )
@@ -92,7 +93,7 @@ pub struct AppModule;
 /// Returns the content for `src/app_service.rs` — query/mutation root.
 pub(crate) fn app_service_graphql() -> String {
     r#"use ironic::prelude::*;
-use ironic::async_graphql::{Object, Context, Result};
+use async_graphql::{Object, Context, Result};
 
 #[derive(Injectable)]
 pub struct AppService;

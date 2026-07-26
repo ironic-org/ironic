@@ -13,6 +13,14 @@ type Post = {
 
 const posts: Post[] = [
     {
+        slug: 'v1.1.9',
+        title: 'v1.1.9 — update dependencies and enhance GraphQL integration in project generator',
+        description: 'update dependencies and enhance GraphQL integration in project generator',
+        date: '2026-07-27',
+        tag: 'release',
+        readTime: '2 min',
+    },
+    {
         slug: 'v1.1.8',
         title: 'v1.1.8 — ironic generate app --grpc for gRPC microservice scaffold',
         description: 'ironic generate app --grpc for gRPC microservice scaffold',

@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v1.1.9] - 2026-07-27
+
+### Added
+- update dependencies and enhance GraphQL integration in project generator (579a213)
+- add email and file upload modules with various backends (b6448bf)
+- enhance app generation with gRPC support and modular structure (7ff6139)
+- add gRPC support for app generation with `ironic generate app --grpc` (9966126)
+
+### Fixed
+- update feature reference documentation to clarify dependencies for various features (fa1456a)
+- add dotenvy dependency for environment variable management (49bd20b)
+- update dependencies for gRPC support in generated app's Cargo.toml (47f85ca)
+
+### Changed
+- Add meta.json for Quick Learn documentation and re-export additional dependencies in lib.rs (4b2ce06)
+- release v1.1.8 (fe32090)
+- Refactor generator modules to use common utilities (b8b10d6)
+
+
 ## [v1.1.8] - 2026-07-26
 ### Added
 - ironic generate app --grpc for gRPC microservice scaffold

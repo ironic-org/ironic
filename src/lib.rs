@@ -160,6 +160,9 @@ pub use async_graphql;
 /// Re-export of [`axum`] for use in generated code.
 pub use axum;
 
+/// Re-export of [`serde`] for serialization.
+pub use serde;
+
 /// Re-export of [`dotenvy`] for loading `.env` files.
 pub use dotenvy;
 

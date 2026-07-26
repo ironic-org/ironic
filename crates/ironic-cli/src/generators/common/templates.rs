@@ -76,21 +76,21 @@ pub(crate) fn entities_mod(names: &Names) -> String {
 
 pub(crate) fn create_dto(names: &Names) -> String {
     format!(
-        "use serde::{{Deserialize, Serialize}};\n\n#[derive(Debug, Clone, Serialize, Deserialize)]\npub struct Create{0}Dto {{\n    pub name: String,\n}}\n",
+        "use ironic::serde::{{Deserialize, Serialize}};\n\n#[derive(Debug, Clone, Serialize, Deserialize)]\npub struct Create{0}Dto {{\n    pub name: String,\n}}\n",
         names.pascal
     )
 }
 
 pub(crate) fn update_dto(names: &Names) -> String {
     format!(
-        "use serde::{{Deserialize, Serialize}};\n\n#[derive(Debug, Clone, Serialize, Deserialize)]\npub struct Update{0}Dto {{\n    pub name: Option<String>,\n}}\n",
+        "use ironic::serde::{{Deserialize, Serialize}};\n\n#[derive(Debug, Clone, Serialize, Deserialize)]\npub struct Update{0}Dto {{\n    pub name: Option<String>,\n}}\n",
         names.pascal
     )
 }
 
 pub(crate) fn entity(names: &Names) -> String {
     format!(
-        "use serde::{{Deserialize, Serialize}};\n\n#[derive(Debug, Clone, Serialize, Deserialize)]\npub struct {0} {{\n    pub id: String,\n    pub name: String,\n}}\n",
+        "use ironic::serde::{{Deserialize, Serialize}};\n\n#[derive(Debug, Clone, Serialize, Deserialize)]\npub struct {0} {{\n    pub id: String,\n    pub name: String,\n}}\n",
         names.pascal
     )
 }

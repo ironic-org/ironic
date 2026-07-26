@@ -199,6 +199,7 @@ publish = false
 
 [dependencies]
 ironic = {{ features = ["security", "compression", "metrics", "validation", "versioning", "openapi", "logging", "sqlx-postgres"], {dep_spec} }}
+serde = {{ version = "1", features = ["derive"] }}
 "#,
     )
 }

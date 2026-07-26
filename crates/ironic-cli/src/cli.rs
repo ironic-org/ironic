@@ -90,6 +90,16 @@ pub struct CargoArgs {
     pub cargo_args: Vec<String>,
 }
 
+/// Arguments for generating an app.
+#[derive(Debug, Args)]
+pub struct AppArgs {
+    /// App name.
+    pub name: String,
+    /// Generate a gRPC service instead of HTTP (requires `tonic` + `prost`).
+    #[arg(long)]
+    pub grpc: bool,
+}
+
 /// Arguments for the `openapi` command.
 #[derive(Debug, Args)]
 pub struct OpenapiArgs {
@@ -170,7 +180,7 @@ pub enum Generator {
     ReadyResource(ReadyResourceArgs),
     /// Generates a new microservice app in the monorepo.
     #[command(alias = "a")]
-    App(NameArgs),
+    App(AppArgs),
     /// Generates a reusable library crate.
     #[command(alias = "lib")]
     Library(NameArgs),

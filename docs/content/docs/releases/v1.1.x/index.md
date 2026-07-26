@@ -9,6 +9,13 @@ All versions in the v1.1.x series. Visit the [Blog](/blog) for detailed release 
 
 ---
 
+## v1.1.8 — 2026-07-26
+
+# v1.1.8
+### Added
+- ironic generate app --grpc for gRPC microservice scaffold
+
+---
 ## v1.1.7 — 2026-07-26
 
 # v1.1.7

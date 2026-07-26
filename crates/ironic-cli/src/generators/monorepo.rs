@@ -113,48 +113,10 @@ strip = true
         source: e,
     })?;
 
-    create_monorepo_libs(root)?;
-
     report
         .manual_instructions
         .push("converted to monorepo — run `cargo check` to refresh Rust Analyzer".into());
 
-    Ok(())
-}
-
-/// Creates a `libs/proto/` directory with a minimal Cargo.toml and lib.rs.
-///
-/// This is an optional scaffold for protobuf/gRPC type definitions shared
-/// across services. It is not added to workspace members automatically —
-/// the user must uncomment or add it when protobuf is needed.
-fn create_monorepo_libs(root: &Path) -> Result<(), CliError> {
-    use std::fs;
-
-    let lib_dir = root.join("libs").join("proto");
-    let lib_dir_src = lib_dir.join("src");
-    fs::create_dir_all(&lib_dir_src).map_err(|e| CliError::Io {
-        action: "create lib directory",
-        path: lib_dir.clone(),
-        source: e,
-    })?;
-    let lib_cargo = r#"[package]
-name = "proto"
-version = "0.1.0"
-edition = "2024"
-"#
-    .to_string();
-    std::fs::write(lib_dir.join("Cargo.toml"), &lib_cargo).map_err(|e| CliError::Io {
-        action: "write lib Cargo.toml",
-        path: lib_dir.join("Cargo.toml"),
-        source: e,
-    })?;
-    std::fs::write(lib_dir_src.join("lib.rs"), b"// shared library\n").map_err(|e| {
-        CliError::Io {
-            action: "write lib src",
-            path: lib_dir_src.join("lib.rs"),
-            source: e,
-        }
-    })?;
     Ok(())
 }
 

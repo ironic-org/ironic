@@ -17,10 +17,13 @@ use super::{GenerationReport, monorepo, naming, record, source};
 /// If no `apps/` directory exists yet, auto-converts the current
 /// single-service project to a monorepo workspace first.
 ///
+/// When `grpc` is true, generates a gRPC service with `tonic` + `prost`
+/// instead of an HTTP service with `AxumAdapter`.
+///
 /// # Errors
 ///
 /// Returns [`CliError`] for invalid names, existing destinations, or filesystem errors.
-pub fn generate_app(root: &Path, name: &str) -> Result<GenerationReport, CliError> {
+pub fn generate_app(root: &Path, name: &str, grpc: bool) -> Result<GenerationReport, CliError> {
     let names = naming::Names::parse(name)?;
     let mut report = GenerationReport::default();
 
@@ -37,7 +40,32 @@ pub fn generate_app(root: &Path, name: &str) -> Result<GenerationReport, CliErro
     }
 
     let port = next_port(root);
-    let files = generate_app_files(&dest, &names, port);
+    let mut files = generate_app_files(&dest, &names, port);
+
+    if grpc {
+        // Replace base files with gRPC-specific versions and add example module
+        files.retain(|(p, _)| {
+            !p.ends_with("main.rs") && !p.ends_with("app.rs") && !p.ends_with("Cargo.toml")
+        });
+        files.push((dest.join("Cargo.toml"), app_manifest_grpc(&names)));
+        files.push((dest.join("src/main.rs"), app_main_grpc(&names, port)));
+        files.push((dest.join("src/app.rs"), app_module_grpc()));
+        files.push((dest.join("build.rs"), app_build()));
+        files.push((dest.join("proto/hello.proto"), app_proto(&names)));
+        files.push((dest.join("src/modules/mod.rs"), app_modules_mod()));
+        files.push((
+            dest.join("src/modules/greet/mod.rs"),
+            app_greet_mod().to_string(),
+        ));
+        files.push((
+            dest.join("src/modules/greet/greeter_service.rs"),
+            app_greeter_service(&names),
+        ));
+        files.push((
+            dest.join("src/modules/greet/greet_repository.rs"),
+            app_greet_repository(),
+        ));
+    }
 
     for (path, contents) in &files {
         write_app_file(path, contents, &mut report)?;
@@ -138,13 +166,6 @@ sqlx = {{ workspace = true }}
 tracing = {{ workspace = true }}
 tracing-subscriber = {{ workspace = true }}
 dotenvy = {{ workspace = true }}
-
-[profile.release]
-lto = true
-codegen-units = 1
-opt-level = "z"
-panic = "abort"
-strip = true
 "#,
         name = names.raw
     )
@@ -475,6 +496,191 @@ fn app_module() -> String {
     "use ironic::prelude::*;\n\n#[derive(Module)]\n#[module()]\npub struct AppModule;\n".to_string()
 }
 
+/// Returns the content for a gRPC service's `Cargo.toml`.
+fn app_manifest_grpc(names: &naming::Names) -> String {
+    format!(
+        r#"[package]
+name = "{name}"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+ironic = {{ workspace = true, features = ["grpc"] }}
+tokio = {{ workspace = true, features = ["macros", "rt-multi-thread"] }}
+tonic = {{ workspace = true }}
+prost = {{ workspace = true }}
+tracing = {{ workspace = true }}
+tracing-subscriber = {{ workspace = true }}
+
+[build-dependencies]
+tonic-prost-build = "0.14"
+"#,
+        name = names.raw
+    )
+}
+
+/// Returns the content for a gRPC service's `build.rs`.
+fn app_build() -> String {
+    r#"fn main() -> Result<(), Box<dyn std::error::Error>> {
+    tonic_prost_build::configure()
+        .compile_protos(&["proto/hello.proto"], &["proto"])?;
+    Ok(())
+}
+"#
+    .to_string()
+}
+
+/// Returns the content for a gRPC service's protobuf definition.
+fn app_proto(_names: &naming::Names) -> String {
+    r#"syntax = "proto3";
+
+package hello;
+
+service Greeter {
+    rpc SayHello (HelloRequest) returns (HelloReply);
+}
+
+message HelloRequest {
+    string name = 1;
+}
+
+message HelloReply {
+    string message = 1;
+}
+"#
+    .to_string()
+}
+
+/// Returns the content for a gRPC service's `src/main.rs`.
+fn app_main_grpc(names: &naming::Names, port: u16) -> String {
+    let version = env!("CARGO_PKG_VERSION");
+    format!(
+        r#"mod app;
+mod modules;
+mod platform;
+
+use std::sync::Arc;
+
+use ironic::prelude::*;
+use tonic::transport::Server;
+
+use app::AppModule;
+use modules::greet::GreeterService;
+
+pub mod hello {{
+    tonic::include_proto!("hello");
+}}
+
+#[ironic::main]
+async fn main() {{
+    dotenvy::dotenv().ok();
+    platform::logging::init();
+
+    let addr: std::net::SocketAddr = platform::config::listen_addr("{port}")
+        .parse()
+        .expect("invalid address");
+
+    // Build the DI container from the module graph (same as HTTP apps)
+    let graph = ironic::compile_module_graph(AppModule::definition())
+        .expect("module graph must compile");
+    let mut builder = ironic::ContainerBuilder::new();
+    for module in graph.modules() {{
+        for provider in module.providers() {{
+            builder.register(provider.clone()).expect("provider registration");
+        }}
+    }}
+    let container = builder.build();
+
+    // Resolve the greeter with all its dependencies injected via DI
+    let greeter: Arc<GreeterService> = container
+        .resolve::<GreeterService>()
+        .await
+        .expect("GreeterService must be registered in AppModule");
+
+    println!("🚀 {name} → http://{{addr}} (ironic v{version})");
+
+    Server::builder()
+        .add_service(hello::greeter_server::GreeterServer::new(greeter))
+        .serve(addr)
+        .await
+        .expect("server failed");
+}}
+"#,
+        name = names.raw,
+        port = port
+    )
+}
+
+/// Returns the content for a gRPC app's `src/app.rs` with DI registration.
+fn app_module_grpc() -> String {
+    r"use ironic::prelude::*;
+use crate::modules::greet::{GreeterService, GreetRepository};
+
+#[derive(Module)]
+#[module(
+    providers = [GreeterService, GreetRepository],
+    exports = [GreeterService],
+)]
+pub struct AppModule;
+"
+    .to_string()
+}
+
+/// Returns the content for `src/modules/mod.rs`.
+fn app_modules_mod() -> String {
+    "pub mod greet;\n".to_string()
+}
+
+/// Returns the content for `src/modules/greet/mod.rs`.
+fn app_greet_mod() -> &'static str {
+    "pub mod greeter_service;\npub mod greet_repository;\npub use greeter_service::GreeterService;\npub use greet_repository::GreetRepository;\n"
+}
+
+/// Returns the content for `src/greet/greeter_service.rs`.
+fn app_greeter_service(_names: &naming::Names) -> String {
+    r"use std::sync::Arc;
+
+use ironic::prelude::*;
+use tonic::{Request, Response, Status, async_trait};
+use crate::hello;
+use super::greet_repository::GreetRepository;
+
+#[derive(Injectable)]
+pub struct GreeterService {
+    repo: Arc<GreetRepository>,
+}
+
+#[async_trait]
+impl hello::greeter_server::Greeter for GreeterService {
+    async fn say_hello(
+        &self,
+        request: Request<hello::HelloRequest>,
+    ) -> Result<Response<hello::HelloReply>, Status> {
+        let name = request.get_ref().name.clone();
+        let message = self.repo.greet(&name);
+        Ok(Response::new(hello::HelloReply { message }))
+    }
+}
+"
+    .to_string()
+}
+
+/// Returns the content for `src/greet/greet_repository.rs`.
+fn app_greet_repository() -> String {
+    r#"use ironic::prelude::*;
+
+#[derive(Injectable)]
+pub struct GreetRepository;
+
+impl GreetRepository {
+    pub fn greet(&self, name: &str) -> String {
+        format!("Hello {name}!")
+    }
+}
+"#
+    .to_string()
+}
+
 /// Returns the content for `src/platform/mod.rs`.
 fn app_platform_mod() -> String {
     "pub mod config;\npub mod logging;\n".to_string()
@@ -589,13 +795,6 @@ ironic = {{ workspace = true }}
 
 [lib]
 name = "{name}"
-
-[profile.release]
-lto = true
-codegen-units = 1
-opt-level = "z"
-panic = "abort"
-strip = true
 "#
     )
 }

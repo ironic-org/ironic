@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v1.1.8] - 2026-07-26
+### Added
+- ironic generate app --grpc for gRPC microservice scaffold
 ## [v1.1.7] - 2026-07-26
 
 ### Added

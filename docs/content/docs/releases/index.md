@@ -5,12 +5,13 @@ description: Version history and release notes for the Ironic framework.
 
 # Releases
 
-## Current version: v1.1.7
+## Current version: v1.1.8
 
 All notable changes to Ironic are documented here. The project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 | Version | Date | Highlights |
 |---------|------|-----------|
+| [v1.1.8](/blog/v1.1.8) | 2026-07-26 | ironic generate app --grpc for gRPC microservice scaffold |
 | [v1.1.7](/blog/v1.1.7) | 2026-07-26 | enhance app generation with platform module and logging configuration |
 | [v1.1.6](/blog/v1.1.6) | 2026-07-26 | Simplify generated app template to minimal skeleton |
 | [v1.1.5](/blog/v1.1.5) | 2026-07-25 | generate_app creates revallens-style microservice with platform/welcome/example module, per-app Dockerfile/.env, unique  |

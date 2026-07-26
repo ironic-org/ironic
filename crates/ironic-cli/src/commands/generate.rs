@@ -30,7 +30,9 @@ pub(crate) fn execute(arguments: GenerateArgs, output: &mut impl Write) -> Resul
         Generator::Middleware(arguments) => generators::generate_middleware(&root, &arguments.name),
         Generator::Pipe(arguments) => generators::generate_pipe(&root, &arguments.name),
         Generator::Provider(arguments) => generators::generate_provider(&root, &arguments.name),
-        Generator::App(arguments) => generators::generate_app(&root, &arguments.name),
+        Generator::App(arguments) => {
+            generators::generate_app(&root, &arguments.name, arguments.grpc)
+        }
         Generator::Library(arguments) => generators::generate_library(&root, &arguments.name),
         Generator::GraphqlResolver(arguments) => {
             generators::generate_graphql_resolver(&root, &arguments.name)

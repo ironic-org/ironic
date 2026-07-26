@@ -2,7 +2,11 @@ use std::path::Path;
 
 use crate::CliError;
 
-use super::{GenerationReport, naming, record, source};
+use super::{
+    GenerationReport,
+    common::{naming, source},
+    record,
+};
 
 /// Generates a GraphQL resolver scaffold.
 ///

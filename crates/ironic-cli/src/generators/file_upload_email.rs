@@ -4,7 +4,7 @@ use crate::CliError;
 
 use super::{
     GenerationReport,
-    source::{ensure_items, ensure_module_import, write_generated},
+    common::source::{ensure_items, ensure_module_import, write_generated},
 };
 
 /// Generates a file upload module with local, `S3`, `R2`, `Azure`, and `GCS` backends.

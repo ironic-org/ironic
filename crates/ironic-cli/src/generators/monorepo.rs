@@ -98,8 +98,8 @@ sqlx = {{ version = "0.9", features = ["runtime-tokio", "postgres"] }}
 tracing = {{ version = "0.1", features = ["attributes"] }}
 tracing-subscriber = {{ version = "0.3", features = ["env-filter"] }}
 dotenvy = "0.15"
-tonic = "0.14"
-prost = "0.13"
+tonic = {{ version = "0.14", features = ["transport", "codegen", "router"] }}
+prost = "0.14"
 tonic-prost-build = "0.14"
 
 [profile.release]

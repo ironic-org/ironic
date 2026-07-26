@@ -2,7 +2,11 @@ use std::path::Path;
 
 use crate::CliError;
 
-use super::{GenerationReport, Names, record, source, templates};
+use super::{
+    GenerationReport, Names,
+    common::{source, templates},
+    record,
+};
 
 /// Generates an application module.
 ///

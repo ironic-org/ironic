@@ -1,17 +1,15 @@
 /// Microservice app and library crate generators.
 pub mod app;
+mod common;
 mod file_upload_email;
 mod graphql;
 mod monorepo;
-pub(crate) mod naming;
 /// New-project scaffolding.
 pub mod project;
 /// Production-ready resource generators (authentication, authorization, etc.).
 pub mod ready_resource;
 /// Module, controller, service, resource, and single-file generators.
 pub mod resource;
-mod source;
-mod templates;
 
 /// Generates an email module with configurable delivery backends.
 pub use file_upload_email::generate_ready_resource_email;
@@ -35,7 +33,7 @@ pub use resource::{
     generate_repository, generate_resource, generate_service,
 };
 
-pub(crate) use naming::Names;
+pub(crate) use common::naming::Names;
 
 use std::path::{Path, PathBuf};
 
@@ -127,7 +125,7 @@ mod tests {
     fn register_root_module_adds_pub_mod() {
         let dir = tempfile::tempdir().unwrap();
         std::fs::create_dir_all(dir.path().join("src/modules")).unwrap();
-        let names = crate::generators::naming::Names::parse("my_module").unwrap();
+        let names = crate::generators::common::naming::Names::parse("my_module").unwrap();
         let mut report = GenerationReport::default();
         super::resource::register_root_module(dir.path(), &names, &mut report).unwrap();
         let mod_rs = std::fs::read_to_string(dir.path().join("src/modules/mod.rs")).unwrap();
@@ -139,7 +137,7 @@ mod tests {
     fn register_root_module_is_idempotent() {
         let dir = tempfile::tempdir().unwrap();
         std::fs::create_dir_all(dir.path().join("src/modules")).unwrap();
-        let names = crate::generators::naming::Names::parse("my_module").unwrap();
+        let names = crate::generators::common::naming::Names::parse("my_module").unwrap();
         let mut report = GenerationReport::default();
         super::resource::register_root_module(dir.path(), &names, &mut report).unwrap();
         let mut report2 = GenerationReport::default();
@@ -242,7 +240,7 @@ mod tests {
     #[test]
     fn ensure_app_import_adds_manual_instruction_when_no_app() {
         let dir = tempfile::tempdir().unwrap();
-        let names = crate::generators::naming::Names::parse("test").unwrap();
+        let names = crate::generators::common::naming::Names::parse("test").unwrap();
         let mut report = GenerationReport::default();
         super::resource::ensure_app_import(dir.path(), &names, &mut report);
         assert!(!report.manual_instructions.is_empty());

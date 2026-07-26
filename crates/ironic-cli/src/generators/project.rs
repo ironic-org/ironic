@@ -5,8 +5,7 @@ use std::{
 
 use super::{
     app::{app_controller, app_production_guide, app_service},
-    naming::Names,
-    source::write_generated,
+    common::{naming::Names, source::write_generated},
 };
 use crate::CliError;
 

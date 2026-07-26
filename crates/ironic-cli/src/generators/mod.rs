@@ -1,7 +1,6 @@
 /// Microservice app and library crate generators.
 pub mod app;
 mod common;
-mod file_upload_email;
 mod graphql;
 mod monorepo;
 /// New-project scaffolding.
@@ -11,14 +10,14 @@ pub mod ready_resource;
 /// Module, controller, service, resource, and single-file generators.
 pub mod resource;
 
-/// Generates an email module with configurable delivery backends.
-pub use file_upload_email::generate_ready_resource_email;
-/// Generates a file upload module with configurable storage backends.
-pub use file_upload_email::generate_ready_resource_file_upload;
 /// Generates a full authentication module.
 pub use ready_resource::generate_ready_resource;
 /// Generates a basic auth module (passwords + sessions).
 pub use ready_resource::generate_ready_resource_basic;
+/// Generates an email module with configurable delivery backends.
+pub use ready_resource::generate_ready_resource_email;
+/// Generates a file upload module with configurable storage backends.
+pub use ready_resource::generate_ready_resource_file_upload;
 /// Generates a JWT-only auth module.
 pub use ready_resource::generate_ready_resource_jwt;
 /// Generates an OAuth-only auth module.

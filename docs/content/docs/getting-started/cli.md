@@ -48,6 +48,114 @@ description: Master the Ironic command-line tools — create, generate, run, tes
 | `ironic generate app <name>` | `g a` | New HTTP microservice in the monorepo |
 | `ironic generate app <name> --grpc` | `g a --grpc` | New gRPC microservice with tonic + DI |
 
+## Ready Resource Generators
+
+These generate production-ready modules with minimal setup. Run them from your project root.
+
+### Auth Module
+
+```bash
+# Full auth (JWT + OAuth + passwords + sessions + RBAC)
+ironic generate ready-resource auth
+
+# Basic auth (passwords + sessions only)
+ironic generate ready-resource auth-basic
+
+# JWT only
+ironic generate ready-resource auth-jwt
+
+# OAuth only (Google, GitHub)
+ironic generate ready-resource auth-oauth
+```
+
+**Output** — creates `src/modules/auth/` with:
+```
+auth/
+├── mod.rs           # AuthModule (auto-registered)
+├── auth.controller.rs  # Login, register, refresh endpoints
+├── auth.service.rs  # Business logic
+├── password.service.rs # Password hashing (argon2)
+├── jwt.service.rs   # JWT token management (if applicable)
+├── guards/
+│   ├── mod.rs
+│   ├── auth.guard.rs    # JWT/session validation
+│   └── role.guard.rs    # RBAC authorization
+├── decorators/
+│   ├── mod.rs
+│   ├── current_user.rs  # Extract user from request
+│   └── roles.rs         # Role-based access
+├── dto/
+│   ├── mod.rs
+│   ├── register.dto.rs
+│   ├── login.dto.rs
+│   └── token.response.rs
+├── entities/
+│   ├── mod.rs
+│   └── user.rs
+├── services/
+│   └── mod.rs
+└── tests/
+    ├── mod.rs
+    ├── unit.rs
+    └── integration.rs
+```
+
+**Dependencies auto-added**: `argon2`, `jsonwebtoken`, `oauth2`, `getrandom`
+
+### File Upload Module
+
+```bash
+ironic generate ready-resource file-upload
+```
+
+**Output** — creates `src/modules/file-upload/` with:
+```
+file-upload/
+├── mod.rs
+├── file-upload.controller.rs  # Upload, list, delete endpoints
+├── file-upload.service.rs     # Storage logic
+├── adapters/
+│   ├── mod.rs
+│   ├── local.rs          # Local filesystem
+│   ├── s3.rs             # AWS S3
+│   ├── r2.rs             # Cloudflare R2
+│   ├── azure.rs          # Azure Blob
+│   └── gcs.rs            # Google Cloud Storage
+├── dto/
+│   └── upload.response.rs
+├── entities/
+│   └── uploaded-file.rs
+└── tests/
+```
+
+**Dependencies auto-added**: `uuid`
+
+### Email Module
+
+```bash
+ironic generate ready-resource email
+```
+
+**Output** — creates `src/modules/email/` with:
+```
+email/
+├── mod.rs
+├── email.controller.rs  # Send email endpoint
+├── email.service.rs     # Delivery logic
+├── processors/
+│   ├── mod.rs
+│   ├── smtp.rs          # SMTP delivery
+│   ├── ses.rs           # Amazon SES
+│   ├── sendgrid.rs      # SendGrid API
+│   ├── mailgun.rs       # Mailgun API
+│   └── log.rs           # Development logger
+├── dto/
+│   └── send-email.dto.rs
+├── entities/
+│   └── email-message.rs
+└── tests/
+```
+
 ## Migration commands
 
 Requires the `sqlx-postgres`, `sqlx-mysql`, or `sqlx-sqlite` feature for `up|down|status`.

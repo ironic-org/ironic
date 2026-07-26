@@ -2,151 +2,11 @@
 
 use std::path::{Path, PathBuf};
 
-use crate::CliError;
-
-use super::{
-    GenerationReport,
-    common::source::{ensure_items, ensure_module_import, write_generated},
-};
-
-/// Generates a full authentication module with passwords, JWT, OAuth, sessions, and RBAC.
-///
-/// # Errors
-///
-/// Returns an error if file I/O fails during module generation or registration.
-pub fn generate_ready_resource(root: &Path, name: &str) -> Result<GenerationReport, CliError> {
-    let module_dir = root.join("src/modules").join(name);
-    let mut report = GenerationReport::default();
-
-    let files = auth_full_files(&module_dir, name);
-    for (path, contents) in &files {
-        let state = write_generated(path, contents)?;
-        super::record(&mut report, path, state);
-    }
-
-    register_module(root, name, &mut report);
-    Ok(report)
-}
-
-/// Generates a basic auth module (passwords + sessions only).
-///
-/// # Errors
-///
-/// Returns an error if file I/O fails during module generation or registration.
-pub fn generate_ready_resource_basic(root: &Path) -> Result<GenerationReport, CliError> {
-    let module_dir = root.join("src/modules/auth");
-    let mut report = GenerationReport::default();
-
-    let files = auth_basic_files(&module_dir);
-    for (path, contents) in &files {
-        let state = write_generated(path, contents)?;
-        super::record(&mut report, path, state);
-    }
-
-    register_module(root, "auth", &mut report);
-    Ok(report)
-}
-
-/// Generates a JWT-only auth module.
-///
-/// # Errors
-///
-/// Returns an error if file I/O fails during module generation or registration.
-pub fn generate_ready_resource_jwt(root: &Path) -> Result<GenerationReport, CliError> {
-    let module_dir = root.join("src/modules/auth");
-    let mut report = GenerationReport::default();
-
-    let files = auth_jwt_files(&module_dir);
-    for (path, contents) in &files {
-        let state = write_generated(path, contents)?;
-        super::record(&mut report, path, state);
-    }
-
-    register_module(root, "auth", &mut report);
-    Ok(report)
-}
-
-/// Generates an OAuth-only auth module.
-///
-/// # Errors
-///
-/// Returns an error if file I/O fails during module generation or registration.
-pub fn generate_ready_resource_oauth(root: &Path) -> Result<GenerationReport, CliError> {
-    let module_dir = root.join("src/modules/auth");
-    let mut report = GenerationReport::default();
-
-    let files = auth_oauth_files(&module_dir);
-    for (path, contents) in &files {
-        let state = write_generated(path, contents)?;
-        super::record(&mut report, path, state);
-    }
-
-    register_module(root, "auth", &mut report);
-    Ok(report)
-}
-
-fn register_module(root: &Path, name: &str, report: &mut GenerationReport) {
-    let registry = root.join("src/modules/mod.rs");
-    if let Err(e) = ensure_items(&registry, &[&format!("pub mod {name};")]) {
-        report.manual_instructions.push(format!(
-            "add `pub mod {name};` to {}: {e}",
-            registry.display()
-        ));
-    } else {
-        super::record(report, &registry, true);
-    }
-
-    let app = root.join("src/app.rs");
-    let pascal = "Auth";
-    let import = format!("crate::modules::{name}::{pascal}Module");
-    if app.is_file() {
-        if let Err(e) = ensure_module_import(&app, &import) {
-            report.manual_instructions.push(format!(
-                "add `{import}` to `imports = [...]` in {}: {e}",
-                app.display()
-            ));
-        } else {
-            super::record(report, &app, true);
-        }
-    } else {
-        report.manual_instructions.push(format!(
-            "add `{import}` to your root module's `imports = [...]`"
-        ));
-    }
-
-    // Auto-add required dependencies to Cargo.toml
-    let manifest = root.join("Cargo.toml");
-    if manifest.is_file() {
-        let mut content = std::fs::read_to_string(&manifest).unwrap_or_default();
-        let deps = [
-            ("jsonwebtoken", "jsonwebtoken = \"9\""),
-            ("argon2", "argon2 = \"0.5\""),
-            ("oauth2", "oauth2 = \"5.0\""),
-            ("getrandom", "getrandom = \"0.4\""),
-        ];
-        let mut added = false;
-        for (name, dep) in &deps {
-            if !content.contains(name) {
-                content = content.replace("[dependencies]\n", &format!("[dependencies]\n{dep}\n"));
-                added = true;
-            }
-        }
-        if added {
-            std::fs::write(&manifest, content).ok();
-            report.manual_instructions.push(
-                "Dependencies auto-added to Cargo.toml. Run `cargo build` to fetch them.".into(),
-            );
-        }
-    }
-}
-
-// ── Auth helper source ───────────────────────────────────────────────
-
-fn auth_module_preamble() -> &'static str {
+pub(super) fn auth_module_preamble() -> &'static str {
     "use ironic::prelude::*;\n\npub mod controller;\npub mod services;\npub mod dto;\npub mod entities;\npub mod guards;\npub mod decorators;\n\n#[cfg(test)]\nmod tests;\n"
 }
 
-fn auth_full_files(module_dir: &Path, name: &str) -> Vec<(PathBuf, String)> {
+pub(super) fn auth_full_files(module_dir: &Path, name: &str) -> Vec<(PathBuf, String)> {
     let d = module_dir;
     vec![
         (d.join("mod.rs"), format!("{}\n{}", auth_module_preamble(), auth_module_body(name))),
@@ -175,7 +35,7 @@ fn auth_full_files(module_dir: &Path, name: &str) -> Vec<(PathBuf, String)> {
     ]
 }
 
-fn auth_basic_files(module_dir: &Path) -> Vec<(PathBuf, String)> {
+pub(super) fn auth_basic_files(module_dir: &Path) -> Vec<(PathBuf, String)> {
     let d = module_dir;
     vec![
         (
@@ -219,7 +79,7 @@ fn auth_basic_files(module_dir: &Path) -> Vec<(PathBuf, String)> {
     ]
 }
 
-fn auth_jwt_files(module_dir: &Path) -> Vec<(PathBuf, String)> {
+pub(super) fn auth_jwt_files(module_dir: &Path) -> Vec<(PathBuf, String)> {
     let d = module_dir;
     vec![
         (
@@ -273,7 +133,7 @@ fn auth_jwt_files(module_dir: &Path) -> Vec<(PathBuf, String)> {
     ]
 }
 
-fn auth_oauth_files(module_dir: &Path) -> Vec<(PathBuf, String)> {
+pub(super) fn auth_oauth_files(module_dir: &Path) -> Vec<(PathBuf, String)> {
     let d = module_dir;
     vec![
         (
@@ -282,6 +142,7 @@ fn auth_oauth_files(module_dir: &Path) -> Vec<(PathBuf, String)> {
         ),
         (d.join("entities/mod.rs"), entity_mod().into()),
         (d.join("entities/user.rs"), user_entity().into()),
+        (d.join("entities/role.rs"), role_enum().into()),
         (d.join("services/mod.rs"), services_mod().into()),
         (
             d.join("services/auth_service.rs"),
@@ -323,35 +184,35 @@ fn auth_oauth_files(module_dir: &Path) -> Vec<(PathBuf, String)> {
 
 // ── Module ────────────────────────────────────────────────────────────
 
-fn auth_module_body(_name: &str) -> String {
+pub(super) fn auth_module_body(_name: &str) -> String {
     "pub use controller::AuthController;\npub use services::auth_service::AuthService;\npub use services::password_service::PasswordService;\n#[allow(unused_imports)]\npub use guards::AuthGuard;\n\n#[derive(Module)]\n#[module(\n    providers = [AuthService, PasswordService],\n    controllers = [AuthController],\n    exports = [AuthService],\n)]\npub struct AuthModule;\n".to_string()
 }
 
 // ── Entity ────────────────────────────────────────────────────────────
 
-fn entity_mod() -> &'static str {
+pub(super) fn entity_mod() -> &'static str {
     "pub mod user;\npub mod role;\npub use user::User;\npub use role::Role;\n"
 }
 
-fn user_entity() -> &'static str {
+pub(super) fn user_entity() -> &'static str {
     "use serde::{Deserialize, Serialize};\nuse super::role::Role;\n\n#[derive(Debug, Clone, Serialize, Deserialize)]\npub struct User {\n    pub id: u64,\n    pub email: String,\n    #[serde(skip_serializing)]\n    pub password_hash: String,\n    pub name: String,\n    pub role: Role,\n    pub provider: String,\n    pub created_at: String,\n}\n\nimpl User {\n    /// Returns a safe view without the password hash.\n    #[must_use]\n    pub fn public_view(&self) -> PublicUser {\n        PublicUser {\n            id: self.id,\n            email: self.email.clone(),\n            name: self.name.clone(),\n            role: self.role,\n            provider: self.provider.clone(),\n        }\n    }\n}\n\n#[derive(Debug, Clone, Serialize)]\npub struct PublicUser {\n    pub id: u64,\n    pub email: String,\n    pub name: String,\n    pub role: Role,\n    pub provider: String,\n}\n"
 }
 
-fn role_enum() -> &'static str {
+pub(super) fn role_enum() -> &'static str {
     "use serde::{Deserialize, Serialize};\n\n#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]\n#[serde(rename_all = \"lowercase\")]\npub enum Role {\n    Admin,\n    User,\n    Moderator,\n}\n\nimpl Role {\n    #[must_use]\n    pub fn as_str(&self) -> &'static str {\n        match self {\n            Role::Admin => \"admin\",\n            Role::User => \"user\",\n            Role::Moderator => \"moderator\",\n        }\n    }\n}\n"
 }
 
 // ── Services ──────────────────────────────────────────────────────────
 
-fn services_mod() -> &'static str {
+pub(super) fn services_mod() -> &'static str {
     "pub mod password_service;\npub mod auth_service;\npub use password_service::PasswordService;\npub use auth_service::AuthService;\n"
 }
 
-fn password_service() -> &'static str {
+pub(super) fn password_service() -> &'static str {
     "use argon2::{\n    Argon2, PasswordHash, PasswordHasher, PasswordVerifier,\n    password_hash::{SaltString, rand_core::OsRng},\n};\nuse ironic::prelude::*;\n\n#[derive(Injectable)]\npub struct PasswordService;\n\nimpl PasswordService {\n    pub fn hash(&self, password: &str) -> Result<String, HttpError> {\n        let salt = SaltString::generate(&mut OsRng);\n        let hash = Argon2::default()\n            .hash_password(password.as_bytes(), &salt)\n            .map_err(|e| HttpError::internal(ironic::error_codes::codes::INTERNAL_HASH_ERROR, e.to_string()))?;\n        Ok(hash.to_string())\n    }\n\n    pub fn verify(&self, password: &str, hash: &str) -> Result<bool, HttpError> {\n        let parsed = PasswordHash::new(hash)\n            .map_err(|e| HttpError::internal(ironic::error_codes::codes::INTERNAL_HASH_ERROR, e.to_string()))?;\n        Ok(Argon2::default().verify_password(password.as_bytes(), &parsed).is_ok())\n    }\n}\n"
 }
 
-fn auth_service_full() -> &'static str {
+pub(super) fn auth_service_full() -> &'static str {
     r#"use std::sync::Arc;
 use std::collections::HashMap;
 use std::sync::Mutex;
@@ -435,7 +296,7 @@ impl AuthService {
 "#
 }
 
-fn auth_service_basic() -> &'static str {
+pub(super) fn auth_service_basic() -> &'static str {
     r#"use std::sync::Arc;
 use std::collections::HashMap;
 use std::sync::Mutex;
@@ -479,10 +340,10 @@ impl AuthService {
 "#
 }
 
-fn auth_service_jwt() -> &'static str {
+pub(super) fn auth_service_jwt() -> &'static str {
     auth_service_full()
 }
-fn auth_service_oauth() -> &'static str {
+pub(super) fn auth_service_oauth() -> &'static str {
     r#"use ironic::prelude::*;
 use crate::modules::auth::dto::TokenResponse;
 
@@ -510,32 +371,32 @@ impl AuthService {
 
 // ── DTOs ──────────────────────────────────────────────────────────────
 
-fn dto_mod_full() -> &'static str {
+pub(super) fn dto_mod_full() -> &'static str {
     "pub mod register_dto;\npub mod login_dto;\npub mod refresh_dto;\npub mod token_response;\npub use register_dto::RegisterDto;\npub use login_dto::LoginDto;\npub use refresh_dto::RefreshDto;\npub use token_response::TokenResponse;\n"
 }
-fn dto_mod_basic() -> &'static str {
+pub(super) fn dto_mod_basic() -> &'static str {
     "pub mod register_dto;\npub mod login_dto;\npub use register_dto::RegisterDto;\npub use login_dto::LoginDto;\n"
 }
-fn dto_mod_jwt() -> &'static str {
+pub(super) fn dto_mod_jwt() -> &'static str {
     dto_mod_full()
 }
 
-fn register_dto() -> &'static str {
+pub(super) fn register_dto() -> &'static str {
     "use garde::Validate;\nuse serde::{Deserialize, Serialize};\n\n#[derive(Debug, Clone, Serialize, Deserialize, Validate)]\npub struct RegisterDto {\n    #[garde(length(min = 5, max = 254))]\n    pub email: String,\n    #[garde(length(min = 8, max = 128))]\n    pub password: String,\n    #[garde(length(min = 1, max = 256))]\n    pub name: String,\n}\n"
 }
-fn login_dto() -> &'static str {
+pub(super) fn login_dto() -> &'static str {
     "use garde::Validate;\nuse serde::{Deserialize, Serialize};\n\n#[derive(Debug, Clone, Serialize, Deserialize, Validate)]\npub struct LoginDto {\n    #[garde(length(min = 1))]\n    pub email: String,\n    #[garde(length(min = 1))]\n    pub password: String,\n}\n"
 }
-fn refresh_dto() -> &'static str {
+pub(super) fn refresh_dto() -> &'static str {
     "use serde::{Deserialize, Serialize};\n\n#[derive(Debug, Clone, Serialize, Deserialize)]\npub struct RefreshDto {\n    pub refresh_token: String,\n}\n"
 }
-fn token_response() -> &'static str {
+pub(super) fn token_response() -> &'static str {
     "use serde::{Deserialize, Serialize};\n\n#[derive(Debug, Clone, Serialize, Deserialize)]\npub struct TokenResponse {\n    pub access_token: String,\n    pub refresh_token: String,\n    pub expires_in: u64,\n}\n"
 }
 
 // ── Controller ────────────────────────────────────────────────────────
 
-fn auth_controller_full() -> &'static str {
+pub(super) fn auth_controller_full() -> &'static str {
     r#"use std::sync::Arc;
 use ironic::prelude::*;
 use super::super::services::AuthService;
@@ -590,7 +451,7 @@ impl AuthController {
 "#
 }
 
-fn auth_controller_basic() -> &'static str {
+pub(super) fn auth_controller_basic() -> &'static str {
     r#"use std::sync::Arc;
 use ironic::prelude::*;
 use super::super::services::AuthService;
@@ -624,11 +485,11 @@ impl AuthController {
 "#
 }
 
-fn auth_controller_jwt() -> &'static str {
+pub(super) fn auth_controller_jwt() -> &'static str {
     auth_controller_full()
 }
 
-fn auth_controller_oauth() -> &'static str {
+pub(super) fn auth_controller_oauth() -> &'static str {
     r#"use std::sync::Arc;
 use ironic::prelude::*;
 use serde_json::json;
@@ -670,7 +531,7 @@ impl AuthController {
 
 // ── Guards ────────────────────────────────────────────────────────────
 
-fn auth_guard() -> &'static str {
+pub(super) fn auth_guard() -> &'static str {
     r#"use ironic::{Guard, GuardDecision, GuardFuture, RequestContext};
 use super::super::services::AuthService;
 
@@ -703,7 +564,7 @@ impl Guard for AuthGuard {
 "#
 }
 
-fn auth_guard_basic() -> &'static str {
+pub(super) fn auth_guard_basic() -> &'static str {
     r#"use ironic::{Guard, GuardDecision, GuardFuture, RequestContext};
 
 pub struct AuthGuard;
@@ -725,11 +586,11 @@ impl Guard for AuthGuard {
 "#
 }
 
-fn auth_guard_oauth() -> &'static str {
+pub(super) fn auth_guard_oauth() -> &'static str {
     auth_guard()
 }
 
-fn role_guard() -> &'static str {
+pub(super) fn role_guard() -> &'static str {
     r#"use ironic::{Guard, GuardDecision, GuardFuture, RequestContext};
 
 #[allow(dead_code)]
@@ -759,7 +620,7 @@ impl Guard for RoleGuard {
 
 // ── Decorators ────────────────────────────────────────────────────────
 
-fn current_user_decorator() -> &'static str {
+pub(super) fn current_user_decorator() -> &'static str {
     r#"use ironic::{ExtractFuture, ParameterExtractor, RequestContext, create_param_decorator};
 
 pub struct CurrentUser;
@@ -784,7 +645,7 @@ create_param_decorator!(current_user, CurrentUser);
 "#
 }
 
-fn roles_decorator() -> &'static str {
+pub(super) fn roles_decorator() -> &'static str {
     r#"use ironic::{ExtractFuture, ParameterExtractor, RequestContext, create_param_decorator};
 
 pub struct Roles;
@@ -811,35 +672,35 @@ create_param_decorator!(roles, Roles);
 
 // ── Tests ─────────────────────────────────────────────────────────────
 
-fn tests_mod() -> &'static str {
+pub(super) fn tests_mod() -> &'static str {
     "/// Unit tests — service and guard logic in isolation (no HTTP).\n#[cfg(test)]\nmod unit;\n/// Integration tests — full HTTP request/response through the framework.\n#[cfg(test)]\nmod integration;\n"
 }
 
-fn unit_password_test() -> &'static str {
+pub(super) fn unit_password_test() -> &'static str {
     "//! Unit tests for PasswordService.\n\nuse crate::modules::auth::services::password_service::PasswordService;\n\n#[test]\nfn hash_and_verify() {\n    let svc = PasswordService;\n    let hash = svc.hash(\"password123\").unwrap();\n    assert!(svc.verify(\"password123\", &hash).unwrap());\n    assert!(!svc.verify(\"wrong\", &hash).unwrap());\n}\n\n#[test]\nfn unique_salts() {\n    let svc = PasswordService;\n    let h1 = svc.hash(\"password123\").unwrap();\n    let h2 = svc.hash(\"password123\").unwrap();\n    assert_ne!(h1, h2, \"same password should produce different hashes\");\n}\n"
 }
 #[allow(dead_code)]
-fn unit_auth_test() -> &'static str {
+pub(super) fn unit_auth_test() -> &'static str {
     "//! Unit tests for AuthService.\n\nuse std::sync::Arc;\nuse crate::modules::auth::dto::{LoginDto, RegisterDto};\nuse crate::modules::auth::services::auth_service::AuthService;\nuse crate::modules::auth::services::password_service::PasswordService;\n\n#[test]\nfn register_and_login() {\n    let svc = AuthService { password: Arc::new(PasswordService) };\n    let user = svc.register(RegisterDto { email: \"test@test.com\".into(), password: \"pass123\".into(), name: \"Test\".into() }).unwrap();\n    assert_eq!(user.email, \"test@test.com\");\n    let tokens = svc.login(LoginDto { email: \"test@test.com\".into(), password: \"pass123\".into() }).unwrap();\n    assert!(!tokens.access_token.is_empty());\n}\n\n#[test]\nfn duplicate_email_rejected() {\n    let svc = AuthService { password: Arc::new(PasswordService) };\n    svc.register(RegisterDto { email: \"dup@test.com\".into(), password: \"pass\".into(), name: \"A\".into() }).unwrap();\n    assert!(svc.register(RegisterDto { email: \"dup@test.com\".into(), password: \"pass\".into(), name: \"B\".into() }).is_err());\n}\n\n#[test]\nfn wrong_password_rejected() {\n    let svc = AuthService { password: Arc::new(PasswordService) };\n    svc.register(RegisterDto { email: \"x@test.com\".into(), password: \"correct\".into(), name: \"X\".into() }).unwrap();\n    assert!(svc.login(LoginDto { email: \"x@test.com\".into(), password: \"wrong\".into() }).is_err());\n}\n"
 }
 #[allow(dead_code)]
-fn unit_guard_test() -> &'static str {
+pub(super) fn unit_guard_test() -> &'static str {
     "//! Unit tests for AuthGuard and RoleGuard.\n\nuse std::sync::Arc;\nuse crate::modules::auth::guards::auth_guard::AuthGuard;\nuse crate::modules::auth::guards::role_guard::RoleGuard;\nuse ironic::{Guard, GuardDecision, Request, GuardFuture, RequestContext};\n\n#[ironic::test]\nasync fn auth_guard_denies_missing_header() {\n    let mut ctx = RequestContext::new(Request::new(ironic::HttpMethod::GET, \"/\".parse().unwrap(), ironic::HeaderMap::new(), vec![]));\n    let decision = AuthGuard.can_activate(&mut ctx).await.unwrap();\n    assert!(matches!(decision, GuardDecision::Deny(_)));\n}\n\n#[ironic::test]\nasync fn role_guard_denies_wrong_role() {\n    let mut ctx = RequestContext::new(Request::new(ironic::HttpMethod::GET, \"/\".parse().unwrap(), ironic::HeaderMap::new(), vec![]));\n    ctx.insert_extension(\"user\".to_string());\n    let guard = RoleGuard::new(&[\"admin\"]);\n    let decision = guard.can_activate(&mut ctx).await.unwrap();\n    assert!(matches!(decision, GuardDecision::Deny(_)));\n}\n"
 }
 
-fn unit_tests_full() -> String {
+pub(super) fn unit_tests_full() -> String {
     "//! Unit tests for the auth module.\n\nuse std::sync::Arc;\nuse crate::modules::auth::dto::{LoginDto, RegisterDto};\nuse crate::modules::auth::services::auth_service::AuthService;\nuse crate::modules::auth::services::password_service::PasswordService;\nuse crate::modules::auth::guards::auth_guard::AuthGuard;\nuse crate::modules::auth::guards::role_guard::RoleGuard;\nuse ironic::{Guard, GuardDecision, Request, RequestContext};\n\n// ── PasswordService ──────────────────────────────────────────────\n\n#[test]\nfn hash_and_verify() {\n    let svc = PasswordService;\n    let hash = svc.hash(\"password123\").unwrap();\n    assert!(svc.verify(\"password123\", &hash).unwrap());\n    assert!(!svc.verify(\"wrong\", &hash).unwrap());\n}\n\n#[test]\nfn unique_salts() {\n    let svc = PasswordService;\n    let h1 = svc.hash(\"password123\").unwrap();\n    let h2 = svc.hash(\"password123\").unwrap();\n    assert_ne!(h1, h2);\n}\n\n// ── AuthService ───────────────────────────────────────────────────\n\n#[test]\nfn register_and_login() {\n    let svc = AuthService { password: Arc::new(PasswordService) };\n    let user = svc.register(RegisterDto { email: \"test@test.com\".into(), password: \"pass123\".into(), name: \"Test\".into() }).unwrap();\n    assert_eq!(user.email, \"test@test.com\");\n    let tokens = svc.login(LoginDto { email: \"test@test.com\".into(), password: \"pass123\".into() }).unwrap();\n    assert!(!tokens.access_token.is_empty());\n}\n\n#[test]\nfn duplicate_email_rejected() {\n    let svc = AuthService { password: Arc::new(PasswordService) };\n    svc.register(RegisterDto { email: \"dup@test.com\".into(), password: \"pass\".into(), name: \"A\".into() }).unwrap();\n    assert!(svc.register(RegisterDto { email: \"dup@test.com\".into(), password: \"pass\".into(), name: \"B\".into() }).is_err());\n}\n\n#[test]\nfn wrong_password_rejected() {\n    let svc = AuthService { password: Arc::new(PasswordService) };\n    svc.register(RegisterDto { email: \"x@test.com\".into(), password: \"correct\".into(), name: \"X\".into() }).unwrap();\n    assert!(svc.login(LoginDto { email: \"x@test.com\".into(), password: \"wrong\".into() }).is_err());\n}\n\n// ── Guards ────────────────────────────────────────────────────────\n\n#[ironic::test]\nasync fn auth_guard_denies_missing_header() {\n    let mut ctx = RequestContext::new(Request::new(ironic::HttpMethod::GET, \"/\".parse().unwrap(), ironic::HeaderMap::new(), vec![]));\n    let decision = AuthGuard.can_activate(&mut ctx).await.unwrap();\n    assert!(matches!(decision, GuardDecision::Deny));\n}\n\n#[ironic::test]\nasync fn role_guard_denies_wrong_role() {\n    let mut ctx = RequestContext::new(Request::new(ironic::HttpMethod::GET, \"/\".parse().unwrap(), ironic::HeaderMap::new(), vec![]));\n    ctx.insert_extension(\"user\".to_string());\n    let guard = RoleGuard::new(&[\"admin\"]);\n    let decision = guard.can_activate(&mut ctx).await.unwrap();\n    assert!(matches!(decision, GuardDecision::Deny));\n}\n".to_string()
 }
 
-fn unit_tests_basic() -> String {
+pub(super) fn unit_tests_basic() -> String {
     unit_password_test().to_string()
 }
 
-fn unit_tests_jwt() -> String {
+pub(super) fn unit_tests_jwt() -> String {
     "//! Unit tests for the auth module (JWT).\n\nuse std::sync::Arc;\nuse crate::modules::auth::dto::{LoginDto, RegisterDto};\nuse crate::modules::auth::services::auth_service::AuthService;\nuse crate::modules::auth::services::password_service::PasswordService;\nuse crate::modules::auth::guards::auth_guard::AuthGuard;\nuse crate::modules::auth::guards::role_guard::RoleGuard;\nuse ironic::{Guard, GuardDecision, Request, RequestContext};\n\n#[test]\nfn register_and_login() {\n    let svc = AuthService { password: Arc::new(PasswordService) };\n    let user = svc.register(RegisterDto { email: \"test@test.com\".into(), password: \"pass123\".into(), name: \"Test\".into() }).unwrap();\n    assert_eq!(user.email, \"test@test.com\");\n    let tokens = svc.login(LoginDto { email: \"test@test.com\".into(), password: \"pass123\".into() }).unwrap();\n    assert!(!tokens.access_token.is_empty());\n}\n\n#[test]\nfn duplicate_email_rejected() {\n    let svc = AuthService { password: Arc::new(PasswordService) };\n    svc.register(RegisterDto { email: \"dup@test.com\".into(), password: \"pass\".into(), name: \"A\".into() }).unwrap();\n    assert!(svc.register(RegisterDto { email: \"dup@test.com\".into(), password: \"pass\".into(), name: \"B\".into() }).is_err());\n}\n\n#[test]\nfn wrong_password_rejected() {\n    let svc = AuthService { password: Arc::new(PasswordService) };\n    svc.register(RegisterDto { email: \"x@test.com\".into(), password: \"correct\".into(), name: \"X\".into() }).unwrap();\n    assert!(svc.login(LoginDto { email: \"x@test.com\".into(), password: \"wrong\".into() }).is_err());\n}\n\n#[ironic::test]\nasync fn auth_guard_denies_missing_header() {\n    let mut ctx = RequestContext::new(Request::new(ironic::HttpMethod::GET, \"/\".parse().unwrap(), ironic::HeaderMap::new(), vec![]));\n    let decision = AuthGuard.can_activate(&mut ctx).await.unwrap();\n    assert!(matches!(decision, GuardDecision::Deny));\n}\n\n#[ironic::test]\nasync fn role_guard_denies_wrong_role() {\n    let mut ctx = RequestContext::new(Request::new(ironic::HttpMethod::GET, \"/\".parse().unwrap(), ironic::HeaderMap::new(), vec![]));\n    ctx.insert_extension(\"user\".to_string());\n    let guard = RoleGuard::new(&[\"admin\"]);\n    let decision = guard.can_activate(&mut ctx).await.unwrap();\n    assert!(matches!(decision, GuardDecision::Deny));\n}\n".to_string()
 }
 
-fn integration_auth_test() -> &'static str {
+pub(super) fn integration_auth_test() -> &'static str {
     r#"//! Integration tests for full auth flow.
 
 use ironic::{HttpStatus, TestApplication};
@@ -871,7 +732,7 @@ async fn login_invalid_credentials() {
 "#
 }
 
-fn integration_auth_basic_test() -> &'static str {
+pub(super) fn integration_auth_basic_test() -> &'static str {
     r#"use ironic::{HttpStatus, TestApplication};
 use serde_json::json;
 use super::super::*;
@@ -890,11 +751,11 @@ async fn register_and_login() {
 "#
 }
 
-fn integration_auth_jwt_test() -> &'static str {
+pub(super) fn integration_auth_jwt_test() -> &'static str {
     integration_auth_test()
 }
 
-fn integration_auth_oauth_test() -> &'static str {
+pub(super) fn integration_auth_oauth_test() -> &'static str {
     r#"use ironic::{HttpStatus, TestApplication};
 use super::super::*;
 

@@ -61,7 +61,12 @@ pub fn create(
 
     let dep_spec = framework_workspace.map_or_else(
         || "version = \"1.1\"".to_string(),
-        |workspace| format!("path = \"{}\", default-features = false", toml_path(workspace)),
+        |workspace| {
+            format!(
+                "path = \"{}\", default-features = false",
+                toml_path(workspace)
+            )
+        },
     );
     let files: Vec<(std::path::PathBuf, String)> = if graphql {
         vec![

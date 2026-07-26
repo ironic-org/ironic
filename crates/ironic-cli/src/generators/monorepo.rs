@@ -118,15 +118,23 @@ fn extract_ironic_dep(toml: &str) -> Option<String> {
             if trimmed.starts_with('[') {
                 break;
             }
-            if trimmed.starts_with("ironic") || trimmed.starts_with("ironic ") || trimmed.starts_with("ironic=") {
+            if trimmed.starts_with("ironic")
+                || trimmed.starts_with("ironic ")
+                || trimmed.starts_with("ironic=")
+            {
                 // Extract the value after '='
                 if let Some(val) = trimmed.splitn(2, '=').nth(1) {
-                    let val = val.trim().trim_matches(|c: char| c == ' ' || c == '{' || c == '}');
+                    let val = val
+                        .trim()
+                        .trim_matches(|c: char| c == ' ' || c == '{' || c == '}');
                     // Extract path, version, etc.
                     let parts: Vec<&str> = val.split(',').map(|s| s.trim()).collect();
                     let mut result = Vec::new();
                     for part in parts {
-                        if part.starts_with("version") || part.starts_with("path") || part.starts_with("git") {
+                        if part.starts_with("version")
+                            || part.starts_with("path")
+                            || part.starts_with("git")
+                        {
                             result.push(part.to_string());
                         }
                     }

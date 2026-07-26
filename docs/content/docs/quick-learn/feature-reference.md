@@ -232,7 +232,7 @@ Instead of adding `tokio`, `serde`, `serde_json` to your `Cargo.toml`, use:
 // ironic = { workspace = true }
 
 // In your code:
-use ironic::serde::{Deserialize, Serialize};
+use serde::{Deserialize, Serialize};
 use ironic::serde_json as json;
 use ironic::tokio;
 use ironic::dotenvy;

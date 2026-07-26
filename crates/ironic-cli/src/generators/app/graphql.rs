@@ -11,6 +11,7 @@ edition = "2024"
 [dependencies]
 ironic = {{ workspace = true, features = ["graphql"] }}
 async-graphql = {{ workspace = true }}
+serde = {{ version = "1", features = ["derive"] }}
 "#,
         name = names.raw
     )

@@ -82,6 +82,7 @@ members = [
 
 [workspace.dependencies]
 ironic = {{ {ironic_dep}, features = ["security", "compression", "metrics", "validation", "versioning", "openapi", "logging", "sqlx-postgres"] }}
+serde = {{ version = "1", features = ["derive"] }}
 
 [profile.release]
 lto = true

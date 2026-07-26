@@ -108,6 +108,7 @@ edition = "2024"
 
 [dependencies]
 ironic = {{ workspace = true }}
+serde = {{ workspace = true }}
 "#,
         name = names.raw
     )

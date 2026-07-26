@@ -12,6 +12,7 @@ edition = "2024"
 
 [dependencies]
 ironic = {{ workspace = true, features = ["grpc"] }}
+serde = {{ version = "1", features = ["derive"] }}
 
 [build-dependencies]
 tonic-prost-build = "0.14"

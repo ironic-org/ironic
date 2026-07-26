@@ -511,6 +511,7 @@ tonic = "0.14"
 prost = "0.13"
 tracing = "0.1"
 tracing-subscriber = {{ version = "0.3", features = ["env-filter"] }}
+dotenvy = "0.15"
 
 [build-dependencies]
 tonic-prost-build = "0.14"

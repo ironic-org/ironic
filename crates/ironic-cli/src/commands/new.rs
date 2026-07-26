@@ -24,6 +24,7 @@ pub(crate) fn execute(arguments: &NewArgs, output: &mut impl Write) -> Result<()
         &destination,
         &project_name,
         arguments.framework_workspace.as_deref(),
+        arguments.graphql,
     )?;
     writeln!(output, "Created `{}`", report.destination.display())
         .map_err(|error| CliError::io("write output", "stdout", error))?;
@@ -46,6 +47,7 @@ mod tests {
         let args = NewArgs {
             name: "123".into(),
             framework_workspace: None,
+            graphql: false,
         };
         let mut buf = Vec::new();
         let result = super::execute(&args, &mut buf);
@@ -57,6 +59,7 @@ mod tests {
         let args = NewArgs {
             name: "mod".into(),
             framework_workspace: None,
+            graphql: false,
         };
         let mut buf = Vec::new();
         let result = super::execute(&args, &mut buf);
@@ -68,6 +71,7 @@ mod tests {
         let args = NewArgs {
             name: ".".into(),
             framework_workspace: None,
+            graphql: false,
         };
         let mut buf = Vec::new();
         let result = super::execute(&args, &mut buf);
@@ -81,6 +85,7 @@ mod tests {
         let args = NewArgs {
             name: "test".into(),
             framework_workspace: None,
+            graphql: false,
         };
         let debug = format!("{args:?}");
         assert!(debug.contains("test"));

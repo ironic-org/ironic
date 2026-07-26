@@ -53,51 +53,99 @@ pub fn create(
     destination: &Path,
     name: &str,
     framework_workspace: Option<&Path>,
+    graphql: bool,
 ) -> Result<ProjectReport, CliError> {
     let version = env!("CARGO_PKG_VERSION");
     let names = Names::parse(name)?;
     let manifest = manifest(&names.kebab, framework_workspace);
-    let files = [
-        (destination.join("Cargo.toml"), manifest),
-        (
-            destination.join("ironic.toml"),
-            project_config(&names.kebab),
-        ),
-        (
-            destination.join(".env.example"),
-            dotenv_example(&names.kebab),
-        ),
-        (destination.join(".gitignore"), gitignore().into()),
-        (destination.join("Dockerfile"), dockerfile(&names.kebab)),
-        (
-            destination.join("rust-toolchain.toml"),
-            rust_toolchain().into(),
-        ),
-        (destination.join("README.md"), readme(&names.kebab)),
-        (destination.join("src/main.rs"), main_source(&names.kebab)),
-        (destination.join("src/app.rs"), app_source()),
-        (
-            destination.join("src/app_controller.rs"),
-            app_controller().into(),
-        ),
-        (
-            destination.join("src/app_service.rs"),
-            app_service(&names.kebab, version),
-        ),
-        (
-            destination.join("PRODUCTION.md"),
-            app_production_guide(&names.kebab, 8080),
-        ),
-        (destination.join("src/platform/mod.rs"), platform_mod()),
-        (
-            destination.join("src/platform/logging.rs"),
-            platform_logging(),
-        ),
-        (
-            destination.join("src/platform/config.rs"),
-            platform_config(),
-        ),
-    ];
+
+    let files: Vec<(std::path::PathBuf, String)> = if graphql {
+        vec![
+            (
+                destination.join("Cargo.toml"),
+                manifest_graphql(&names.kebab),
+            ),
+            (
+                destination.join("ironic.toml"),
+                project_config(&names.kebab),
+            ),
+            (
+                destination.join(".env.example"),
+                dotenv_example(&names.kebab),
+            ),
+            (destination.join(".gitignore"), gitignore().into()),
+            (destination.join("Dockerfile"), dockerfile(&names.kebab)),
+            (
+                destination.join("rust-toolchain.toml"),
+                rust_toolchain().into(),
+            ),
+            (destination.join("README.md"), readme(&names.kebab)),
+            (
+                destination.join("src/main.rs"),
+                main_source_graphql(&names.kebab),
+            ),
+            (destination.join("src/app.rs"), app_source_graphql()),
+            (
+                destination.join("src/app_service.rs"),
+                app_service_graphql(),
+            ),
+            (
+                destination.join("PRODUCTION.md"),
+                app_production_guide(&names.kebab, 8080),
+            ),
+            (destination.join("src/platform/mod.rs"), platform_mod()),
+            (
+                destination.join("src/platform/logging.rs"),
+                platform_logging(),
+            ),
+            (
+                destination.join("src/platform/config.rs"),
+                platform_config(),
+            ),
+        ]
+    } else {
+        vec![
+            (destination.join("Cargo.toml"), manifest),
+            (
+                destination.join("ironic.toml"),
+                project_config(&names.kebab),
+            ),
+            (
+                destination.join(".env.example"),
+                dotenv_example(&names.kebab),
+            ),
+            (destination.join(".gitignore"), gitignore().into()),
+            (destination.join("Dockerfile"), dockerfile(&names.kebab)),
+            (
+                destination.join("rust-toolchain.toml"),
+                rust_toolchain().into(),
+            ),
+            (destination.join("README.md"), readme(&names.kebab)),
+            (destination.join("src/main.rs"), main_source(&names.kebab)),
+            (destination.join("src/app.rs"), app_source()),
+            (
+                destination.join("src/app_controller.rs"),
+                app_controller().into(),
+            ),
+            (
+                destination.join("src/app_service.rs"),
+                app_service(&names.kebab, version),
+            ),
+            (
+                destination.join("PRODUCTION.md"),
+                app_production_guide(&names.kebab, 8080),
+            ),
+            (destination.join("src/platform/mod.rs"), platform_mod()),
+            (
+                destination.join("src/platform/logging.rs"),
+                platform_logging(),
+            ),
+            (
+                destination.join("src/platform/config.rs"),
+                platform_config(),
+            ),
+        ]
+    };
 
     // Validate all owned paths before writing. Allow pre-existing non-source files
     // (README.md, .gitignore, etc.) to be preserved; error on source file conflicts.
@@ -230,6 +278,98 @@ use crate::app_service::AppService;
 )]
 pub struct AppModule;
 "
+    .to_string()
+}
+
+fn manifest_graphql(name: &str) -> String {
+    format!(
+        r#"[package]
+name = "{name}"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.97"
+publish = false
+
+[dependencies]
+ironic = {{ features = ["graphql", "logging"], version = "1.1" }}
+tokio = {{ version = "1", features = ["macros", "rt-multi-thread"] }}
+serde = {{ version = "1", features = ["derive"] }}
+serde_json = "1"
+tracing = "0.1"
+tracing-subscriber = {{ version = "0.3", features = ["env-filter"] }}
+dotenvy = "0.15"
+
+[profile.release]
+lto = true
+codegen-units = 1
+opt-level = "z"
+panic = "abort"
+strip = true
+"#,
+    )
+}
+
+fn main_source_graphql(name: &str) -> String {
+    let version = env!("CARGO_PKG_VERSION");
+    format!(
+        r#"mod app;
+mod app_service;
+mod platform;
+
+use ironic::prelude::*;
+use async_graphql::{{EmptySubscription, Schema}};
+use app::AppModule;
+use app_service::AppService;
+
+#[ironic::main]
+async fn main() {{
+    dotenvy::dotenv().ok();
+    platform::logging::init();
+
+    let schema = Schema::build(AppService, AppService, EmptySubscription)
+        .data(AppModule)
+        .finish();
+
+    let addr = platform::config::listen_addr("8080");
+    let app = Application::builder()
+        .module(AppModule::definition())
+        .middleware(RequestLogging::new())
+        .platform(AxumAdapter::new().graphql_endpoint("/graphql", schema))
+        .build()
+        .await
+        .expect("application must initialise");
+
+    println!("🚀 {name} → http://{{addr}}/graphql (ironic v{version})");
+    app.listen(&addr).await.expect("server failed");
+}}
+"#,
+    )
+}
+
+fn app_source_graphql() -> String {
+    r"use ironic::prelude::*;
+use crate::app_service::AppService;
+
+#[derive(Module)]
+#[module(providers = [AppService])]
+pub struct AppModule;
+"
+    .to_string()
+}
+
+fn app_service_graphql() -> String {
+    r#"use async_graphql::{Object, Context, Result};
+
+#[derive(Default)]
+pub struct AppService;
+
+#[Object]
+impl AppService {
+    async fn hello(&self, _ctx: &Context<'_>) -> Result<String> {
+        Ok("Hello from GraphQL!".into())
+    }
+}
+"#
     .to_string()
 }
 

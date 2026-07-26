@@ -19,7 +19,8 @@ description: Master the Ironic command-line tools — create, generate, run, tes
 
 | Command | What it does |
 |---------|-------------|
-| `ironic new <name>` | Create a new project |
+| `ironic new <name>` | Create a new HTTP project |
+| `ironic new <name> --graphql` | Create a new GraphQL project |
 | `ironic new .` | Create project in the current directory |
 | `ironic start` | Run the server (`cargo run`) |
 | `ironic start -p <name>` | Run a specific app in a monorepo (`cargo run -p <name>`) |
@@ -47,6 +48,7 @@ description: Master the Ironic command-line tools — create, generate, run, tes
 | `ironic generate provider <name>` | `g pr` | Injectable provider |
 | `ironic generate app <name>` | `g a` | New HTTP microservice in the monorepo |
 | `ironic generate app <name> --grpc` | `g a --grpc` | New gRPC microservice with tonic + DI |
+| `ironic generate app <name> --graphql` | `g a --graphql` | New GraphQL microservice with async-graphql |
 
 ## Ready Resource Generators
 
@@ -263,4 +265,6 @@ Checks crates.io for a newer version and shows update instructions.
 - [x] `ironic doctor` diagnoses environment issues
 - [x] `ironic routes` and `ironic graph` inspect projects
 - [x] `ironic openapi` generates OpenAPI JSON specs
+- [x] `ironic new --graphql` creates a GraphQL project
 - [x] `ironic generate app --grpc` scaffolds gRPC microservices with DI
+- [x] `ironic generate app --graphql` scaffolds GraphQL microservices with async-graphql

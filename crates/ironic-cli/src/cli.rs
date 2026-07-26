@@ -76,6 +76,9 @@ pub struct NewArgs {
     /// Uses local framework crates from a workspace checkout.
     #[arg(long, hide = true)]
     pub framework_workspace: Option<PathBuf>,
+    /// Generate a GraphQL project instead of HTTP (requires `async-graphql`).
+    #[arg(long)]
+    pub graphql: bool,
 }
 
 /// Arguments passed through to Cargo after `--`.
@@ -98,6 +101,9 @@ pub struct AppArgs {
     /// Generate a gRPC service instead of HTTP (requires `tonic` + `prost`).
     #[arg(long)]
     pub grpc: bool,
+    /// Generate a GraphQL service instead of HTTP (requires `async-graphql`).
+    #[arg(long)]
+    pub graphql: bool,
 }
 
 /// Arguments for the `openapi` command.

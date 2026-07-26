@@ -36,6 +36,17 @@ pub(crate) use common::naming::Names;
 
 use std::path::{Path, PathBuf};
 
+/// The kind of application to generate.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum AppKind {
+    /// Standard HTTP service with `AxumAdapter`.
+    Http,
+    /// gRPC service with `tonic`.
+    Grpc,
+    /// GraphQL service with `async-graphql`.
+    Graphql,
+}
+
 /// Files changed by a generator and any required manual follow-up.
 #[derive(Debug, Default)]
 pub struct GenerationReport {

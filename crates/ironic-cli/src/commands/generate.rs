@@ -31,7 +31,14 @@ pub(crate) fn execute(arguments: GenerateArgs, output: &mut impl Write) -> Resul
         Generator::Pipe(arguments) => generators::generate_pipe(&root, &arguments.name),
         Generator::Provider(arguments) => generators::generate_provider(&root, &arguments.name),
         Generator::App(arguments) => {
-            generators::generate_app(&root, &arguments.name, arguments.grpc)
+            let kind = if arguments.grpc {
+                generators::AppKind::Grpc
+            } else if arguments.graphql {
+                generators::AppKind::Graphql
+            } else {
+                generators::AppKind::Http
+            };
+            generators::generate_app(&root, &arguments.name, kind)
         }
         Generator::Library(arguments) => generators::generate_library(&root, &arguments.name),
         Generator::GraphqlResolver(arguments) => {

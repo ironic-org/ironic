@@ -9,3 +9,21 @@ All versions in the v1.2.x series. Visit the [Blog](/blog) for detailed release 
 
 ---
 
+## v1.2.1 — 2026-07-27
+
+# v1.2.1
+
+### Added
+- add serde dependency for serialization in GraphQL, gRPC, HTTP, and monorepo configurations (3a627d3)
+
+---
+## v1.2.0 — 2026-07-27
+
+# v1.2.0
+
+### Added
+- add serde dependency for serialization and re-export in the library (7bc0ff9)
+### Changed
+- simplify dependency extraction and formatting in project and monorepo generators (aeb7918)
+
+---

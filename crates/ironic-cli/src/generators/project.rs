@@ -3,7 +3,11 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use super::{app::app_production_guide, naming::Names, source::write_generated};
+use super::{
+    app::{app_controller, app_production_guide, app_service},
+    naming::Names,
+    source::write_generated,
+};
 use crate::CliError;
 
 /// Result of creating a new project.
@@ -51,6 +55,7 @@ pub fn create(
     name: &str,
     framework_workspace: Option<&Path>,
 ) -> Result<ProjectReport, CliError> {
+    let version = env!("CARGO_PKG_VERSION");
     let names = Names::parse(name)?;
     let manifest = manifest(&names.kebab, framework_workspace);
     let files = [
@@ -66,12 +71,6 @@ pub fn create(
         (destination.join(".gitignore"), gitignore().into()),
         (destination.join("Dockerfile"), dockerfile(&names.kebab)),
         (
-            destination.join("docker-compose.yml"),
-            docker_compose(&names.kebab),
-        ),
-        (destination.join("Makefile"), makefile().into()),
-        (destination.join("justfile"), justfile().into()),
-        (
             destination.join("rust-toolchain.toml"),
             rust_toolchain().into(),
         ),
@@ -79,12 +78,16 @@ pub fn create(
         (destination.join("src/main.rs"), main_source(&names.kebab)),
         (destination.join("src/app.rs"), app_source()),
         (
-            destination.join("PRODUCTION.md"),
-            app_production_guide(&names.kebab, 8080),
+            destination.join("src/app_controller.rs"),
+            app_controller().into(),
         ),
         (
-            destination.join("src/welcome.rs"),
-            welcome_source(&names.kebab),
+            destination.join("src/app_service.rs"),
+            app_service(&names.kebab, version),
+        ),
+        (
+            destination.join("PRODUCTION.md"),
+            app_production_guide(&names.kebab, 8080),
         ),
         (destination.join("src/platform/mod.rs"), platform_mod()),
         (
@@ -95,76 +98,11 @@ pub fn create(
             destination.join("src/platform/config.rs"),
             platform_config(),
         ),
-        (destination.join("src/modules/mod.rs"), modules_mod().into()),
-        (
-            destination.join("src/modules/example/mod.rs"),
-            example_module().into(),
-        ),
-        (
-            destination.join("src/modules/example/controller/mod.rs"),
-            example_controller_mod().into(),
-        ),
-        (
-            destination.join("src/modules/example/controller/example_controller.rs"),
-            example_controller().into(),
-        ),
-        (
-            destination.join("src/modules/example/services/mod.rs"),
-            example_service_mod().into(),
-        ),
-        (
-            destination.join("src/modules/example/services/example_service.rs"),
-            example_service().into(),
-        ),
-        (
-            destination.join("src/modules/example/repositories/mod.rs"),
-            example_repository_mod().into(),
-        ),
-        (
-            destination.join("src/modules/example/repositories/example_repository.rs"),
-            example_repository().into(),
-        ),
-        (
-            destination.join("src/modules/example/dto/mod.rs"),
-            example_dto_mod().into(),
-        ),
-        (
-            destination.join("src/modules/example/dto/create_example_dto.rs"),
-            example_create_dto().into(),
-        ),
-        (
-            destination.join("src/modules/example/dto/update_example_dto.rs"),
-            example_update_dto().into(),
-        ),
-        (
-            destination.join("src/modules/example/entities/mod.rs"),
-            example_entity_mod().into(),
-        ),
-        (
-            destination.join("src/modules/example/entities/example.rs"),
-            example_entity().into(),
-        ),
-        (
-            destination.join("src/modules/example/tests/mod.rs"),
-            example_test_mod().into(),
-        ),
-        (
-            destination.join("src/modules/example/tests/unit.rs"),
-            example_test_unit().into(),
-        ),
-        (
-            destination.join("src/modules/example/tests/integration.rs"),
-            example_test_integration().into(),
-        ),
     ];
-    let cidir = destination.join(".github/workflows");
-    fs::create_dir_all(&cidir).map_err(|error| CliError::io("create directory", &cidir, error))?;
-    fs::write(cidir.join("ci.yml"), ci_workflow())
-        .map_err(|error| CliError::io("write", cidir.join("ci.yml"), error))?;
 
     // Validate all owned paths before writing. Allow pre-existing non-source files
     // (README.md, .gitignore, etc.) to be preserved; error on source file conflicts.
-    let source_patterns = ["Cargo.toml", "ironic.toml", "src/", ".github/"];
+    let source_patterns = ["Cargo.toml", "ironic.toml", "src/"];
     for (path, contents) in &files {
         if path.exists() {
             let existing =
@@ -252,6 +190,8 @@ fn main_source(name: &str) -> String {
     let version = env!("CARGO_PKG_VERSION");
     format!(
         r#"mod app;
+mod app_controller;
+mod app_service;
 mod platform;
 
 use ironic::prelude::*;
@@ -266,6 +206,7 @@ async fn main() {{
     let addr = platform::config::listen_addr("8080");
     let app = Application::builder()
         .module(AppModule::definition())
+        .middleware(RequestLogging::new())
         .platform(AxumAdapter::new())
         .build()
         .await
@@ -279,42 +220,18 @@ async fn main() {{
 }
 
 fn app_source() -> String {
-    "use ironic::prelude::*;\n\n#[derive(Module)]\n#[module()]\npub struct AppModule;\n".to_string()
-}
-
-fn welcome_source(name: &str) -> String {
-    let version = env!("CARGO_PKG_VERSION");
-    format!(
-        r#"use ironic::prelude::*;
-
-#[controller("/")]
-#[derive(Injectable)]
-struct WelcomeController;
-
-#[routes]
-impl WelcomeController {{
-    #[get]
-    async fn index(&self) -> Result<Json<serde_json::Value>, HttpError> {{
-        Ok(Json(serde_json::json!({{
-            "name": "{name}",
-            "framework": "Ironic",
-            "version": "{version}",
-            "status": "running",
-            "health": "/health",
-            "docs": "/docs"
-        }})))
-    }}
-}}
+    r"use ironic::prelude::*;
+use crate::app_controller::AppController;
+use crate::app_service::AppService;
 
 #[derive(Module)]
-#[module(controllers = [WelcomeController])]
-pub struct WelcomeModule;
-"#,
-    )
-}
-
-fn modules_mod() -> &'static str {
-    "pub mod example;\n"
+#[module(
+    controllers = [AppController],
+    providers = [AppService],
+)]
+pub struct AppModule;
+"
+    .to_string()
 }
 
 fn project_config(name: &str) -> String {
@@ -328,374 +245,6 @@ default_module = "src/app.rs"
 module_path = "src/modules"
 "#,
     )
-}
-
-// ── Example module (CRUD) ──────────────────────────────────────────────
-
-fn example_module() -> &'static str {
-    r"use ironic::prelude::*;
-
-pub mod controller;
-pub mod repositories;
-pub mod services;
-pub mod dto;
-pub mod entities;
-
-#[cfg(test)]
-mod tests;
-
-pub use controller::ExampleController;
-pub use repositories::ExampleRepository;
-pub use services::ExampleService;
-
-#[derive(Module)]
-#[module(providers = [ExampleRepository, ExampleService], controllers = [ExampleController])]
-pub struct ExampleModule;
-"
-}
-
-fn example_controller_mod() -> &'static str {
-    "pub mod example_controller;\npub use example_controller::ExampleController;\n"
-}
-
-fn example_controller() -> &'static str {
-    r#"use std::sync::Arc;
-use ironic::prelude::*;
-use super::super::services::ExampleService;
-use crate::modules::example::dto::{CreateExampleDto, UpdateExampleDto};
-use crate::modules::example::entities::Example;
-
-#[controller("/example")]
-#[derive(Injectable)]
-pub struct ExampleController { service: Arc<ExampleService> }
-
-#[routes]
-impl ExampleController {
-    #[get]
-    #[api(summary = "List all examples", tag = "Examples", security = "bearer")]
-    #[resp(200, "A list of examples", json = Vec<Example>)]
-    async fn list(&self) -> Result<Json<Vec<Example>>, HttpError> {
-        Ok(Json(self.service.list()))
-    }
-
-    #[get("/:id")]
-    #[api(summary = "Get an example by ID", tag = "Examples")]
-    #[resp(200, "The requested example", json = Example)]
-    #[resp(404, "Example not found")]
-    async fn get(&self, #[param] id: u64) -> Result<Json<Example>, HttpError> {
-        self.service.find(id).map(Json)
-    }
-
-    #[post]
-    #[api(summary = "Create a new example", tag = "Examples")]
-    #[body(json = CreateExampleDto)]
-    #[resp(201, "Example created", json = Example)]
-    #[resp(400, "Validation error")]
-    async fn create(&self, #[body] dto: CreateExampleDto) -> Result<Json<Example>, HttpError> {
-        Ok(Json(self.service.create(dto)))
-    }
-
-    #[put("/:id")]
-    #[api(summary = "Update an existing example", tag = "Examples")]
-    #[body(json = UpdateExampleDto)]
-    #[resp(200, "Example updated", json = Example)]
-    #[resp(404, "Example not found")]
-    async fn update(&self, #[param] id: u64, #[body] dto: UpdateExampleDto) -> Result<Json<Example>, HttpError> {
-        self.service.update(id, dto).map(Json)
-    }
-
-    #[delete("/:id")]
-    #[api(summary = "Delete an example", tag = "Examples")]
-    #[resp(204, "Example deleted")]
-    #[resp(404, "Example not found")]
-    async fn delete(&self, #[param] id: u64) -> Result<(), HttpError> {
-        self.service.delete(id)
-    }
-}
-"#
-}
-
-fn example_service_mod() -> &'static str {
-    "pub mod example_service;\npub use example_service::ExampleService;\n"
-}
-
-fn example_service() -> &'static str {
-    r"use std::sync::Arc;
-use ironic::prelude::*;
-use crate::modules::example::dto::{CreateExampleDto, UpdateExampleDto};
-use crate::modules::example::entities::Example;
-use crate::modules::example::repositories::ExampleRepository;
-
-#[derive(Injectable)]
-pub struct ExampleService {
-    pub repository: Arc<ExampleRepository>,
-}
-
-impl ExampleService {
-    pub fn list(&self) -> Vec<Example> {
-        self.repository.list()
-    }
-
-    pub fn find(&self, id: u64) -> Result<Example, HttpError> {
-        self.repository.find(id)
-    }
-
-    pub fn create(&self, dto: CreateExampleDto) -> Example {
-        self.repository.create(dto.name, dto.description)
-    }
-
-    pub fn update(&self, id: u64, dto: UpdateExampleDto) -> Result<Example, HttpError> {
-        self.repository.update(id, dto.name, dto.description)
-    }
-
-    pub fn delete(&self, id: u64) -> Result<(), HttpError> {
-        self.repository.delete(id)
-    }
-}
-"
-}
-
-fn example_repository_mod() -> &'static str {
-    "pub mod example_repository;\npub use example_repository::ExampleRepository;\n"
-}
-
-fn example_repository() -> &'static str {
-    r#"use std::collections::HashMap;
-use std::sync::Mutex;
-use ironic::prelude::*;
-use crate::modules::example::entities::Example;
-
-static STORE: std::sync::LazyLock<Mutex<Store>> = std::sync::LazyLock::new(|| Mutex::new(Store { items: HashMap::new(), next_id: 1 }));
-
-struct Store { items: HashMap<u64, Example>, next_id: u64 }
-
-#[derive(Injectable)]
-pub struct ExampleRepository;
-
-impl ExampleRepository {
-    pub fn list(&self) -> Vec<Example> {
-        STORE.lock().unwrap().items.values().cloned().collect()
-    }
-
-    pub fn find(&self, id: u64) -> Result<Example, HttpError> {
-        STORE.lock().unwrap().items.get(&id).cloned()
-            .ok_or_else(|| HttpError::not_found("EXAMPLE_NOT_FOUND", format!("Item {id} not found")))
-    }
-
-    pub fn create(&self, name: String, description: Option<String>) -> Example {
-        let mut store = STORE.lock().unwrap();
-        let id = store.next_id;
-        store.next_id += 1;
-        let item = Example { id, name, description: description.unwrap_or_default() };
-        store.items.insert(id, item.clone());
-        item
-    }
-
-    pub fn update(&self, id: u64, name: Option<String>, description: Option<String>) -> Result<Example, HttpError> {
-        let mut store = STORE.lock().unwrap();
-        let item = store.items.get_mut(&id)
-            .ok_or_else(|| HttpError::not_found("EXAMPLE_NOT_FOUND", format!("Item {id} not found")))?;
-        if let Some(name) = name { item.name = name; }
-        if let Some(desc) = description { item.description = desc; }
-        Ok(item.clone())
-    }
-
-    pub fn delete(&self, id: u64) -> Result<(), HttpError> {
-        STORE.lock().unwrap().items.remove(&id)
-            .map(|_| ())
-            .ok_or_else(|| HttpError::not_found("EXAMPLE_NOT_FOUND", format!("Item {id} not found")))
-    }
-}
-"#
-}
-
-fn example_dto_mod() -> &'static str {
-    "pub mod create_example_dto;\npub mod update_example_dto;\npub use create_example_dto::CreateExampleDto;\npub use update_example_dto::UpdateExampleDto;\n"
-}
-
-fn example_create_dto() -> &'static str {
-    r"use garde::Validate;
-use ironic::OpenApiSchema;
-use serde::{Deserialize, Serialize};
-
-#[derive(Debug, Clone, Serialize, Deserialize, Validate, OpenApiSchema)]
-pub struct CreateExampleDto {
-    #[garde(length(min = 1, max = 256))]
-    /// Item name (1–256 characters).
-    pub name: String,
-    #[garde(skip)]
-    /// Optional description.
-    pub description: Option<String>,
-}
-"
-}
-
-fn example_update_dto() -> &'static str {
-    r"use ironic::OpenApiSchema;
-use serde::{Deserialize, Serialize};
-
-#[derive(Debug, Clone, Serialize, Deserialize, OpenApiSchema)]
-pub struct UpdateExampleDto {
-    /// New name (leave `null` to keep unchanged).
-    pub name: Option<String>,
-    /// New description (leave `null` to keep unchanged).
-    pub description: Option<String>,
-}
-"
-}
-
-fn example_entity_mod() -> &'static str {
-    "pub mod example;\npub use example::Example;\n"
-}
-
-fn example_entity() -> &'static str {
-    r"use ironic::OpenApiSchema;
-use serde::{Deserialize, Serialize};
-
-#[derive(Debug, Clone, Serialize, Deserialize, OpenApiSchema)]
-pub struct Example {
-    /// Unique identifier.
-    pub id: u64,
-    /// Item name.
-    pub name: String,
-    /// Item description.
-    pub description: String,
-}
-"
-}
-
-// ── Example tests ──────────────────────────────────────────────────────
-
-fn example_test_mod() -> &'static str {
-    r"/// Unit tests — service and business logic in isolation (no HTTP).
-#[cfg(test)]
-mod unit;
-/// Integration tests — full HTTP request/response through the framework.
-#[cfg(test)]
-mod integration;
-"
-}
-
-fn example_test_unit() -> &'static str {
-    r#"//! Unit tests for `ExampleService`.
-
-use std::sync::Arc;
-use crate::modules::example::dto::{CreateExampleDto, UpdateExampleDto};
-use crate::modules::example::repositories::ExampleRepository;
-use crate::modules::example::services::ExampleService;
-
-fn service() -> ExampleService {
-    ExampleService { repository: Arc::new(ExampleRepository) }
-}
-
-#[test]
-fn create_and_find() {
-    let svc = service();
-    let item = svc.create(CreateExampleDto { name: "Test".into(), description: None });
-    assert_eq!(item.name, "Test");
-    let found = svc.find(item.id).unwrap();
-    assert_eq!(found.name, "Test");
-}
-
-#[test]
-fn update_works() {
-    let svc = service();
-    let item = svc.create(CreateExampleDto { name: "Old".into(), description: None });
-    let updated = svc.update(item.id, UpdateExampleDto { name: Some("New".into()), description: None }).unwrap();
-    assert_eq!(updated.name, "New");
-}
-
-#[test]
-fn delete_works() {
-    let svc = service();
-    let item = svc.create(CreateExampleDto { name: "Del".into(), description: None });
-    assert!(svc.delete(item.id).is_ok());
-    assert!(svc.find(item.id).is_err());
-}
-
-#[test]
-fn not_found_error() {
-    let svc = service();
-    let err = svc.find(999).unwrap_err();
-    assert_eq!(err.status(), ironic::HttpStatus::NOT_FOUND);
-}
-
-#[test]
-fn list_works() {
-    let svc = service();
-    svc.create(CreateExampleDto { name: "A".into(), description: None });
-    svc.create(CreateExampleDto { name: "B".into(), description: None });
-    assert!(svc.list().len() >= 2);
-}
-"#
-}
-
-fn example_test_integration() -> &'static str {
-    r#"//! Integration tests for Example — full HTTP request/response cycles.
-
-use ironic::{HttpStatus, TestApplication};
-use serde_json::json;
-
-use super::super::*;
-
-async fn app() -> TestApplication {
-    TestApplication::new::<ExampleModule>().await.expect("test app must initialise")
-}
-
-#[ironic::test]
-async fn list_returns_ok() {
-    let a = app().await;
-    assert_eq!(a.get("/example").send().await.status(), HttpStatus::OK);
-    a.shutdown().await.unwrap();
-}
-
-#[ironic::test]
-async fn create_and_get() {
-    let a = app().await;
-    let resp = a.post("/example").json(&json!({"name": "Test", "description": null})).send().await;
-    assert_eq!(resp.status(), HttpStatus::OK);
-    let id = resp.json::<serde_json::Value>().unwrap()["id"].as_u64().unwrap();
-    assert_eq!(a.get(&format!("/example/{id}")).send().await.status(), HttpStatus::OK);
-    a.shutdown().await.unwrap();
-}
-
-#[ironic::test]
-async fn update_works() {
-    let a = app().await;
-    let id = a.post("/example").json(&json!({"name": "Old"})).send().await
-        .json::<serde_json::Value>().unwrap()["id"].as_u64().unwrap();
-    let resp = a.put(&format!("/example/{id}")).json(&json!({"name": "New"})).send().await;
-    assert_eq!(resp.json::<serde_json::Value>().unwrap()["name"], "New");
-    a.shutdown().await.unwrap();
-}
-
-#[ironic::test]
-async fn delete_works() {
-    let a = app().await;
-    let id = a.post("/example").json(&json!({"name": "Del"})).send().await
-        .json::<serde_json::Value>().unwrap()["id"].as_u64().unwrap();
-    a.delete(&format!("/example/{id}")).send().await;
-    assert_eq!(a.get(&format!("/example/{id}")).send().await.status(), HttpStatus::NOT_FOUND);
-    a.shutdown().await.unwrap();
-}
-
-#[ironic::test]
-async fn not_found_returns_404() {
-    let a = app().await;
-    a.get("/example/999").send().await.assert_status(404);
-    a.shutdown().await.unwrap();
-}
-
-// To enable request body validation error tests, uncomment the `garde` feature
-// in Cargo.toml and add a test like:
-// #[ironic::test]
-// async fn create_rejects_empty_name() {
-//     let a = app().await;
-//     let resp = a.post("/example").json(&json!({"name": ""})).send().await;
-//     assert_eq!(resp.status(), HttpStatus::BAD_REQUEST);
-//     a.shutdown().await.unwrap();
-// }
-"#
 }
 
 // ── Platform ───────────────────────────────────────────────────────────
@@ -795,115 +344,6 @@ CMD ["/{binary}"]
     )
 }
 
-fn docker_compose(name: &str) -> String {
-    format!(
-        r#"services:
-  app:
-    build: .
-    ports:
-      - 8080:8080
-    env_file: .env
-    restart: unless-stopped
-    depends_on:
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-
-  postgres:
-    image: postgres:16-alpine
-    environment:
-      POSTGRES_USER: user
-      POSTGRES_PASSWORD: CHANGE_ME
-      POSTGRES_DB: {name}
-    ports:
-      - 5432:5432
-    volumes:
-      - pgdata:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U user -d {name}"]
-      interval: 5s
-      timeout: 5s
-      retries: 5
-
-  redis:
-    image: redis:7-alpine
-    ports:
-      - 6379:6379
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 5s
-      timeout: 3s
-      retries: 5
-
-volumes:
-  pgdata:
-"#,
-    )
-}
-
-fn makefile() -> &'static str {
-    r".PHONY: build test dev fmt clippy docker-build docker-up docker-down clean
-
-build:
-	cargo build
-
-test:
-	cargo test -- --test-threads=1
-
-dev:
-	cargo run -- dev
-
-fmt:
-	cargo fmt --all
-
-clippy:
-	cargo clippy -- -D warnings
-
-docker-build:
-	docker build -t app .
-
-docker-up:
-	docker compose up -d
-
-docker-down:
-	docker compose down
-
-clean:
-	cargo clean
-"
-}
-
-fn justfile() -> &'static str {
-    r"build:
-    cargo build
-
-test:
-    cargo test -- --test-threads=1
-
-dev:
-    cargo run -- dev
-
-fmt:
-    cargo fmt --all
-
-clippy:
-    cargo clippy -- -D warnings
-
-docker-build:
-    docker build -t app .
-
-docker-up:
-    docker compose up -d
-
-docker-down:
-    docker compose down
-
-clean:
-    cargo clean
-"
-}
-
 fn rust_toolchain() -> &'static str {
     r#"[toolchain]
 channel = "1.97"
@@ -921,14 +361,11 @@ Built with [Ironic](https://github.com/ironic-org/ironic) v{version}.
 ## Quick start
 
 ```bash
-# Install Ironic CLI
-cargo install ironic
-
 # Run with hot reload
 ironic dev
 
 # Or run directly
-cargo run
+ironic start
 ```
 
 Open http://localhost:8080 in your browser.
@@ -937,61 +374,17 @@ Open http://localhost:8080 in your browser.
 
 | Task | Command |
 |------|--------|
-| Start dev server | `make dev` |
-| Run tests | `make test` |
-| Build | `make build` |
-| Format | `make fmt` |
-| Lint | `make clippy` |
-
-## Docker
-
-```bash
-make docker-up    # Start app + postgres + redis
-make docker-down  # Stop everything
-make docker-build # Build image only
-```
-
-## Endpoints
-
-| Path | Description |
-|------|-------------|
-| `GET /` | Welcome JSON |
-| `GET /health` | Health check |
-| `GET /docs` | Swagger UI |
-| `GET /example` | Example CRUD |
+| Dev server | `ironic dev` |
+| Run | `ironic start` |
+| Build | `ironic build` |
+| Test | `ironic test` |
+| OpenAPI spec | `ironic openapi` |
 
 ## Environment
 
 Copy `.env.example` to `.env` and adjust values.
 ",
     )
-}
-
-fn ci_workflow() -> &'static str {
-    r"name: CI
-
-on:
-  push:
-    branches: [main]
-  pull_request:
-    branches: [main]
-
-env:
-  CARGO_TERM_COLOR: always
-
-jobs:
-  build:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
-        with:
-          components: rustfmt, clippy
-      - uses: Swatinem/rust-cache@v2
-      - run: cargo fmt --all -- --check
-      - run: cargo clippy -- -D warnings
-      - run: cargo test -- --test-threads=1
-"
 }
 
 // ── Helpers ────────────────────────────────────────────────────────────

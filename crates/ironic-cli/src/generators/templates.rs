@@ -8,7 +8,7 @@ pub(crate) fn module(pascal: &str) -> String {
 
 pub(crate) fn service(names: &Names) -> String {
     format!(
-        "use ironic::prelude::*;\n\n#[derive(Injectable)]\npub struct {0}Service;\n\nimpl {0}Service {{\n    #[must_use]\n    #[allow(dead_code)]\n    pub const fn name(&self) -> &'static str {{\n        \"{1}\"\n    }}\n}}\n",
+        "use ironic::prelude::*;\n\n#[derive(Injectable)]\npub struct {0}Service;\n\nimpl {0}Service {{\n    #[must_use]\n    pub const fn name(&self) -> &'static str {{\n        \"{1}\"\n    }}\n}}\n",
         names.pascal, names.kebab
     )
 }
@@ -62,35 +62,35 @@ pub(crate) fn services_mod(names: &Names) -> String {
 
 pub(crate) fn dto_mod(names: &Names) -> String {
     format!(
-        "pub mod create_{0}_dto;\npub mod update_{0}_dto;\n#[allow(unused_imports)]\npub use create_{0}_dto::Create{1}Dto;\n#[allow(unused_imports)]\npub use update_{0}_dto::Update{1}Dto;\n",
+        "pub mod create_{0}_dto;\npub mod update_{0}_dto;\npub use create_{0}_dto::Create{1}Dto;\npub use update_{0}_dto::Update{1}Dto;\n",
         names.snake, names.pascal
     )
 }
 
 pub(crate) fn entities_mod(names: &Names) -> String {
     format!(
-        "pub mod {0};\n#[allow(unused_imports)]\npub use {0}::{1};\n",
+        "pub mod {0};\npub use {0}::{1};\n",
         names.snake, names.pascal
     )
 }
 
 pub(crate) fn create_dto(names: &Names) -> String {
     format!(
-        "use serde::{{Deserialize, Serialize}};\n\n#[allow(dead_code)]\n#[derive(Debug, Clone, Serialize, Deserialize)]\npub struct Create{0}Dto {{\n    pub name: String,\n}}\n",
+        "use serde::{{Deserialize, Serialize}};\n\n#[derive(Debug, Clone, Serialize, Deserialize)]\npub struct Create{0}Dto {{\n    pub name: String,\n}}\n",
         names.pascal
     )
 }
 
 pub(crate) fn update_dto(names: &Names) -> String {
     format!(
-        "use serde::{{Deserialize, Serialize}};\n\n#[allow(dead_code)]\n#[derive(Debug, Clone, Serialize, Deserialize)]\npub struct Update{0}Dto {{\n    pub name: Option<String>,\n}}\n",
+        "use serde::{{Deserialize, Serialize}};\n\n#[derive(Debug, Clone, Serialize, Deserialize)]\npub struct Update{0}Dto {{\n    pub name: Option<String>,\n}}\n",
         names.pascal
     )
 }
 
 pub(crate) fn entity(names: &Names) -> String {
     format!(
-        "use serde::{{Deserialize, Serialize}};\n\n#[allow(dead_code)]\n#[derive(Debug, Clone, Serialize, Deserialize)]\npub struct {0} {{\n    pub id: String,\n    pub name: String,\n}}\n",
+        "use serde::{{Deserialize, Serialize}};\n\n#[derive(Debug, Clone, Serialize, Deserialize)]\npub struct {0} {{\n    pub id: String,\n    pub name: String,\n}}\n",
         names.pascal
     )
 }
@@ -146,7 +146,7 @@ pub(crate) fn pipe(names: &Names) -> String {
 
 pub(crate) fn provider(names: &Names) -> String {
     format!(
-        "use ironic::prelude::*;\n\n#[derive(Injectable)]\npub struct {0}Provider;\n\nimpl {0}Provider {{\n    #[must_use]\n    #[allow(dead_code)]\n    pub const fn name(&self) -> &'static str {{\n        \"{1}\"\n    }}\n}}\n",
+        "use ironic::prelude::*;\n\n#[derive(Injectable)]\npub struct {0}Provider;\n\nimpl {0}Provider {{\n    #[must_use]\n    pub const fn name(&self) -> &'static str {{\n        \"{1}\"\n    }}\n}}\n",
         names.pascal, names.kebab
     )
 }
@@ -160,7 +160,7 @@ pub(crate) fn repository_mod(names: &Names) -> String {
 
 pub(crate) fn repository(names: &Names) -> String {
     format!(
-        "use ironic::prelude::*;\n\n#[derive(Injectable)]\npub struct {0}Repository;\n\nimpl {0}Repository {{\n    #[must_use]\n    #[allow(dead_code)]\n    pub const fn name(&self) -> &'static str {{\n        \"{1}\"\n    }}\n}}\n",
+        "use ironic::prelude::*;\n\n#[derive(Injectable)]\npub struct {0}Repository;\n\nimpl {0}Repository {{\n    #[must_use]\n    pub const fn name(&self) -> &'static str {{\n        \"{1}\"\n    }}\n}}\n",
         names.pascal, names.kebab
     )
 }

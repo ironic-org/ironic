@@ -45,7 +45,10 @@ pub fn generate_app(root: &Path, name: &str, grpc: bool) -> Result<GenerationRep
     if grpc {
         // Replace base files with gRPC-specific versions and add example module
         files.retain(|(p, _)| {
-            !p.ends_with("main.rs") && !p.ends_with("app.rs") && !p.ends_with("Cargo.toml")
+            !p.ends_with("main.rs")
+                && !p.ends_with("app.rs")
+                && !p.ends_with("Cargo.toml")
+                && !p.ends_with("app.controller.rs")
         });
         files.push((dest.join("Cargo.toml"), app_manifest_grpc(&names)));
         files.push((dest.join("src/main.rs"), app_main_grpc(&names, port)));
@@ -88,12 +91,21 @@ fn generate_app_files(
     names: &naming::Names,
     port: u16,
 ) -> Vec<(std::path::PathBuf, String)> {
+    let version = env!("CARGO_PKG_VERSION");
     vec![
         (dest.join("Cargo.toml"), app_manifest(names)),
         (dest.join("Dockerfile"), app_dockerfile(names, port)),
         (dest.join(".env"), app_env(names, port)),
         (dest.join("src/main.rs"), app_main(names, port)),
-        (dest.join("src/app.rs"), app_module()),
+        (dest.join("src/app.rs"), app_module().to_string()),
+        (
+            dest.join("src/app_controller.rs"),
+            app_controller().to_string(),
+        ),
+        (
+            dest.join("src/app_service.rs"),
+            app_service(&names.raw, version),
+        ),
         (dest.join("src/platform/mod.rs"), app_platform_mod()),
         (dest.join("src/platform/logging.rs"), app_platform_logging()),
         (dest.join("src/platform/config.rs"), app_platform_config()),
@@ -463,6 +475,8 @@ fn app_main(names: &naming::Names, port: u16) -> String {
     let version = env!("CARGO_PKG_VERSION");
     format!(
         r#"mod app;
+mod app_controller;
+mod app_service;
 mod platform;
 
 use ironic::prelude::*;
@@ -477,6 +491,7 @@ async fn main() {{
     let addr = platform::config::listen_addr("{port}");
     let app = Application::builder()
         .module(AppModule::definition())
+        .middleware(RequestLogging::new())
         .platform(AxumAdapter::new())
         .build()
         .await
@@ -492,8 +507,63 @@ async fn main() {{
 }
 
 /// Returns the content for the root module `src/app.rs`.
-fn app_module() -> String {
-    "use ironic::prelude::*;\n\n#[derive(Module)]\n#[module()]\npub struct AppModule;\n".to_string()
+fn app_module() -> &'static str {
+    "use ironic::prelude::*;
+use crate::app_controller::AppController;
+use crate::app_service::AppService;
+
+#[derive(Module)]
+#[module(
+    controllers = [AppController],
+    providers = [AppService],
+)]
+pub struct AppModule;
+"
+}
+
+/// Returns the content for `src/app.controller.rs` — root controller (NestJS-style).
+pub(super) fn app_controller() -> &'static str {
+    r#"use std::sync::Arc;
+use ironic::prelude::*;
+use crate::app_service::AppService;
+
+#[controller("/")]
+#[derive(Injectable)]
+pub struct AppController {
+    service: Arc<AppService>,
+}
+
+#[routes]
+impl AppController {
+    #[get]
+    async fn index(&self) -> Result<Json<serde_json::Value>, HttpError> {
+        let greeting = self.service.greeting();
+        Ok(Json(greeting))
+    }
+}
+"#
+}
+
+/// Returns the content for `src/app.service.rs` — root service (NestJS-style).
+pub(super) fn app_service(name: &str, version: &str) -> String {
+    format!(
+        r#"use ironic::prelude::*;
+
+#[derive(Injectable)]
+pub struct AppService;
+
+impl AppService {{
+    pub fn greeting(&self) -> serde_json::Value {{
+        serde_json::json!({{
+            "app": "{name}",
+            "framework": "Ironic",
+            "version": "{version}",
+            "status": "running"
+        }})
+    }}
+}}
+"#,
+    )
 }
 
 /// Returns the content for a gRPC service's `Cargo.toml`.
@@ -557,6 +627,7 @@ fn app_main_grpc(names: &naming::Names, port: u16) -> String {
     let version = env!("CARGO_PKG_VERSION");
     format!(
         r#"mod app;
+mod app_service;
 mod modules;
 mod platform;
 
@@ -564,6 +635,7 @@ use std::sync::Arc;
 
 use ironic::prelude::*;
 use tonic::transport::Server;
+use crate::app_service::AppService;
 
 use app::AppModule;
 use modules::greet::GreeterService;
@@ -572,16 +644,7 @@ pub mod hello {{
     tonic::include_proto!("hello");
 }}
 
-#[ironic::main]
-async fn main() {{
-    dotenvy::dotenv().ok();
-    platform::logging::init();
-
-    let addr: std::net::SocketAddr = platform::config::listen_addr("{port}")
-        .parse()
-        .expect("invalid address");
-
-    // Build the DI container from the module graph (same as HTTP apps)
+fn build_container() -> ironic::Container {{
     let graph = ironic::compile_module_graph(AppModule::definition())
         .expect("module graph must compile");
     let mut builder = ironic::ContainerBuilder::new();
@@ -590,13 +653,23 @@ async fn main() {{
             builder.register(provider.clone()).expect("provider registration");
         }}
     }}
-    let container = builder.build();
+    builder.build()
+}}
 
-    // Resolve the greeter with all its dependencies injected via DI
+#[ironic::main]
+async fn main() {{
+    dotenvy::dotenv().ok();
+    platform::logging::init();
+
+    let container = build_container();
     let greeter: Arc<GreeterService> = container
         .resolve::<GreeterService>()
         .await
         .expect("GreeterService must be registered in AppModule");
+
+    let addr: std::net::SocketAddr = platform::config::listen_addr("{port}")
+        .parse()
+        .expect("invalid address");
 
     println!("🚀 {name} → http://{{addr}} (ironic v{version})");
 
@@ -615,11 +688,12 @@ async fn main() {{
 /// Returns the content for a gRPC app's `src/app.rs` with DI registration.
 fn app_module_grpc() -> String {
     r"use ironic::prelude::*;
+use crate::app_service::AppService;
 use crate::modules::greet::{GreeterService, GreetRepository};
 
 #[derive(Module)]
 #[module(
-    providers = [GreeterService, GreetRepository],
+    providers = [AppService, GreeterService, GreetRepository],
     exports = [GreeterService],
 )]
 pub struct AppModule;

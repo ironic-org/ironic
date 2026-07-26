@@ -15,20 +15,22 @@ my-platform/
 ├── .env                           # ── Root env vars
 │
 ├── apps/                          # ── Microservice binaries
-│   ├── api-gateway/               #    HTTP API gateway
+│   ├── api-gateway/               #    HTTP API gateway (like NestJS)
 │   │   ├── Cargo.toml
 │   │   ├── Dockerfile
 │   │   ├── .env
-│   │   ├── PRODUCTION.md          #    Production readiness guide
+│   │   ├── PRODUCTION.md
 │   │   └── src/
-│   │       ├── main.rs            #    Minimal entry point
-│   │       ├── app.rs             #    Root module
+│   │       ├── main.rs            #    Bootstrap (main.ts)
+│   │       ├── app.rs             #    AppModule (app.module.ts)
+│   │       ├── app.controller.rs  #    Root controller (app.controller.ts)
+│   │       ├── app.service.rs     #    Root service (app.service.ts)
 │   │       └── platform/
 │   │           ├── mod.rs
-│   │           ├── config.rs      #    Env helpers (listen_addr)
-│   │           └── logging.rs     #    Tracing setup
+│   │           ├── config.rs      #    Config service
+│   │           └── logging.rs     #    Logger setup
 │   │
-│   ├── auth-service/              #    Authentication service
+│   ├── auth-service/              #    HTTP service
 │   │   ├── Cargo.toml
 │   │   ├── Dockerfile
 │   │   ├── .env
@@ -36,27 +38,30 @@ my-platform/
 │   │   └── src/
 │   │       ├── main.rs
 │   │       ├── app.rs
+│   │       ├── app.controller.rs
+│   │       ├── app.service.rs
 │   │       └── platform/
 │   │           ├── mod.rs
 │   │           ├── config.rs
 │   │           └── logging.rs
 │   │
-│   └── greet-service/             #    gRPC service (generated with --grpc)
+│   └── greet-service/             #    gRPC service (--grpc flag)
 │       ├── Cargo.toml
 │       ├── Dockerfile
 │       ├── .env
 │       ├── PRODUCTION.md
-│       ├── build.rs               #    Compiles proto definitions
+│       ├── build.rs
 │       ├── proto/
 │       │   └── hello.proto
 │       └── src/
 │           ├── main.rs
-│           ├── app.rs             #    AppModule with providers
+│           ├── app.rs             #    AppModule
+│           ├── app.service.rs     #    Root service
 │           ├── modules/
-│           │   └── greet/
+│           │   └── greet/         #    Feature module (like NestJS)
 │           │       ├── mod.rs
-│           │       ├── greeter_service.rs   #    Tonic impl + DI
-│           │       └── greet_repository.rs  #    Data layer
+│           │       ├── greeter_service.rs
+│           │       └── greet_repository.rs
 │           └── platform/
 │               ├── mod.rs
 │               ├── config.rs

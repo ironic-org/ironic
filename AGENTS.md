@@ -4,7 +4,8 @@ This project has a graphify knowledge graph at graphify-out/.
 
 Rules:
 - Before answering architecture or codebase questions, read graphify-out/GRAPH_REPORT.md for god nodes and community structure
-- After modifying code files in this session, run `python3 -c "from graphify.watch import _rebuild_code; from pathlib import Path; _rebuild_code(Path('.'))"` to keep the graph current
+- After modifying code files in this session, run `python3 -c "from graphify.watch import _rebuild_code; from pathlib Path; _rebuild_code(Path('.'))"` to keep the graph current
+- Never push to GitHub. The user handles all git pushing manually.
 
 # Anchored Summary — Queues / Cache / Events / SSE
 
@@ -62,6 +63,8 @@ At release time:
 - The `[Unreleased]` section body is automatically cleared during the insert
 
 Always update `[Unreleased]` entries as you work — the release script will pick them up verbatim.
+
+**Push policy**: After `make release` completes successfully, the user handles pushing to GitHub manually. Do not commit, tag, or push any code.
 
 ## Critical Context
 - `QueueMessage` has `retry_count`, `max_retries`, `ttl_secs` — all construction sites must include them.

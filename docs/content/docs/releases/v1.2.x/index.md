@@ -9,6 +9,14 @@ All versions in the v1.2.x series. Visit the [Blog](/blog) for detailed release 
 
 ---
 
+## v1.2.5 — 2026-07-28
+
+# v1.2.5
+
+### Fixed
+- clippy warnings (borrowed_box, collapsible_if, map_unwrap_or, used_underscore_binding) (ec16ebc)
+
+---
 ## v1.2.4 — 2026-07-28
 
 # v1.2.4

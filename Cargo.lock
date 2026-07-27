@@ -2570,7 +2570,7 @@ dependencies = [
 
 [[package]]
 name = "ironic"
-version = "1.2.4"
+version = "1.2.5"
 dependencies = [
  "argon2",
  "async-graphql",
@@ -2633,7 +2633,7 @@ dependencies = [
 
 [[package]]
 name = "ironic-macros"
-version = "1.2.4"
+version = "1.2.5"
 dependencies = [
  "proc-macro2",
  "quote",

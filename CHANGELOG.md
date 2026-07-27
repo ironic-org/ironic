@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v1.2.5] - 2026-07-28
+
+### Fixed
+- clippy warnings (borrowed_box, collapsible_if, map_unwrap_or, used_underscore_binding) (ec16ebc)
+
+
 ## [v1.2.4] - 2026-07-28
 ### Added
 - EventClient injection in #[event_handler(transport, auto_register)] — handlers can receive Arc<EventClient> as second param to emit events

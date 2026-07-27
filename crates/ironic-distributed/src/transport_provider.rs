@@ -25,7 +25,7 @@ use crate::{
 
 /// Backend transport selection.
 ///
-/// Default varies by available features: Kafka > InMemory.
+/// Default varies by available features: `Kafka` > `InMemory`.
 #[derive(Clone, Debug)]
 pub enum TransportKind {
     /// Apache Kafka transport (requires `transport-kafka` feature).
@@ -39,6 +39,7 @@ pub enum TransportKind {
 }
 
 #[cfg(feature = "transport-kafka")]
+#[allow(clippy::derivable_impls)]
 impl Default for TransportKind {
     fn default() -> Self {
         Self::Kafka
@@ -230,6 +231,10 @@ impl EventClient {
     }
 
     /// Emits an event on the configured transport.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`TransportError`] when the serialization or transport send fails.
     pub async fn emit<T: serde::Serialize + Send + Sync>(
         &self,
         pattern: &str,

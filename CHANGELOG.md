@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v1.2.2] - 2026-07-27
+
+### Added
+- add support for GraphQL and gRPC resource generation in resource module (0a2300e)
+- add ensure_serde_dep function to automatically include serde in Cargo.toml (149f8d0)
+
+### Changed
+- remove manual RequestLogging middleware from GraphQL and HTTP app builders docs: update RequestLogging documentation for clarity and custom logger example (7a53fb0)
+- update OpenAPI documentation for clarity and structure (3f77cf2)
+
+
 ## [v1.2.1] - 2026-07-27
 
 ### Added

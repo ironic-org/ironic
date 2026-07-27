@@ -13,6 +13,14 @@ type Post = {
 
 const posts: Post[] = [
     {
+        slug: 'v1.2.2',
+        title: 'v1.2.2 — add support for GraphQL and gRPC resource generation in resource module',
+        description: 'add support for GraphQL and gRPC resource generation in resource module',
+        date: '2026-07-27',
+        tag: 'release',
+        readTime: '2 min',
+    },
+    {
         slug: 'v1.2.1',
         title: 'v1.2.1 — add serde dependency for serialization in GraphQL, gRPC, HTTP, and monorepo configurations',
         description: 'add serde dependency for serialization in GraphQL, gRPC, HTTP, and monorepo configurations',

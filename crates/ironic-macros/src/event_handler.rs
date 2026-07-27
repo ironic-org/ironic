@@ -46,6 +46,7 @@ impl Parse for EventHandlerArgs {
     }
 }
 
+#[allow(clippy::too_many_lines)]
 pub(crate) fn expand(attribute: TokenStream, item: TokenStream) -> syn::Result<TokenStream> {
     let args: EventHandlerArgs = if attribute.is_empty() {
         EventHandlerArgs::default()

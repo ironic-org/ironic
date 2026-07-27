@@ -7,6 +7,7 @@
     "graphql",
     "openapi",
     "mcp",
-    "sse"
+    "sse",
+    "events"
   ]
 }

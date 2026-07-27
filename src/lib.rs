@@ -299,6 +299,10 @@ pub mod prelude {
     pub use crate::cache_interceptor::CacheInterceptor;
     #[cfg(all(feature = "queues", feature = "redis"))]
     pub use crate::distributed::queues::{QueueConfig, RedisQueue};
+    #[cfg(feature = "microservices")]
+    pub use crate::distributed::transport_provider::{
+        EventClient, EventServer, TransportConfig, TransportKind,
+    };
     #[cfg(feature = "events")]
     pub use crate::event_handler;
     #[cfg(feature = "graphql")]

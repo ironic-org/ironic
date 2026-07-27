@@ -77,17 +77,17 @@ pub(crate) fn expand(attribute: TokenStream, item: TokenStream) -> syn::Result<T
             #[doc(hidden)]
             #[allow(non_snake_case, missing_docs)]
             #vis fn #reg_name(
-                server: &impl ::ironic::distributed::MicroserviceServer,
+                server: &impl ::ironic::distributed::microservices::MicroserviceServer,
             ) {
                 use ::std::sync::Arc;
-                let handler: ::ironic::distributed::EventHandler = Arc::new(
+                let handler: ::ironic::distributed::microservices::EventHandler = Arc::new(
                     move |payload: ::std::vec::Vec<u8>,
-                          _ctx: ::ironic::distributed::MessageContext|
-                          -> ::std::pin::Pin<Box<dyn ::std::future::Future<Output = ::std::result::Result<(), ::ironic::distributed::TransportError>> + ::std::marker::Send>> {
+                          _ctx: ::ironic::distributed::microservices::MessageContext|
+                          -> ::std::pin::Pin<Box<dyn ::std::future::Future<Output = ::std::result::Result<(), ::ironic::distributed::microservices::TransportError>> + ::std::marker::Send>> {
                         let payload = payload.clone();
                         Box::pin(async move {
                             let event: #event_type = ::serde_json::from_slice(&payload)
-                                .map_err(|e| ::ironic::distributed::TransportError(e.to_string()))?;
+                                .map_err(|e| ::ironic::distributed::microservices::TransportError(e.to_string()))?;
                             #handler_fn_name(event).await;
                             ::std::result::Result::Ok(())
                         })
@@ -122,6 +122,33 @@ pub(crate) fn expand(attribute: TokenStream, item: TokenStream) -> syn::Result<T
             &format!("__EventHandlerAuto_{handler_fn_name}"),
             handler_fn_name.span(),
         );
+
+        let async_init_body = if args.transport.is_some() {
+            quote! {
+                let server = container
+                    .resolve::<::ironic::distributed::transport_provider::EventServer>()
+                    .await
+                    .map_err(|e| {
+                        ::ironic::LifecycleError::new(
+                            format!("EVENT_SERVER_RESOLVE: {e}"),
+                        )
+                    })?;
+                #reg_name(&*server);
+            }
+        } else {
+            quote! {
+                let event_bus = container
+                    .resolve::<::ironic::services::events::EventBus>()
+                    .await
+                    .map_err(|e| {
+                        ::ironic::LifecycleError::new(
+                            format!("EVENT_BUS_RESOLVE: {e}"),
+                        )
+                    })?;
+                #reg_name(&event_bus);
+            }
+        };
+
         output.extend(quote! {
             #[doc(hidden)]
             #[allow(missing_docs, non_camel_case_types)]
@@ -133,15 +160,7 @@ pub(crate) fn expand(attribute: TokenStream, item: TokenStream) -> syn::Result<T
                     container: &'a ::ironic::Container,
                 ) -> ::ironic::LifecycleFuture<'a> {
                     Box::pin(async move {
-                        let event_bus = container
-                            .resolve::<::ironic::services::events::EventBus>()
-                            .await
-                            .map_err(|e| {
-                                ::ironic::LifecycleError::new(
-                                    format!("EVENT_BUS_RESOLVE: {e}"),
-                                )
-                            })?;
-                        #reg_name(&event_bus);
+                        #async_init_body
                         ::std::result::Result::Ok(())
                     })
                 }

@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v1.2.3] - 2026-07-28
+### Added
+- Transport-agnostic EventClient/EventServer DI providers with auto-connect/listen lifecycle, TransportConfig/TransportKind config, and transport auto_register support in #[event_handler]
+- Integration tests for EventClient/EventServer paired flow, DI resolution, and #[event_handler(transport)] macro
+- Documentation page for transport events with beginner-friendly examples
+### Fixed
+- Generated paths in #[event_handler(transport)] now use microservices:: prefix for MicroserviceServer/EventHandler/TransportError
 ## [v1.2.2] - 2026-07-27
 
 ### Added

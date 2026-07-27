@@ -28,6 +28,8 @@ pub mod transport_kafka;
 pub mod transport_mqtt;
 #[cfg(feature = "transport-nats")]
 pub mod transport_nats;
+#[cfg(feature = "microservices")]
+pub mod transport_provider;
 #[cfg(feature = "transport-rabbitmq")]
 pub mod transport_rabbitmq;
 #[cfg(feature = "transport-redis")]

@@ -13,6 +13,14 @@ type Post = {
 
 const posts: Post[] = [
     {
+        slug: 'v1.2.3',
+        title: 'v1.2.3 — Transport-agnostic EventClient/EventServer DI providers with auto-connect/listen lifecycle, TransportConfig/TransportKin',
+        description: 'Transport-agnostic EventClient/EventServer DI providers with auto-connect/listen lifecycle, TransportConfig/TransportKin',
+        date: '2026-07-28',
+        tag: 'release',
+        readTime: '2 min',
+    },
+    {
         slug: 'v1.2.2',
         title: 'v1.2.2 — add support for GraphQL and gRPC resource generation in resource module',
         description: 'add support for GraphQL and gRPC resource generation in resource module',

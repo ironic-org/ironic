@@ -28,9 +28,10 @@ Implement NestJS-inspired production features: Redis-backed queues, Redis cache 
 - **Redis Cache Backend**: Real `RedisCache` with `GET`/`SETEX`/`DEL`/`SCAN`-based prefix eviction. Gate: `cache` + `redis`.
 - **Cache Key/TTL Decorators**: `#[cache_key]`/`#[cache_ttl]` marker attributes in `ironic-macros`. `CacheKeyMetadata`/`CacheTtlMetadata` in `ironic-http`. CacheInterceptor includes full URI (path+query) in cache key.
 - **Event Handler Macro**: `#[event_handler]` proc-macro. Parses event type from single param (supports `Arc<E>`). Generates `__event_handler_reg_<fn>()` registration function. `auto_register` generates `impl AsyncModuleInit` registrar struct. Gate: `events`. 4 integration tests.
+- **Transport Provider (EventClient/EventServer)**: `TransportKind`/`TransportConfig` config enum + struct. `TransportClient` dispatch enum (MicroserviceClient is not object-safe). `EventClient`/`EventServer` injectable providers with auto-connect/listen on bootstrap, close on shutdown. `#[event_handler(transport, auto_register)]` resolves `EventServer` from DI container. Gate: `microservices`.
 - **SSE Framework Integration**: `SseRoute` (sender), `SseConfig` (reconnect_buffer_size, keep_alive_interval, event_id_prefix), `SseError` (ClientDisconnected). `sse_endpoint()` creates paired sender+stream. `#[sse]` marker attribute.
 - **SSE Route Mounting in AxumAdapter**: `AxumAdapter::sse_route(path, tx)` — broadcast-based SSE endpoint. Each GET creates a new stream subscribed to a `tokio::sync::broadcast::Sender`. `EventBroadcaster` type alias exported. Gate: `sse`.
-- **Changelog**: 6 entries for RedisQueue, RedisCache, cache_key/cache_ttl, event_handler, SSE, SSE route mounting.
+- **Changelog**: 7 entries for RedisQueue, RedisCache, cache_key/cache_ttl, event_handler, SSE, SSE route mounting, transport_provider.
 
 ### In Progress / Blocked
 - (none)
@@ -43,6 +44,8 @@ Implement NestJS-inspired production features: Redis-backed queues, Redis cache 
 - SSE endpoint uses `broadcast::Sender<Event>` for multi-client delivery via `futures_util::stream::unfold`.
 - SSE routes are registered via `AxumAdapter::sse_route()` builder method (mapped to GET handler in `build()`).
 - `#[sse]` marker attribute provides syntax; deeper route compilation (AxumAdapter mapping) deferred.
+- `EventClient` uses `TransportClient` private dispatch enum (`MicroserviceClient` has generic methods, not object-safe). `EventServer` uses `Arc<dyn MicroserviceServer>` (object-safe).
+- `#[event_handler(transport = "...", auto_register)]` resolves `EventServer` from DI container; handlers register in `AsyncModuleInit` phase before `listen()` in `OnApplicationBootstrap`.
 
 ## Changelog Workflow
 
@@ -75,6 +78,7 @@ Always update `[Unreleased]` entries as you work — the release script will pic
 - `crates/ironic-services/src/cache.rs` — `Cache` trait, `InMemoryCache`, `RedisCache`
 - `crates/ironic-services/src/sse.rs` — `SseRoute`, `SseConfig`, `SseError`, `sse_endpoint()`
 - `crates/ironic-services/src/events.rs` — `EventBus`, `EventSubscription`
+- `crates/ironic-distributed/src/transport_provider.rs` — `TransportKind`, `TransportConfig`, `EventClient`, `EventServer`
 - `crates/ironic-macros/src/event_handler.rs` — `#[event_handler]` proc-macro
 - `crates/ironic-macros/src/lib.rs` — marker attrs `cache_key`, `cache_ttl`, `sse`
 - `crates/ironic-http/src/metadata.rs` — `CacheKeyMetadata`, `CacheTtlMetadata`

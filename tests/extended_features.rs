@@ -685,3 +685,112 @@ fn openapi_mapped_types_compile() {
     let _ = UserResponse::openapi_schema();
     let _ = SafeUser::openapi_schema();
 }
+
+// ── Transport Provider (EventClient / EventServer) ────────────────────
+
+#[cfg(all(feature = "microservices", feature = "events"))]
+#[tokio::test]
+async fn transport_provider_paired_event_flow() {
+    use std::sync::Arc;
+    use tokio::sync::Mutex;
+
+    use ironic::distributed::microservices::MicroserviceServer;
+    use ironic::distributed::transport_provider::EventServer;
+
+    let (client, server) = EventServer::paired(16);
+
+    let received: Arc<Mutex<Vec<String>>> = Arc::new(Mutex::new(Vec::new()));
+    let events = Arc::clone(&received);
+    server.on_event(
+        "test.event",
+        Arc::new(move |payload, _ctx| {
+            let events = Arc::clone(&events);
+            Box::pin(async move {
+                let msg: String = serde_json::from_slice(&payload).map_err(|e| {
+                    ironic::distributed::microservices::TransportError(e.to_string())
+                })?;
+                events.lock().await.push(msg);
+                Ok(())
+            })
+        }),
+    );
+
+    server.listen().await.unwrap();
+
+    let payload = "hello".to_string();
+    client.emit("test.event", &payload).await.unwrap();
+
+    tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
+
+    let msgs = received.lock().await;
+    assert_eq!(msgs.len(), 1);
+    assert_eq!(msgs[0], "hello");
+}
+
+#[cfg(all(feature = "microservices", feature = "events"))]
+#[tokio::test]
+async fn transport_provider_resolves_from_container() {
+    use ironic::distributed::transport_provider::{
+        EventClient, EventServer, TransportConfig, TransportKind,
+    };
+    use ironic::{ContainerBuilder, ProviderDefinition};
+
+    let config = TransportConfig {
+        kind: TransportKind::InMemory,
+        brokers: "test".into(),
+        topic: "test".into(),
+        group_id: "test".into(),
+    };
+
+    let mut builder = ContainerBuilder::new();
+    builder
+        .register(ProviderDefinition::value(config))
+        .unwrap()
+        .register(EventClient::provider_definition())
+        .unwrap()
+        .register(EventServer::provider_definition())
+        .unwrap();
+
+    let container = builder.build();
+    container.resolve_forward_refs().await.unwrap();
+
+    let _client = container.resolve::<EventClient>().await.unwrap();
+    let _server = container.resolve::<EventServer>().await.unwrap();
+}
+
+#[cfg(all(feature = "microservices", feature = "events"))]
+#[tokio::test]
+async fn transport_provider_event_handler_with_auto_register() {
+    use ironic::distributed::transport_provider::EventServer;
+    use ironic::event_handler;
+
+    #[event_handler(transport = "my.event", auto_register)]
+    #[allow(clippy::unused_async)]
+    async fn handle_my_event(event: String) {
+        let _ = event;
+    }
+
+    // Verify the auto-register struct implements AsyncModuleInit
+    fn check_trait_bound<T: ironic::AsyncModuleInit>() {}
+    check_trait_bound::<__EventHandlerAuto_handle_my_event>();
+
+    // Verify the registration function exists and accepts EventServer
+    let (_, server) = EventServer::paired(16);
+    __event_handler_reg_handle_my_event(&server);
+}
+
+#[cfg(all(feature = "microservices", feature = "events"))]
+#[tokio::test]
+async fn transport_provider_event_handler_transport_only() {
+    use ironic::distributed::transport_provider::EventServer;
+    use ironic::event_handler;
+
+    #[event_handler(transport = "other.event")]
+    #[allow(clippy::unused_async)]
+    async fn handle_other(event: String) {
+        let _ = event;
+    }
+
+    let (_, server) = EventServer::paired(16);
+    __event_handler_reg_handle_other(&server);
+}

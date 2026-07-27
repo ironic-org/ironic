@@ -794,3 +794,26 @@ async fn transport_provider_event_handler_transport_only() {
     let (_, server) = EventServer::paired(16);
     __event_handler_reg_handle_other(&server);
 }
+
+#[cfg(all(feature = "microservices", feature = "events"))]
+#[tokio::test]
+async fn transport_provider_event_handler_with_event_client_injection() {
+    use ironic::distributed::transport_provider::{EventClient, EventServer};
+    use ironic::event_handler;
+
+    // Handler with injected EventClient — the second param is resolved from DI
+    #[event_handler(transport = "test.injected", auto_register)]
+    #[allow(clippy::unused_async, unused_variables)]
+    async fn handle_with_client(event: String, events: ::std::sync::Arc<EventClient>) {
+        let _ = event;
+    }
+
+    // Verify auto_register struct implements AsyncModuleInit
+    fn check_trait_bound<T: ironic::AsyncModuleInit>() {}
+    check_trait_bound::<__EventHandlerAuto_handle_with_client>();
+
+    // Verify registration function accepts (EventServer, Arc<EventClient>)
+    let (client, server) = EventServer::paired(16);
+    let events = ::std::sync::Arc::new(client);
+    __event_handler_reg_handle_with_client(&server, events);
+}

@@ -150,6 +150,129 @@ KAFKA_GROUP_ID=order-service
 
 ---
 
+## Consume Then Publish — Injecting `EventClient` Into Handlers
+
+A common pattern: receive an event → process → emit a new event. With `#[event_handler]`, just add `events: Arc<EventClient>` as a second parameter:
+
+```rust
+#[event_handler(transport = "order.created", auto_register)]
+async fn on_order_created(event: OrderCreated, events: Arc<EventClient>) {
+    // 1. Process the incoming event
+    tracing::info!("processing order {}", event.order_id);
+
+    // 2. Emit a new event — EventClient is injected automatically
+    let payment = PaymentCompleted { /* ... */ };
+    events.emit("payment.completed", &payment).await.unwrap();
+}
+```
+
+### How it works
+
+The `#[event_handler(transport = "...", auto_register)]` macro detects the second parameter and:
+
+1. During `AsyncModuleInit`, resolves `EventClient` from the DI container
+2. Passes it to the generated registration function
+3. The handler closure captures the `Arc<EventClient>` and passes it to your function on every invocation
+
+**No globals, no workarounds.** The handler is a plain async function with DI-injected dependencies.
+
+### Multiple injected services
+
+You can inject any service registered in the DI container by adding it as an `Arc<T>` parameter:
+
+```rust
+#[event_handler(transport = "order.created", auto_register)]
+async fn on_order_created(
+    event: OrderCreated,
+    events: Arc<EventClient>,
+    db: Arc<DatabaseService>,
+    metrics: Arc<MetricsService>,
+) {
+    db.save_order(&event).await.unwrap();
+    metrics.record_order_placed().await;
+    events.emit("payment.completed", &PaymentCompleted { /* ... */ }).await.unwrap();
+}
+```
+
+Each `Arc<T>` parameter is resolved from the container during startup, captured once, and passed to every handler invocation.
+
+### Consuming multiple event types
+
+Add one `#[event_handler]` per event type. Each generates its own registration function:
+
+```rust
+#[event_handler(transport = "order.created", auto_register)]
+async fn on_order_created(event: OrderCreated, events: Arc<EventClient>) {
+    // handle order creation
+}
+
+#[event_handler(transport = "order.cancelled", auto_register)]
+async fn on_order_cancelled(event: OrderCancelled) {
+    // handle cancellation — no emit needed, so no Arc<EventClient>
+}
+
+#[event_handler(transport = "payment.completed", auto_register)]
+async fn on_payment_completed(event: PaymentCompleted, events: Arc<EventClient>) {
+    // handle payment
+}
+
+#[event_handler(transport = "user.deleted", auto_register)]
+async fn on_user_deleted(event: UserDeleted) {
+    // handle user deletion
+}
+```
+
+Each handler can independently choose whether to inject `Arc<EventClient>` — add it only where you need to emit events.
+
+### Producing multiple events from one handler
+
+Call `events.emit()` as many times as you need:
+
+```rust
+#[event_handler(transport = "order.created", auto_register)]
+async fn on_order_created(event: OrderCreated, events: Arc<EventClient>) {
+    // Emit multiple downstream events in sequence
+    events.emit("inventory.reserve", &ReserveInventory {
+        order_id: event.order_id.clone(),
+        items: event.items.clone(),
+    }).await.unwrap();
+
+    events.emit("analytics.order_placed", &AnalyticsEvent {
+        order_id: event.order_id.clone(),
+        amount: event.amount,
+    }).await.unwrap();
+
+    events.emit("notification.send", &SendEmail {
+        recipient: event.customer_email.clone(),
+        template: "order_confirmation".into(),
+    }).await.unwrap();
+}
+```
+
+### Registering many handlers in the module
+
+Each `#[event_handler(auto_register)]` generates a `__EventHandlerAuto_<fn>` struct. List all of them in `async_init`:
+
+```rust
+#[derive(Module)]
+#[module(
+    providers = [TransportConfig, EventClient, EventServer],
+    async_init = [
+        __EventHandlerAuto_on_order_created,
+        __EventHandlerAuto_on_order_cancelled,
+        __EventHandlerAuto_on_payment_completed,
+        __EventHandlerAuto_on_user_deleted,
+    ],
+    lifecycle_bootstrap = [EventClient, EventServer],
+    lifecycle_shutdown = [EventClient, EventServer],
+)]
+pub struct AppModule;
+```
+
+Every handler in `async_init` gets registered with `EventServer` before `listen()` starts.
+
+---
+
 ## Part 3 — Payment Service
 
 Listens for `order.created`, processes payment, emits `payment.completed`.
@@ -169,12 +292,13 @@ events = { path = "../events" }
 ### Module + Event Handlers
 
 ```rust
+use std::sync::Arc;
 use ironic::*;
 use events::*;
 
 #[derive(Module)]
 #[module(
-    providers = [TransportConfig, EventClient, EventServer, PaymentService],
+    providers = [TransportConfig, EventClient, EventServer],
     async_init = [__EventHandlerAuto_on_order_created],
     lifecycle_bootstrap = [EventClient, EventServer],
     lifecycle_shutdown = [EventClient, EventServer],
@@ -183,13 +307,8 @@ pub struct PaymentServiceModule;
 
 // ── Consume: order.created → produce: payment.completed ──
 
-#[derive(Injectable)]
-pub struct PaymentService {
-    events: Arc<EventClient>,
-}
-
-#[event_handler(transport = "order.created")]
-async fn on_order_created(event: OrderCreated) {
+#[event_handler(transport = "order.created", auto_register)]
+async fn on_order_created(event: OrderCreated, events: Arc<EventClient>) {
     tracing::info!(
         "processing payment for order {} ({}{})",
         event.order_id, event.amount, event.currency,
@@ -202,20 +321,8 @@ async fn on_order_created(event: OrderCreated) {
         status: "confirmed".into(),
     };
 
-    // Resolve EventClient from container and emit
-    // (in a real app, inject via DI — simplified here for clarity)
-    let result = PaymentService::emit_payment(payment).await;
-    if let Err(e) = result {
-        tracing::error!("failed to emit payment.completed: {}", e.0);
-    }
-}
-
-impl PaymentService {
-    pub async fn emit_payment(event: PaymentCompleted) -> Result<(), TransportError> {
-        // In production, inject EventClient instead of resolving manually
-        let client = EventClient::new_inmemory(); // placeholder
-        client.emit("payment.completed", &event).await
-    }
+    events.emit("payment.completed", &payment).await.unwrap();
+    tracing::info!("payment.completed emitted for order {}", event.order_id);
 }
 ```
 
@@ -248,13 +355,13 @@ events = { path = "../events" }
 ### Module + Event Handlers
 
 ```rust
+use std::sync::Arc;
 use ironic::*;
 use events::*;
-use aws_sdk_ses::Client as SesClient; // example
 
 #[derive(Module)]
 #[module(
-    providers = [TransportConfig, EventClient, EventServer, NotificationService],
+    providers = [TransportConfig, EventClient, EventServer],
     async_init = [__EventHandlerAuto_on_payment_completed],
     lifecycle_bootstrap = [EventClient, EventServer],
     lifecycle_shutdown = [EventClient, EventServer],
@@ -263,38 +370,29 @@ pub struct NotificationServiceModule;
 
 // ── Consume: payment.completed → produce: notification.sent ──
 
-#[derive(Injectable)]
-pub struct NotificationService {
-    events: Arc<EventClient>,
-    ses: Arc<SesClient>,
-}
-
-impl NotificationService {
-    pub async fn send_email(
-        &self,
-        to: &str,
-        subject: &str,
-        body: &str,
-    ) -> Result<(), Box<dyn std::error::Error>> {
-        // Send email via AWS SES
-        Ok(())
-    }
-}
-
 #[event_handler(transport = "payment.completed", auto_register)]
-async fn on_payment_completed(event: PaymentCompleted) {
+async fn on_payment_completed(event: PaymentCompleted, events: Arc<EventClient>) {
     tracing::info!(
-        "sending notification for order {}",
+        "sending notification for order {}...",
         event.order_id,
     );
 
-    // In a real app, inject NotificationService instead
-    // and call self.send_email(...).await
+    // Send email via AWS SES, Twilio SMS, etc.
+    send_email_notification(&event).await;
 
-    tracing::info!(
-        "notification sent for order {}",
-        event.order_id,
-    );
+    let notification = NotificationSent {
+        order_id: event.order_id.clone(),
+        recipient: "customer@example.com".into(),
+        channel: "email".into(),
+    };
+
+    events.emit("notification.sent", &notification).await.unwrap();
+}
+
+async fn send_email_notification(_event: &PaymentCompleted) {
+    // Integration with AWS SES, SendGrid, etc.
+    tokio::time::sleep(tokio::time::Duration::from_millis(50)).await;
+    tracing::info!("email sent");
 }
 ```
 
@@ -620,6 +718,25 @@ async fn on_order_created(event: OrderCreated) {
 ```
 
 Events that return `Err` are silently dropped by the transport. Implement a retry/dead-letter mechanism for production.
+
+### Consume then publish with error handling
+
+When a handler both consumes an event and emits a new one, wrap the emit in error handling:
+
+```rust
+#[event_handler(transport = "order.created", auto_register)]
+async fn on_order_created(event: OrderCreated, events: Arc<EventClient>) {
+    if let Err(e) = events.emit("payment.completed", &PaymentCompleted { /* ... */ }).await {
+        tracing::error!(
+            order_id = %event.order_id,
+            error = %e.0,
+            "failed to emit payment.completed",
+        );
+    }
+}
+```
+
+If the downstream emit fails, the incoming event is NOT redelivered. Consider storing failed events in a dead-letter queue for retry.
 
 ### Graceful shutdown
 

@@ -798,8 +798,8 @@ async fn transport_provider_event_handler_transport_only() {
 #[cfg(all(feature = "microservices", feature = "events"))]
 #[tokio::test]
 async fn transport_provider_event_handler_with_event_client_injection() {
-    use ironic::event_handler;
     use ironic::distributed::transport_provider::{EventClient, EventServer};
+    use ironic::event_handler;
 
     // Handler with injected EventClient — the second param is resolved from DI
     #[event_handler(transport = "test.injected", auto_register)]

@@ -110,7 +110,11 @@ fn extract_injected_param(arg: &FnArg) -> syn::Result<InjectedParam> {
             };
             let full_type = ty.as_ref().clone();
             let inner_type = strip_arc(ty);
-            Ok(InjectedParam { name, full_type, inner_type })
+            Ok(InjectedParam {
+                name,
+                full_type,
+                inner_type,
+            })
         }
         FnArg::Receiver(_) => Err(syn::Error::new_spanned(
             arg,

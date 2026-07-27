@@ -5,19 +5,15 @@ description: Auto-registered — logs every request with method, URI, status, bo
 
 # Request Logging
 
-`RequestLogging` runs on every request automatically. Enable the `logging` feature to persist events to `.logs/`.
+`RequestLogging` is **auto-added by `Application::build()`** — you don't need to add it manually. Every request produces a structured tracing event under `ironic.http.access`.
 
-## Enabling
+Enable the `logging` feature (default in new projects) to persist events to `.logs/`:
 
 ```toml
 ironic = { features = ["logging"] }
 ```
 
-`logging` is included in default features — new projects have it out of the box.
-
 ## What it logs
-
-Every request produces a structured tracing event under `ironic.http.access`:
 
 | Field | Description |
 |---|---|
@@ -36,23 +32,60 @@ With `TimeSeriesModule`, events are persisted to `.logs/YYYY-MM-DD.jsonl`:
 {"timestamp":"2026-07-17T10:30:00Z","level":"INFO","target":"ironic.http.access","fields":{"event_level":"info","http_method":"GET","http_uri":"/api/users","http_status_code":200,"http_duration_ms":12.34}}
 ```
 
-## Per-controller or per-route
+## Custom Logger (override the default)
 
-Apply `RequestLogging` to specific controllers or routes with `#[middleware]`:
+Disable the built-in logger and add your own:
 
 ```rust
-#[controller("/api")]
-#[middleware(RequestLogging::new())]
-pub struct ApiController;
+use std::time::Instant;
+use ironic::prelude::*;
 
-#[get("/sensitive")]
-#[middleware(RequestLogging::new())]
-async fn sensitive(&self) -> Result<Json<()>, HttpError> {
-    // logging only on this route
+pub struct JsonLogger;
+
+impl Middleware for JsonLogger {
+    fn handle<'a>(
+        &'a self,
+        ctx: &'a mut RequestContext,
+        next: MiddlewareNext<'a>,
+    ) -> PipelineFuture<'a> {
+        Box::pin(async move {
+            let start = Instant::now();
+            let method = ctx.request().method().to_string();
+            let uri = ctx.request().uri().to_string();
+
+            let result = next.run(ctx).await;
+
+            let duration = start.elapsed();
+            let status = match &result {
+                Ok(r) => r.status().as_u16(),
+                Err(e) => e.status().as_u16(),
+            };
+
+            tracing::info!(
+                target: "custom.access",
+                method = %method,
+                path = %uri,
+                status,
+                dur_ms = duration.as_secs_f64() * 1000.0,
+            );
+
+            result
+        })
+    }
 }
+
+// Wire it up:
+Application::builder()
+    .module(AppModule::definition())
+    .without_request_logging()
+    .middleware(JsonLogger)
+    .platform(AxumAdapter::new())
+    .build()
+    .await
+    .expect("application must initialise");
 ```
 
-## Opting out
+## Disabling (without replacement)
 
 ```rust
 Application::builder()
@@ -60,11 +93,4 @@ Application::builder()
     .platform(AxumAdapter::new())
     .without_request_logging()
     .build().await.unwrap();
-```
-
-## Manual registration
-
-```rust
-build_http_application_with_overrides(&graph, Vec::new())?
-    .middleware(RequestLogging::new());
 ```

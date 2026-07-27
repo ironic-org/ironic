@@ -56,8 +56,7 @@ async fn main() {{
     let addr = platform::config::listen_addr("{port}");
     let app = Application::builder()
         .module(AppModule::definition())
-        .middleware(RequestLogging::new())
-        .platform(
+                .platform(
             AxumAdapter::new().configure_router(move |router| {{
                 router
                     .route("/graphql", ironic::axum::routing::post(graphql_handler))

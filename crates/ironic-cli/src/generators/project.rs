@@ -226,8 +226,7 @@ async fn main() {{
     let addr = platform::config::listen_addr("8080");
     let app = Application::builder()
         .module(AppModule::definition())
-        .middleware(RequestLogging::new())
-        .platform(AxumAdapter::new())
+                .platform(AxumAdapter::new())
         .build()
         .await
         .expect("application must initialise");
@@ -314,8 +313,7 @@ async fn main() {{
     let addr = platform::config::listen_addr("8080");
     let app = Application::builder()
         .module(AppModule::definition())
-        .middleware(RequestLogging::new())
-        .platform(
+                .platform(
             AxumAdapter::new().configure_router(move |router| {{
                 router
                     .route("/graphql", ironic::axum::routing::post(graphql_handler))

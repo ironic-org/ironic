@@ -23,7 +23,6 @@ async fn main() {{
     let addr = platform::config::listen_addr("{port}");
     let app = Application::builder()
         .module(AppModule::definition())
-        .middleware(RequestLogging::new())
         .platform(AxumAdapter::new())
         .build()
         .await

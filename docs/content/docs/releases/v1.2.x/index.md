@@ -9,6 +9,13 @@ All versions in the v1.2.x series. Visit the [Blog](/blog) for detailed release 
 
 ---
 
+## v1.2.4 — 2026-07-28
+
+# v1.2.4
+### Added
+- EventClient injection in #[event_handler(transport, auto_register)] — handlers can receive Arc<EventClient> as second param to emit events
+
+---
 ## v1.2.3 — 2026-07-28
 
 # v1.2.3

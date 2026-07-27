@@ -9,11 +9,6 @@ All versions in the v1.2.x series. Visit the [Blog](/blog) for detailed release 
 
 ---
 
-## v1.2.4 — 2026-07-28
-
-# v1.2.4
-
----
 ## v1.2.3 — 2026-07-28
 
 # v1.2.3

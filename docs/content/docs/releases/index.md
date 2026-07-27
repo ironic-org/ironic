@@ -11,7 +11,6 @@ All notable changes to Ironic are documented here. The project follows [Semantic
 
 | Version | Date | Highlights |
 |---------|------|-----------|
-| [v1.2.4](/blog/v1.2.4) | 2026-07-28 | Release v1.2.4 |
 | [v1.2.3](/blog/v1.2.3) | 2026-07-28 | Transport-agnostic EventClient/EventServer DI providers with auto-connect/listen lifecycle, TransportConfig/TransportKin |
 | [v1.2.2](/blog/v1.2.2) | 2026-07-27 | add support for GraphQL and gRPC resource generation in resource module |
 | [v1.2.1](/blog/v1.2.1) | 2026-07-27 | add serde dependency for serialization in GraphQL, gRPC, HTTP, and monorepo configurations |

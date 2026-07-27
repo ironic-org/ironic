@@ -196,6 +196,81 @@ async fn on_order_created(
 
 Each `Arc<T>` parameter is resolved from the container during startup, captured once, and passed to every handler invocation.
 
+### Consuming multiple event types
+
+Add one `#[event_handler]` per event type. Each generates its own registration function:
+
+```rust
+#[event_handler(transport = "order.created", auto_register)]
+async fn on_order_created(event: OrderCreated, events: Arc<EventClient>) {
+    // handle order creation
+}
+
+#[event_handler(transport = "order.cancelled", auto_register)]
+async fn on_order_cancelled(event: OrderCancelled) {
+    // handle cancellation — no emit needed, so no Arc<EventClient>
+}
+
+#[event_handler(transport = "payment.completed", auto_register)]
+async fn on_payment_completed(event: PaymentCompleted, events: Arc<EventClient>) {
+    // handle payment
+}
+
+#[event_handler(transport = "user.deleted", auto_register)]
+async fn on_user_deleted(event: UserDeleted) {
+    // handle user deletion
+}
+```
+
+Each handler can independently choose whether to inject `Arc<EventClient>` — add it only where you need to emit events.
+
+### Producing multiple events from one handler
+
+Call `events.emit()` as many times as you need:
+
+```rust
+#[event_handler(transport = "order.created", auto_register)]
+async fn on_order_created(event: OrderCreated, events: Arc<EventClient>) {
+    // Emit multiple downstream events in sequence
+    events.emit("inventory.reserve", &ReserveInventory {
+        order_id: event.order_id.clone(),
+        items: event.items.clone(),
+    }).await.unwrap();
+
+    events.emit("analytics.order_placed", &AnalyticsEvent {
+        order_id: event.order_id.clone(),
+        amount: event.amount,
+    }).await.unwrap();
+
+    events.emit("notification.send", &SendEmail {
+        recipient: event.customer_email.clone(),
+        template: "order_confirmation".into(),
+    }).await.unwrap();
+}
+```
+
+### Registering many handlers in the module
+
+Each `#[event_handler(auto_register)]` generates a `__EventHandlerAuto_<fn>` struct. List all of them in `async_init`:
+
+```rust
+#[derive(Module)]
+#[module(
+    providers = [TransportConfig, EventClient, EventServer],
+    async_init = [
+        __EventHandlerAuto_on_order_created,
+        __EventHandlerAuto_on_order_cancelled,
+        __EventHandlerAuto_on_payment_completed,
+        __EventHandlerAuto_on_user_deleted,
+    ],
+    lifecycle_bootstrap = [EventClient, EventServer],
+    lifecycle_shutdown = [EventClient, EventServer],
+)]
+pub struct AppModule;
+```
+
+Every handler in `async_init` gets registered with `EventServer` before `listen()` starts.
+
 ---
 
 ## Part 3 — Payment Service

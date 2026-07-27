@@ -1,7 +1,8 @@
 #![allow(
     clippy::type_complexity,
     clippy::redundant_closure_for_method_calls,
-    clippy::unnecessary_wraps
+    clippy::unnecessary_wraps,
+    clippy::map_unwrap_or
 )]
 //! Distributed tracing context propagation for microservice envelopes.
 //!

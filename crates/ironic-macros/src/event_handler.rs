@@ -124,18 +124,16 @@ fn extract_injected_param(arg: &FnArg) -> syn::Result<InjectedParam> {
 }
 
 /// If the type is `Arc<T>`, returns `T`. Otherwise returns the type as-is.
-fn strip_arc(ty: &Box<Type>) -> Type {
-    if let Type::Path(type_path) = ty.as_ref() {
-        if let Some(last_seg) = type_path.path.segments.last() {
-            if last_seg.ident == "Arc"
-                && let syn::PathArguments::AngleBracketed(args) = &last_seg.arguments
-                && let Some(syn::GenericArgument::Type(inner)) = args.args.first()
-            {
-                return inner.clone();
-            }
-        }
+fn strip_arc(ty: &Type) -> Type {
+    if let Type::Path(type_path) = ty
+        && let Some(last_seg) = type_path.path.segments.last()
+        && last_seg.ident == "Arc"
+        && let syn::PathArguments::AngleBracketed(args) = &last_seg.arguments
+        && let Some(syn::GenericArgument::Type(inner)) = args.args.first()
+    {
+        return inner.clone();
     }
-    ty.as_ref().clone()
+    ty.clone()
 }
 
 #[allow(clippy::too_many_lines)]

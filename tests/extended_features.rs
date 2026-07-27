@@ -803,10 +803,9 @@ async fn transport_provider_event_handler_with_event_client_injection() {
 
     // Handler with injected EventClient — the second param is resolved from DI
     #[event_handler(transport = "test.injected", auto_register)]
-    #[allow(clippy::unused_async)]
-    async fn handle_with_client(event: String, _events: ::std::sync::Arc<EventClient>) {
+    #[allow(clippy::unused_async, unused_variables)]
+    async fn handle_with_client(event: String, events: ::std::sync::Arc<EventClient>) {
         let _ = event;
-        // In production, _events.emit(...) would be called here
     }
 
     // Verify auto_register struct implements AsyncModuleInit

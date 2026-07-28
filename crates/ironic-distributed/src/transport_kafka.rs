@@ -38,6 +38,11 @@ pub struct KafkaClientConfig {
     pub brokers: String,
     /// Topic to produce to.
     pub topic: String,
+    /// Offset to start from when no committed offset exists.
+    /// `true` = Latest (skip old), `false` = Earliest (replay all).
+    pub fetch_latest: bool,
+    /// Poll interval in milliseconds for the reply consumer.
+    pub poll_interval_ms: u64,
 }
 
 impl Default for KafkaClientConfig {
@@ -45,6 +50,8 @@ impl Default for KafkaClientConfig {
         Self {
             brokers: "127.0.0.1:9092".into(),
             topic: "ironic".into(),
+            fetch_latest: false,
+            poll_interval_ms: 1000,
         }
     }
 }
@@ -86,6 +93,8 @@ impl MicroserviceClient for KafkaClient {
 
             // Reply consumer polling
             let reply_topic = format!("{}_reply", config.topic);
+            let fetch_latest = config.fetch_latest;
+            let poll_interval = config.poll_interval_ms;
             let handlers_clone = Arc::clone(&handlers);
             let hosts_clone = hosts.clone();
             tokio::spawn(async move {
@@ -93,10 +102,16 @@ impl MicroserviceClient for KafkaClient {
                     let hosts = hosts_clone.clone();
                     let topic = reply_topic.clone();
                     let h = Arc::clone(&handlers_clone);
+                    let fetch_latest = fetch_latest;
+                    let poll_interval = poll_interval;
                     let _ = tokio::task::spawn_blocking(move || {
                         let Ok(mut consumer) = kafka::consumer::Consumer::from_hosts(hosts)
                             .with_topic(topic)
-                            .with_fallback_offset(kafka::consumer::FetchOffset::Earliest)
+                            .with_fallback_offset(if fetch_latest {
+                                kafka::consumer::FetchOffset::Latest
+                            } else {
+                                kafka::consumer::FetchOffset::Earliest
+                            })
                             .create()
                         else {
                             return;
@@ -133,7 +148,7 @@ impl MicroserviceClient for KafkaClient {
                         }
                     })
                     .await;
-                    tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
+                    tokio::time::sleep(tokio::time::Duration::from_millis(poll_interval)).await;
                 }
             });
 
@@ -246,6 +261,9 @@ pub struct KafkaServerConfig {
     pub topic: String,
     /// Consumer group ID.
     pub group_id: String,
+    /// Offset to start from when no committed offset exists.
+    /// `true` = Latest (skip old), `false` = Earliest (replay all).
+    pub fetch_latest: bool,
 }
 
 impl Default for KafkaServerConfig {
@@ -254,6 +272,7 @@ impl Default for KafkaServerConfig {
             brokers: "127.0.0.1:9092".into(),
             topic: "ironic".into(),
             group_id: "ironic-server".into(),
+            fetch_latest: false,
         }
     }
 }
@@ -307,7 +326,11 @@ impl MicroserviceServer for KafkaServer {
                     let _ = tokio::task::spawn_blocking(move || {
                         let Ok(mut consumer) = kafka::consumer::Consumer::from_hosts(hosts)
                             .with_topic(topic)
-                            .with_fallback_offset(kafka::consumer::FetchOffset::Earliest)
+                            .with_fallback_offset(if config.fetch_latest {
+                                kafka::consumer::FetchOffset::Latest
+                            } else {
+                                kafka::consumer::FetchOffset::Earliest
+                            })
                             .create()
                         else {
                             return;

@@ -513,12 +513,24 @@ impl HttpPlatformApplication for AxumApplication {
             for addr in self.additional_addrs {
                 let router = router.clone();
                 let drain_rx = tokio::sync::watch::Receiver::clone(&drain_rx);
-                let listener = tokio::net::TcpListener::bind(addr).await.map_err(|error| {
-                    AxumPlatformError::Bind {
-                        address: addr,
-                        message: error.to_string(),
-                    }
+            let listener = {
+                let socket = tokio::net::TcpSocket::new_v4().map_err(|e| AxumPlatformError::Bind {
+                    address: addr,
+                    message: e.to_string(),
                 })?;
+                socket.set_reuseaddr(true).map_err(|e| AxumPlatformError::Bind {
+                    address: addr,
+                    message: e.to_string(),
+                })?;
+                socket.bind(addr).map_err(|e| AxumPlatformError::Bind {
+                    address: addr,
+                    message: e.to_string(),
+                })?;
+                socket.listen(1024).map_err(|e| AxumPlatformError::Bind {
+                    address: addr,
+                    message: e.to_string(),
+                })?
+            };
                 let graceful = {
                     let mut rx = drain_rx;
                     async move {
@@ -532,12 +544,24 @@ impl HttpPlatformApplication for AxumApplication {
                 }));
             }
 
-            let listener = tokio::net::TcpListener::bind(address)
-                .await
-                .map_err(|error| AxumPlatformError::Bind {
+            let listener = {
+                let socket = tokio::net::TcpSocket::new_v4().map_err(|e| AxumPlatformError::Bind {
                     address,
-                    message: error.to_string(),
+                    message: e.to_string(),
                 })?;
+                socket.set_reuseaddr(true).map_err(|e| AxumPlatformError::Bind {
+                    address,
+                    message: e.to_string(),
+                })?;
+                socket.bind(address).map_err(|e| AxumPlatformError::Bind {
+                    address,
+                    message: e.to_string(),
+                })?;
+                socket.listen(1024).map_err(|e| AxumPlatformError::Bind {
+                    address,
+                    message: e.to_string(),
+                })?
+            };
             let graceful = {
                 async move {
                     let sig = shutdown.wait().await;

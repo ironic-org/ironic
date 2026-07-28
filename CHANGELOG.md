@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v1.2.6] - 2026-07-28
+### Changed
+- #[event_handler] auto_register is now default — use manual_register to opt out
 ## [v1.2.5] - 2026-07-28
 
 ### Fixed

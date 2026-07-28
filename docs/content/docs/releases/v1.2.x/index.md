@@ -9,6 +9,13 @@ All versions in the v1.2.x series. Visit the [Blog](/blog) for detailed release 
 
 ---
 
+## v1.2.6 — 2026-07-28
+
+# v1.2.6
+### Changed
+- #[event_handler] auto_register is now default — use manual_register to opt out
+
+---
 ## v1.2.5 — 2026-07-28
 
 # v1.2.5

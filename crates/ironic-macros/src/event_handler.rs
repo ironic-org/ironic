@@ -16,7 +16,7 @@ impl Default for EventHandlerArgs {
     fn default() -> Self {
         Self {
             capacity: 16,
-            auto_register: false,
+            auto_register: true,
             transport: None,
         }
     }
@@ -33,6 +33,8 @@ impl Parse for EventHandlerArgs {
                 args.capacity = lit.base10_parse::<usize>().unwrap_or(16);
             } else if ident == "auto_register" {
                 args.auto_register = true;
+            } else if ident == "manual_register" {
+                args.auto_register = false;
             } else if ident == "transport" {
                 input.parse::<Token![=]>()?;
                 let lit: syn::LitStr = input.parse()?;

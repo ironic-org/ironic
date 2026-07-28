@@ -13,6 +13,22 @@ type Post = {
 
 const posts: Post[] = [
     {
+        slug: 'v1.2.6',
+        title: 'v1.2.6 — #[event_handler] auto_register is now default — use manual_register to opt out',
+        description: '#[event_handler] auto_register is now default — use manual_register to opt out',
+        date: '2026-07-28',
+        tag: 'release',
+        readTime: '2 min',
+    },
+    {
+        slug: 'v1.2.5',
+        title: 'v1.2.5 — clippy warnings (borrowed_box, collapsible_if, map_unwrap_or, used_underscore_binding)',
+        description: 'clippy warnings (borrowed_box, collapsible_if, map_unwrap_or, used_underscore_binding)',
+        date: '2026-07-28',
+        tag: 'release',
+        readTime: '2 min',
+    },
+    {
         slug: 'v1.2.4',
         title: 'v1.2.4 — EventClient injection in #[event_handler(transport, auto_register)] — handlers can receive Arc<EventClient> as second pa',
         description: 'EventClient injection in #[event_handler(transport, auto_register)] — handlers can receive Arc<EventClient> as second pa',

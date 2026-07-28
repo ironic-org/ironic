@@ -5,12 +5,14 @@ description: Version history and release notes for the Ironic framework.
 
 # Releases
 
-## Current version: v1.2.4
+## Current version: v1.2.6
 
 All notable changes to Ironic are documented here. The project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 | Version | Date | Highlights |
 |---------|------|-----------|
+| [v1.2.6](/blog/v1.2.6) | 2026-07-28 | #[event_handler] auto_register is now default — use manual_register to opt out |
+| [v1.2.5](/blog/v1.2.5) | 2026-07-28 | clippy warnings (borrowed_box, collapsible_if, map_unwrap_or, used_underscore_binding) |
 | [v1.2.4](/blog/v1.2.4) | 2026-07-28 | EventClient injection in #[event_handler(transport, auto_register)] — handlers can receive Arc<EventClient> as second pa |
 | [v1.2.3](/blog/v1.2.3) | 2026-07-28 | Transport-agnostic EventClient/EventServer DI providers with auto-connect/listen lifecycle, TransportConfig/TransportKin |
 | [v1.2.2](/blog/v1.2.2) | 2026-07-27 | add support for GraphQL and gRPC resource generation in resource module |

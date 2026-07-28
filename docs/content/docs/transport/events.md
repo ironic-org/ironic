@@ -37,6 +37,162 @@ Each service is a separate binary. They communicate **only through events** — 
 
 ---
 
+## Connecting to a Transport Backend
+
+Pick your backend, enable its feature, and set the connection config. Everything else is the same.
+
+### Kafka
+
+| Item | Value |
+|---|---|
+| Cargo feature | `transport-kafka` |
+| Env var `KAFKA_BROKERS` | `host:port` (e.g. `127.0.0.1:9092`) |
+| Env var `KAFKA_TOPIC` | Topic name (e.g. `shop-events`) |
+| Env var `KAFKA_GROUP_ID` | Consumer group (unique per service) |
+
+**docker-compose:**
+```yaml
+services:
+  zookeeper:
+    image: confluentinc/cp-zookeeper:latest
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+
+  kafka:
+    image: confluentinc/cp-kafka:latest
+    ports: ["9092:9092"]
+    depends_on: [zookeeper]
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+```
+
+**Verify connection:**
+```bash
+# Install kcat (formerly kafkacat)
+brew install kcat  # macOS
+apt install kcat   # Linux
+
+# Consume messages from the topic
+kcat -b 127.0.0.1:9092 -t shop-events -C
+
+# Produce a test message
+echo '{"correlation_id":"test","data":"hello"}' | kcat -b 127.0.0.1:9092 -t shop-events -P
+```
+
+### Redis
+
+| Item | Value |
+|---|---|
+| Cargo feature | `transport-redis` |
+| Env var `KAFKA_BROKERS` | `redis://host:port` (e.g. `redis://127.0.0.1:6379`) |
+| Env var `KAFKA_TOPIC` | Channel name |
+| Env var `KAFKA_GROUP_ID` | Not used by Redis |
+
+**docker-compose:**
+```yaml
+services:
+  redis:
+    image: redis:7-alpine
+    ports: ["6379:6379"]
+```
+
+**Verify connection:**
+```bash
+# Monitor the Redis channel
+redis-cli -h 127.0.0.1 PSUBSCRIBE "*"
+
+# Publish a test message
+redis-cli -h 127.0.0.1 PUBLISH shop-events '{"correlation_id":"test","data":"hello"}'
+```
+
+### In-Memory (no infrastructure needed)
+
+No external service required. `TransportKind::InMemory` is always available — used for tests and single-process apps. Events don't leave the process.
+
+### Other supported backends
+
+| Backend | Feature | Env var `KAFKA_BROKERS` format |
+|---|---|---|
+| RabbitMQ | `transport-rabbitmq` | `amqp://guest:guest@127.0.0.1:5672` |
+| MQTT | `transport-mqtt` | `mqtt://127.0.0.1:1883` |
+| NATS | `transport-nats` | `nats://127.0.0.1:4222` |
+
+### Connection flow (what happens at startup)
+
+```
+Service starts
+  │
+  ▼
+DI container creates TransportConfig ─── reads env vars
+  │
+  ▼
+EventClient created ─── wraps the transport client (KafkaProducer, RedisClient, ...)
+EventServer created ─── wraps the transport server (KafkaConsumer, RedisPubSub, ...)
+  │
+  ▼
+OnApplicationBootstrap
+  ├── EventClient.connect() ─── connects to broker
+  └── EventServer.listen()  ─── starts consuming
+  │
+  ▼
+Events flow through the live connection
+  │
+  ▼
+OnApplicationShutdown
+  ├── EventClient.close()
+  └── EventServer.close()
+```
+
+### Docker Compose for all services + Kafka
+
+```yaml
+version: "3.8"
+services:
+  zookeeper:
+    image: confluentinc/cp-zookeeper:latest
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+
+  kafka:
+    image: confluentinc/cp-kafka:latest
+    depends_on: [zookeeper]
+    ports: ["9092:9092"]
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+
+  order-service:
+    build: ./order-service
+    depends_on: [kafka]
+    environment:
+      KAFKA_BROKERS: kafka:9092
+      KAFKA_TOPIC: shop-events
+      KAFKA_GROUP_ID: order-service
+
+  payment-service:
+    build: ./payment-service
+    depends_on: [kafka]
+    environment:
+      KAFKA_BROKERS: kafka:9092
+      KAFKA_TOPIC: shop-events
+      KAFKA_GROUP_ID: payment-service
+
+  notification-service:
+    build: ./notification-service
+    depends_on: [kafka]
+    environment:
+      KAFKA_BROKERS: kafka:9092
+      KAFKA_TOPIC: shop-events
+      KAFKA_GROUP_ID: notification-service
+```
+
+---
+
 ## Part 1 — Shared Events Crate
 
 All three services share the same event type definitions. Put these in a common crate:
@@ -106,7 +262,7 @@ pub struct OrderServiceModule;
 
 // ── Consume: payment.completed ──
 
-#[event_handler(transport = "payment.completed", auto_register)]
+#[event_handler(transport = "payment.completed")]
 async fn on_payment_completed(event: PaymentCompleted) {
     tracing::info!(
         "order {} payment confirmed: {} ({})",
@@ -155,7 +311,7 @@ KAFKA_GROUP_ID=order-service
 A common pattern: receive an event → process → emit a new event. With `#[event_handler]`, just add `events: Arc<EventClient>` as a second parameter:
 
 ```rust
-#[event_handler(transport = "order.created", auto_register)]
+#[event_handler(transport = "order.created")]
 async fn on_order_created(event: OrderCreated, events: Arc<EventClient>) {
     // 1. Process the incoming event
     tracing::info!("processing order {}", event.order_id);
@@ -168,20 +324,89 @@ async fn on_order_created(event: OrderCreated, events: Arc<EventClient>) {
 
 ### How it works
 
-The `#[event_handler(transport = "...", auto_register)]` macro detects the second parameter and:
+The `#[event_handler(transport = "...")]` macro:
 
-1. During `AsyncModuleInit`, resolves `EventClient` from the DI container
-2. Passes it to the generated registration function
-3. The handler closure captures the `Arc<EventClient>` and passes it to your function on every invocation
+1. Generates a registration function that registers the handler with `EventServer`
+2. By default, also generates an `AsyncModuleInit` impl that auto-registers during startup
+3. Detects additional `Arc<T>` parameters and resolves them from the DI container during registration
 
 **No globals, no workarounds.** The handler is a plain async function with DI-injected dependencies.
+
+### Opt out of auto-register
+
+Auto-register is the default. If you need to control when handlers are registered (e.g., conditional registration based on config, or custom ordering), use `manual_register`:
+
+```rust
+#[event_handler(transport = "order.created", manual_register)]
+async fn on_order_created(event: OrderCreated) {
+    // Handler logic — but no auto-register struct is generated
+}
+```
+
+When you use `manual_register`, the macro still generates the registration function `__event_handler_reg_on_order_created()`, but it does NOT generate the `__EventHandlerAuto_*` struct. You must call it yourself.
+
+#### Step 1 — Add a manual init service
+
+```rust
+#[derive(Injectable)]
+pub struct HandlerRegistrar {
+    server: Arc<EventServer>,
+}
+
+impl OnApplicationBootstrap for HandlerRegistrar {
+    fn on_application_bootstrap(&self) -> LifecycleFuture<'_> {
+        let server = self.server.clone();
+        Box::pin(async move {
+            // Register handlers conditionally
+            if std::env::var("ENABLE_ORDER_HANDLER").as_deref() == Ok("true") {
+                __event_handler_reg_on_order_created(&*server);
+                tracing::info!("order.created handler registered");
+            }
+        })
+    }
+}
+```
+
+#### Step 2 — Register the service in your module
+
+```rust
+#[derive(Module)]
+#[module(
+    providers = [TransportConfig, EventClient, EventServer, HandlerRegistrar],
+    lifecycle_bootstrap = [EventClient, EventServer, HandlerRegistrar],
+    lifecycle_shutdown = [EventClient, EventServer],
+)]
+pub struct MyModule;
+```
+
+Note: `HandlerRegistrar` is NOT in `async_init` (that's where auto-register structs go). Instead, it registers handlers during `OnApplicationBootstrap`, before the server starts listening.
+
+#### When to use manual_register
+
+| Situation | Use |
+|---|---|
+| Always register on startup | Default (omit `manual_register`) |
+| Conditional registration (feature flag, env var) | `manual_register` + custom init |
+| Custom handler ordering | `manual_register` + register in specific order |
+| Register from a test without DI | `manual_register` + call directly with `EventServer::paired()` |
+
+```rust
+// Test example with manual_register:
+#[tokio::test]
+async fn test_handler_directly() {
+    let (client, server) = EventServer::paired(16);
+    __event_handler_reg_on_order_created(&server);
+    server.listen().await.unwrap();
+    client.emit("order.created", &OrderCreated { ... }).await.unwrap();
+}
+```
 
 ### Multiple injected services
 
 You can inject any service registered in the DI container by adding it as an `Arc<T>` parameter:
 
 ```rust
-#[event_handler(transport = "order.created", auto_register)]
+#[event_handler(transport = "order.created")]
 async fn on_order_created(
     event: OrderCreated,
     events: Arc<EventClient>,
@@ -201,22 +426,22 @@ Each `Arc<T>` parameter is resolved from the container during startup, captured 
 Add one `#[event_handler]` per event type. Each generates its own registration function:
 
 ```rust
-#[event_handler(transport = "order.created", auto_register)]
+#[event_handler(transport = "order.created")]
 async fn on_order_created(event: OrderCreated, events: Arc<EventClient>) {
     // handle order creation
 }
 
-#[event_handler(transport = "order.cancelled", auto_register)]
+#[event_handler(transport = "order.cancelled")]
 async fn on_order_cancelled(event: OrderCancelled) {
     // handle cancellation — no emit needed, so no Arc<EventClient>
 }
 
-#[event_handler(transport = "payment.completed", auto_register)]
+#[event_handler(transport = "payment.completed")]
 async fn on_payment_completed(event: PaymentCompleted, events: Arc<EventClient>) {
     // handle payment
 }
 
-#[event_handler(transport = "user.deleted", auto_register)]
+#[event_handler(transport = "user.deleted")]
 async fn on_user_deleted(event: UserDeleted) {
     // handle user deletion
 }
@@ -229,7 +454,7 @@ Each handler can independently choose whether to inject `Arc<EventClient>` — a
 Call `events.emit()` as many times as you need:
 
 ```rust
-#[event_handler(transport = "order.created", auto_register)]
+#[event_handler(transport = "order.created")]
 async fn on_order_created(event: OrderCreated, events: Arc<EventClient>) {
     // Emit multiple downstream events in sequence
     events.emit("inventory.reserve", &ReserveInventory {
@@ -251,7 +476,7 @@ async fn on_order_created(event: OrderCreated, events: Arc<EventClient>) {
 
 ### Registering many handlers in the module
 
-Each `#[event_handler(auto_register)]` generates a `__EventHandlerAuto_<fn>` struct. List all of them in `async_init`:
+Each `#[event_handler]` generates a `__EventHandlerAuto_<fn>` struct (auto-register is the default). List all of them in `async_init`:
 
 ```rust
 #[derive(Module)]
@@ -307,7 +532,7 @@ pub struct PaymentServiceModule;
 
 // ── Consume: order.created → produce: payment.completed ──
 
-#[event_handler(transport = "order.created", auto_register)]
+#[event_handler(transport = "order.created")]
 async fn on_order_created(event: OrderCreated, events: Arc<EventClient>) {
     tracing::info!(
         "processing payment for order {} ({}{})",
@@ -370,7 +595,7 @@ pub struct NotificationServiceModule;
 
 // ── Consume: payment.completed → produce: notification.sent ──
 
-#[event_handler(transport = "payment.completed", auto_register)]
+#[event_handler(transport = "payment.completed")]
 async fn on_payment_completed(event: PaymentCompleted, events: Arc<EventClient>) {
     tracing::info!(
         "sending notification for order {}...",
@@ -724,7 +949,7 @@ Events that return `Err` are silently dropped by the transport. Implement a retr
 When a handler both consumes an event and emits a new one, wrap the emit in error handling:
 
 ```rust
-#[event_handler(transport = "order.created", auto_register)]
+#[event_handler(transport = "order.created")]
 async fn on_order_created(event: OrderCreated, events: Arc<EventClient>) {
     if let Err(e) = events.emit("payment.completed", &PaymentCompleted { /* ... */ }).await {
         tracing::error!(
@@ -747,7 +972,7 @@ The `OnApplicationShutdown` lifecycle hook on `EventClient` and `EventServer` ha
 Add tracing to every handler:
 
 ```rust
-#[event_handler(transport = "order.created", auto_register)]
+#[event_handler(transport = "order.created")]
 async fn on_order_created(event: OrderCreated) {
     let span = tracing::info_span!("handle_order_created", order_id = %event.order_id);
     let _guard = span.enter();

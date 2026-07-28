@@ -48,12 +48,6 @@ impl ItemsController {
         Ok(format!("{id}:{name}"))
     }
 
-    #[post]
-    async fn post(&self, #[body] value: String) -> Result<String, HttpError> { Ok(value) }
-
-    #[put]
-    async fn put(&self, #[query] value: String) -> Result<String, HttpError> { Ok(value) }
-
     #[patch]
     async fn patch(&self) -> Result<(), HttpError> { Ok(()) }
 

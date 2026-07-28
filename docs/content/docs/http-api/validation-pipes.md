@@ -1,6 +1,6 @@
 ---
 title: Validation & Pipes
-description: Complete guide to request validation with garde — DTO rules, custom validators, macro-based controllers, and error handling.
+description: Complete guide to request validation with garde — DTO rules, auto-validation via `#[routes]`, custom validators, and error handling.
 ---
 
 # Validation & Pipes
@@ -8,7 +8,7 @@ description: Complete guide to request validation with garde — DTO rules, cust
 ## What you'll learn
 
 - Add validation rules to DTOs using `#[garde]` attributes
-- Apply `ValidationPipe` via attribute-based controllers, route-level pipes, and controller-level pipes
+- `#[routes]` macro auto-validates `#[body]`, `#[form]`, and `#[query]` parameters
 - Write custom validation rules
 - Handle validation errors with proper HTTP responses
 - Validate path params, query params, and headers too
@@ -20,7 +20,6 @@ description: Complete guide to request validation with garde — DTO rules, cust
 ```toml
 # Cargo.toml
 ironic = { features = ["validation"] }
-garde = "0.23"
 ```
 
 ```rust
@@ -39,6 +38,20 @@ pub struct CreateUserDto {
     pub bio: Option<String>,
 }
 ```
+
+---
+
+## How Auto-Validation Works
+
+When the `validation` feature is enabled, the `#[routes]` macro automatically inserts a [`validate_for::<T>()`](#validate_for-api) pipe for every `#[body]`, `#[form]`, and `#[query]` parameter. You don't need to add `#[pipe(validate)]` or call `.validate()` manually — it happens after deserialization and before the handler runs.
+
+| Parameter attribute | Auto-validated? | Requires `T: garde::Validate` |
+|---------------------|-----------------|------------------------------|
+| `#[body]` | Always | Yes (when `validation` feature is on) |
+| `#[form]` | Always | Yes (when `validation` feature is on) |
+| `#[query]` | Always | Yes (when `validation` feature is on) |
+| `#[param]` | No | — |
+| `#[header]` | No | — |
 
 ---
 
@@ -78,11 +91,9 @@ pub struct CreateUserDto {
 
 ---
 
-## Approach 1: Macro-Based Controllers
+## Usage
 
-The simplest approach — just derive `Validate` and the framework handles it.
-
-### Step 1: Define your DTO
+### 1. Define your DTO
 
 ```rust
 use garde::Validate;
@@ -101,7 +112,9 @@ pub struct CreateProductDto {
 }
 ```
 
-### Step 2: Use in your controller
+> Every field must have a rule or `#[garde(skip)]`. Fields without a `#[garde]` attribute are still validated by garde's default rules.
+
+### 2. Use in your controller
 
 ```rust
 #[controller("/products")]
@@ -122,97 +135,70 @@ impl ProductsController {
 }
 ```
 
-> The `#[body]` extractor auto-applies `ValidationPipe` when the `validation` feature is enabled and the DTO derives `Validate`.
+The `#[routes]` macro generates a `validate_for::<CreateProductDto>()` pipe internally. No manual piping or `.validate()` calls needed.
 
-### Step 3: Test validation
+### 3. Test validation
 
 ```bash
 curl -X POST http://localhost:3000/products \
   -H "Content-Type: application/json" \
   -d '{"title": "", "price": -1}'
 
-# → 400 Bad Request
+# → 422 Unprocessable Entity
 # { "error": "VALIDATION_FAILED", "message": "title: length must be at least 1. price: must be at least 0.01" }
+```
+
+### 4. Query & Form validation
+
+Auto-validation works for `#[form]` and `#[query]` too:
+
+```rust
+#[routes]
+impl ProductsController {
+    #[get("/search")]
+    async fn search(
+        &self,
+        #[query] filters: ProductFilterDto,  // ← validated automatically
+    ) -> Result<Json<Vec<Product>>, HttpError> {
+        Ok(Json(self.service.search(filters)))
+    }
+
+    #[post("/import")]
+    async fn import(
+        &self,
+        #[form] batch: ProductBatchDto,  // ← validated automatically
+    ) -> Result<Json<ImportReport>, HttpError> {
+        Ok(Json(self.service.import(batch)))
+    }
+}
 ```
 
 ---
 
-## Approach 2: Route-Level Pipe
+## `validate_for()` API
 
-Attach `ValidationPipe` to a specific route handler's parameter:
+The auto-validation uses the `validate_for::<T>()` function, which creates a typed [`ParameterPipe`](../fundamentals/pipes).
 
 ```rust
-use ironic::prelude::*;
-use std::sync::Arc;
+use ironic::validate_for;
 
-#[controller("/products")]
-#[derive(Injectable)]
-pub struct ProductsController {
-    service: Arc<ProductsService>,
-}
-
-#[routes]
-impl ProductsController {
-    #[post("/")]
-    async fn create(
-        &self,
-        #[body] #[pipe(ValidationPipe)] dto: CreateProductDto,
-    ) -> Result<Json<Product>, HttpError> {
-        Ok(Json(self.service.create(dto)))
-    }
-}
+// Creates a pipe that calls garde::Validate::validate on the value
+let pipe: Arc<dyn ParameterPipe> = validate_for::<CreateProductDto>();
 ```
 
-## Approach 3: Controller-Level Pipe
+| Feature flag | Behavior |
+|-------------|----------|
+| `validation` enabled | Calls `garde::Validate::validate(&value)`, returns `422 VALIDATION_FAILED` on failure |
+| `validation` disabled | No-op pipe — passes value through unchanged |
 
-Define the controller with `#[controller]` and register the pipe via builder:
-
-```rust
-// Controller definition
-#[controller("/products")]
-#[derive(Injectable)]
-pub struct ProductsController {
-    service: Arc<ProductsService>,
-}
-
-#[routes]
-impl ProductsController {
-    #[post("/")]
-    async fn create(
-        &self,
-        #[body] dto: CreateProductDto,
-    ) -> Result<Json<Product>, HttpError> {
-        Ok(Json(self.service.create(dto)))
-    }
-}
-
-// Apply pipe to every route when registering the module:
-use ironic::{Module, ControllerDefinition};
-use std::sync::Arc;
-
-#[derive(Module)]
-#[module(custom_setup)]
-struct ProductsModule;
-
-impl ProductsModule {
-    fn custom_setup(definition: ModuleDefinition) -> ModuleDefinition {
-        definition.override_controller::<ProductsController>(
-            ControllerDefinition::from_type::<ProductsController>()
-                .pipe(Arc::new(ValidationPipe)),
-        )
-    }
-}
-```
-
-## Approach 4: Application-Level Pipe
-
-Apply to ALL routes everywhere:
+You can use `validate_for` manually in hand-written route definitions:
 
 ```rust
-use ironic::CompiledHttpApplication;
-
-let app = CompiledHttpApplication::new(container, routes)
-    .pipe(Arc::new(ValidationPipe));
+RouteDefinition::post("/products")
+    .parameter_with_pipe(
+        JsonBody::<CreateProductDto>::new(),
+        validate_for::<CreateProductDto>(),
+    )
 ```
 
 ---
@@ -236,7 +222,6 @@ pub struct CreateUserDto {
     pub password_confirmation: String,
 }
 
-// Context for custom validation
 struct PasswordContext {
     min_length: usize,
 }
@@ -258,16 +243,17 @@ fn validate_password_confirmation(
     value: &str,
     ctx: &PasswordContext,
 ) -> garde::Result {
-    // Compare with password field — see garde docs for field comparison
     Ok(())
 }
 ```
+
+Custom validation functions work with auto-validation — just derive `Validate` with `#[garde(context(...))]` and the `#[routes]` macro picks it up automatically.
 
 ---
 
 ## Validating Path Params & Query Params
 
-Validation works everywhere — not just bodies:
+Path params and headers aren't auto-validated (they're parsed by `FromStr`), but parsing pipes handle conversion and validation:
 
 ```rust
 use ironic::ParseIntPipe;
@@ -277,7 +263,7 @@ impl Controller {
     #[get("/:id")]
     async fn get(
         &self,
-        #[param] #[pipe(ParseIntPipe)] id: u64,  // ← validates and converts
+        #[param] #[pipe(ParseIntPipe)] id: u64,
     ) -> Result<Json<User>, HttpError> {
         // id is guaranteed to be a valid u64
     }
@@ -301,6 +287,8 @@ impl Controller {
 | `ParseFloatPipe` | String → `f64` | `?price=9.99` |
 | `ParseBoolPipe` | String → `bool` | `?active=true` |
 | `ParseUUIDPipe` | String → `Uuid` | `/users/uuid-value` |
+
+Parsing pipes also work on `#[param]`, `#[header]`, and custom decorators.
 
 ---
 
@@ -335,6 +323,8 @@ pub struct OrderItemDto {
 }
 ```
 
+Nested validation applies automatically through `validate_for` — no extra configuration needed.
+
 ---
 
 ## Validation Error Format
@@ -344,17 +334,19 @@ Every validation failure returns:
 ```json
 {
   "error": "VALIDATION_FAILED",
-  "message": "Validation failed: title: length must be at least 1. price: must be at least 0.01"
+  "message": "title: length must be at least 1. price: must be at least 0.01"
 }
 ```
 
-**Status code:** `400 Bad Request`
+**Status code:** `422 Unprocessable Entity`
 
 ### Custom Error Mapping
 
-Transform validation errors into structured field errors:
+Transform validation errors into structured field errors via [`ExceptionFilter`](./exception-filters):
 
 ```rust
+use ironic::{ExceptionFilter, FilterContext, HttpError, HttpStatus, Response};
+
 struct ValidationErrorFilter;
 
 impl ExceptionFilter for ValidationErrorFilter {
@@ -365,7 +357,7 @@ impl ExceptionFilter for ValidationErrorFilter {
     ) -> Result<Response, HttpError> {
         if error.code() == "VALIDATION_FAILED" {
             Ok(Response::json(
-                HttpStatus::BAD_REQUEST,
+                HttpStatus::UNPROCESSABLE_ENTITY,
                 &serde_json::json!({
                     "error": "VALIDATION_FAILED",
                     "fields": {
@@ -380,6 +372,24 @@ impl ExceptionFilter for ValidationErrorFilter {
         }
     }
 }
+```
+
+Register it at the route, controller, or application level:
+
+```rust
+// Route-level
+#[routes]
+impl MyController {
+    #[post]
+    #[exception_filter(ValidationErrorFilter)]
+    async fn create(&self, #[body] dto: MyDto) -> Result<Json<View>, HttpError> {
+        // ...
+    }
+}
+
+// Or application-level in main.rs
+let app = CompiledHttpApplication::new(container, routes)
+    .exception_filter(Arc::new(ValidationErrorFilter));
 ```
 
 ---
@@ -430,20 +440,22 @@ impl UserController {
 
 | Mistake | Fix |
 |---------|-----|
-| DTO doesn't derive `Validate` | Add `#[derive(Validate)]` |
+| DTO doesn't derive `Validate` | Add `#[derive(Validate)]` to the DTO struct |
+| `validation` feature not enabled | `ironic = { features = ["validation"] }` in `Cargo.toml` |
 | Missing `#[garde]` on every field | Add a rule or `#[garde(skip)]` to every field |
-| `garde` crate not in Cargo.toml | `cargo add garde` |
-| `validation` feature not enabled | `ironic = { features = ["validation"] }` |
+| Forgot `#[garde(dive)]` on nested structs | Nested structs need `dive` to recurse validation |
 | Wrong type for `range` | `range` works on numbers; `length` works on strings |
-| Forgot `#[garde(dive)]` on nested structs | Nested structs need `dive` to recurse |
+| Using `String` directly as `#[body]` | Wrap in a DTO struct with `#[derive(Validate)]` |
+
+---
 
 ## What you learned
 
 - [x] Add `#[garde]` rules to any DTO with `#[derive(Validate)]`
-- [x] Macro-based controllers auto-validate `#[body]` parameters
-- [x] Route-level pipe via `#[pipe(ValidationPipe)]` on handler parameters
+- [x] `#[routes]` macro auto-validates `#[body]`, `#[form]`, and `#[query]` via `validate_for`
+- [x] Manual `validate_for::<T>()` for hand-written route definitions
 - [x] Custom validators for business logic beyond struct rules
 - [x] Parse pipes for path/query params: `ParseIntPipe`, `ParseFloatPipe`, `ParseBoolPipe`
 - [x] Nested validation with `#[garde(dive)]`
-- [x] Consistent `VALIDATION_FAILED` error at 400
+- [x] Consistent `VALIDATION_FAILED` error at 422
 - [x] Custom error mapping via `ExceptionFilter`

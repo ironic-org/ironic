@@ -69,6 +69,16 @@ pub struct TransportConfig {
     pub topic: String,
     /// Consumer group ID (ignored by non-Kafka transports).
     pub group_id: String,
+    /// When `true`, new consumer groups start from the latest offset
+    /// (skip old messages). When `false`, replay all messages
+    /// from the earliest offset. Default: `false`.
+    pub fetch_latest: bool,
+    /// Channel capacity for in-memory transport (ignored by Kafka/Redis).
+    /// Default: `16`.
+    pub inmemory_capacity: usize,
+    /// Poll interval in milliseconds for the Kafka reply consumer.
+    /// Default: `1000`.
+    pub kafka_poll_interval_ms: u64,
 }
 
 impl Default for TransportConfig {
@@ -78,6 +88,12 @@ impl Default for TransportConfig {
             brokers: std::env::var("KAFKA_BROKERS").unwrap_or_else(|_| "127.0.0.1:9092".into()),
             topic: std::env::var("KAFKA_TOPIC").unwrap_or_else(|_| "ironic-events".into()),
             group_id: std::env::var("KAFKA_GROUP_ID").unwrap_or_else(|_| "default".into()),
+            fetch_latest: std::env::var("KAFKA_FETCH_LATEST")
+                .ok().map(|v| v == "true" || v == "1").unwrap_or(false),
+            inmemory_capacity: std::env::var("KAFKA_INMEMORY_CAPACITY")
+                .ok().and_then(|v| v.parse().ok()).unwrap_or(16),
+            kafka_poll_interval_ms: std::env::var("KAFKA_POLL_INTERVAL_MS")
+                .ok().and_then(|v| v.parse().ok()).unwrap_or(1000),
         }
     }
 }
@@ -168,6 +184,8 @@ fn create_transport_client(config: &TransportConfig) -> TransportClient {
         TransportKind::Kafka => TransportClient::Kafka(KafkaClient::new(KafkaClientConfig {
             brokers: config.brokers.clone(),
             topic: config.topic.clone(),
+            fetch_latest: config.fetch_latest,
+            poll_interval_ms: config.kafka_poll_interval_ms,
         })),
         #[cfg(feature = "transport-redis")]
         TransportKind::Redis => TransportClient::Redis(RedisClient::new(RedisClientConfig {
@@ -175,7 +193,7 @@ fn create_transport_client(config: &TransportConfig) -> TransportClient {
             ..Default::default()
         })),
         TransportKind::InMemory => {
-            let (client, _server) = InMemoryServer::pair(16);
+            let (client, _server) = InMemoryServer::pair(config.inmemory_capacity);
             TransportClient::InMemory(client)
         }
     }
@@ -188,6 +206,7 @@ fn create_transport_server(config: &TransportConfig) -> Arc<dyn MicroserviceServ
             brokers: config.brokers.clone(),
             topic: config.topic.clone(),
             group_id: config.group_id.clone(),
+            fetch_latest: config.fetch_latest,
         })),
         #[cfg(feature = "transport-redis")]
         TransportKind::Redis => Arc::new(RedisServer::new(RedisServerConfig {
@@ -195,7 +214,7 @@ fn create_transport_server(config: &TransportConfig) -> Arc<dyn MicroserviceServ
             ..Default::default()
         })),
         TransportKind::InMemory => {
-            let (_client, server) = InMemoryServer::pair(16);
+            let (_client, server) = InMemoryServer::pair(config.inmemory_capacity);
             Arc::new(server)
         }
     }

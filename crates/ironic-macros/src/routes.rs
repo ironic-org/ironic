@@ -438,6 +438,7 @@ fn take_extractor(
                         "a route parameter must have exactly one extractor attribute",
                     ));
                 }
+                pipes.push(quote!(::ironic::validate_for::<#argument_type>()));
             }
             "form" => {
                 let value = quote!(::ironic::FormBody::<#argument_type>::new());
@@ -447,6 +448,7 @@ fn take_extractor(
                         "a route parameter must have exactly one extractor attribute",
                     ));
                 }
+                pipes.push(quote!(::ironic::validate_for::<#argument_type>()));
             }
             "query" => {
                 let value = quote!(::ironic::QueryParameters::<#argument_type>::new());
@@ -456,6 +458,7 @@ fn take_extractor(
                         "a route parameter must have exactly one extractor attribute",
                     ));
                 }
+                pipes.push(quote!(::ironic::validate_for::<#argument_type>()));
             }
             "param" => {
                 let name = optional_name(&attr, argument_name)?;

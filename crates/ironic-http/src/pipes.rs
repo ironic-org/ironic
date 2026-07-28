@@ -5,7 +5,9 @@
 
 use std::sync::Arc;
 
-use crate::{ExtractedValue, HttpError, HttpStatus, ParameterPipe, PipeFuture, RequestContext};
+use crate::{
+    ExtractedValue, HttpError, HttpStatus, ParameterPipe, PipeFuture, RequestContext, pipe_fn,
+};
 
 /// Parses a string parameter into an `i64`.
 ///
@@ -230,6 +232,37 @@ pub fn parse_uuid() -> Arc<dyn ParameterPipe> {
 #[must_use]
 pub fn validate() -> Arc<dyn ParameterPipe> {
     Arc::new(ValidationPipe)
+}
+
+/// Creates a typed validation pipe using `garde::Validate`.
+///
+/// When the `validation` feature is disabled, this is a no-op pipe
+/// that passes the value through unchanged.
+///
+/// When the `validation` feature is enabled, the pipe calls
+/// [`garde::Validate::validate`] on the extracted value and returns
+/// a 422 [`HttpError`] with code `"VALIDATION_FAILED"` on failure.
+#[cfg(feature = "validation")]
+#[must_use]
+pub fn validate_for<T>() -> Arc<dyn ParameterPipe>
+where
+    T: garde::Validate + Send + Sync + 'static,
+    <T as garde::Validate>::Context: Default,
+{
+    pipe_fn(|value: T| {
+        use garde::Validate;
+        Validate::validate(&value).map_err(|report| {
+            HttpError::unprocessable_entity("VALIDATION_FAILED", report.to_string())
+        })?;
+        Ok(value)
+    })
+}
+
+/// Creates a typed validation pipe (no-op without `validation` feature).
+#[cfg(not(feature = "validation"))]
+#[must_use]
+pub fn validate_for<T: Send + Sync + 'static>() -> Arc<dyn ParameterPipe> {
+    pipe_fn(|value: T| Ok(value))
 }
 
 #[cfg(test)]

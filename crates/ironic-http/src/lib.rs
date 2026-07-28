@@ -43,6 +43,7 @@ pub use pipeline::{
     Guard, GuardDecision, GuardFuture, Interceptor, InterceptorNext, Middleware, MiddlewareNext,
     ParameterPipe, PipeFuture, PipelineComponents, PipelineFuture, pipe_fn,
 };
+pub use pipes::validate_for;
 pub use pipes::{ParseBoolPipe, ParseFloatPipe, ParseIntPipe, parse_bool, parse_float, parse_int};
 #[cfg(feature = "uuid")]
 pub use pipes::{ParseUUIDPipe, parse_uuid};

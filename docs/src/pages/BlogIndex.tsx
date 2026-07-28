@@ -13,6 +13,14 @@ type Post = {
 
 const posts: Post[] = [
     {
+        slug: 'v1.2.7',
+        title: 'v1.2.7 — Auto-validation pipe ;  macro now automatically validates , ,  via ',
+        description: 'Auto-validation pipe ;  macro now automatically validates , ,  via ',
+        date: '2026-07-28',
+        tag: 'release',
+        readTime: '2 min',
+    },
+    {
         slug: 'v1.2.6',
         title: 'v1.2.6 — #[event_handler] auto_register is now default — use manual_register to opt out',
         description: '#[event_handler] auto_register is now default — use manual_register to opt out',

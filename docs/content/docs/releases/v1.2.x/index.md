@@ -9,6 +9,13 @@ All versions in the v1.2.x series. Visit the [Blog](/blog) for detailed release 
 
 ---
 
+## v1.2.7 — 2026-07-28
+
+# v1.2.7
+### Added
+- Auto-validation pipe ;  macro now automatically validates , ,  via
+
+---
 ## v1.2.6 — 2026-07-28
 
 # v1.2.6

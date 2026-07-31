@@ -740,6 +740,9 @@ async fn transport_provider_resolves_from_container() {
         brokers: "test".into(),
         topic: "test".into(),
         group_id: "test".into(),
+        fetch_latest: false,
+        inmemory_capacity: 16,
+        kafka_poll_interval_ms: 1000,
     };
 
     let mut builder = ContainerBuilder::new();

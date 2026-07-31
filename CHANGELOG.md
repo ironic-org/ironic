@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v1.2.8] - 2026-08-01
+
+### Added
+- add fetch_latest and poll_interval_ms to KafkaClientConfig and TransportConfig (6a91e13)
+
+### Fixed
+- improve TCP socket binding error handling in AxumApplication (01f2df3)
+
+
 ## [v1.2.7] - 2026-07-28
 ### Added
 - Auto-validation pipe ;  macro now automatically validates , ,  via 

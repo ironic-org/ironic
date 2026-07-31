@@ -13,6 +13,14 @@ type Post = {
 
 const posts: Post[] = [
     {
+        slug: 'v1.2.8',
+        title: 'v1.2.8 — add fetch_latest and poll_interval_ms to KafkaClientConfig and TransportConfig',
+        description: 'add fetch_latest and poll_interval_ms to KafkaClientConfig and TransportConfig',
+        date: '2026-08-01',
+        tag: 'release',
+        readTime: '2 min',
+    },
+    {
         slug: 'v1.2.7',
         title: 'v1.2.7 — Auto-validation pipe ;  macro now automatically validates , ,  via ',
         description: 'Auto-validation pipe ;  macro now automatically validates , ,  via ',

@@ -408,3 +408,16 @@ impl SagaStep<MyState> for MyStep {
 |-------------|-------|------|
 | `SagaError::execute(step, msg)` | `EXECUTE` | Step failed — compensating previous steps |
 | `SagaError::compensate(step, msg)` | `COMPENSATE` | Rollback failed — manual recovery needed |
+
+## Feature flags
+
+| Flag | Enables |
+|------|---------|
+| `sagas` | `Saga<S>`, `SagaStep<S>` trait, `SagaError` |
+
+## Common mistakes
+
+| Mistake | Fix |
+|---------|-----|
+| Compensation panics | Ensure `compensate()` is idempotent — it may be called multiple times |
+| State shared across steps | Use a single mutable state struct; each step reads/writes the fields it owns |

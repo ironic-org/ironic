@@ -70,6 +70,6 @@ Redis, RabbitMQ, Kafka, TCP, or custom backends.
 
 ## See Also
 
-- [`#[event_handler]`](../event-handler) — fire-and-forget event handlers
-- [Microservices Overview](../microservices) — architecture and setup
-- [Transport Configuration](../message-transports) — backend settings
+- [`#[event_handler]`](../transport/events) — fire-and-forget event handlers
+- [Microservices Overview](./microservices) — architecture and setup
+- [Transport Configuration](./message-transports) — backend settings

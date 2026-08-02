@@ -1,0 +1,15 @@
+{
+  "title": "Distributed Systems",
+  "pages": [
+    "overview",
+    "microservices",
+    "message-handler",
+    "message-transports",
+    "events",
+    "queues",
+    "sagas",
+    "hybrid-application",
+    "dead-letter-queue",
+    "outbox"
+  ]
+}

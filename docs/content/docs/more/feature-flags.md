@@ -52,10 +52,11 @@ Every feature flag in `Cargo.toml` (58 total), organized by category.
 ## Distributed Systems
 | Flag | Enables |
 |------|---------|
-| `queues` | Message queue abstractions — [`Queues`](../performance/queues) |
+| `queues` | Message queue abstractions — [`Queues`](../distributed/queues) |
+| `outbox` | Transactional outbox + inbox — [`Outbox`](../distributed/outbox) |
 | `microservices` | Microservice patterns |
 | `cqrs` | Command Query Responsibility Segregation |
-| `sagas` | Saga orchestration patterns — [`Sagas`](../performance/sagas) |
+| `sagas` | Saga orchestration patterns — [`Sagas`](../distributed/sagas) |
 | `grpc` | gRPC server/client (via `tonic`) |
 | `graphql` | GraphQL server (via `async-graphql`) |
 | `distributed` | Bundled: `queues`, `microservices`, `cqrs`, `sagas`, `grpc`, `graphql` |

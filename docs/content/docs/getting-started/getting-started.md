@@ -282,4 +282,4 @@ Now that you have a working API, learn how everything fits together:
 
 → [Project Structure](./project-structure) — every file and folder explained
 
-→ [Fundamentals: Modules, Controllers, Services & DI](./fundamentals)
+→ [Fundamentals: Modules, Controllers, Services & DI](/docs/fundamentals/overview)

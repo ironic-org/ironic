@@ -330,6 +330,8 @@ marker_attribute!(
     forward_ref,
     raw_body,
     cookie,
+    outbox,
+    inbox,
 );
 
 /// Wraps an async test function with Ironic's Tokio runtime, removing the

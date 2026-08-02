@@ -15,17 +15,18 @@ This documentation walks you through every feature step by step:
 
 | Section | What you'll build |
 |---------|-------------------|
-| [Getting Started](./getting-started) | Install the CLI, create your first project, and see it running in 60 seconds |
-| [Project Structure](./project-structure) | Every file and folder explained — how modules, controllers, services, and repositories connect |
-| [Core Concepts](./fundamentals) | Understand Modules, Controllers, Services, and Dependency Injection — the 4 building blocks |
-| [CLI Reference](./cli) | Master the command-line tools for scaffolding, generating code, and inspecting your app |
-| [Configuration](./configuration) | Load settings from files, environment variables, and keep secrets safe |
-| [HTTP & API](./api-versioning) | Routes, versioning, validation, error handling, serialization, compression, and OpenAPI |
-| [Security](./security) | CORS, rate limiting, CSRF protection, and security headers |
-| [Database & Auth](./database-integrations) | Connect to PostgreSQL, MySQL, MongoDB, Redis. Add login with JWT, OAuth, or sessions |
-| [Performance](./cache-decorators) | Caching, background jobs, cron scheduling, and distributed systems |
-| [Advanced](./websocket-gateways) | WebSockets, custom decorators, plugins, and devtools |
-| [Observability](./observability) | Metrics, tracing, and production monitoring |
+| [Getting Started](/docs/getting-started/getting-started) | Install the CLI, create your first project, and see it running in 60 seconds |
+| [Project Structure](/docs/project-structure/overview) | Every file and folder explained — how modules, controllers, services, and repositories connect |
+| [Core Concepts](/docs/fundamentals/overview) | Understand Modules, Controllers, Services, and Dependency Injection — the 4 building blocks |
+| [CLI Reference](/docs/getting-started/cli) | Master the command-line tools for scaffolding, generating code, and inspecting your app |
+| [Configuration](/docs/configuration/overview) | Load settings from files, environment variables, and keep secrets safe |
+| [HTTP & API](/docs/http-api/api-versioning) | Routes, versioning, validation, error handling, serialization, compression, and OpenAPI |
+| [Security](/docs/http-api/security) | CORS, rate limiting, CSRF protection, and security headers |
+| [Database & Auth](/docs/data-auth/database-integrations) | Connect to PostgreSQL, MySQL, MongoDB, Redis. Add login with JWT, OAuth, or sessions |
+| [Performance](/docs/performance/cache-decorators) | Caching, background jobs, and cron scheduling |
+| [Distributed Systems](/docs/distributed/overview) | Microservices, queues, sagas, events, and the transactional outbox |
+| [Advanced](/docs/advanced/sessions) | Sessions, multipart uploads, static files, and devtools plugins |
+| [Observability](/docs/observability/overview) | Metrics, tracing, and production monitoring |
 
 ## How Ironic compares
 

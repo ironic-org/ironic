@@ -80,7 +80,7 @@ Application::builder()
 
 ## Pattern Reference
 
-- [`#[message_handler("pattern")]`](../message-handler) — request-response handler
-- [`#[event_handler("pattern")]`](../event-handler) — event handler (fire-and-forget)
+- [`#[message_handler("pattern")]`](./message-handler) — request-response handler
+- [`#[event_handler("pattern")]`](../transport/events) — event handler (fire-and-forget)
 - [Transport Configuration](./message-transports) — backend-specific settings
-- [Distributed Tracing](./distributed-tracing) — W3C trace context propagation
+- [Distributed Tracing](../observability/distributed-tracing) — W3C trace context propagation

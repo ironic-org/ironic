@@ -16,14 +16,21 @@ Framework documentation lives under `content/docs`. `meta.json` controls sidebar
 content/docs/
 ├── meta.json                  # Top-level category ordering
 ├── getting-started/
-├── core/                      # Fundamentals, DI, lifecycle, macros, lifetimes
+├── project-structure/
+├── fundamentals/              # Modules, providers, DI, pipes, request lifecycle
+├── core/                      # DI, lifecycle, macros, lifetimes
+├── lifecycle/                 # Lifecycle hooks
+├── configuration/
 ├── modules/
-├── data-auth/
 ├── http-api/                  # Middleware, guards, interceptors, security, etc.
-├── performance/
-├── advanced/
-├── testing/
+├── transport/                 # HTTP, WebSocket, GraphQL, OpenAPI, MCP, SSE
+├── distributed/               # Microservices, queues, sagas, events, outbox
+├── middleware/
+├── data-auth/
+├── performance/               # Caching, scheduling
 ├── observability/             # Metrics, tracing, health checks
+├── testing/
+├── advanced/
 └── more/                      # Deployment, FAQ, examples, benchmarks
 ```
 

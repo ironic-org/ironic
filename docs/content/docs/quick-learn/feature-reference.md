@@ -88,6 +88,7 @@ ironic = { version = "1.1", features = ["..."] }
 |---------|-------------|---------------------|
 | `queues` | Redis-backed job queues | `redis` |
 | `events` | Event bus (in-process) | (internal module) |
+| `outbox` | Transactional outbox + inbox | (internal module) |
 | `cqrs` | CQRS pattern support | (internal module) |
 | `sagas` | Saga orchestration | (internal module) |
 | `microservices` | Microservice scaffolding | (internal module) |

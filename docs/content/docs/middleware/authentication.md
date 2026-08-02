@@ -7,6 +7,10 @@ description: Authenticate requests with AuthenticationMiddleware — extract pri
 
 `AuthenticationMiddleware` extracts an authenticated principal from every request and stores it in the request context. Guards then check whether the principal is allowed to access a route.
 
+> **Middleware vs features:** This page covers the middleware that extracts
+> principals. For the underlying auth features — password hashing, JWT issuance,
+> OAuth2, sessions — see [Authentication (Data & Auth)](/docs/data-auth/authentication).
+
 ## How it works
 
 1. `AuthenticationMiddleware` runs on every request.

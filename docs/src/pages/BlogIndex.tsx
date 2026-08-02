@@ -1,6 +1,6 @@
 import { ArrowRight, Calendar, Clock, GitBranch, Layers, Sparkles, Star } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { GITHUB_URL, LATEST_VERSION_LABEL } from '@/lib/constants';
+import { GITHUB_URL } from '@/lib/constants';
 
 type Post = {
     slug: string;
@@ -12,254 +12,6 @@ type Post = {
 };
 
 const posts: Post[] = [
-    {
-        slug: 'v1.2.8',
-        title: 'v1.2.8 — add fetch_latest and poll_interval_ms to KafkaClientConfig and TransportConfig',
-        description: 'add fetch_latest and poll_interval_ms to KafkaClientConfig and TransportConfig',
-        date: '2026-08-01',
-        tag: 'release',
-        readTime: '2 min',
-    },
-    {
-        slug: 'v1.2.7',
-        title: 'v1.2.7 — Auto-validation pipe ;  macro now automatically validates , ,  via ',
-        description: 'Auto-validation pipe ;  macro now automatically validates , ,  via ',
-        date: '2026-07-28',
-        tag: 'release',
-        readTime: '2 min',
-    },
-    {
-        slug: 'v1.2.6',
-        title: 'v1.2.6 — #[event_handler] auto_register is now default — use manual_register to opt out',
-        description: '#[event_handler] auto_register is now default — use manual_register to opt out',
-        date: '2026-07-28',
-        tag: 'release',
-        readTime: '2 min',
-    },
-    {
-        slug: 'v1.2.5',
-        title: 'v1.2.5 — clippy warnings (borrowed_box, collapsible_if, map_unwrap_or, used_underscore_binding)',
-        description: 'clippy warnings (borrowed_box, collapsible_if, map_unwrap_or, used_underscore_binding)',
-        date: '2026-07-28',
-        tag: 'release',
-        readTime: '2 min',
-    },
-    {
-        slug: 'v1.2.4',
-        title: 'v1.2.4 — EventClient injection in #[event_handler(transport, auto_register)] — handlers can receive Arc<EventClient> as second pa',
-        description: 'EventClient injection in #[event_handler(transport, auto_register)] — handlers can receive Arc<EventClient> as second pa',
-        date: '2026-07-28',
-        tag: 'release',
-        readTime: '2 min',
-    },
-    {
-        slug: 'v1.2.3',
-        title: 'v1.2.3 — Transport-agnostic EventClient/EventServer DI providers with auto-connect/listen lifecycle, TransportConfig/TransportKin',
-        description: 'Transport-agnostic EventClient/EventServer DI providers with auto-connect/listen lifecycle, TransportConfig/TransportKin',
-        date: '2026-07-28',
-        tag: 'release',
-        readTime: '2 min',
-    },
-    {
-        slug: 'v1.2.2',
-        title: 'v1.2.2 — add support for GraphQL and gRPC resource generation in resource module',
-        description: 'add support for GraphQL and gRPC resource generation in resource module',
-        date: '2026-07-27',
-        tag: 'release',
-        readTime: '2 min',
-    },
-    {
-        slug: 'v1.2.1',
-        title: 'v1.2.1 — add serde dependency for serialization in GraphQL, gRPC, HTTP, and monorepo configurations',
-        description: 'add serde dependency for serialization in GraphQL, gRPC, HTTP, and monorepo configurations',
-        date: '2026-07-27',
-        tag: 'release',
-        readTime: '2 min',
-    },
-    {
-        slug: 'v1.2.0',
-        title: 'v1.2.0 — add serde dependency for serialization and re-export in the library',
-        description: 'add serde dependency for serialization and re-export in the library',
-        date: '2026-07-27',
-        tag: 'release',
-        readTime: '2 min',
-    },
-    {
-        slug: 'v1.1.9',
-        title: 'v1.1.9 — update dependencies and enhance GraphQL integration in project generator',
-        description: 'update dependencies and enhance GraphQL integration in project generator',
-        date: '2026-07-27',
-        tag: 'release',
-        readTime: '2 min',
-    },
-    {
-        slug: 'v1.1.8',
-        title: 'v1.1.8 — ironic generate app --grpc for gRPC microservice scaffold',
-        description: 'ironic generate app --grpc for gRPC microservice scaffold',
-        date: '2026-07-26',
-        tag: 'release',
-        readTime: '2 min',
-    },
-    {
-        slug: 'v1.1.7',
-        title: 'v1.1.7 — enhance app generation with platform module and logging configuration',
-        description: 'enhance app generation with platform module and logging configuration',
-        date: '2026-07-26',
-        tag: 'release',
-        readTime: '2 min',
-    },
-    {
-        slug: 'v1.1.6',
-        title: 'v1.1.6 — Simplify generated app template to minimal skeleton',
-        description: 'Simplify generated app template to minimal skeleton',
-        date: '2026-07-26',
-        tag: 'release',
-        readTime: '2 min',
-    },
-    {
-        slug: 'v1.1.5',
-        title: 'v1.1.5 — generate_app creates revallens-style microservice with platform/welcome/example module, per-app Dockerfile/.env, unique ',
-        description: 'generate_app creates revallens-style microservice with platform/welcome/example module, per-app Dockerfile/.env, unique ',
-        date: '2026-07-25',
-        tag: 'release',
-        readTime: '2 min',
-    },
-    {
-        slug: 'v1.1.4',
-        title: 'v1.1.4 — New app scaffolding matches RivalLens structure: multi-line #[module()], repositories/tests in module template',
-        description: 'New app scaffolding matches RivalLens structure: multi-line #[module()], repositories/tests in module template',
-        date: '2026-07-25',
-        tag: 'release',
-        readTime: '2 min',
-    },
-    {
-        slug: 'v1.1.3',
-        title: 'v1.1.3 — enhance app generation with health module and controller scaffolding',
-        description: 'enhance app generation with health module and controller scaffolding',
-        date: '2026-07-25',
-        tag: 'release',
-        readTime: '2 min',
-    },
-    {
-        slug: 'v1.1.2',
-        title: 'v1.1.2 — add package argument to CargoArgs for monorepo support and update documentation',
-        description: 'add package argument to CargoArgs for monorepo support and update documentation',
-        date: '2026-07-25',
-        tag: 'release',
-        readTime: '2 min',
-    },
-    {
-        slug: 'v1.1.1',
-        title: 'v1.1.1 — implement MQTT and NATS live transports, Federation helper, MS pipeline docs',
-        description: 'implement MQTT and NATS live transports, Federation helper, MS pipeline docs',
-        date: '2026-07-25',
-        tag: 'release',
-        readTime: '2 min',
-    },
-    {
-        slug: 'v1.1.0',
-        title: 'v1.1.0 — release.sh: prefer [Unreleased] content over git log when non-empty',
-        description: 'release.sh: prefer [Unreleased] content over git log when non-empty',
-        date: '2026-07-23',
-        tag: 'release',
-        readTime: '2 min',
-    },
-    {
-        slug: 'v1.0.9',
-        title: 'v1.0.9 — add documentation for backtrace and UUID features, and implement message queues and saga orchestration',
-        description: 'add documentation for backtrace and UUID features, and implement message queues and saga orchestration',
-        date: '2026-07-21',
-        tag: 'release',
-        readTime: '2 min',
-    },
-    {
-        slug: 'v1.0.8',
-        title: 'v1.0.8 — add pagination extractor and SQL error mapping utilities',
-        description: 'add pagination extractor and SQL error mapping utilities',
-        date: '2026-07-18',
-        tag: 'release',
-        readTime: '2 min',
-    },
-    {
-        slug: 'v1.0.7',
-        title: 'v1.0.7 — add pagination extractor and SQL error mapping utilities',
-        description: 'add pagination extractor and SQL error mapping utilities',
-        date: '2026-07-18',
-        tag: 'release',
-        readTime: '2 min',
-    },
-    {
-        slug: 'v1.0.6',
-        title: 'v1.0.6 — implement blog API example with CRUD operations and JWT authentication',
-        description: 'implement blog API example with CRUD operations and JWT authentication',
-        date: '2026-07-18',
-        tag: 'release',
-        readTime: '2 min',
-    },
-    {
-        slug: 'v1.0.5',
-        title: 'v1.0.5 — implement feature gate guard for runtime feature toggling and enhance lifecycle hooks with module load/unload callbacks',
-        description: 'implement feature gate guard for runtime feature toggling and enhance lifecycle hooks with module load/unload callbacks',
-        date: '2026-07-18',
-        tag: 'release',
-        readTime: '2 min',
-    },
-    {
-        slug: 'v1.0.4',
-        title: 'v1.0.4 — add async test macro to simplify testing without external dependencies',
-        description: 'add async test macro to simplify testing without external dependencies',
-        date: '2026-07-17',
-        tag: 'release',
-        readTime: '2 min',
-    },
-    {
-        slug: 'v1.0.3',
-        title: 'v1.0.3 — add async test macro to simplify testing without external dependencies',
-        description: 'add async test macro to simplify testing without external dependencies',
-        date: '2026-07-17',
-        tag: 'release',
-        readTime: '2 min',
-    },
-    {
-        slug: 'v1.0.2',
-        title: 'v1.0.2 — enhance release workflow with version detection and conditional execution',
-        description: 'enhance release workflow with version detection and conditional execution',
-        date: '2026-07-17',
-        tag: 'release',
-        readTime: '2 min',
-    },
-    {
-        slug: 'v1.0.1',
-        title: 'v1.0.1 — single version source of truth in docs/lib/constants.ts',
-        description: 'single version source of truth in docs/lib/constants.ts',
-        date: '2026-07-17',
-        tag: 'release',
-        readTime: '2 min',
-    },
-    {
-        slug: 'v1.0.0',
-        title: 'v1.0.0 — release v1.0.0 with CI/CD improvements, matrix testing, and blog API example',
-        description: 'release v1.0.0 with CI/CD improvements, matrix testing, and blog API example',
-        date: '2026-07-17',
-        tag: 'release',
-        readTime: '2 min',
-    },
-    {
-        slug: 'v0.5.0',
-        title: 'v0.5.0 — update alias for Decorator command from "d to de",',
-        description: 'update alias for Decorator command from "d to de",',
-        date: '2026-07-16',
-        tag: 'release',
-        readTime: '2 min',
-    },
-    {
-        slug: 'v0.4.9',
-        title: 'v0.4.9 — implement CI/CD pipeline, security auditing, and operational endpoints',
-        description: 'implement CI/CD pipeline, security auditing, and operational endpoints',
-        date: '2026-07-16',
-        tag: 'release',
-        readTime: '2 min',
-    },
     {
         slug: 'production-hardening-operational-endpoints',
         title: 'Production-hardening 2: Health probes, version endpoint, and build metadata',
@@ -274,78 +26,6 @@ const posts: Post[] = [
         description: 'GitHub Actions CI with fmt/clippy/test/docs/audit/deny on every PR. Automated release workflow triggered by tag push. cargo-audit and cargo-deny for dependency vulnerability and license compliance. Local audit script for offline checks.',
         date: 'Jul 16, 2026',
         tag: 'release',
-        readTime: '5 min',
-    },
-    {
-        slug: 'v0.4.8',
-        title: 'v0.4.8 — add database migration commands and update documentation',
-        description: 'add database migration commands and update documentation',
-        date: '2026-07-16',
-        tag: 'release',
-        readTime: '2 min',
-    },
-    {
-        slug: 'v0.4.7',
-        title: 'v0.4.7 — enhance release script and project generator for better version handling and documentation sync',
-        description: 'enhance release script and project generator for better version handling and documentation sync',
-        date: '2026-07-16',
-        tag: 'release',
-        readTime: '2 min',
-    },
-    {
-        slug: 'v0.4.6',
-        title: 'v0.4.6 — Release v0.4.6',
-        description: 'Release v0.4.6',
-        date: '2026-07-16',
-        tag: 'release',
-        readTime: '2 min',
-    },
-    {
-        slug: 'v0.4.5',
-        title: 'v0.4.5 — Release v0.4.5',
-        description: 'Release v0.4.5',
-        date: '2026-07-16',
-        tag: 'release',
-        readTime: '2 min',
-    },
-    {
-        slug: 'v0.4.4',
-        title: 'v0.4.4 — Release v0.4.4',
-        description: 'Release v0.4.4',
-        date: '2026-07-16',
-        tag: 'release',
-        readTime: '2 min',
-    },
-    {
-        slug: 'v0.4.3',
-        title: 'v0.4.3 — Release v0.4.3',
-        description: 'Release v0.4.3',
-        date: '2026-07-16',
-        tag: 'release',
-        readTime: '2 min',
-    },
-    {
-        slug: 'v0.4.2',
-        title: 'v0.4.2 — Release v0.4.2',
-        description: 'Release v0.4.2',
-        date: '2026-07-16',
-        tag: 'release',
-        readTime: '2 min',
-    },
-    {
-        slug: 'v0.4.1',
-        title: 'v0.4.1 — Release v0.4.1',
-        description: 'Release v0.4.1',
-        date: '2026-07-15',
-        tag: 'release',
-        readTime: '2 min',
-    },
-    {
-        slug: 'v0.4.0',
-        title: 'v0.4.0 — Production Readiness & Enterprise Features',
-        description: 'Multipart uploads, Redis sessions, OAuth2 callback handler, backpressure, config hot-reload, error backtraces, and 15+ documentation pages',
-        date: '2026-07-15',
-        tag: 'major',
         readTime: '5 min',
     },
     {
@@ -628,78 +308,6 @@ const posts: Post[] = [
         tag: 'deep-dive',
         readTime: '10 min',
     },
-    {
-        slug: 'v0.3.9',
-        title: 'Release automation — blog posts, comparison table, and GitHub badges',
-        description: 'Every release now auto-generates a blog post and updates the releases pages. Added framework comparison table and live GitHub star/fork counts.',
-        date: 'Jul 15, 2026',
-        tag: 'release',
-        readTime: '2 min',
-    },
-    {
-        slug: 'v0.3.8',
-        title: 'Batteries included — security, middleware, and Docker out of the box',
-        description: 'Every new project now ships with SecurityHeaders, RateLimit, and CORS middleware. The Dockerfile is production-ready with proper binary naming and SERVER_HOST=0.0.0.0.',
-        date: 'Jul 15, 2026',
-        tag: 'release',
-        readTime: '3 min',
-    },
-    {
-        slug: 'v0.3.7',
-        title: 'Global middleware arrives on ApplicationBuilder',
-        description: 'The .middleware() builder method lets you register any impl Middleware from main.rs. No more per-controller registration for app-wide concerns.',
-        date: 'Jul 15, 2026',
-        tag: 'feature',
-        readTime: '2 min',
-    },
-    {
-        slug: 'v0.3.6',
-        title: 'Validation pipes, API examples, and expanded project scaffolding',
-        description: 'Comprehensive garde validation docs, two new example apps (basic CRUD and full auth), and serde/garde/dotenvy dependencies included in every new project.',
-        date: 'Jul 15, 2026',
-        tag: 'release',
-        readTime: '3 min',
-    },
-    {
-        slug: 'v0.3.5',
-        title: 'Auth test restructuring for cleaner module organization',
-        description: 'Authentication test files reorganized with proper module imports for better maintainability.',
-        date: 'Jul 15, 2026',
-        tag: 'fix',
-        readTime: '1 min',
-    },
-    {
-        slug: 'v0.3.4',
-        title: 'Documentation site goes live with SPA fallback',
-        description: 'The docs site is deployed to GitHub Pages with .nojekyll and proper client-side routing support via 404.html fallback.',
-        date: 'Jul 15, 2026',
-        tag: 'feature',
-        readTime: '2 min',
-    },
-    {
-        slug: 'v0.3.3',
-        title: 'Smart code generation — auto-add dependencies on scaffold',
-        description: 'ironic generate now automatically adds required crates to Cargo.toml when scaffolding new modules. No more manual dependency edits.',
-        date: 'Jul 15, 2026',
-        tag: 'feature',
-        readTime: '2 min',
-    },
-    {
-        slug: 'v0.3.0',
-        title: 'First stable release — the complete Rust application framework',
-        description: 'Module graph compiler, DI container, controller routing, request pipeline, CLI generator, socket-free testing, and lifecycle hooks — all built on Axum with zero-cost compile-time feature flags.',
-        date: 'Jul 15, 2026',
-        tag: 'major',
-        readTime: '5 min',
-    },
-    {
-        slug: 'v0.1.x-v0.2.x',
-        title: 'The pre-release journey — from 9-crate workspace to full framework',
-        description: 'How Ironic evolved from the first public release through 19 iterations: authentication modules, file upload, email, ready-resource generators, and NestJS feature parity.',
-        date: 'Jul 14, 2026',
-        tag: 'major',
-        readTime: '4 min',
-    },
 ];
 
 const tagStyles: Record<Post['tag'], { icon: React.ReactNode; className: string }> = {
@@ -739,20 +347,13 @@ export default function BlogIndex() {
                 </div>
                 <div className="max-w-7xl mx-auto px-6 py-20 md:py-28 relative">
                     <div className="max-w-2xl">
-                        <div className="inline-flex items-center gap-2 rounded-full border border-fd-border bg-fd-card/60 px-4 py-1.5 text-xs font-medium text-fd-muted-foreground mb-6">
-                            <span className="relative flex h-2 w-2">
-                                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-500 opacity-75" />
-                                <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-500" />
-                            </span>
-                            {LATEST_VERSION_LABEL}
-                        </div>
                         <h1 className="text-4xl md:text-5xl lg:text-6xl font-extrabold text-fd-foreground tracking-tight leading-[1.1] mb-6">
                             The Ironic
                             <br />
-                            <span className="text-brand">Release Log</span>
+                            <span className="text-brand">Engineering Blog</span>
                         </h1>
                         <p className="text-base md:text-lg text-fd-muted-foreground leading-relaxed max-w-xl">
-                            Every version ships with production-ready defaults. Follow along for new features, security improvements, and developer experience upgrades.
+                            Deep dives into how Ironic works under the hood — architecture, internals, and engineering decisions.
                         </p>
                     </div>
                 </div>
@@ -762,7 +363,7 @@ export default function BlogIndex() {
             <div className="max-w-7xl mx-auto px-6 py-16">
                 {/* Featured post */}
                 <div className="mb-16">
-                    <p className="text-xs font-semibold text-fd-muted-foreground uppercase tracking-widest mb-4">Latest release</p>
+                    <p className="text-xs font-semibold text-fd-muted-foreground uppercase tracking-widest mb-4">Featured post</p>
                     <Link
                         to={`/blog/${featured.slug}`}
                         className="group block relative overflow-hidden rounded-2xl border border-fd-border bg-fd-card/50 hover:border-brand/30 transition-all duration-300"
@@ -799,7 +400,7 @@ export default function BlogIndex() {
                 </div>
 
                 {/* Post grid */}
-                <p className="text-xs font-semibold text-fd-muted-foreground uppercase tracking-widest mb-6">Previous releases</p>
+                <p className="text-xs font-semibold text-fd-muted-foreground uppercase tracking-widest mb-6">All posts</p>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
                     {rest.map((post) => (
                         <Link

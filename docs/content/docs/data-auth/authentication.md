@@ -5,6 +5,11 @@ description: Add login to your API — JWT tokens, OAuth2 social login, session 
 
 # Authentication
 
+> **Features vs middleware:** This page covers the auth *features* — password
+> hashing, JWT issuance, OAuth2, sessions, and guards. For how
+> `AuthenticationMiddleware` extracts principals from requests and integrates
+> with route guards, see [Authentication Middleware](/docs/middleware/authentication).
+
 ## What you'll learn
 
 - Hash passwords securely with Argon2id

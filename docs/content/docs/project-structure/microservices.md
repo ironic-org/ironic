@@ -14,6 +14,11 @@ Services in a monorepo communicate through four mechanisms:
 | **Redis Transport** | Pub/sub (request-reply) | Lightweight inter-service calls |
 | **HTTP Client** | `HttpClientService` | External APIs or REST-only services |
 
+> **Project structure vs framework:** This page explains *how* services in a
+> monorepo talk to each other. For the microservice *framework* itself
+> (transports, `#[message_handler]`, `#[event_handler]`), see
+> [Microservices (Distributed)](/docs/distributed/microservices).
+
 ## 1. gRPC Communication
 
 ```

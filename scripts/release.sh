@@ -11,7 +11,7 @@ set -euo pipefail
 # Automatically:
 #   1. Bumps version in Cargo.toml (workspace + internal deps)
 #   2. Generates CHANGELOG.md from git commits since last tag
-#   3. Creates blog post + updates releases pages
+#   3. Updates the releases pages (docs/content/docs/releases/) from CHANGELOG.md
 #   4. Runs pre-flight checks (fmt, clippy, all-features tests, docs build)
 #   5. Commits, tags, and pushes to GitHub
 #      (crates.io publish is handled by GitHub Actions on tag push)
@@ -226,200 +226,67 @@ fi
 echo "→ Syncing version constant to v$NEW"
 sync_file "$CURRENT" "$NEW" "$ROOT/docs/lib/constants.ts"
 
-# ── step 5: create blog post and update releases ────────────────────
+# ── step 5: update releases pages from CHANGELOG.md ─────────────────
 
-echo "→ Creating blog post for v$NEW"
+echo "→ Updating releases pages from CHANGELOG.md"
 
-BLOG_DIR="$ROOT/docs/content/blog"
-BLOG_FILE="$BLOG_DIR/v$NEW.md"
-BLOG_INDEX="$ROOT/docs/src/pages/BlogIndex.tsx"
 RELEASES_INDEX="$ROOT/docs/content/docs/releases/index.md"
+CHANGELOG="$ROOT/CHANGELOG.md"
 # Derive the major.minor series directory (e.g. v0.4.x from 0.4.1)
 MAJOR_MINOR=$(echo "$NEW" | sed -E 's/^([0-9]+\.[0-9]+)\..*/\1/')
 RELEASES_SERIES_DIR="$ROOT/docs/content/docs/releases/v${MAJOR_MINOR}.x"
 RELEASES_V="$RELEASES_SERIES_DIR/index.md"
 
-# Format the changelog sections for the blog post
-format_blog_section() {
-    local title="$1" items="$2"
-    if [[ -n "$items" ]]; then
-        echo ""
-        echo "### $title"
-        echo "$items"
-    fi
-}
-
-if [[ "$USING_UNRELEASED" == "true" ]]; then
-    # Derive blog body and summary from ENTRY (no git log variables available)
-    ENTRY_BODY=$(echo "$ENTRY" | tail -n +2)  # skip "## [vX.Y.Z] - date" header
-    BLOG_BODY="$ENTRY_BODY"
-    FIRST_ENTRY=$(echo "$ENTRY_BODY" | grep -oE '^- .+' | head -1 | sed 's/^- //' || true)
-    if [[ -z "$FIRST_ENTRY" ]]; then
-        SUMMARY="Release v$NEW"
-    else
-        SUMMARY="${FIRST_ENTRY:0:120}"
-    fi
-else
-    BLOG_BODY=""
-    BLOG_BODY="${BLOG_BODY}$(format_blog_section "Added" "$added")"
-    BLOG_BODY="${BLOG_BODY}$(format_blog_section "Fixed" "$fixed")"
-    BLOG_BODY="${BLOG_BODY}$(format_blog_section "Changed" "$changed")"
-    BLOG_BODY="${BLOG_BODY}$(format_blog_section "Security" "$security")"
-
-    # Generate a summary from the first meaningful changelog entry
-    FIRST_ENTRY=$( (echo -e "${added}${fixed}${changed}") | grep -oE '^- .+' | head -1 | sed 's/^- //' | sed 's/ ([a-f0-9]\{7\})$//' || true)
-    if [[ -z "$FIRST_ENTRY" ]]; then
-        SUMMARY="Release v$NEW"
-    else
-        SUMMARY="${FIRST_ENTRY:0:120}"
-    fi
-fi
-
-# Create blog post only if it doesn't already exist
-if [[ -f "$BLOG_FILE" ]]; then
-    echo -e "  ${CYAN}!${NC} blog post already exists — skipping"
-else
-    cat > "$BLOG_FILE" << BLOGEOF
----
-title: "v$NEW — $SUMMARY"
-description: "$SUMMARY"
-date: "$TODAY"
-author: "Ironic Team"
----
-
-# v$NEW
-$BLOG_BODY
-BLOGEOF
-
-    echo -e "  ${GREEN}✓${NC} blog post created: $BLOG_FILE"
-fi
-
-# Update BlogIndex.tsx — insert new post after the opening array bracket, skip if exists
-if grep -q "const posts: Post\[\] = \[" "$BLOG_INDEX" 2>/dev/null; then
-    if grep -q "slug: 'v$NEW'" "$BLOG_INDEX" 2>/dev/null; then
-        echo -e "  ${CYAN}!${NC} BlogIndex.tsx already has v$NEW — skipping"
-    else
-        NEW_POST_ENTRY="    {
-        slug: 'v$NEW',
-        title: 'v$NEW — $SUMMARY',
-        description: '$SUMMARY',
-        date: '$TODAY',
-        tag: 'release',
-        readTime: '2 min',
-    },"
-        POSTS_LINE=$(grep -n "const posts: Post\[\] = \[" "$BLOG_INDEX" | head -1 | cut -d: -f1 || true)
-        if [[ -n "$POSTS_LINE" ]]; then
-            {
-                head -n "$POSTS_LINE" "$BLOG_INDEX"
-                echo "$NEW_POST_ENTRY"
-                tail -n +$((POSTS_LINE + 1)) "$BLOG_INDEX"
-            } > "$BLOG_INDEX.tmp" && mv "$BLOG_INDEX.tmp" "$BLOG_INDEX"
-            echo -e "  ${GREEN}✓${NC} BlogIndex.tsx updated"
-        fi
-    fi
-else
-    echo "  ! BlogIndex.tsx pattern not found — add manually"
-fi
-
-# Update releases/index.md — regenerate the full version table from all blog posts
-echo "→ Regenerating releases version table from blog posts..."
-
 # Bump the "Current version:" line
 sed -i '' "s/^## Current version: v[0-9.]*$/## Current version: v$NEW/" "$RELEASES_INDEX" 2>/dev/null || true
 
 python3 -c "
-import re, os, glob
+import re, os
 
-BLOG_DIR = os.path.expanduser('$BLOG_DIR')
+CHANGELOG = os.path.expanduser('$CHANGELOG')
 RELEASES_INDEX = os.path.expanduser('$RELEASES_INDEX')
 RELEASES_V = os.path.expanduser('$RELEASES_V')
 MAJOR_MINOR = '$MAJOR_MINOR'
 
-def parse_frontmatter(path):
+def parse_changelog(path):
+    \"\"\"Parse CHANGELOG.md into (version_tuple, version, date, body) rows.\"\"\"
     with open(path) as f:
-        lines = f.read().splitlines()
-    if not lines or lines[0] != '---':
-        return {}
-    end = 1
-    while end < len(lines) and lines[end] != '---':
-        end += 1
-    front = {}
-    for line in lines[1:end]:
-        m = re.match(r'^(\w+):\s*\"(.+)\"$', line)
-        if m:
-            front[m.group(1)] = m.group(2)
-    return front
+        text = f.read()
+    # Split into sections: '## [vX.Y.Z] - YYYY-MM-DD' ... next '## ['
+    sections = re.findall(
+        r'^## \[v(\d+)\.(\d+)\.(\d+)\] - ([\d-]+)(.*?)(?=^## \[v|\\Z)',
+        text,
+        re.MULTILINE | re.DOTALL,
+    )
+    rows = []
+    for mj, mn, pt, date, body in sections:
+        ver = f'{mj}.{mn}.{pt}'
+        body = body.strip()
+        rows.append(((int(mj), int(mn), int(pt)), ver, date, body))
+    return rows
 
-def blog_body(path):
-    \"\"\"Return everything after the frontmatter and title line.\"\"\"
-    with open(path) as f:
-        lines = f.read().splitlines()
-    if not lines or lines[0] != '---':
-        return ''
-    end = 1
-    while end < len(lines) and lines[end] != '---':
-        end += 1
-    body = lines[end+1:]
-    # Skip the '# vX.Y.Z' title line
-    while body and body[0].startswith('# '):
-        body = body[1:]
-    return '\n'.join(body).strip()
+def highlights(body):
+    \"\"\"First bullet line of a changelog body.\"\"\"
+    for line in body.splitlines():
+        if line.startswith('- '):
+            return line[2:].strip()
+    return ''
 
-def format_date(d):
-    try:
-        parts = d.split('-')
-        dt = calendar.timegm((int(parts[0]), int(parts[1]), int(parts[2], 0, 0, 0, 0)))
-        from datetime import datetime
-        dt = datetime.strptime(d, '%Y-%m-%d')
-        return dt.strftime('%B %d, %Y')
-    except Exception:
-        return d
-
-# Collect versioned blog posts
-rows = []
-for f in sorted(glob.glob(os.path.join(BLOG_DIR, 'v*.md'))):
-    slug = os.path.splitext(os.path.basename(f))[0]
-    m = re.match(r'^v(\d+)\.(\d+)\.(\d+)$', slug)
-    if not m:
-        continue
-    front = parse_frontmatter(f)
-    desc = front.get('description', slug)
-    date = front.get('date', '')
-    ver = f'{m.group(1)}.{m.group(2)}.{m.group(3)}'
-    rows.append(((int(m.group(1)), int(m.group(2)), int(m.group(3))), ver, date, desc, f))
+rows = parse_changelog(CHANGELOG)
 
 # ── Regenerate releases/index.md table ──────────────────────────────
 with open(RELEASES_INDEX) as f:
     old = f.read()
 
-# Preserve special entries (non-versioned or versioned without own blog post)
-special = []
-for line in old.splitlines():
-    if line.startswith('| ['):
-        slug_m = re.match(r'\| \[v(.+?)\]', line)
-        if slug_m:
-            vslug = slug_m.group(1)
-            if not re.match(r'^\d+\.\d+\.\d+$', vslug):
-                special.append(line)
-            else:
-                blog_path = os.path.join(BLOG_DIR, f'v{vslug}.md')
-                if not os.path.exists(blog_path):
-                    special.append(line)
-
-seen = set()
-unique_special = []
-for line in special:
-    if line not in seen:
-        seen.add(line)
-        unique_special.append(line)
-
 if rows:
     rows.sort(key=lambda r: r[0], reverse=True)
-    blog_rows = [
-        f'| [v{slug}](/blog/v{slug}) | {date} | {desc} |'
-        for _, slug, date, desc, _ in rows
+    # Only list versions whose series page exists (v0.2.x has no page — skip)
+    releases_dir = os.path.dirname(RELEASES_INDEX)
+    table_rows = [
+        f'| [v{slug}](/docs/releases/v{mj}.{mn}.x) | {date} | {highlights(body)} |'
+        for (mj, mn, pt), slug, date, body in rows
+        if os.path.isdir(os.path.join(releases_dir, f'v{mj}.{mn}.x'))
     ]
-    all_rows = blog_rows + unique_special
     marker_start = '| Version | Date | Highlights |\\n|---------|------|-----------|'
     marker_end = 'Full changelog:'
     idx_start = old.find(marker_start)
@@ -428,22 +295,21 @@ if rows:
         new_content = (
             old[:idx_start]
             + marker_start + '\\n'
-            + '\\n'.join(all_rows) + '\\n\\n'
+            + '\\n'.join(table_rows) + '\\n\\n'
             + old[idx_end:]
         )
         with open(RELEASES_INDEX, 'w') as f:
             f.write(new_content)
-        print('  \u2713 releases/index.md table regenerated')
+        print('  \u2713 releases/index.md table regenerated from CHANGELOG.md')
     else:
         print('  ! markers not found in releases/index.md')
 else:
-    print('  ! no versioned blog posts found for releases table')
+    print('  ! no versioned sections found in CHANGELOG.md')
 
 # ── Regenerate releases/vMAJOR.MINOR.x/index.md sections ──────────
 if RELEASES_V and os.path.exists(RELEASES_V) and MAJOR_MINOR:
     with open(RELEASES_V) as f:
         series_content = f.read()
-    # Find blog posts matching this major.minor series
     series_rows = [
         r for r in rows
         if str(r[0][0]) + '.' + str(r[0][1]) == MAJOR_MINOR
@@ -454,26 +320,23 @@ if RELEASES_V and os.path.exists(RELEASES_V) and MAJOR_MINOR:
         if intro_match:
             intro = series_content[:intro_match.start()]
         else:
-            # Fallback: use everything after frontmatter as intro
             intro_end = series_content.rfind('\\n---\\n')
             if intro_end > 0:
                 intro = series_content[:intro_end + 5] + '\\n'
             else:
                 intro = series_content + '\\n'
-        # Build version sections from blog posts
+        # Build version sections from changelog bodies
         sections = []
-        for ver_tuple, ver, date, desc, fpath in sorted(series_rows, key=lambda r: r[0], reverse=True):
-            body = blog_body(fpath)
+        for ver_tuple, ver, date, body in sorted(series_rows, key=lambda r: r[0], reverse=True):
             if body:
-                human_date = format_date(date)
-                sections.append(f'## v{ver} \\u2014 {human_date}\\n\\n{body}\\n\\n---')
+                sections.append(f'## v{ver} \\u2014 {date}\\n\\n{body}\\n\\n---')
         if sections:
             new_series = intro + '\\n'.join(sections) + '\\n'
             with open(RELEASES_V, 'w') as f:
                 f.write(new_series)
-            print(f'  \u2713 {os.path.basename(RELEASES_V)} sections regenerated')
+            print(f'  \u2713 {os.path.basename(RELEASES_V)} sections regenerated from CHANGELOG.md')
     else:
-        print(f'  - no blog posts for series v{MAJOR_MINOR}.x')
+        print(f'  - no changelog sections for series v{MAJOR_MINOR}.x')
 elif RELEASES_V and MAJOR_MINOR:
     print('  ! series file does not exist yet (will be created below)')
 "
@@ -507,7 +370,7 @@ if [[ ! -f "$RELEASES_V" ]]; then
         echo ""
         echo "# v${MAJOR_MINOR}.x — Current Stable Series"
         echo ""
-        echo "All versions in the v${MAJOR_MINOR}.x series. Visit the [Blog](/blog) for detailed release announcements."
+        echo "All versions in the v${MAJOR_MINOR}.x series."
         echo ""
         echo "---"
         echo ""
@@ -515,7 +378,7 @@ if [[ ! -f "$RELEASES_V" ]]; then
     echo -e "  ${GREEN}✓${NC} created $RELEASES_V with new series"
 fi
 
-# (series version sections are regenerated from blog posts by the Python block above)
+# (series version sections are regenerated from CHANGELOG.md by the Python block above)
 
 # ── step 6: pre-flight checks ───────────────────────────────────────
 

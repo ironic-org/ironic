@@ -5,7 +5,6 @@
     "http",
     "websocket",
     "graphql",
-    "openapi",
     "mcp",
     "sse",
     "events"

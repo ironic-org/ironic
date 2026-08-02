@@ -7,6 +7,11 @@ description: Organize your application into feature modules — the foundation o
 
 Modules are the primary way to organize code in Ironic. Every controller, service, and configuration belongs to a module. Modules can import other modules, creating a dependency graph that the framework validates at startup.
 
+> **Concepts vs layout:** This page explains what modules are and how the
+> `#[Module]` decorator wires providers. For the recommended file/folder layout
+> of a module (`controller/`, `services/`, `dto/`, ...), see
+> [Module Structure](/docs/project-structure/modules).
+
 ## What is a module?
 
 A module groups related functionality — controllers, services, providers — into a reusable unit:

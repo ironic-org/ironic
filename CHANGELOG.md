@@ -11,6 +11,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Transactional outbox and inbox for at-least-once event delivery
 - outbox and inbox marker attributes for handler discovery
 
+### Changed
+- Remove version-based blog posts; release.sh now updates releases pages from CHANGELOG.md
+
 ## [v1.2.8] - 2026-08-01
 
 ### Added

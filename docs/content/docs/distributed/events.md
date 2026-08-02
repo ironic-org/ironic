@@ -8,6 +8,11 @@ description: In-process and cross-process event handling with EventBus
 Ironic provides a typed in-process event bus with optional cross-process
 transport support.
 
+> **In-process vs cross-process:** This page covers the in-process `EventBus`
+> and the `#[event_handler]` macro. For cross-service events over Kafka, Redis,
+> or in-memory transports (`EventClient` / `EventServer`), see
+> [Events (Transport Provider)](/docs/transport/events).
+
 ## In-Process Events
 
 ```rust

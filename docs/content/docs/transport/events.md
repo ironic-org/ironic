@@ -7,6 +7,11 @@ description: Send and receive events across services using Kafka, Redis, or in-m
 
 Ironic's transport provider lets you send and receive events between microservices without writing boilerplate. It wraps Kafka, Redis pub/sub, or an in-memory channel behind a single `EventClient` / `EventServer` interface.
 
+> **Cross-service vs in-process:** This page covers `EventClient` / `EventServer`
+> for sending events between services. For the in-process `EventBus` (local pub/sub
+> within one process) and the `#[event_handler]` macro fundamentals, see
+> [Events (Distributed)](/docs/distributed/events).
+
 ## Production Example — 3 Microservices
 
 This example walks through a real-world order processing pipeline with three services that talk to each other through events:

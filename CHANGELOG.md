@@ -10,10 +10,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Transactional outbox and inbox for at-least-once event delivery
 - outbox and inbox marker attributes for handler discovery
+- Generate sitemap.xml at docs build time (robots.txt already referenced it)
 
 ### Changed
 - Remove version-based blog posts; release.sh now updates releases pages from CHANGELOG.md
 - Docs: merge getting-started intro pages, add blog search + related-docs links, clarify section boundaries
+
+### Fixed
+- Docs blog pages now render each post's real date and computed read time instead of hardcoded values
+- Bump CURRENT_VERSION constant to 1.2.8 and fix release.sh to always sync it on release
 
 ## [v1.2.8] - 2026-08-01
 

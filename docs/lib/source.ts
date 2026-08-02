@@ -6,6 +6,8 @@ type Frontmatter = {
   title?: string;
   description?: string;
   full?: boolean;
+  date?: string;
+  author?: string;
 };
 
 type CompiledDocModule = {
@@ -28,6 +30,8 @@ export type RuntimePageData = {
   toc?: TOCItemType[];
   full?: boolean;
   searchText?: string;
+  date?: string;
+  author?: string;
   getText?: (mode: 'processed') => Promise<string>;
 };
 
@@ -87,6 +91,8 @@ function createPage(module: CompiledDocModule, slugs: string[]): RuntimePage {
       toc: module.toc ?? [],
       full: module.frontmatter?.full,
       searchText: module._markdown ?? '',
+      date: module.frontmatter?.date,
+      author: module.frontmatter?.author,
       getText: async () => module._markdown ?? '',
     },
   };

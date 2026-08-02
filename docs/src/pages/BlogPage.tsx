@@ -55,6 +55,19 @@ function getBlogSlug(pathname: string): string[] | undefined {
     return stripped.split('/').filter(Boolean);
 }
 
+function formatDate(value?: string): string {
+    if (!value) return '';
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return value;
+    return date.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+}
+
+function estimateReadTime(text?: string): string {
+    const words = (text ?? '').split(/\s+/).filter(Boolean).length;
+    const minutes = Math.max(1, Math.round(words / 200));
+    return `${minutes} min read`;
+}
+
 export default function BlogPage() {
     const location = useLocation();
     const slug = useMemo(() => getBlogSlug(location.pathname), [location.pathname]);
@@ -155,11 +168,11 @@ export default function BlogPage() {
                     <div className="flex flex-wrap items-center gap-4 mt-6 pt-6 border-t border-fd-border/50">
                         <div className="flex items-center gap-2 text-xs text-fd-muted-foreground">
                             <Calendar className="size-3.5" />
-                            Jul 15, 2026
+                            {formatDate(pageData.date)}
                         </div>
                         <div className="flex items-center gap-2 text-xs text-fd-muted-foreground">
                             <Clock className="size-3.5" />
-                            3 min read
+                            {estimateReadTime(pageData.searchText)}
                         </div>
                         <a
                             href={GITHUB_URL}

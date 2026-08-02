@@ -43,20 +43,6 @@ bump_version() {
     esac
 }
 
-# Replace <old> with <new> in a file (exact string, not regex)
-sync_file() {
-    local old="$1" new="$2" file="$3"
-    if [[ ! -f "$file" ]]; then return; fi
-    if grep -qF "$old" "$file" 2>/dev/null; then
-        if [[ "$(uname)" == "Darwin" ]]; then
-            sed -i '' "s/$old/$new/g" "$file"
-        else
-            sed -i "s/$old/$new/g" "$file"
-        fi
-        echo -e "  ${GREEN}✓${NC} $file"
-    fi
-}
-
 CURRENT=$(workspace_version)
 BUMP="${1:-}"
 
@@ -224,7 +210,14 @@ fi
 # ── step 4: sync current-version references in docs ───────────────────
 
 echo "→ Syncing version constant to v$NEW"
-sync_file "$CURRENT" "$NEW" "$ROOT/docs/lib/constants.ts"
+if [[ -f "$ROOT/docs/lib/constants.ts" ]]; then
+    if [[ "$(uname)" == "Darwin" ]]; then
+        sed -i '' "s/export const CURRENT_VERSION = 'v\?[0-9.]*';/export const CURRENT_VERSION = '$NEW';/" "$ROOT/docs/lib/constants.ts"
+    else
+        sed -i "s/export const CURRENT_VERSION = 'v\?[0-9.]*';/export const CURRENT_VERSION = '$NEW';/" "$ROOT/docs/lib/constants.ts"
+    fi
+    echo -e "  ${GREEN}✓${NC} $ROOT/docs/lib/constants.ts"
+fi
 
 # ── step 5: update releases pages from CHANGELOG.md ─────────────────
 

@@ -248,7 +248,7 @@ export function getSearchIndex(): SearchIndexItem[] {
       }));
 
     return [pageItem, ...sectionItems];
-  });
+  }).concat(blogSearchItems);
 }
 
 // ── Blog source ──────────────────────────────────────────
@@ -270,3 +270,21 @@ export const blogSource = {
     return blogPages;
   },
 };
+
+// Blog pages are searchable via /blog/<slug>, breadcrumb "Blog".
+const blogSearchItems: SearchIndexItem[] = blogPages.flatMap((page) => {
+  const pageTitleValue = page.data.title ?? 'Untitled';
+  const pageDescriptionValue = page.data.description ?? '';
+  const pageText = page.data.searchText ?? '';
+
+  return [
+    {
+      title: pageTitleValue,
+      description: pageDescriptionValue,
+      url: `/blog/${page.slugs.join('/')}`,
+      text: `${pageTitleValue}\n${pageDescriptionValue}\n${pageText}`,
+      breadcrumbs: ['Blog'],
+      kind: 'page',
+    },
+  ];
+});

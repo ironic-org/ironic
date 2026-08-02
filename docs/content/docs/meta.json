@@ -1,7 +1,6 @@
 {
   "title": "Documentation",
   "pages": [
-    "quick-learn",
     "getting-started",
     "project-structure",
     "fundamentals",
@@ -24,6 +23,7 @@
     "testing",
     "advanced",
     "---",
+    "quick-learn",
     "releases",
     "migrations",
     "more"

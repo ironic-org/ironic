@@ -17,13 +17,13 @@ content/docs/
 ├── meta.json                  # Top-level category ordering
 ├── getting-started/
 ├── project-structure/
-├── fundamentals/              # Modules, providers, DI, pipes, request lifecycle
-├── core/                      # DI, lifecycle, macros, lifetimes
+├── fundamentals/              # Concepts: modules, providers, DI, pipes, request lifecycle
+├── core/                      # Internals: DI resolution, lifetimes, macros, container overrides
 ├── lifecycle/                 # Lifecycle hooks
 ├── configuration/
-├── modules/
-├── http-api/                  # Middleware, guards, interceptors, security, etc.
-├── transport/                 # HTTP, WebSocket, GraphQL, OpenAPI, MCP, SSE
+├── modules/                   # Advanced module patterns: dynamic modules, decorators
+├── http-api/                  # Routes, middleware, guards, OpenAPI, security, etc.
+├── transport/                 # HTTP, WebSocket, GraphQL, MCP, SSE, events
 ├── distributed/               # Microservices, queues, sagas, events, outbox
 ├── middleware/
 ├── data-auth/
@@ -31,6 +31,9 @@ content/docs/
 ├── observability/             # Metrics, tracing, health checks
 ├── testing/
 ├── advanced/
+├── quick-learn/               # Feature reference
+├── releases/                  # Version history + per-series changelogs
+├── migrations/
 └── more/                      # Deployment, FAQ, examples, benchmarks
 ```
 

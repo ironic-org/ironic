@@ -3,10 +3,51 @@ import { Link, useLocation } from 'react-router-dom';
 import { GITHUB_URL } from '@/lib/constants';
 import { getMDXComponents } from '@/mdx-components';
 import { blogSource } from '@/lib/source';
-import { ArrowLeft, Calendar, Clock, Github } from 'lucide-react';
+import { ArrowLeft, BookOpen, Calendar, Clock, Github } from 'lucide-react';
 import Navigation from './home/components/navigation';
 import Footer from './home/components/footer';
 import BlogIndex from './BlogIndex';
+
+// Map each deep-dive post to the framework docs page it explains.
+const relatedDocs: Record<string, string> = {
+    'async-module-configuration': '/docs/modules/dynamic-modules',
+    'cli-code-generation-internals': '/docs/getting-started/cli',
+    'compile-time-runtime': '/docs/fundamentals/providers',
+    'cqrs-typed-dispatch': '/docs/distributed/overview',
+    'derive-module-custom-dsl': '/docs/fundamentals/modules',
+    'event-bus-phantom-gc': '/docs/distributed/events',
+    'exception-filters-internals': '/docs/http-api/exception-filters',
+    'field-level-json-redaction': '/docs/http-api/response-serialization',
+    'guard-composition': '/docs/http-api/guards',
+    'in-process-testing-internals': '/docs/testing/testing',
+    'ironic-main-macro': '/docs/getting-started/getting-started',
+    'layered-configuration-system': '/docs/configuration/overview',
+    'lifecycle-axum-wiring': '/docs/lifecycle/overview',
+    'lifecycle-orchestration': '/docs/lifecycle/overview',
+    'module-graph-compilation': '/docs/fundamentals/modules',
+    'module-ref-lazy-injection': '/docs/fundamentals/providers',
+    'native-websocket-sse-helpers': '/docs/transport/websocket',
+    'oncecell-singleton-cancel-safe': '/docs/fundamentals/providers',
+    'openapi-schema-generation': '/docs/http-api/openapi',
+    'pipe-system-internals': '/docs/http-api/validation-pipes',
+    'pipeline-components-scoping': '/docs/http-api/guards',
+    'platform-adapter-boundary': '/docs/transport/overview',
+    'production-hardening-ci-cd': '/docs/more/deployment',
+    'production-hardening-operational-endpoints': '/docs/observability/operational-endpoints',
+    'provider-override-system': '/docs/core/container-override',
+    'request-ids-tracing-spans': '/docs/observability/tracing',
+    'request-pipeline-internals': '/docs/fundamentals/request-lifecycle',
+    'response-serialization-contract': '/docs/http-api/response-serialization',
+    'sagas-reverse-compensation': '/docs/distributed/sagas',
+    'scope-violation-captive-prevention': '/docs/core/lifetimes',
+    'security-middleware-internals': '/docs/http-api/security',
+    'static-plugin-system': '/docs/modules/dynamic-modules',
+    'two-phase-route-compilation': '/docs/http-api/api-versioning',
+    'type-erased-handler-dispatch': '/docs/fundamentals/request-lifecycle',
+    'websocket-connection-lifecycle': '/docs/transport/websocket',
+    'what-injectable-generates': '/docs/fundamentals/providers',
+    'zero-cost-feature-flags': '/docs/more/feature-flags',
+};
 
 function getBlogSlug(pathname: string): string[] | undefined {
     const stripped = pathname.replace(/^\/blog\/?/, '').replace(/\/$/, '');
@@ -63,7 +104,7 @@ export default function BlogPage() {
                         </div>
                         <h1 className="text-2xl font-bold text-fd-foreground mb-2">Post not found</h1>
                         <p className="text-fd-muted-foreground text-sm leading-relaxed mb-6">
-                            This post may have been moved or renamed. Check the blog index for all available releases.
+                            This post may have been moved or renamed. Check the blog index for all available posts.
                         </p>
                         <Link
                             to="/blog"
@@ -81,6 +122,8 @@ export default function BlogPage() {
 
     const Body = pageData.body;
     if (!Body) return null;
+
+    const related = slug ? relatedDocs[slug.join('/')] : undefined;
 
     return (
         <div className="min-h-screen bg-fd-background">
@@ -151,13 +194,35 @@ export default function BlogPage() {
                     <Body components={getMDXComponents()} />
                 </article>
 
+                {related && (
+                    <div className="mt-10 pt-8 border-t border-fd-border">
+                        <Link
+                            to={related}
+                            className="group flex flex-col sm:flex-row sm:items-center gap-3 rounded-xl border border-fd-border bg-fd-card/40 p-5 hover:border-brand/40 hover:bg-fd-card/60 transition-all duration-300"
+                        >
+                            <div className="flex items-center justify-center w-11 h-11 shrink-0 rounded-lg bg-brand/10 text-brand group-hover:bg-brand group-hover:text-white transition-all duration-300">
+                                <BookOpen className="size-5" />
+                            </div>
+                            <div className="flex-1">
+                                <p className="text-[11px] font-semibold uppercase tracking-widest text-fd-muted-foreground mb-0.5">
+                                    Learn more in the docs
+                                </p>
+                                <span className="text-sm font-medium text-fd-foreground group-hover:text-brand transition-colors">
+                                    Read the framework documentation on this topic
+                                </span>
+                            </div>
+                            <ArrowLeft className="size-4 text-fd-muted-foreground group-hover:text-brand rotate-180 shrink-0 transition-all" />
+                        </Link>
+                    </div>
+                )}
+
                 <div className="mt-16 pt-8 border-t border-fd-border flex items-center justify-between">
                     <Link
                         to="/blog"
                         className="inline-flex items-center gap-2 text-sm font-medium text-fd-muted-foreground hover:text-brand transition-colors group"
                     >
                         <ArrowLeft className="size-4 group-hover:-translate-x-0.5 transition-transform" />
-                        All releases
+                        All posts
                     </Link>
                     <a
                         href={`${GITHUB_URL}/issues`}
@@ -165,7 +230,7 @@ export default function BlogPage() {
                         rel="noopener noreferrer"
                         className="inline-flex items-center gap-2 text-sm font-medium text-fd-muted-foreground hover:text-brand transition-colors"
                     >
-                        Discuss this release
+                        Discuss this post
                         <Github className="size-4" />
                     </a>
                 </div>

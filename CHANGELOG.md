@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 - Remove version-based blog posts; release.sh now updates releases pages from CHANGELOG.md
+- Docs: merge getting-started intro pages, add blog search + related-docs links, clarify section boundaries
 
 ## [v1.2.8] - 2026-08-01
 

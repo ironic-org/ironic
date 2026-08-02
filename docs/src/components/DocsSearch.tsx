@@ -10,7 +10,7 @@ type SearchResult = SearchIndexItem & {
 
 const searchIndex = getSearchIndex();
 const defaultResults = searchIndex
-  .filter((item) => item.kind === 'page')
+  .filter((item) => item.kind === 'page' && !item.breadcrumbs.includes('Blog'))
   .slice(0, 6)
   .map((item) => ({ ...item, score: 0, snippet: item.description }));
 

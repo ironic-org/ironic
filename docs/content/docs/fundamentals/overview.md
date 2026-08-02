@@ -7,6 +7,12 @@ description: The 4 building blocks of Ironic — Modules, Controllers, Services,
 
 Every Ironic application is built from four core concepts. Understanding these is the key to mastering the framework.
 
+> **Where to go next:** This section is the *conceptual* starting point — what
+> modules, providers, and the request lifecycle are. For the deeper internals
+> (DI resolution, lifetimes, container overrides) see [Core](/docs/core/dependency-management);
+> for advanced module patterns (dynamic modules, decorators, application services)
+> see [Modules](/docs/modules/dynamic-modules).
+
 ## The 4 building blocks
 
 | Building Block | What it does | Real-world analogy |

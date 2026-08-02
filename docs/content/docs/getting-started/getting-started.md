@@ -13,17 +13,6 @@ description: Install Ironic, create your first project, and have a running API i
 - Generate your first API endpoint
 - Understand the project structure
 
-## The big picture
-
-Building an API with Ironic is like assembling furniture with instructions — the CLI does the heavy lifting, and you focus on what makes your app unique.
-
-```
-┌─────────────┐     ┌──────────────┐     ┌───────────────┐
-│  ironic new │ ──► │ ironic start │ ──► │ ironic gen    │ ──► Your API!
-└─────────────┘     └──────────────┘     └───────────────┘
-   Creates project    Runs the server     Adds endpoints
-```
-
 ## Step 1: Install the CLI
 
 Open your terminal and run:

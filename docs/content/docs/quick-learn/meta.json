@@ -1,6 +1,10 @@
 {
   "title": "Quick Learn",
   "pages": [
-    "feature-reference"
+    "index",
+    "api-reference",
+    "architecture",
+    "features",
+    "patterns"
   ]
 }

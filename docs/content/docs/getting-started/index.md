@@ -95,6 +95,68 @@ This documentation walks you through every feature step by step:
 
 Ironic gives you all of this **out of the box**, so you can focus on what makes your application unique. No other Rust framework matches this breadth of built-in features — and unlike NestJS, you get Rust's compile-time safety and native performance.
 
+## Suggested learning path
+
+Follow these steps in order. Each milestone tells you what you'll be able to do when
+you finish it.
+
+1. **Install & scaffold** — Install the CLI and run your first project in about a
+   minute: [Getting Started](/docs/getting-started/getting-started), then check
+   [Prerequisites](/docs/getting-started/prerequisites) and the
+   [CLI Reference](/docs/getting-started/cli).
+   *Milestone: a running HTTP server you can curl.*
+
+2. **Understand the structure** — See how a generated project fits together:
+   [Project Structure](/docs/getting-started/project-structure) and the
+   [top-level overview](/docs/project-structure/overview).
+   *Milestone: you can name every file the CLI generates and what it does.*
+
+3. **Learn the core concepts** — Modules, controllers, services, and dependency
+   injection are the four building blocks: [Core Concepts](/docs/fundamentals/overview),
+   then dive into [Modules](/docs/fundamentals/modules),
+   [Providers](/docs/fundamentals/providers), and
+   [Circular Dependencies](/docs/fundamentals/circular-dependencies).
+   *Milestone: you can wire two modules together and share a service.*
+
+4. **Configure your app** — Load settings from files, environment variables, and
+   profiles: [Configuration](/docs/configuration/overview) and the
+   [Env Var Reference](/docs/configuration/env-var-reference).
+   *Milestone: your app is driven by config, not hardcoded values.*
+
+5. **Build HTTP APIs** — Routes, params, bodies, validation, and error handling:
+   [Validation & Pipes](/docs/http-api/validation-pipes), then
+   [Exception Filters](/docs/http-api/exception-filters),
+   [Paginated Responses](/docs/http-api/paginated-responses), and
+   [OpenAPI](/docs/http-api/openapi).
+   *Milestone: a validated, documented CRUD endpoint.*
+
+6. **Secure it** — Guards, JWT, CORS, and rate limiting:
+   [Security](/docs/http-api/security) and [Guards](/docs/http-api/guards).
+   *Milestone: protected routes that reject unauthenticated requests.*
+
+7. **Add data & auth** — Connect PostgreSQL, MySQL, MongoDB, or Redis and add login
+   with JWT, OAuth, or sessions: [Database & Auth](/docs/data-auth/database-integrations).
+   *Milestone: a persistent app with real authentication.*
+
+8. **Observe & optimize** — Metrics, structured logging, and tracing:
+   [Observability](/docs/observability/overview); caching and background jobs:
+   [Performance](/docs/performance/cache-decorators).
+   *Milestone: you can see request latency, errors, and cache hits in production.*
+
+9. **Go distributed** — Microservices, queues, sagas, and events:
+   [Distributed Systems](/docs/distributed/overview).
+   *Milestone: services that communicate and survive partial failures.*
+
+10. **Test it** — Unit and integration testing with `TestApplication`:
+    [Testing](/docs/testing/testing).
+    *Milestone: your business logic is covered by fast, reliable tests.*
+
+11. **Learn by example** — Run the complete [blog example](/docs/more/examples) and
+    read its source: cross-module DI, JWT auth, caching, cron tasks, OpenAPI.
+
+12. **Skip ahead** — Need a fast reference? The [Quick Learn](/docs/quick-learn/api-reference)
+    pages condense the whole API surface into one place.
+
 ## Where to start
 
 - New to Ironic? Start with [Getting Started](/docs/getting-started/getting-started)

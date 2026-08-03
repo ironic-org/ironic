@@ -17,11 +17,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Remove version-based blog posts; release.sh now updates releases pages from CHANGELOG.md
 - Docs: merge getting-started intro pages, add blog search + related-docs links, clarify section boundaries
 - Docs: split testing section into 4 pages, expand provider-health guide, add v1.0.x/v1.2.x migration guides
+- Docs: split the 2052-line quick-learn feature-reference into api-reference, architecture, features, and patterns pages
+- Docs: expand examples guide with a full blog-api walkthrough and add a numbered 12-step learning path to the getting-started landing page
 
 ### Fixed
 - Docs blog pages now render each post's real date and computed read time instead of hardcoded values
 - Bump CURRENT_VERSION constant to 1.2.8 and fix release.sh to always sync it on release
 - Docs: correct examples path, replace fabricated benchmark numbers with measured cargo bench results
+- Fix unbalanced code fences in two docs pages and stale footer links (websocket-gateways, core/fundamentals)
 
 ## [v1.2.8] - 2026-08-01
 

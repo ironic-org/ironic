@@ -427,7 +427,6 @@ async fn list(...) -> ...;
 | `#[decorator(Name)]` | always | Custom parameter decorator |
 | `#[guard]` | always | Route guard attribute |
 | `#[intercept]` | always | Method interceptor |
-| `#[sse]` | `sse` | SSE endpoint marker |
 | `#[message]` | `microservices` | Message handler |
 | `#[event]` | `events` | Event handler |
 | `#[web_socket_gateway(path)]` | `realtime` | WebSocket endpoint |

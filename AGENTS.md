@@ -28,9 +28,9 @@ Implement NestJS-inspired production features: Redis-backed queues, Redis cache 
 - **Redis Queue Backend**: `RedisQueue` with `QueueConfig` (name, prefix, visibility_timeout, max_retries). `enqueue` (RPUSH), `dequeue` (BRPOP), `acknowledge` (SREM), `reject` (dead-letter + retry tracking). Gate: `queues` + `redis`.
 - **Redis Cache Backend**: Real `RedisCache` with `GET`/`SETEX`/`DEL`/`SCAN`-based prefix eviction. Gate: `cache` + `redis`.
 - **Cache Key/TTL Decorators**: `#[cache_key]`/`#[cache_ttl]` marker attributes in `ironic-macros`. `CacheKeyMetadata`/`CacheTtlMetadata` in `ironic-http`. CacheInterceptor includes full URI (path+query) in cache key.
-- **Event Handler Macro**: `#[event]` proc-macro (renamed from `#[event_handler]`; `#[message_handler]` → `#[message]`). Parses event type from single param (supports `Arc<E>`). Generates `__event_reg_<fn>()` registration function. `auto_register` generates `impl AsyncModuleInit` registrar struct. Gate: `events`. 4 integration tests.
+- **Event Handler Macro**: `#[event]` proc-macro (renamed from `#[event_handler]`; `#[message_handler]` → `#[message]`). Parses event type from single param (supports `Arc<E>`). Generates `__event_reg_<fn>()` registration function. `auto_register` generates `impl AsyncModuleInit` registrar struct. Gate: `events`. 7 tests in `tests/extended_features.rs` (4 `event_macro_*` + 3 `transport_provider_event_*`).
 - **Transport Provider (EventClient/EventServer)**: `TransportKind`/`TransportConfig` config enum + struct. `TransportClient` dispatch enum (MicroserviceClient is not object-safe). `EventClient`/`EventServer` injectable providers with auto-connect/listen on bootstrap, close on shutdown. `#[event(transport, auto_register)]` resolves `EventServer` from DI container. Gate: `microservices`.
-- **SSE Framework Integration**: `SseRoute` (sender), `SseConfig` (reconnect_buffer_size, keep_alive_interval, event_id_prefix), `SseError` (ClientDisconnected). `sse_endpoint()` creates paired sender+stream. `#[sse]` marker attribute.
+- **SSE Framework Integration**: `SseRoute` (sender), `SseConfig` (reconnect_buffer_size, keep_alive_interval, event_id_prefix), `SseError` (ClientDisconnected). `sse_endpoint()` creates paired sender+stream. Programmatic only — no `#[sse]` attribute (dropped as a no-op marker).
 - **SSE Route Mounting in AxumAdapter**: `AxumAdapter::sse_route(path, tx)` — broadcast-based SSE endpoint. Each GET creates a new stream subscribed to a `tokio::sync::broadcast::Sender`. `EventBroadcaster` type alias exported. Gate: `sse`.
 - **Changelog**: 7 entries for RedisQueue, RedisCache, cache_key/cache_ttl, event_handler, SSE, SSE route mounting, transport_provider.
 
@@ -44,7 +44,7 @@ Implement NestJS-inspired production features: Redis-backed queues, Redis cache 
 - `auto_register` mode generates registrar struct with `impl AsyncModuleInit`.
 - SSE endpoint uses `broadcast::Sender<Event>` for multi-client delivery via `futures_util::stream::unfold`.
 - SSE routes are registered via `AxumAdapter::sse_route()` builder method (mapped to GET handler in `build()`).
-- `#[sse]` marker attribute provides syntax; deeper route compilation (AxumAdapter mapping) deferred.
+- SSE routes are registered programmatically: `sse_endpoint()` creates a paired sender/stream, and `AxumAdapter::sse_route(path, tx)` mounts it as a GET route. No `#[sse]` attribute.
 - `EventClient` uses `TransportClient` private dispatch enum (`MicroserviceClient` has generic methods, not object-safe). `EventServer` uses `Arc<dyn MicroserviceServer>` (object-safe).
 - `#[event(transport = "...", auto_register)]` resolves `EventServer` from DI container; handlers register in `AsyncModuleInit` phase before `listen()` in `OnApplicationBootstrap`.
 
@@ -73,7 +73,7 @@ Always update `[Unreleased]` entries as you work — the release script will pic
 - SSE `sse_endpoint()` returns `(mpsc::Sender<Result<Event, Infallible>>, Sse<SseStream>)`.
 - `AxumAdapter::sse_route()` stores `SseBroadcasterEntry` (path + broadcast::Sender), wired in `build()` as GET route.
 - `EventBroadcaster` type alias = `tokio::sync::broadcast::Sender<axum::response::sse::Event>`, exported from prelude.
-- All features compile independently and together (2 pre-existing clippy warnings from ironic-macros + ironic-distributed).
+- All features compile independently and together; `cargo clippy --workspace --all-targets --all-features -- -D warnings` passes clean.
 
 ## Relevant Files
 - `Cargo.toml`: `sse = []` standalone feature
@@ -90,3 +90,5 @@ Always update `[Unreleased]` entries as you work — the release script will pic
 - `src/cache_interceptor.rs` — cache key includes full URI (path+query)
 - `tests/extended_features.rs` — event handler integration tests
 - `docs/content/docs/transport/sse.md` — SSE documentation page
+- `docs/content/docs/transport/events.md` + `events-tutorial.md` — EventClient/EventServer reference and 3-microservice walkthrough
+- `docs/content/docs/getting-started/demo-apps.md` — documents the `examples/blog` reference app

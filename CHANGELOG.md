@@ -22,12 +22,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Rename #[event_handler] attribute macro to #[event] and #[message_handler] to #[message]
 - Docs: split transport events guide into a transport reference and a 3-microservice events tutorial
 - Docs: consolidate blog-api into examples, remove duplicated project-structure page, rename message-handler page to message
+- Docs: split the 1110-line database-integrations guide into a setup guide plus per-ORM pages (sqlx, seaorm, diesel, mongodb, redis, testing)
+- Remove the no-op #[sse] marker attribute; SSE remains programmatic via sse_endpoint and sse_route
 
 ### Fixed
 - Docs blog pages now render each post's real date and computed read time instead of hardcoded values
 - Bump CURRENT_VERSION constant to 1.2.8 and fix release.sh to always sync it on release
 - Docs: correct examples path, replace fabricated benchmark numbers with measured cargo bench results
 - Fix unbalanced code fences in two docs pages and stale footer links (websocket-gateways, core/fundamentals)
+- Docs: remove fabricated chat and e-commerce demos from demo-apps page (only the blog API example exists)
 
 ## [v1.2.8] - 2026-08-01
 

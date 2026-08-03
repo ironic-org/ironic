@@ -326,7 +326,6 @@ marker_attribute!(
     timeout,
     api,
     resp,
-    sse,
     forward_ref,
     raw_body,
     cookie,

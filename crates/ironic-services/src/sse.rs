@@ -34,7 +34,7 @@ impl Default for SseConfig {
 
 /// An SSE connection handle that can send events to a connected client.
 ///
-/// Obtained as a parameter in `#[sse]`-annotated route handlers.
+/// Obtained as the sender side of [`sse_endpoint`](crate::sse::sse_endpoint).
 #[derive(Clone, Debug)]
 pub struct SseRoute {
     sender: mpsc::Sender<Result<Event, Infallible>>,

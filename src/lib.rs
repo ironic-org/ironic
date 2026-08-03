@@ -117,7 +117,7 @@ pub use ironic_macros::{
     Injectable, Merge, Module, OmitType, OpenApiSchema, PartialType, PickType, Serializable, api,
     body, cache, cache_key, cache_ttl, controller, cookie, cron, decorator, delete, form,
     forward_ref, get, guard, head, header, interceptor, interval, main, middleware, options, param,
-    patch, pipe, post, put, query, raw_body, resp, routes, sse, subscribe_message, r#test, timeout,
+    patch, pipe, post, put, query, raw_body, resp, routes, subscribe_message, r#test, timeout,
     web_socket_gateway,
 };
 
@@ -336,8 +336,6 @@ pub mod prelude {
     pub use crate::services::cache::RedisCache;
     #[cfg(feature = "sse")]
     pub use crate::services::sse::{SseConfig, SseError, SseRoute};
-    #[cfg(feature = "sse")]
-    pub use crate::sse;
     pub use crate::{
         AfterShutdown, AppError, AppResult, Application, AsyncModuleInit, AxumAdapter,
         BeforeShutdown, BuildInfo, CacheKeyMetadata, CacheMetadata, CacheTtlMetadata,

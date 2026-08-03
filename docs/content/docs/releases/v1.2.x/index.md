@@ -9,6 +9,16 @@ All versions in the v1.2.x series. Visit the [Blog](/blog) for detailed release 
 
 ---
 
+## v1.2.8 — 2026-08-01
+
+# v1.2.8
+
+### Added
+- add fetch_latest and poll_interval_ms to KafkaClientConfig and TransportConfig (6a91e13)
+### Fixed
+- improve TCP socket binding error handling in AxumApplication (01f2df3)
+
+---
 ## v1.2.7 — 2026-07-28
 
 # v1.2.7

@@ -89,11 +89,16 @@ impl Default for TransportConfig {
             topic: std::env::var("KAFKA_TOPIC").unwrap_or_else(|_| "ironic-events".into()),
             group_id: std::env::var("KAFKA_GROUP_ID").unwrap_or_else(|_| "default".into()),
             fetch_latest: std::env::var("KAFKA_FETCH_LATEST")
-                .ok().map(|v| v == "true" || v == "1").unwrap_or(false),
+                .ok()
+                .is_some_and(|v| v == "true" || v == "1"),
             inmemory_capacity: std::env::var("KAFKA_INMEMORY_CAPACITY")
-                .ok().and_then(|v| v.parse().ok()).unwrap_or(16),
+                .ok()
+                .and_then(|v| v.parse().ok())
+                .unwrap_or(16),
             kafka_poll_interval_ms: std::env::var("KAFKA_POLL_INTERVAL_MS")
-                .ok().and_then(|v| v.parse().ok()).unwrap_or(1000),
+                .ok()
+                .and_then(|v| v.parse().ok())
+                .unwrap_or(1000),
         }
     }
 }

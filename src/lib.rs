@@ -109,8 +109,6 @@ pub use ironic_macros::jwt_guard;
 
 #[cfg(feature = "events")]
 pub use ironic_macros::event;
-#[cfg(feature = "outbox")]
-pub use ironic_macros::{inbox, outbox};
 #[cfg(feature = "mcp")]
 pub use ironic_macros::mcp_tool;
 pub use ironic_macros::{
@@ -120,6 +118,8 @@ pub use ironic_macros::{
     patch, pipe, post, put, query, raw_body, resp, routes, subscribe_message, r#test, timeout,
     web_socket_gateway,
 };
+#[cfg(feature = "outbox")]
+pub use ironic_macros::{inbox, outbox};
 
 #[cfg(feature = "microservices")]
 pub use ironic_macros::message;
@@ -304,8 +304,6 @@ pub mod prelude {
     pub use crate::distributed::inbox::{
         InMemoryProcessedStore, InboxConsumer, InboxError, ProcessedStore,
     };
-    #[cfg(feature = "outbox")]
-    pub use ironic_macros::{inbox, outbox};
     #[cfg(all(feature = "outbox", feature = "queues"))]
     pub use crate::distributed::outbox::QueueSink;
     #[cfg(feature = "outbox")]
@@ -325,6 +323,8 @@ pub mod prelude {
     pub use crate::graphql_integration::*;
     #[cfg(feature = "graphql")]
     pub use ironic_macros::{gql_query, mutation, resolver, subscription};
+    #[cfg(feature = "outbox")]
+    pub use ironic_macros::{inbox, outbox};
 
     #[cfg(feature = "logging")]
     pub use crate::logging::{

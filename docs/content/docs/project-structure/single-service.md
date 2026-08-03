@@ -213,3 +213,4 @@ level = "info"
 [openapi]
 title = "My App API"
 version = "0.1.0"
+```

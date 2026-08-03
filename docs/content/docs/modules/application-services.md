@@ -200,10 +200,10 @@ while let Some(event) = receiver.recv().await {
 ### Event Handler Macro
 
 ```rust
-use ironic::event_handler;
+use ironic::event;
 use std::sync::Arc;
 
-#[event_handler(capacity = 64)]
+#[event(capacity = 64)]
 async fn on_order_placed(event: Arc<OrderPlaced>) {
     // Runs in a background tokio task
     process_order(event).await;
@@ -213,7 +213,7 @@ async fn on_order_placed(event: Arc<OrderPlaced>) {
 ### Cross-Process Events
 
 ```rust
-#[event_handler(transport = "order.created")]
+#[event(transport = "order.created")]
 async fn on_order_created(event: Arc<OrderEvent>) {
     // Receives events published by OTHER services via Redis
     tracing::info!("cross-service event: {}", event.id);
@@ -233,7 +233,7 @@ for event in dead {
 }
 ```
 
-**Reference:** [Events](/docs/performance/events)
+**Reference:** [Events](/docs/distributed/events)
 
 ---
 
@@ -334,7 +334,7 @@ impl ChatService {
 |---------|----------------|--------------|
 | `cache` | `Cache` trait, `InMemoryCache`, `RedisCache`, `CacheInterceptor` | — |
 | `scheduling` | `ScheduledTask`, `interval()`, `cron()`, `cron_schedule()` | `cron` (optional) |
-| `events` | `EventBus`, `EventSubscription`, `#[event_handler]` macro | — |
+| `events` | `EventBus`, `EventSubscription`, `#[event]` macro | — |
 | `sse` | `SseRoute`, `SseConfig`, `sse_endpoint()`, `EventBroadcaster` | — |
 | `realtime` | `WebSocketHandler`, `WsConnections`, `#[web_socket_gateway]` | `axum/ws` |
 | `application-services` | All five above | All of the above |

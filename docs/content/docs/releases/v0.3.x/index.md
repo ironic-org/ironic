@@ -5,167 +5,88 @@ description: Complete changelog and release notes for the Ironic v0.3.x stable s
 
 # v0.3.x — Stable Series (Legacy)
 
-All versions in the v0.3.x series. Visit the [Blog](/blog) for detailed release announcements.
+All versions in the v0.3.x series. Full details in [CHANGELOG.md](https://github.com/ironic-org/ironic/blob/main/CHANGELOG.md).
 
 ---
 
-## v0.3.9 — July 15, 2026
+## v0.3.9 — 2026-07-15
 
 ### Added
-- Blog section with release notes, deep-dive articles, and version changelog
-- Docs comparison table (NestJS, Axum, Actix Web, Loco, Ironic)
-- Release releases page with full version history
-- Navigation and footer on blog pages
-- GitHub stars and forks badge in nav header
+- add release notes for v0.3.9 and enhance release script documentation (08592c9)
+- enhance release script to create blog post and update releases documentation (66b0a0a)
+
+---
+## v0.3.8 — 2026-07-15
+
+### Added
+- enhance observability section with health checks, metrics, and tracing documentation (cf2cc42)
+- update server host in dotenv example and Dockerfile for better accessibility (381f0eb)
+- update Dockerfile generation to use kebab-case project name (137202a)
+
+---
+## v0.3.7 — 2026-07-15
+
+### Added
+- add global middleware support for application builder and enhance security features (7113eef)
+
+---
+## v0.3.6 — 2026-07-15
+
+### Added
+- update validation pipes documentation with comprehensive examples and improved descriptions (c56dc5b)
+- add basic and auth API examples with CRUD functionality (b10e11e)
+- enhance project manifest with additional dependencies and security features (613d478)
 
 ### Fixed
-- Release script path: `getting-started.md` → `getting-started/getting-started.md`
-- Blog links use React Router `Link` for proper base path on GitHub Pages
-- SPA 404 fallback for blog direct URL access
+- allow dead code warnings for unit tests in authentication module (77c5c02)
 
 ### Changed
-- Release script now auto-creates blog post, updates BlogIndex and releases on each version
-- Docs CI skips full Rust build for docs-only changes
-- GitHub Discussions links → Issues (Discussions not yet enabled)
+- update version to 0.3.6 and remove unused API examples from workspace (914a74d)
 
 ---
-
-## v0.4.0 — v0.4.2
-
-See the [v0.4.x release notes](/docs/releases/v0.4.x) for these versions.
-
----
-
-## v0.3.8 — July 15, 2026
-
-### Added
-- Global middleware stack in generated `main.rs` (SecurityHeaders, RateLimit, CORS, Metrics, Compression)
-- `CORS_ORIGINS` JSON array parsing via `serde_json`
-- `SERVER_HOST=0.0.0.0` default for Docker compatibility
-- Enhanced observability docs with health checks, metrics, tracing
+## v0.3.5 — 2026-07-15
 
 ### Fixed
-- Dockerfile binary name uses kebab-case project name (was hardcoded `./app`)
-- Dockerfile `COPY` no longer overwrites the `/app/` directory
+- refactor authentication test file structure and update module imports (97720ac)
 
 ---
-
-## v0.3.7 — July 15, 2026
-
-### Added
-- `Application::builder().middleware()` public API for global middleware
-- `CompiledHttpApplication::extend_middleware()` for batch middleware registration
-- `ironic::security::*` flat re-exports for cleaner imports
-
----
-
-## v0.3.6 — July 15, 2026
-
-### Added
-- Comprehensive validation pipes documentation with `garde` rule reference
-- Basic API example (CRUD controller + service + DTOs + tests)
-- Auth API example (JWT, sessions, OAuth strategies)
-- `serde`, `serde_json`, `garde`, `dotenvy` in generated `Cargo.toml`
-- Optional features listed as comments in generated project manifest
+## v0.3.4 — 2026-07-15
 
 ### Fixed
-- Dead code warnings in generated authentication test files
+- remove unused integration module from tests (61aa525)
+- update integration test file paths for auth modules (db79152)
+- docs pages deployment with .nojekyll and SPA fallback (310efb2)
+
+---
+## v0.3.3 — 2026-07-15
+
+### Added
+- auto-add required dependencies to Cargo.toml during module registration (e8de7ce)
+
+### Fixed
+- format manual instructions for clarity in module registration (4f55008)
+
+---
+## v0.3.2 — 2026-07-15
+
+### Fixed
+- update documentation link in navigation component for clarity (d9eafaf)
+- update parameter names for consistency in auth module decorators and guards (18009e6)
+
+---
+## v0.3.1 — 2026-07-15
+
+### Fixed
+- allow needless raw string hashes and restore GenerationReport import in ready_resource.rs (583ba86)
 
 ### Changed
-- Default project features: `["security", "compression", "metrics", "validation"]`
+- bump version to 0.3.1 in Cargo.toml and Cargo.lock (d4d7b20)
+- reorder module imports for consistency in ready_resource.rs (7fd6159)
+- update module imports and improve code readability in ready_resource.rs (d7d944f)
 
 ---
+## v0.3.0 — 2026-07-15
 
-## v0.3.5 — July 15, 2026
-
-### Fixed
-- Refactored authentication test file structure
-- Updated module imports for auth test organization
+- Initial release
 
 ---
-
-## v0.3.4 — July 15, 2026
-
-### Fixed
-- Documentation site deployed with `.nojekyll` for GitHub Pages
-- SPA fallback for client-side routing on docs
-- Integration test paths updated for auth modules
-
----
-
-## v0.3.3 — July 15, 2026
-
-### Added
-- CLI now auto-adds required Cargo dependencies when scaffolding modules
-- `ironic generate` updates `Cargo.toml` automatically
-
-### Fixed
-- Improved manual instruction formatting during module generation
-
----
-
-## v0.3.2 — July 15, 2026
-
-### Fixed
-- Documentation navigation links updated for clarity
-- Auth module decorator and guard parameter consistency
-
----
-
-## v0.3.1 — July 15, 2026
-
-### Changed
-- Module imports reordered for consistency in ready-resource generator
-- Code readability improvements in generated resources
-
-### Fixed
-- Needless raw string hashes warning in generated code
-- `GenerationReport` import restored in ready_resource.rs
-
----
-
-## v0.3.0 — July 15, 2026
-
-First stable release of the Ironic framework.
-
-### Core
-- Module graph compiler with validated providers, controllers, imports, and exports
-- Dependency injection container with singleton and transient scopes
-- `#[derive(Module)]` and `#[derive(Injectable)]` macros
-- `OnModuleInit`, `OnApplicationBootstrap`, `OnModuleDestroy`, `OnApplicationShutdown`
-
-### HTTP
-- Controller routing via `#[controller]` + `#[get]/#[post]/#[put]/#[delete]`
-- Request pipeline: Middleware → Guards → Interceptors → Extraction → Pipes → Handler
-- Axum platform adapter with compression, body limit, and request timeout
-
-### CLI
-- `ironic new` — project scaffolding with full CRUD example
-- `ironic generate` — module, controller, service, resource, middleware, guard, interceptor, pipe, decorator, filter, gateway, provider
-- `ironic dev` — hot reload development server
-- `ironic start`, `ironic build`, `ironic test`
-
-### Testing
-- `TestApplication` — socket-free, in-process HTTP testing
-- `TestModule` — single-module isolation testing
-- Provider overrides for mocking dependencies
-
-### Benchmarks (arm64, release mode)
-| Operation | Time |
-|-----------|------|
-| Module graph compilation | 866 ns/op |
-| Route registration | 436 ns/op |
-| Transient provider resolution | 157 ns/op |
-| HTTP runtime startup | 555 ns/op |
-| Ironic in-process request | 780 ns/op |
-
----
-
-## Earlier versions
-
-| Version | Status | Notes |
-|---------|--------|-------|
-| v0.2.x | Deprecated | Pre-release with ready-resource generators, auth modules, file upload, email |
-| v0.1.x | Deprecated | First public release with full architecture foundation |
-
-Read the full pre-release story: [The pre-release journey](/blog/v0.1.x-v0.2.x)

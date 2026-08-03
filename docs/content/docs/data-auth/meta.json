@@ -1,4 +1,4 @@
 {
   "title": "Data & Auth",
-  "pages": ["database-integrations", "from-row", "migrations", "authentication", "quick-auth"]
+  "pages": ["database-integrations", "db-sqlx", "db-seaorm", "db-diesel", "db-mongodb", "db-redis", "db-testing", "from-row", "migrations", "authentication", "quick-auth"]
 }

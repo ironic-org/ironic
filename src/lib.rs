@@ -37,7 +37,8 @@ mod di;
     feature = "cqrs",
     feature = "sagas",
     feature = "grpc",
-    feature = "graphql"
+    feature = "graphql",
+    feature = "outbox"
 ))]
 #[path = "../crates/ironic-distributed/src/lib.rs"]
 pub mod distributed;
@@ -107,19 +108,21 @@ pub use ironic_macros::FromRow;
 pub use ironic_macros::jwt_guard;
 
 #[cfg(feature = "events")]
-pub use ironic_macros::event_handler;
+pub use ironic_macros::event;
 #[cfg(feature = "mcp")]
 pub use ironic_macros::mcp_tool;
 pub use ironic_macros::{
     Injectable, Merge, Module, OmitType, OpenApiSchema, PartialType, PickType, Serializable, api,
     body, cache, cache_key, cache_ttl, controller, cookie, cron, decorator, delete, form,
     forward_ref, get, guard, head, header, interceptor, interval, main, middleware, options, param,
-    patch, pipe, post, put, query, raw_body, resp, routes, sse, subscribe_message, r#test, timeout,
+    patch, pipe, post, put, query, raw_body, resp, routes, subscribe_message, r#test, timeout,
     web_socket_gateway,
 };
+#[cfg(feature = "outbox")]
+pub use ironic_macros::{inbox, outbox};
 
 #[cfg(feature = "microservices")]
-pub use ironic_macros::message_handler;
+pub use ironic_macros::message;
 #[cfg(feature = "mcp")]
 pub use mcp::*;
 #[cfg(feature = "openapi")]
@@ -297,6 +300,17 @@ pub mod prelude {
         any(feature = "redis", feature = "application-services")
     ))]
     pub use crate::cache_interceptor::CacheInterceptor;
+    #[cfg(feature = "outbox")]
+    pub use crate::distributed::inbox::{
+        InMemoryProcessedStore, InboxConsumer, InboxError, ProcessedStore,
+    };
+    #[cfg(all(feature = "outbox", feature = "queues"))]
+    pub use crate::distributed::outbox::QueueSink;
+    #[cfg(feature = "outbox")]
+    pub use crate::distributed::outbox::{
+        InMemoryOutboxStore, InMemorySink, OutboxError, OutboxRecord, OutboxRelay, OutboxStatus,
+        OutboxStore, RelayConfig, RelaySink, TransactionalOutbox,
+    };
     #[cfg(all(feature = "queues", feature = "redis"))]
     pub use crate::distributed::queues::{QueueConfig, RedisQueue};
     #[cfg(feature = "microservices")]
@@ -304,11 +318,13 @@ pub mod prelude {
         EventClient, EventServer, TransportConfig, TransportKind,
     };
     #[cfg(feature = "events")]
-    pub use crate::event_handler;
+    pub use crate::event;
     #[cfg(feature = "graphql")]
     pub use crate::graphql_integration::*;
     #[cfg(feature = "graphql")]
     pub use ironic_macros::{gql_query, mutation, resolver, subscription};
+    #[cfg(feature = "outbox")]
+    pub use ironic_macros::{inbox, outbox};
 
     #[cfg(feature = "logging")]
     pub use crate::logging::{
@@ -320,8 +336,6 @@ pub mod prelude {
     pub use crate::services::cache::RedisCache;
     #[cfg(feature = "sse")]
     pub use crate::services::sse::{SseConfig, SseError, SseRoute};
-    #[cfg(feature = "sse")]
-    pub use crate::sse;
     pub use crate::{
         AfterShutdown, AppError, AppResult, Application, AsyncModuleInit, AxumAdapter,
         BeforeShutdown, BuildInfo, CacheKeyMetadata, CacheMetadata, CacheTtlMetadata,

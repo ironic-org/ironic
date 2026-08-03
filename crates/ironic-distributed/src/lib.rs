@@ -4,7 +4,9 @@
 //! - `cqrs` — command/query responsibility segregation
 //! - `graphql` — GraphQL schema integration (requires `async-graphql`)
 //! - `grpc` — gRPC integration (requires `tonic`)
+//! - `inbox` — idempotent at-least-once consumption
 //! - `microservices` — channel-based microservice transport
+//! - `outbox` — transactional outbox with background relay
 //! - `queues` — at-least-once queue abstraction with in-memory implementation
 //! - `sagas` — ordered saga execution with reverse compensation
 
@@ -14,8 +16,12 @@ pub mod cqrs;
 pub mod graphql;
 #[cfg(feature = "grpc")]
 pub mod grpc;
+#[cfg(feature = "outbox")]
+pub mod inbox;
 #[cfg(feature = "microservices")]
 pub mod microservices;
+#[cfg(feature = "outbox")]
+pub mod outbox;
 #[cfg(feature = "queues")]
 pub mod queues;
 #[cfg(feature = "sagas")]

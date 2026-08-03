@@ -5,23 +5,23 @@ description: Complete changelog and release notes for the Ironic v1.1.x stable s
 
 # v1.1.x — Current Stable Series
 
-All versions in the v1.1.x series. Visit the [Blog](/blog) for detailed release announcements.
+All versions in the v1.1.x series. Full details in [CHANGELOG.md](https://github.com/ironic-org/ironic/blob/main/CHANGELOG.md).
 
 ---
 
 ## v1.1.9 — 2026-07-27
-
-# v1.1.9
 
 ### Added
 - update dependencies and enhance GraphQL integration in project generator (579a213)
 - add email and file upload modules with various backends (b6448bf)
 - enhance app generation with gRPC support and modular structure (7ff6139)
 - add gRPC support for app generation with `ironic generate app --grpc` (9966126)
+
 ### Fixed
 - update feature reference documentation to clarify dependencies for various features (fa1456a)
 - add dotenvy dependency for environment variable management (49bd20b)
 - update dependencies for gRPC support in generated app's Cargo.toml (47f85ca)
+
 ### Changed
 - Add meta.json for Quick Learn documentation and re-export additional dependencies in lib.rs (4b2ce06)
 - release v1.1.8 (fe32090)
@@ -30,14 +30,11 @@ All versions in the v1.1.x series. Visit the [Blog](/blog) for detailed release 
 ---
 ## v1.1.8 — 2026-07-26
 
-# v1.1.8
 ### Added
 - ironic generate app --grpc for gRPC microservice scaffold
 
 ---
 ## v1.1.7 — 2026-07-26
-
-# v1.1.7
 
 ### Added
 - enhance app generation with platform module and logging configuration (d46a656)
@@ -45,7 +42,6 @@ All versions in the v1.1.x series. Visit the [Blog](/blog) for detailed release 
 ---
 ## v1.1.6 — 2026-07-26
 
-# v1.1.6
 ### Changed
 - Simplify generated app template to minimal skeleton
 - Split generators/mod.rs into app.rs resource.rs monorepo.rs graphql.rs
@@ -57,7 +53,6 @@ All versions in the v1.1.x series. Visit the [Blog](/blog) for detailed release 
 ---
 ## v1.1.5 — 2026-07-25
 
-# v1.1.5
 ### Changed
 - generate_app creates revallens-style microservice with platform/welcome/example module, per-app Dockerfile/.env, unique port
 - app_module uses #[derive(Module)] macro pattern instead of impl Module for
@@ -69,7 +64,6 @@ All versions in the v1.1.x series. Visit the [Blog](/blog) for detailed release 
 ---
 ## v1.1.4 — 2026-07-25
 
-# v1.1.4
 ### Changed
 - New app scaffolding matches RivalLens structure: multi-line #[module()], repositories/tests in module template
 - generate controller/service/repository auto-inject into #[module()] providers/controllers arrays
@@ -77,13 +71,12 @@ All versions in the v1.1.x series. Visit the [Blog](/blog) for detailed release 
 ---
 ## v1.1.3 — 2026-07-25
 
-# v1.1.3
-
 ### Added
 - enhance app generation with health module and controller scaffolding (aae2a7b)
 - auto-convert single-service to monorepo when running ironic generate app (52b2dec)
 - monorepo workspace as default project structure — ironic new creates apps/ + libs/ layout (aae39c6)
 - add package argument to CargoArgs for monorepo support and update documentation (3aaed0b)
+
 ### Changed
 - cargo fmt (14acd27)
 - update project creation instructions in install script (38e0e66)
@@ -103,10 +96,9 @@ All versions in the v1.1.x series. Visit the [Blog](/blog) for detailed release 
 ---
 ## v1.1.2 — 2026-07-25
 
-# v1.1.2
-
 ### Added
 - add package argument to CargoArgs for monorepo support and update documentation (3aaed0b)
+
 ### Changed
 - remove outdated Production Release Guide (0a63098)
 - Refactor lifecycle documentation and add new hooks (ae10eed)
@@ -122,8 +114,6 @@ All versions in the v1.1.x series. Visit the [Blog](/blog) for detailed release 
 
 ---
 ## v1.1.1 — 2026-07-25
-
-# v1.1.1
 
 ### Added
 - implement MQTT and NATS live transports, Federation helper, MS pipeline docs (80808bb)
@@ -161,6 +151,7 @@ All versions in the v1.1.x series. Visit the [Blog](/blog) for detailed release 
 - update funding information and add sponsorship section to README (e170210)
 - add uninstall command to remove Ironic binary and caches (de9df21)
 - add FormBody extractor and #[form] attribute (1c468ac)
+
 ### Fixed
 - add missing entries to .gitignore for openspace, opencode, and claude (3f82210)
 - update navigation and introduction links for consistency (2bca747)
@@ -172,6 +163,7 @@ All versions in the v1.1.x series. Visit the [Blog](/blog) for detailed release 
 - update response body mapping in platform adapter documentation (e63a720)
 - handle missing environment variables in BuildInfo (39e64f1)
 - update CURRENT_VERSION to 1.0.3 (42468f6)
+
 ### Changed
 - update links and add new content for improved navigation and clarity (14234a6)
 - comprehensive NestJS vs Ironic feature map covering all 132 features (0b094a8)
@@ -219,7 +211,6 @@ All versions in the v1.1.x series. Visit the [Blog](/blog) for detailed release 
 ---
 ## v1.1.0 — 2026-07-23
 
-# v1.1.0
 ### Added
 - release.sh: prefer [Unreleased] content over git log when non-empty
 - add-changelog-entry.sh: helper script for quick [Unreleased] entries

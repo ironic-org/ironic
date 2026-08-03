@@ -298,7 +298,7 @@ impl OnApplicationShutdown for EventClient {
 /// A transport-agnostic event consumer with auto-listen lifecycle.
 ///
 /// Injects [`TransportConfig`] to select the backend. Implements
-/// [`MicroserviceServer`] so that [`#[event_handler]`](crate::event_handler)
+/// [`MicroserviceServer`] so that [`#[event]`](crate::event)
 /// can register handlers before `listen()` starts during
 /// `OnApplicationBootstrap`.
 pub struct EventServer {

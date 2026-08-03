@@ -1,7 +1,7 @@
 ---
 title: "Production-hardening 2: Health probes, version endpoint, and build metadata"
 description: "Liveness and readiness probe endpoints for Kubernetes (GET /health/live, GET /health/ready). Build metadata endpoint (GET /version) with git SHA, build timestamp, Rust version, and active features. HealthIndicator trait split for liveness vs readiness distinction."
-date: "Jul 16, 2026"
+date: "2026-07-16"
 author: "Ironic Team"
 ---
 

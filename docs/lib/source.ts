@@ -6,6 +6,8 @@ type Frontmatter = {
   title?: string;
   description?: string;
   full?: boolean;
+  date?: string;
+  author?: string;
 };
 
 type CompiledDocModule = {
@@ -28,6 +30,8 @@ export type RuntimePageData = {
   toc?: TOCItemType[];
   full?: boolean;
   searchText?: string;
+  date?: string;
+  author?: string;
   getText?: (mode: 'processed') => Promise<string>;
 };
 
@@ -87,6 +91,8 @@ function createPage(module: CompiledDocModule, slugs: string[]): RuntimePage {
       toc: module.toc ?? [],
       full: module.frontmatter?.full,
       searchText: module._markdown ?? '',
+      date: module.frontmatter?.date,
+      author: module.frontmatter?.author,
       getText: async () => module._markdown ?? '',
     },
   };
@@ -210,7 +216,7 @@ export function getPageImage(page: RuntimePage) {
 
   return {
     segments,
-    url: '',
+    url: 'https://ironic-org.github.io/ironic/og-card.png',
   };
 }
 
@@ -248,7 +254,7 @@ export function getSearchIndex(): SearchIndexItem[] {
       }));
 
     return [pageItem, ...sectionItems];
-  });
+  }).concat(blogSearchItems);
 }
 
 // ── Blog source ──────────────────────────────────────────
@@ -270,3 +276,21 @@ export const blogSource = {
     return blogPages;
   },
 };
+
+// Blog pages are searchable via /blog/<slug>, breadcrumb "Blog".
+const blogSearchItems: SearchIndexItem[] = blogPages.flatMap((page) => {
+  const pageTitleValue = page.data.title ?? 'Untitled';
+  const pageDescriptionValue = page.data.description ?? '';
+  const pageText = page.data.searchText ?? '';
+
+  return [
+    {
+      title: pageTitleValue,
+      description: pageDescriptionValue,
+      url: `/blog/${page.slugs.join('/')}`,
+      text: `${pageTitleValue}\n${pageDescriptionValue}\n${pageText}`,
+      breadcrumbs: ['Blog'],
+      kind: 'page',
+    },
+  ];
+});

@@ -8,6 +8,12 @@ description: Master Ironic's dependency injection — injection scopes, optional
 Ironic's DI container resolves dependencies automatically. This page covers
 everything from basic injection to advanced patterns.
 
+> **Where you are:** This is the *internals* section — how the DI container
+> actually resolves, scopes, and overrides providers. For a conceptual
+> introduction to modules, providers, and the request lifecycle, see
+> [Fundamentals](/docs/fundamentals/overview). For advanced module patterns,
+> see [Modules](/docs/modules/dynamic-modules).
+
 ## How Injection Works
 
 When you annotate a struct with `#[derive(Injectable)]`, Ironic:

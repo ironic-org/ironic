@@ -1,7 +1,7 @@
 ---
 title: "Production-hardening 1: CI/CD pipeline, security auditing, and release automation"
 description: "GitHub Actions CI with fmt/clippy/test/docs/audit/deny on every PR. Automated release workflow triggered by tag push. cargo-audit and cargo-deny for dependency vulnerability and license compliance. Local audit script for offline checks."
-date: "Jul 16, 2026"
+date: "2026-07-16"
 author: "Ironic Team"
 ---
 

@@ -7,6 +7,10 @@ description: Internal anatomy of a feature module — controllers, services, rep
 
 Every feature in Ironic is organized as a **module** — a self-contained vertical slice:
 
+> **Layout vs concepts:** This page shows the file/folder anatomy of a module.
+> For what modules are, how `#[Module]` works, and how modules import each other,
+> see [Modules (Fundamentals)](/docs/fundamentals/modules).
+
 ```
 modules/<domain>/
 ├── mod.rs                 # Module definition (providers, exports)

@@ -14,6 +14,11 @@ Services in a monorepo communicate through four mechanisms:
 | **Redis Transport** | Pub/sub (request-reply) | Lightweight inter-service calls |
 | **HTTP Client** | `HttpClientService` | External APIs or REST-only services |
 
+> **Project structure vs framework:** This page explains *how* services in a
+> monorepo talk to each other. For the microservice *framework* itself
+> (transports, `#[message]`, `#[event]`), see
+> [Microservices (Distributed)](/docs/distributed/microservices).
+
 ## 1. gRPC Communication
 
 ```
@@ -138,9 +143,9 @@ client
 ### Service B — Event Consumer
 
 ```rust
-use ironic::event_handler;
+use ironic::event;
 
-#[event_handler(transport = "order.created")]
+#[event(transport = "order.created")]
 async fn handle_order_created(event: Arc<OrderEvent>) {
     tracing::info!("processing order: {}", event.id);
     // Process background job

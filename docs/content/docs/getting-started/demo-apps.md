@@ -5,25 +5,21 @@ description: Example applications built with Ironic — from simple CRUD to full
 
 # Demo Apps
 
-The Ironic project maintains several demo applications that showcase different aspects of the framework. These are published on GitHub and can be used as reference implementations or starting points.
+The Ironic project maintains a reference application — the blog API in `examples/blog` — that showcases the framework's production features. It can be used as a reference implementation or a starting point.
 
 ## Quick start
 
 ```bash
-# Clone the examples repo
 git clone https://github.com/ironic-org/ironic
-cd ironic/examples
-
-# Run the blog API demo
-cd blog
+cd ironic/examples/blog
 cargo run
 ```
 
-## Available demos
+See [The Blog API demo](#the-blog-api-demo) below for database setup and migration steps.
 
-### Blog API
+## The Blog API demo
 
-A complete CRUD API for a blog with users, posts, and comments.
+The `examples/blog` application is a complete CRUD API for a blog with users, posts, and comments. It is the reference implementation for the framework's production features.
 
 **Features demonstrated:**
 - Controllers and routes
@@ -43,29 +39,6 @@ cargo run -- migrate
 # Start server
 cargo run
 ```
-
-### Chat application
-
-A real-time chat application using WebSocket gateways.
-
-**Features demonstrated:**
-- WebSocket gateways with rooms
-- Message broadcasting
-- Authentication via JWT
-- Typed message handling
-- Connection lifecycle management
-
-### E-commerce API
-
-A more complex example with orders, products, inventory, and payments.
-
-**Features demonstrated:**
-- Modular architecture (6 modules)
-- Redis caching
-- Background job processing
-- Event-driven architecture with event bus
-- Distributed sagas for order processing
-- Rate limiting and security middleware
 
 ## Creating a demo from scratch
 

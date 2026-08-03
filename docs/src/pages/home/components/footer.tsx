@@ -6,7 +6,7 @@ import { GitHubStatsBadge } from './github-stars';
 const footerLinks = {
     Docs: [
         { label: 'Getting started', href: '/docs/getting-started' },
-        { label: 'Fundamentals', href: '/docs/core/fundamentals' },
+        { label: 'Fundamentals', href: '/docs/fundamentals/overview' },
         { label: 'CLI', href: '/docs/getting-started/cli' },
         { label: 'API Reference', href: '/docs' },
     ],
@@ -14,7 +14,7 @@ const footerLinks = {
         { label: 'Security', href: '/docs/http-api/security' },
         { label: 'Cache', href: '/docs/performance/cache-decorators' },
         { label: 'Scheduling', href: '/docs/performance/scheduling' },
-        { label: 'WebSockets', href: '/docs/advanced/websocket-gateways' },
+        { label: 'WebSockets', href: '/docs/transport/websocket' },
     ],
     Resources: [
         { label: 'GitHub', href: GITHUB_URL },

@@ -37,19 +37,19 @@ async fn event_bus_delivers_only_matching_types() {
 
 #[cfg(feature = "events")]
 #[tokio::test]
-async fn event_handler_macro_generates_registration_function() {
-    use ironic::event_handler;
+async fn event_macro_generates_registration_function() {
+    use ironic::event;
     use ironic::services::events::EventBus;
     use std::sync::Arc;
 
-    #[event_handler(capacity = 32)]
+    #[event(capacity = 32)]
     #[allow(clippy::unused_async)]
     async fn handle_string_event(event: Arc<String>) {
         let _ = event;
     }
 
     let bus = EventBus::default();
-    __event_handler_reg_handle_string_event(&bus);
+    __event_reg_handle_string_event(&bus);
     // Give the spawned task time to subscribe
     tokio::task::yield_now().await;
 
@@ -59,22 +59,22 @@ async fn event_handler_macro_generates_registration_function() {
 
 #[cfg(feature = "events")]
 #[tokio::test]
-async fn event_handler_macro_with_custom_event_type() {
-    use ironic::event_handler;
+async fn event_macro_with_custom_event_type() {
+    use ironic::event;
     use ironic::services::events::EventBus;
     use std::sync::Arc;
 
     #[derive(Clone, Debug, PartialEq)]
     struct OrderPlaced(u32);
 
-    #[event_handler(capacity = 8)]
+    #[event(capacity = 8)]
     #[allow(clippy::unused_async)]
     async fn handle_order(event: Arc<OrderPlaced>) {
         let _ = event;
     }
 
     let bus = EventBus::default();
-    __event_handler_reg_handle_order(&bus);
+    __event_reg_handle_order(&bus);
     tokio::task::yield_now().await;
 
     let n = bus.publish(OrderPlaced(42)).await;
@@ -83,12 +83,12 @@ async fn event_handler_macro_with_custom_event_type() {
 
 #[cfg(feature = "events")]
 #[tokio::test]
-async fn event_handler_macro_auto_register_generates_async_init_impl() {
-    use ironic::event_handler;
+async fn event_macro_auto_register_generates_async_init_impl() {
+    use ironic::event;
     use ironic::services::events::EventBus;
     use std::sync::Arc;
 
-    #[event_handler(auto_register, capacity = 16)]
+    #[event(auto_register, capacity = 16)]
     #[allow(clippy::unused_async)]
     async fn handle_auto_event(event: Arc<String>) {
         let _ = event;
@@ -96,10 +96,10 @@ async fn event_handler_macro_auto_register_generates_async_init_impl() {
 
     // Verify auto-register struct exists by checking it implements AsyncModuleInit
     fn check_trait_bound<T: ironic::AsyncModuleInit>() {}
-    check_trait_bound::<__EventHandlerAuto_handle_auto_event>();
+    check_trait_bound::<__EventAuto_handle_auto_event>();
 
     let bus = EventBus::default();
-    __event_handler_reg_handle_auto_event(&bus);
+    __event_reg_handle_auto_event(&bus);
     tokio::task::yield_now().await;
 
     let n = bus.publish("auto".to_owned()).await;
@@ -108,19 +108,19 @@ async fn event_handler_macro_auto_register_generates_async_init_impl() {
 
 #[cfg(feature = "events")]
 #[tokio::test]
-async fn event_handler_macro_default_capacity() {
-    use ironic::event_handler;
+async fn event_macro_default_capacity() {
+    use ironic::event;
     use ironic::services::events::EventBus;
     use std::sync::Arc;
 
-    #[event_handler]
+    #[event]
     #[allow(clippy::unused_async)]
     async fn handle_default(event: Arc<String>) {
         let _ = event;
     }
 
     let bus = EventBus::default();
-    __event_handler_reg_handle_default(&bus);
+    __event_reg_handle_default(&bus);
     tokio::task::yield_now().await;
 
     let n = bus.publish("default".to_owned()).await;
@@ -763,11 +763,11 @@ async fn transport_provider_resolves_from_container() {
 
 #[cfg(all(feature = "microservices", feature = "events"))]
 #[tokio::test]
-async fn transport_provider_event_handler_with_auto_register() {
+async fn transport_provider_event_with_auto_register() {
     use ironic::distributed::transport_provider::EventServer;
-    use ironic::event_handler;
+    use ironic::event;
 
-    #[event_handler(transport = "my.event", auto_register)]
+    #[event(transport = "my.event", auto_register)]
     #[allow(clippy::unused_async)]
     async fn handle_my_event(event: String) {
         let _ = event;
@@ -775,37 +775,37 @@ async fn transport_provider_event_handler_with_auto_register() {
 
     // Verify the auto-register struct implements AsyncModuleInit
     fn check_trait_bound<T: ironic::AsyncModuleInit>() {}
-    check_trait_bound::<__EventHandlerAuto_handle_my_event>();
+    check_trait_bound::<__EventAuto_handle_my_event>();
 
     // Verify the registration function exists and accepts EventServer
     let (_, server) = EventServer::paired(16);
-    __event_handler_reg_handle_my_event(&server);
+    __event_reg_handle_my_event(&server);
 }
 
 #[cfg(all(feature = "microservices", feature = "events"))]
 #[tokio::test]
-async fn transport_provider_event_handler_transport_only() {
+async fn transport_provider_event_transport_only() {
     use ironic::distributed::transport_provider::EventServer;
-    use ironic::event_handler;
+    use ironic::event;
 
-    #[event_handler(transport = "other.event")]
+    #[event(transport = "other.event")]
     #[allow(clippy::unused_async)]
     async fn handle_other(event: String) {
         let _ = event;
     }
 
     let (_, server) = EventServer::paired(16);
-    __event_handler_reg_handle_other(&server);
+    __event_reg_handle_other(&server);
 }
 
 #[cfg(all(feature = "microservices", feature = "events"))]
 #[tokio::test]
-async fn transport_provider_event_handler_with_event_client_injection() {
+async fn transport_provider_event_with_event_client_injection() {
     use ironic::distributed::transport_provider::{EventClient, EventServer};
-    use ironic::event_handler;
+    use ironic::event;
 
     // Handler with injected EventClient — the second param is resolved from DI
-    #[event_handler(transport = "test.injected", auto_register)]
+    #[event(transport = "test.injected", auto_register)]
     #[allow(clippy::unused_async, unused_variables)]
     async fn handle_with_client(event: String, events: ::std::sync::Arc<EventClient>) {
         let _ = event;
@@ -813,10 +813,238 @@ async fn transport_provider_event_handler_with_event_client_injection() {
 
     // Verify auto_register struct implements AsyncModuleInit
     fn check_trait_bound<T: ironic::AsyncModuleInit>() {}
-    check_trait_bound::<__EventHandlerAuto_handle_with_client>();
+    check_trait_bound::<__EventAuto_handle_with_client>();
 
     // Verify registration function accepts (EventServer, Arc<EventClient>)
     let (client, server) = EventServer::paired(16);
     let events = ::std::sync::Arc::new(client);
-    __event_handler_reg_handle_with_client(&server, events);
+    __event_reg_handle_with_client(&server, events);
+}
+
+#[cfg(feature = "outbox")]
+#[tokio::test]
+async fn outbox_relay_publishes_pending_records() {
+    use ironic::distributed::outbox::{
+        InMemoryOutboxStore, InMemorySink, OutboxRelay, RelayConfig, TransactionalOutbox,
+    };
+    use std::sync::Arc;
+
+    let store = Arc::new(InMemoryOutboxStore::new());
+    let outbox = TransactionalOutbox::new(store.clone());
+    let id = outbox
+        .enqueue(&(), "order.created", b"{\"id\":1}")
+        .await
+        .unwrap();
+
+    let sink = Arc::new(InMemorySink::new());
+    let relay = OutboxRelay::new(
+        store.clone(),
+        sink.clone(),
+        RelayConfig {
+            max_attempts: 3,
+            ..Default::default()
+        },
+    );
+
+    let handled = relay.poll_once().await.unwrap();
+    assert_eq!(handled, 1);
+    assert_eq!(sink.published(), vec![id.clone()]);
+    assert_eq!(
+        store.status(&id),
+        Some(ironic::distributed::outbox::OutboxStatus::Published)
+    );
+}
+
+#[cfg(feature = "outbox")]
+#[tokio::test]
+async fn outbox_relay_retries_failed_publishes_and_dead_letters() {
+    use ironic::distributed::outbox::{
+        InMemoryOutboxStore, OutboxError, OutboxFuture, OutboxRecord, OutboxRelay, OutboxStatus,
+        RelayConfig, RelaySink, TransactionalOutbox,
+    };
+    use std::sync::Arc;
+
+    struct FlakySink {
+        fail_remaining: std::sync::atomic::AtomicUsize,
+    }
+    impl RelaySink for FlakySink {
+        fn publish(&self, record: &OutboxRecord) -> OutboxFuture<'_, ()> {
+            let fail = self
+                .fail_remaining
+                .fetch_update(
+                    std::sync::atomic::Ordering::SeqCst,
+                    std::sync::atomic::Ordering::SeqCst,
+                    |n| (n > 0).then(|| n - 1),
+                )
+                .unwrap_or(0)
+                > 0;
+            let id = record.id.clone();
+            Box::pin(async move {
+                if fail {
+                    Err(OutboxError(format!("sink down for {id}")))
+                } else {
+                    Ok(())
+                }
+            })
+        }
+    }
+
+    let store = Arc::new(InMemoryOutboxStore::new());
+    let outbox = TransactionalOutbox::new(store.clone());
+    let id = outbox
+        .enqueue(&(), "order.created", b"payload")
+        .await
+        .unwrap();
+
+    let sink = Arc::new(FlakySink {
+        fail_remaining: std::sync::atomic::AtomicUsize::new(2),
+    });
+    let relay = OutboxRelay::new(
+        store.clone(),
+        sink.clone(),
+        RelayConfig {
+            max_attempts: 5,
+            ..Default::default()
+        },
+    );
+
+    // First two polls fail, third succeeds.
+    let first = relay.poll_once().await.unwrap();
+    assert_eq!(first, 1);
+    assert_eq!(store.status(&id), Some(OutboxStatus::Pending));
+    let second = relay.poll_once().await.unwrap();
+    assert_eq!(second, 1);
+    let third = relay.poll_once().await.unwrap();
+    assert_eq!(third, 1);
+    assert_eq!(store.status(&id), Some(OutboxStatus::Published));
+}
+
+#[cfg(feature = "outbox")]
+#[tokio::test]
+async fn outbox_relay_dead_letters_after_max_attempts() {
+    use ironic::distributed::outbox::{
+        InMemoryOutboxStore, OutboxError, OutboxFuture, OutboxRecord, OutboxRelay, OutboxStatus,
+        RelayConfig, RelaySink, TransactionalOutbox,
+    };
+    use std::sync::Arc;
+
+    struct AlwaysFail;
+    impl RelaySink for AlwaysFail {
+        fn publish(&self, _record: &OutboxRecord) -> OutboxFuture<'_, ()> {
+            Box::pin(async { Err(OutboxError("sink down".into())) })
+        }
+    }
+
+    let store = Arc::new(InMemoryOutboxStore::new());
+    let outbox = TransactionalOutbox::new(store.clone());
+    let id = outbox
+        .enqueue(&(), "order.created", b"payload")
+        .await
+        .unwrap();
+
+    let relay = OutboxRelay::new(
+        store.clone(),
+        Arc::new(AlwaysFail),
+        RelayConfig {
+            max_attempts: 3,
+            ..Default::default()
+        },
+    );
+
+    for _ in 0..3 {
+        let _ = relay.poll_once().await.unwrap();
+    }
+    assert_eq!(store.status(&id), Some(OutboxStatus::Dead));
+    // Dead records are never reclaimed.
+    let handled = relay.poll_once().await.unwrap();
+    assert_eq!(handled, 0);
+}
+
+#[cfg(feature = "outbox")]
+#[tokio::test]
+async fn outbox_di_container_resolves_outbox_and_relay() {
+    use ironic::distributed::outbox::{OutboxRelay, RelayConfig, TransactionalOutbox};
+    use ironic::{ContainerBuilder, ProviderDefinition};
+    use std::sync::Arc;
+
+    let mut builder = ContainerBuilder::new();
+    builder
+        .register(TransactionalOutbox::provider_definition())
+        .unwrap()
+        .register(OutboxRelay::provider_definition())
+        .unwrap()
+        .register(ProviderDefinition::value(Arc::new(RelayConfig {
+            max_attempts: 7,
+            ..Default::default()
+        })))
+        .unwrap();
+
+    let container = builder.build();
+    container.resolve_forward_refs().await.unwrap();
+
+    let outbox: Arc<TransactionalOutbox<_>> = container
+        .resolve::<TransactionalOutbox<ironic::distributed::outbox::InMemoryOutboxStore>>()
+        .await
+        .unwrap();
+    let relay: Arc<OutboxRelay<_>> = container
+        .resolve::<OutboxRelay<ironic::distributed::outbox::InMemoryOutboxStore>>()
+        .await
+        .unwrap();
+
+    let id = outbox
+        .enqueue(&(), "order.created", b"payload")
+        .await
+        .unwrap();
+    let handled = relay.poll_once().await.unwrap();
+    assert_eq!(handled, 1);
+    assert!(!id.is_empty());
+}
+
+#[cfg(feature = "outbox")]
+#[tokio::test]
+async fn inbox_deduplicates_duplicate_deliveries() {
+    use ironic::distributed::inbox::{InMemoryProcessedStore, InboxConsumer};
+    use std::sync::Arc;
+
+    let store = Arc::new(InMemoryProcessedStore::new());
+    let consumer = InboxConsumer::new(store.clone());
+
+    let mut calls = 0;
+    let first = consumer
+        .handle("msg-1", || {
+            calls += 1;
+            async { Ok(()) }
+        })
+        .await
+        .unwrap();
+    let second = consumer
+        .handle("msg-1", || {
+            calls += 1;
+            async { Ok(()) }
+        })
+        .await
+        .unwrap();
+
+    assert!(first);
+    assert!(!second);
+    assert_eq!(calls, 1);
+}
+
+#[cfg(feature = "outbox")]
+#[tokio::test]
+async fn outbox_inbox_marker_attributes_are_noops() {
+    use std::sync::Arc;
+
+    #[ironic::outbox]
+    #[derive(Clone)]
+    struct SampleOutboxHandler;
+
+    #[ironic::inbox]
+    #[derive(Clone)]
+    struct SampleInboxHandler;
+
+    let outbox = SampleOutboxHandler;
+    let _outbox: Arc<_> = Arc::new(outbox.clone());
+    let inbox = SampleInboxHandler;
+    let _inbox: Arc<_> = Arc::new(inbox.clone());
 }

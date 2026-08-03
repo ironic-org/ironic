@@ -1,4 +1,4 @@
 {
   "title": "Core",
-  "pages": ["dependency-management", "provider-health", "reloadable-config", "container-override", "macros", "lifetimes", "sagas"]
+  "pages": ["dependency-management", "provider-health", "reloadable-config", "container-override", "macros", "lifetimes"]
 }

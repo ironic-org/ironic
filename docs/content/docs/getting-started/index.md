@@ -5,9 +5,50 @@ description: The complete beginner's guide to building APIs with Ironic — a Ru
 
 # Welcome to Ironic
 
-Ironic is a **Rust framework for building web APIs**. Think of it like LEGO bricks for your backend — each piece snaps together cleanly, and the compiler tells you if something's wrong before you even run the code.
+Ironic is a **batteries-included, type-safe application framework for Rust**. Think of it like LEGO bricks for your backend — each piece snaps together cleanly, and the compiler tells you if something's wrong before you even run the code.
 
 > **No prior framework experience needed.** If you know basic Rust (structs, functions, `async`), you can build a production API by the end of this guide.
+
+## Why a framework?
+
+Building a production API involves solving the same problems every time: routing, configuration, dependency management, authentication, error handling, validation, serialization, observability, and more. A framework codifies these solutions so you don't have to reinvent them for every project.
+
+Ironic is designed for teams and projects where:
+
+- **Consistency matters** — A predictable project structure makes onboarding faster
+- **Correctness is critical** — The type system catches wiring mistakes at compile time
+- **You need more than a router** — Real-world apps need DI, middleware, background jobs, auth, and metrics out of the box
+- **You want longevity** — Modular architecture means you can swap implementations without rewriting your app
+
+## Philosophy
+
+Ironic follows these principles:
+
+| Principle | What it means |
+|-----------|---------------|
+| **Batteries included** | Common needs (DI, config, auth, metrics, OpenAPI) are built-in, not bolted on |
+| **Compile-time safety** | Module wiring, provider resolution, and route registration are verified at compile time |
+| **Modular by default** | Everything is a module with explicit imports and exports — no hidden global state |
+| **Transport neutral** | Define your API once; expose it over HTTP, WebSocket, GraphQL, or any future protocol |
+| **Production ready** | Structured logging, metrics, circuit breakers, rate limiting, and hot-reload are first-class features |
+
+## Feature overview
+
+| Area | What Ironic provides |
+|------|---------------------|
+| **Routing** | Controllers with path parameters, query strings, body extraction, versioning |
+| **DI Container** | Singleton, transient, and request-scoped providers with cycle detection |
+| **Configuration** | Layered files, environment variables, profiles, hot-reload, secret redaction |
+| **Authentication** | JWT, OAuth2, session-based auth with guards and middleware |
+| **Data Access** | SQLx, SeaORM, Diesel, MongoDB, Redis — first-class integrations |
+| **Security** | CORS, CSRF, rate limiting, security headers |
+| **Observability** | Prometheus metrics, structured JSON logging, OpenTelemetry tracing |
+| **Resilience** | Retry with backoff, circuit breaker, bulkhead/concurrency limit |
+| **API Docs** | Automatic OpenAPI/Swagger generation from route definitions |
+| **Real-time** | WebSocket gateways with rooms, broadcasting, SSE channels |
+| **Background Work** | Cron scheduling, event bus, queues, sagas, CQRS |
+| **CLI Tooling** | Code generation, project scaffolding, debug REPL, migration management |
+| **Testing** | Test module builder, in-process HTTP client, fluent assertions |
 
 ## What you'll learn
 
@@ -15,17 +56,18 @@ This documentation walks you through every feature step by step:
 
 | Section | What you'll build |
 |---------|-------------------|
-| [Getting Started](./getting-started) | Install the CLI, create your first project, and see it running in 60 seconds |
-| [Project Structure](./project-structure) | Every file and folder explained — how modules, controllers, services, and repositories connect |
-| [Core Concepts](./fundamentals) | Understand Modules, Controllers, Services, and Dependency Injection — the 4 building blocks |
-| [CLI Reference](./cli) | Master the command-line tools for scaffolding, generating code, and inspecting your app |
-| [Configuration](./configuration) | Load settings from files, environment variables, and keep secrets safe |
-| [HTTP & API](./api-versioning) | Routes, versioning, validation, error handling, serialization, compression, and OpenAPI |
-| [Security](./security) | CORS, rate limiting, CSRF protection, and security headers |
-| [Database & Auth](./database-integrations) | Connect to PostgreSQL, MySQL, MongoDB, Redis. Add login with JWT, OAuth, or sessions |
-| [Performance](./cache-decorators) | Caching, background jobs, cron scheduling, and distributed systems |
-| [Advanced](./websocket-gateways) | WebSockets, custom decorators, plugins, and devtools |
-| [Observability](./observability) | Metrics, tracing, and production monitoring |
+| [Getting Started](/docs/getting-started/getting-started) | Install the CLI, create your first project, and see it running in 60 seconds |
+| [Project Structure](/docs/project-structure/overview) | Every file and folder explained — how modules, controllers, services, and repositories connect |
+| [Core Concepts](/docs/fundamentals/overview) | Understand Modules, Controllers, Services, and Dependency Injection — the 4 building blocks |
+| [CLI Reference](/docs/getting-started/cli) | Master the command-line tools for scaffolding, generating code, and inspecting your app |
+| [Configuration](/docs/configuration/overview) | Load settings from files, environment variables, and keep secrets safe |
+| [HTTP & API](/docs/http-api/api-versioning) | Routes, versioning, validation, error handling, serialization, compression, and OpenAPI |
+| [Security](/docs/http-api/security) | CORS, rate limiting, CSRF protection, and security headers |
+| [Database & Auth](/docs/data-auth/database-integrations) | Connect to PostgreSQL, MySQL, MongoDB, Redis. Add login with JWT, OAuth, or sessions |
+| [Performance](/docs/performance/cache-decorators) | Caching, background jobs, and cron scheduling |
+| [Distributed Systems](/docs/distributed/overview) | Microservices, queues, sagas, events, and the transactional outbox |
+| [Advanced](/docs/advanced/sessions) | Sessions, multipart uploads, static files, and devtools plugins |
+| [Observability](/docs/observability/overview) | Metrics, tracing, and production monitoring |
 
 ## How Ironic compares
 
@@ -52,3 +94,74 @@ This documentation walks you through every feature step by step:
 | **Package ecosystem** | Single crate | Tower/tower-http | actix extras | Rocket contrib | Salvo extras | Poem extras | Filters | NPM (1M+ packages) |
 
 Ironic gives you all of this **out of the box**, so you can focus on what makes your application unique. No other Rust framework matches this breadth of built-in features — and unlike NestJS, you get Rust's compile-time safety and native performance.
+
+## Suggested learning path
+
+Follow these steps in order. Each milestone tells you what you'll be able to do when
+you finish it.
+
+1. **Install & scaffold** — Install the CLI and run your first project in about a
+   minute: [Getting Started](/docs/getting-started/getting-started), then check
+   [Prerequisites](/docs/getting-started/prerequisites) and the
+   [CLI Reference](/docs/getting-started/cli).
+   *Milestone: a running HTTP server you can curl.*
+
+2. **Understand the structure** — See how a generated project fits together:
+   [Project Structure](/docs/project-structure/overview), then dive into
+   [Single Service](/docs/project-structure/single-service),
+   [Monorepo Workspace](/docs/project-structure/workspace), and
+   [Modules](/docs/project-structure/modules).
+   *Milestone: you can name every file the CLI generates and what it does.*
+
+3. **Learn the core concepts** — Modules, controllers, services, and dependency
+   injection are the four building blocks: [Core Concepts](/docs/fundamentals/overview),
+   then dive into [Modules](/docs/fundamentals/modules),
+   [Providers](/docs/fundamentals/providers), and
+   [Circular Dependencies](/docs/fundamentals/circular-dependencies).
+   *Milestone: you can wire two modules together and share a service.*
+
+4. **Configure your app** — Load settings from files, environment variables, and
+   profiles: [Configuration](/docs/configuration/overview) and the
+   [Env Var Reference](/docs/configuration/env-var-reference).
+   *Milestone: your app is driven by config, not hardcoded values.*
+
+5. **Build HTTP APIs** — Routes, params, bodies, validation, and error handling:
+   [Validation & Pipes](/docs/http-api/validation-pipes), then
+   [Exception Filters](/docs/http-api/exception-filters),
+   [Paginated Responses](/docs/http-api/paginated-responses), and
+   [OpenAPI](/docs/http-api/openapi).
+   *Milestone: a validated, documented CRUD endpoint.*
+
+6. **Secure it** — Guards, JWT, CORS, and rate limiting:
+   [Security](/docs/http-api/security) and [Guards](/docs/http-api/guards).
+   *Milestone: protected routes that reject unauthenticated requests.*
+
+7. **Add data & auth** — Connect PostgreSQL, MySQL, MongoDB, or Redis and add login
+   with JWT, OAuth, or sessions: [Database & Auth](/docs/data-auth/database-integrations).
+   *Milestone: a persistent app with real authentication.*
+
+8. **Observe & optimize** — Metrics, structured logging, and tracing:
+   [Observability](/docs/observability/overview); caching and background jobs:
+   [Performance](/docs/performance/cache-decorators).
+   *Milestone: you can see request latency, errors, and cache hits in production.*
+
+9. **Go distributed** — Microservices, queues, sagas, and events:
+   [Distributed Systems](/docs/distributed/overview).
+   *Milestone: services that communicate and survive partial failures.*
+
+10. **Test it** — Unit and integration testing with `TestApplication`:
+    [Testing](/docs/testing/testing).
+    *Milestone: your business logic is covered by fast, reliable tests.*
+
+11. **Learn by example** — Run the complete [blog example](/docs/more/examples) and
+    read its source: cross-module DI, JWT auth, caching, cron tasks, OpenAPI.
+
+12. **Skip ahead** — Need a fast reference? The [Quick Learn](/docs/quick-learn/api-reference)
+    pages condense the whole API surface into one place.
+
+## Where to start
+
+- New to Ironic? Start with [Getting Started](/docs/getting-started/getting-started)
+- Coming from NestJS? Read [Coming from NestJS](/docs/getting-started/coming-from-nestjs)
+- Want to see benchmarks? Check [Benchmarks](/docs/more/benchmarks)
+- Ready to build? Install the [CLI](/docs/getting-started/cli) and scaffold a project

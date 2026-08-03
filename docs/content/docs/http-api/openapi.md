@@ -245,6 +245,43 @@ Visit `http://localhost:8080/docs` after starting the server.
 
 ---
 
+## Generate spec & client SDK
+
+The JSON spec is served at the configured `json_path` (default: `GET /openapi.json`). Generate it to a file with the CLI:
+
+```bash
+# CLI (builds, starts, fetches, saves, shuts down)
+ironic openapi
+ironic openapi -p api-gateway -o docs/openapi.json
+
+# Manual
+curl http://localhost:8080/openapi.json > spec.json
+```
+
+Then generate a typed client for any language:
+
+```bash
+npx openapi-typescript spec.json -o client.ts     # TypeScript
+openapi-python-client generate --path spec.json    # Python
+openapi-generator-cli generate -i spec.json -g go  # Go
+```
+
+## What gets documented
+
+| Feature | Included |
+|---------|----------|
+| Routes | All `#[controller]` + `#[routes]` methods |
+| Path params | `#[param]` decorators on handler args |
+| Query params | `#[query]` decorators on handler args |
+| Header params | `#[header]` decorators on handler args |
+| Request bodies | `#[body]` decorator + `#[api]` body annotation |
+| Response schemas | `#[resp]` attribute + return type |
+| Error responses | Standard `HttpError` envelope schema |
+| Security schemes | Registered via `.security_scheme()` |
+| Tags | Grouped by `#[api(tag = "...")]` |
+
+---
+
 ## Generated JSON example
 
 ```json

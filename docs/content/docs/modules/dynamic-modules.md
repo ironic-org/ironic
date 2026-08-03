@@ -5,6 +5,11 @@ description: Create modules at runtime based on configuration — import conditi
 
 # Dynamic Modules
 
+> **Where you are:** This is the *advanced modules* section — dynamic imports,
+> decorators, and application services. For the conceptual introduction to
+> modules, see [Fundamentals → Modules](/docs/fundamentals/modules). For DI
+> internals, see [Core → Dependency Management](/docs/core/dependency-management).
+
 ## What you'll learn
 
 - Conditionally import modules based on compile-time features and runtime config

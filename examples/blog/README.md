@@ -5,7 +5,7 @@ An example demonstrating Ironic framework features for building production REST 
 ## Quick start
 
 ```bash
-cd examples/blog-api
+cd examples/blog
 cargo run
 ```
 

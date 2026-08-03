@@ -124,8 +124,6 @@ Ironic:
 )]
 pub struct SecurityModule;
 ```
-}
-```
 
 ## Key differences
 

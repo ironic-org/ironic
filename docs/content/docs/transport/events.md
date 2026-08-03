@@ -9,7 +9,7 @@ Ironic's transport provider lets you send and receive events between microservic
 
 > **Cross-service vs in-process:** This page covers `EventClient` / `EventServer`
 > for sending events between services. For the in-process `EventBus` (local pub/sub
-> within one process) and the `#[event_handler]` macro fundamentals, see
+> within one process) and the `#[event]` macro fundamentals, see
 > [Events (Distributed)](/docs/distributed/events).
 
 ## Production Example — 3 Microservices
@@ -259,7 +259,7 @@ use events::*;
 #[derive(Module)]
 #[module(
     providers = [TransportConfig, EventClient, EventServer, OrderService],
-    async_init = [__EventHandlerAuto_on_payment_completed],
+    async_init = [__EventAuto_on_payment_completed],
     lifecycle_bootstrap = [EventClient, EventServer],
     lifecycle_shutdown = [EventClient, EventServer],
 )]
@@ -267,7 +267,7 @@ pub struct OrderServiceModule;
 
 // ── Consume: payment.completed ──
 
-#[event_handler(transport = "payment.completed")]
+#[event(transport = "payment.completed")]
 async fn on_payment_completed(event: PaymentCompleted) {
     tracing::info!(
         "order {} payment confirmed: {} ({})",
@@ -313,10 +313,10 @@ KAFKA_GROUP_ID=order-service
 
 ## Consume Then Publish — Injecting `EventClient` Into Handlers
 
-A common pattern: receive an event → process → emit a new event. With `#[event_handler]`, just add `events: Arc<EventClient>` as a second parameter:
+A common pattern: receive an event → process → emit a new event. With `#[event]`, just add `events: Arc<EventClient>` as a second parameter:
 
 ```rust
-#[event_handler(transport = "order.created")]
+#[event(transport = "order.created")]
 async fn on_order_created(event: OrderCreated, events: Arc<EventClient>) {
     // 1. Process the incoming event
     tracing::info!("processing order {}", event.order_id);
@@ -329,7 +329,7 @@ async fn on_order_created(event: OrderCreated, events: Arc<EventClient>) {
 
 ### How it works
 
-The `#[event_handler(transport = "...")]` macro:
+The `#[event(transport = "...")]` macro:
 
 1. Generates a registration function that registers the handler with `EventServer`
 2. By default, also generates an `AsyncModuleInit` impl that auto-registers during startup
@@ -342,13 +342,13 @@ The `#[event_handler(transport = "...")]` macro:
 Auto-register is the default. If you need to control when handlers are registered (e.g., conditional registration based on config, or custom ordering), use `manual_register`:
 
 ```rust
-#[event_handler(transport = "order.created", manual_register)]
+#[event(transport = "order.created", manual_register)]
 async fn on_order_created(event: OrderCreated) {
     // Handler logic — but no auto-register struct is generated
 }
 ```
 
-When you use `manual_register`, the macro still generates the registration function `__event_handler_reg_on_order_created()`, but it does NOT generate the `__EventHandlerAuto_*` struct. You must call it yourself.
+When you use `manual_register`, the macro still generates the registration function `__event_reg_on_order_created()`, but it does NOT generate the `__EventAuto_*` struct. You must call it yourself.
 
 #### Step 1 — Add a manual init service
 
@@ -364,7 +364,7 @@ impl OnApplicationBootstrap for HandlerRegistrar {
         Box::pin(async move {
             // Register handlers conditionally
             if std::env::var("ENABLE_ORDER_HANDLER").as_deref() == Ok("true") {
-                __event_handler_reg_on_order_created(&*server);
+                __event_reg_on_order_created(&*server);
                 tracing::info!("order.created handler registered");
             }
         })
@@ -400,7 +400,7 @@ Note: `HandlerRegistrar` is NOT in `async_init` (that's where auto-register stru
 #[tokio::test]
 async fn test_handler_directly() {
     let (client, server) = EventServer::paired(16);
-    __event_handler_reg_on_order_created(&server);
+    __event_reg_on_order_created(&server);
     server.listen().await.unwrap();
     client.emit("order.created", &OrderCreated { ... }).await.unwrap();
 }
@@ -411,7 +411,7 @@ async fn test_handler_directly() {
 You can inject any service registered in the DI container by adding it as an `Arc<T>` parameter:
 
 ```rust
-#[event_handler(transport = "order.created")]
+#[event(transport = "order.created")]
 async fn on_order_created(
     event: OrderCreated,
     events: Arc<EventClient>,
@@ -428,25 +428,25 @@ Each `Arc<T>` parameter is resolved from the container during startup, captured 
 
 ### Consuming multiple event types
 
-Add one `#[event_handler]` per event type. Each generates its own registration function:
+Add one `#[event]` per event type. Each generates its own registration function:
 
 ```rust
-#[event_handler(transport = "order.created")]
+#[event(transport = "order.created")]
 async fn on_order_created(event: OrderCreated, events: Arc<EventClient>) {
     // handle order creation
 }
 
-#[event_handler(transport = "order.cancelled")]
+#[event(transport = "order.cancelled")]
 async fn on_order_cancelled(event: OrderCancelled) {
     // handle cancellation — no emit needed, so no Arc<EventClient>
 }
 
-#[event_handler(transport = "payment.completed")]
+#[event(transport = "payment.completed")]
 async fn on_payment_completed(event: PaymentCompleted, events: Arc<EventClient>) {
     // handle payment
 }
 
-#[event_handler(transport = "user.deleted")]
+#[event(transport = "user.deleted")]
 async fn on_user_deleted(event: UserDeleted) {
     // handle user deletion
 }
@@ -459,7 +459,7 @@ Each handler can independently choose whether to inject `Arc<EventClient>` — a
 Call `events.emit()` as many times as you need:
 
 ```rust
-#[event_handler(transport = "order.created")]
+#[event(transport = "order.created")]
 async fn on_order_created(event: OrderCreated, events: Arc<EventClient>) {
     // Emit multiple downstream events in sequence
     events.emit("inventory.reserve", &ReserveInventory {
@@ -481,17 +481,17 @@ async fn on_order_created(event: OrderCreated, events: Arc<EventClient>) {
 
 ### Registering many handlers in the module
 
-Each `#[event_handler]` generates a `__EventHandlerAuto_<fn>` struct (auto-register is the default). List all of them in `async_init`:
+Each `#[event]` generates a `__EventAuto_<fn>` struct (auto-register is the default). List all of them in `async_init`:
 
 ```rust
 #[derive(Module)]
 #[module(
     providers = [TransportConfig, EventClient, EventServer],
     async_init = [
-        __EventHandlerAuto_on_order_created,
-        __EventHandlerAuto_on_order_cancelled,
-        __EventHandlerAuto_on_payment_completed,
-        __EventHandlerAuto_on_user_deleted,
+        __EventAuto_on_order_created,
+        __EventAuto_on_order_cancelled,
+        __EventAuto_on_payment_completed,
+        __EventAuto_on_user_deleted,
     ],
     lifecycle_bootstrap = [EventClient, EventServer],
     lifecycle_shutdown = [EventClient, EventServer],
@@ -529,7 +529,7 @@ use events::*;
 #[derive(Module)]
 #[module(
     providers = [TransportConfig, EventClient, EventServer],
-    async_init = [__EventHandlerAuto_on_order_created],
+    async_init = [__EventAuto_on_order_created],
     lifecycle_bootstrap = [EventClient, EventServer],
     lifecycle_shutdown = [EventClient, EventServer],
 )]
@@ -537,7 +537,7 @@ pub struct PaymentServiceModule;
 
 // ── Consume: order.created → produce: payment.completed ──
 
-#[event_handler(transport = "order.created")]
+#[event(transport = "order.created")]
 async fn on_order_created(event: OrderCreated, events: Arc<EventClient>) {
     tracing::info!(
         "processing payment for order {} ({}{})",
@@ -592,7 +592,7 @@ use events::*;
 #[derive(Module)]
 #[module(
     providers = [TransportConfig, EventClient, EventServer],
-    async_init = [__EventHandlerAuto_on_payment_completed],
+    async_init = [__EventAuto_on_payment_completed],
     lifecycle_bootstrap = [EventClient, EventServer],
     lifecycle_shutdown = [EventClient, EventServer],
 )]
@@ -600,7 +600,7 @@ pub struct NotificationServiceModule;
 
 // ── Consume: payment.completed → produce: notification.sent ──
 
-#[event_handler(transport = "payment.completed")]
+#[event(transport = "payment.completed")]
 async fn on_payment_completed(event: PaymentCompleted, events: Arc<EventClient>) {
     tracing::info!(
         "sending notification for order {}...",
@@ -933,7 +933,7 @@ Consistent naming makes it easy to trace event flows and configure ACLs.
 ### Error handling inside handlers
 
 ```rust
-#[event_handler(transport = "order.created")]
+#[event(transport = "order.created")]
 async fn on_order_created(event: OrderCreated) {
     if let Err(e) = process_payment(&event).await {
         tracing::error!(
@@ -954,7 +954,7 @@ Events that return `Err` are silently dropped by the transport. Implement a retr
 When a handler both consumes an event and emits a new one, wrap the emit in error handling:
 
 ```rust
-#[event_handler(transport = "order.created")]
+#[event(transport = "order.created")]
 async fn on_order_created(event: OrderCreated, events: Arc<EventClient>) {
     if let Err(e) = events.emit("payment.completed", &PaymentCompleted { /* ... */ }).await {
         tracing::error!(
@@ -977,7 +977,7 @@ The `OnApplicationShutdown` lifecycle hook on `EventClient` and `EventServer` ha
 Add tracing to every handler:
 
 ```rust
-#[event_handler(transport = "order.created")]
+#[event(transport = "order.created")]
 async fn on_order_created(event: OrderCreated) {
     let span = tracing::info_span!("handle_order_created", order_id = %event.order_id);
     let _guard = span.enter();
@@ -1008,7 +1008,7 @@ async fn on_order_created(event: OrderCreated) {
 
 | Method | Description |
 |---|---|
-| `on_event(pattern, handler)` | Register handler (called by `#[event_handler]`) |
+| `on_event(pattern, handler)` | Register handler (called by `#[event]`) |
 | `on_message(pattern, handler)` | Register request-response handler |
 | `listen()` | Start consuming (called by lifecycle) |
 | `close()` | Stop consuming (called by lifecycle shutdown) |
@@ -1020,7 +1020,7 @@ async fn on_order_created(event: OrderCreated) {
 | Feature | What it enables |
 |---|---|
 | `microservices` | Transport provider (`EventClient`, `EventServer`, `TransportConfig`) |
-| `events` | `#[event_handler]` proc macro |
+| `events` | `#[event]` proc macro |
 | `transport-kafka` | Kafka backend |
 | `transport-redis` | Redis pub/sub backend |
 | `transport-rabbitmq` | RabbitMQ backend |

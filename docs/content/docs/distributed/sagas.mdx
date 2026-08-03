@@ -166,15 +166,15 @@ impl SagaStep<OrderState> for ReserveInventory {
 }
 ```
 
-### 4. Payment service — `#[event_handler]` consumer + emits next event
+### 4. Payment service — `#[event]` consumer + emits next event
 
 ```rust
 // payment-service/src/events/order_created.rs
-use ironic::event_handler;
+use ironic::event;
 use ironic::distributed::transport_provider::EventClient;
 use std::sync::Arc;
 
-#[event_handler(transport = "order.created")]
+#[event(transport = "order.created")]
 pub async fn on_order_created(event: OrderCreated, events: Arc<EventClient>) {
     // Process the payment
     stripe::capture(event.total_cents).await.unwrap();
@@ -188,13 +188,13 @@ pub async fn on_order_created(event: OrderCreated, events: Arc<EventClient>) {
 }
 ```
 
-### 5. Notification service — `#[event_handler]` consumer
+### 5. Notification service — `#[event]` consumer
 
 ```rust
 // notification-service/src/events/payment_completed.rs
-use ironic::event_handler;
+use ironic::event;
 
-#[event_handler(transport = "payment.completed")]
+#[event(transport = "payment.completed")]
 pub async fn on_payment_completed(event: PaymentCompleted) {
     send_email(
         &event.user_email,
@@ -204,13 +204,13 @@ pub async fn on_payment_completed(event: PaymentCompleted) {
 }
 ```
 
-### 6. Inventory service — `#[event_handler]` consumer
+### 6. Inventory service — `#[event]` consumer
 
 ```rust
 // inventory-service/src/events/payment_completed.rs
-use ironic::event_handler;
+use ironic::event;
 
-#[event_handler(transport = "payment.completed")]
+#[event(transport = "payment.completed")]
 pub async fn on_payment_completed(event: PaymentCompleted) {
     inventory_api::confirm(event.order_id).await;
 }
@@ -224,16 +224,16 @@ handler types in its module definition:
 ```rust
 // notification-service/src/app.rs
 use ironic::distributed::transport_provider::{EventClient, EventServer, TransportConfig};
-use crate::events::__EventHandlerAuto_on_payment_completed;
+use crate::events::__EventAuto_on_payment_completed;
 
 #[derive(Module)]
 #[module(
     providers = [
         TransportConfig, EventClient, EventServer,
-        __EventHandlerAuto_on_payment_completed,
+        __EventAuto_on_payment_completed,
     ],
     controllers = [],
-    async_init = [__EventHandlerAuto_on_payment_completed],
+    async_init = [__EventAuto_on_payment_completed],
     lifecycle_bootstrap = [EventClient, EventServer],
     lifecycle_shutdown = [EventClient, EventServer],
 )]
@@ -242,12 +242,12 @@ pub struct AppModule;
 
 ```rust
 // payment-service/src/app.rs
-use crate::events::__EventHandlerAuto_on_order_created;
+use crate::events::__EventAuto_on_order_created;
 
 #[derive(Module)]
 #[module(
-    providers = [__EventHandlerAuto_on_order_created],
-    async_init = [__EventHandlerAuto_on_order_created],
+    providers = [__EventAuto_on_order_created],
+    async_init = [__EventAuto_on_order_created],
     // ...
 )]
 pub struct AppModule;
@@ -361,7 +361,7 @@ pub struct AppModule;
 ### 10. Why saga + events together?
 
 - **Saga** guarantees payment and inventory are always in sync
-- **`#[event_handler]`** decouples downstream services — adding analytics requires zero changes to order service
+- **`#[event]`** decouples downstream services — adding analytics requires zero changes to order service
 - **Parallel execution** — notification and inventory run concurrently after payment completes
 - **No distributed lock** — each step is a self-contained operation with a defined compensation
 
@@ -400,7 +400,7 @@ impl SagaStep<MyState> for MyStep {
 |------|-------|---------|
 | `EventClient` | `#[module(providers = [...])]` | Emit events |
 | `EventServer` | `#[module(providers = [...])]` | Receive events |
-| `__EventHandlerAuto_*` | `#[module(providers = [...], async_init = [...])]` | Auto-register `#[event_handler]` consumers |
+| `__EventAuto_*` | `#[module(providers = [...], async_init = [...])]` | Auto-register `#[event]` consumers |
 
 ### SagaError
 

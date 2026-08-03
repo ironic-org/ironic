@@ -108,7 +108,7 @@ pub use ironic_macros::FromRow;
 pub use ironic_macros::jwt_guard;
 
 #[cfg(feature = "events")]
-pub use ironic_macros::event_handler;
+pub use ironic_macros::event;
 #[cfg(feature = "outbox")]
 pub use ironic_macros::{inbox, outbox};
 #[cfg(feature = "mcp")]
@@ -122,7 +122,7 @@ pub use ironic_macros::{
 };
 
 #[cfg(feature = "microservices")]
-pub use ironic_macros::message_handler;
+pub use ironic_macros::message;
 #[cfg(feature = "mcp")]
 pub use mcp::*;
 #[cfg(feature = "openapi")]
@@ -320,7 +320,7 @@ pub mod prelude {
         EventClient, EventServer, TransportConfig, TransportKind,
     };
     #[cfg(feature = "events")]
-    pub use crate::event_handler;
+    pub use crate::event;
     #[cfg(feature = "graphql")]
     pub use crate::graphql_integration::*;
     #[cfg(feature = "graphql")]

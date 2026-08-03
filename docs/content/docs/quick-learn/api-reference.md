@@ -428,8 +428,8 @@ async fn list(...) -> ...;
 | `#[guard]` | always | Route guard attribute |
 | `#[intercept]` | always | Method interceptor |
 | `#[sse]` | `sse` | SSE endpoint marker |
-| `#[message_handler]` | `microservices` | Message handler |
-| `#[event_handler]` | `events` | Event handler |
+| `#[message]` | `microservices` | Message handler |
+| `#[event]` | `events` | Event handler |
 | `#[web_socket_gateway(path)]` | `realtime` | WebSocket endpoint |
 | `#[forward_ref]` | always | Forward reference marker |
 

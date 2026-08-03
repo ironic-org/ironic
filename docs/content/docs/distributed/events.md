@@ -9,7 +9,7 @@ Ironic provides a typed in-process event bus with optional cross-process
 transport support.
 
 > **In-process vs cross-process:** This page covers the in-process `EventBus`
-> and the `#[event_handler]` macro. For cross-service events over Kafka, Redis,
+> and the `#[event]` macro. For cross-service events over Kafka, Redis,
 > or in-memory transports (`EventClient` / `EventServer`), see
 > [Events (Transport Provider)](/docs/transport/events).
 
@@ -33,9 +33,9 @@ bus.publish("hello".to_string()).await;
 ## Event Handler Macro
 
 ```rust
-use ironic::event_handler;
+use ironic::event;
 
-#[event_handler(capacity = 64)]
+#[event(capacity = 64)]
 async fn handle_order_placed(event: Arc<OrderPlaced>) {
     tracing::info!("order placed: {}", event.order_id);
 }
@@ -46,7 +46,7 @@ async fn handle_order_placed(event: Arc<OrderPlaced>) {
 Use the `transport` parameter to route events through a microservice transport:
 
 ```rust
-#[event_handler(transport = "user.created")]
+#[event(transport = "user.created")]
 async fn handle_user_created(event: Arc<UserCreated>) {
     tracing::info!("user created in another service: {}", event.user_id);
 }

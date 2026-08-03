@@ -9,7 +9,7 @@
 use proc_macro::TokenStream;
 
 mod controller;
-mod event_handler;
+mod event;
 mod from_row;
 mod graphql;
 mod injectable;
@@ -17,7 +17,7 @@ mod jwt_guard;
 mod mapped_types;
 mod mcp_tool;
 mod merge;
-mod message_handler;
+mod message;
 mod module;
 mod openapi;
 mod routes;
@@ -220,13 +220,13 @@ pub fn mcp_tool(attribute: TokenStream, item: TokenStream) -> TokenStream {
 /// use std::sync::Arc;
 /// use ironic::distributed::{MicroserviceServer, MessageContext};
 ///
-/// #[message_handler("user.get")]
+/// #[message("user.get")]
 /// async fn get_user(request: GetUserRequest) -> GetUserResponse {
 ///     // ...
 /// }
 /// ```
-pub fn message_handler(attribute: TokenStream, item: TokenStream) -> TokenStream {
-    message_handler::expand(attribute.into(), item.into())
+pub fn message(attribute: TokenStream, item: TokenStream) -> TokenStream {
+    message::expand(attribute.into(), item.into())
         .unwrap_or_else(syn::Error::into_compile_error)
         .into()
 }
@@ -242,16 +242,16 @@ pub fn message_handler(attribute: TokenStream, item: TokenStream) -> TokenStream
 /// use std::sync::Arc;
 /// use ironic::services::events::{EventBus, EventSubscription};
 ///
-/// #[event_handler(capacity = 64)]
+/// #[event(capacity = 64)]
 /// async fn handle_order_placed(event: Arc<String>) {
 ///     tracing::info!("received event: {event}");
 /// }
 ///
 /// let bus = EventBus::default();
-/// __event_handler_reg_handle_order_placed(&bus);
+/// __event_reg_handle_order_placed(&bus);
 /// ```
-pub fn event_handler(attribute: TokenStream, item: TokenStream) -> TokenStream {
-    event_handler::expand(attribute.into(), item.into())
+pub fn event(attribute: TokenStream, item: TokenStream) -> TokenStream {
+    event::expand(attribute.into(), item.into())
         .unwrap_or_else(syn::Error::into_compile_error)
         .into()
 }

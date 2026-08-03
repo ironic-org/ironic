@@ -313,10 +313,10 @@ tonic::include_proto!("greeter");
 Service A ──event──▶ Kafka ──event──▶ Service B
 ```
 
-Using the `#[event_handler]` macro:
+Using the `#[event]` macro:
 
 ```rust
-#[event_handler(transport = "order.created")]
+#[event(transport = "order.created")]
 async fn handle_order_created(event: Arc<OrderEvent>) {
     // Process asynchronously
 }

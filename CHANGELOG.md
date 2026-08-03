@@ -19,6 +19,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Docs: split testing section into 4 pages, expand provider-health guide, add v1.0.x/v1.2.x migration guides
 - Docs: split the 2052-line quick-learn feature-reference into api-reference, architecture, features, and patterns pages
 - Docs: expand examples guide with a full blog-api walkthrough and add a numbered 12-step learning path to the getting-started landing page
+- Rename #[event_handler] attribute macro to #[event] and #[message_handler] to #[message]
 
 ### Fixed
 - Docs blog pages now render each post's real date and computed read time instead of hardcoded values

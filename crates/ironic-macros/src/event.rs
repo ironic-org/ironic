@@ -73,7 +73,7 @@ fn extract_params(function: &ItemFn) -> syn::Result<(Type, Vec<InjectedParam>)> 
     if params.is_empty() {
         return Err(syn::Error::new_spanned(
             &function.sig,
-            "event_handler requires at least one parameter for the event type",
+            "event requires at least one parameter for the event type",
         ));
     }
 
@@ -92,7 +92,7 @@ fn extract_type_from_arg(arg: &FnArg) -> syn::Result<Type> {
         FnArg::Typed(PatType { ty, .. }) => Ok(strip_arc(ty)),
         FnArg::Receiver(_) => Err(syn::Error::new_spanned(
             arg,
-            "event_handler parameter must be a typed parameter",
+            "event parameter must be a typed parameter",
         )),
     }
 }
@@ -120,7 +120,7 @@ fn extract_injected_param(arg: &FnArg) -> syn::Result<InjectedParam> {
         }
         FnArg::Receiver(_) => Err(syn::Error::new_spanned(
             arg,
-            "event_handler parameter must be a typed parameter",
+            "event parameter must be a typed parameter",
         )),
     }
 }
@@ -150,7 +150,7 @@ pub(crate) fn expand(attribute: TokenStream, item: TokenStream) -> syn::Result<T
     let auto_register = args.auto_register;
     let handler_fn_name = &function.sig.ident;
     let reg_name = syn::Ident::new(
-        &format!("__event_handler_reg_{handler_fn_name}"),
+        &format!("__event_reg_{handler_fn_name}"),
         handler_fn_name.span(),
     );
 
@@ -238,7 +238,7 @@ pub(crate) fn expand(attribute: TokenStream, item: TokenStream) -> syn::Result<T
     // 3. If auto_register, emit a registrar struct + AsyncModuleInit impl.
     if auto_register {
         let registrar_name = syn::Ident::new(
-            &format!("__EventHandlerAuto_{handler_fn_name}"),
+            &format!("__EventAuto_{handler_fn_name}"),
             handler_fn_name.span(),
         );
 

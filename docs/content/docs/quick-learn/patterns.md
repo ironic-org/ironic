@@ -209,10 +209,10 @@ pub struct UserCreatedEvent {
     pub email: String,
 }
 
-#[event_handler]
+#[event]
 async fn on_user_created(event: Arc<UserCreatedEvent>, bus: Arc<EventBus>) {
     println!("User created: {}", event.email);
-    // The event handler is auto-registered by the `#[event_handler]` macro
+    // The event handler is auto-registered by the `#[event]` macro
 }
 
 // Publishing:
@@ -226,7 +226,7 @@ Requires the `microservices` feature:
 ```rust
 use ironic::prelude::*;
 
-#[message_handler("user.created")]
+#[message("user.created")]
 async fn handle_user_created(payload: serde_json::Value) -> Result<(), HttpError> {
     let user_id = payload["id"].as_u64().unwrap();
     println!("Processing user {user_id}");
@@ -375,7 +375,7 @@ pub struct CreateUserCommand {
 }
 
 // Command handler
-#[message_handler("command.create_user")]
+#[message("command.create_user")]
 async fn handle_create_user(cmd: CreateUserCommand) -> Result<(), HttpError> {
     // Validate and execute command
     println!("Creating user: {}", cmd.name);
@@ -388,7 +388,7 @@ pub struct GetUserQuery {
 }
 
 // Query handler
-#[message_handler("query.get_user")]
+#[message("query.get_user")]
 async fn handle_get_user(query: GetUserQuery) -> Result<User, HttpError> {
     // Query read model
     Ok(User { id: query.user_id, name: "Alice".into() })

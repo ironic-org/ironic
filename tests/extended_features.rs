@@ -37,19 +37,19 @@ async fn event_bus_delivers_only_matching_types() {
 
 #[cfg(feature = "events")]
 #[tokio::test]
-async fn event_handler_macro_generates_registration_function() {
-    use ironic::event_handler;
+async fn event_macro_generates_registration_function() {
+    use ironic::event;
     use ironic::services::events::EventBus;
     use std::sync::Arc;
 
-    #[event_handler(capacity = 32)]
+    #[event(capacity = 32)]
     #[allow(clippy::unused_async)]
     async fn handle_string_event(event: Arc<String>) {
         let _ = event;
     }
 
     let bus = EventBus::default();
-    __event_handler_reg_handle_string_event(&bus);
+    __event_reg_handle_string_event(&bus);
     // Give the spawned task time to subscribe
     tokio::task::yield_now().await;
 
@@ -59,22 +59,22 @@ async fn event_handler_macro_generates_registration_function() {
 
 #[cfg(feature = "events")]
 #[tokio::test]
-async fn event_handler_macro_with_custom_event_type() {
-    use ironic::event_handler;
+async fn event_macro_with_custom_event_type() {
+    use ironic::event;
     use ironic::services::events::EventBus;
     use std::sync::Arc;
 
     #[derive(Clone, Debug, PartialEq)]
     struct OrderPlaced(u32);
 
-    #[event_handler(capacity = 8)]
+    #[event(capacity = 8)]
     #[allow(clippy::unused_async)]
     async fn handle_order(event: Arc<OrderPlaced>) {
         let _ = event;
     }
 
     let bus = EventBus::default();
-    __event_handler_reg_handle_order(&bus);
+    __event_reg_handle_order(&bus);
     tokio::task::yield_now().await;
 
     let n = bus.publish(OrderPlaced(42)).await;
@@ -83,12 +83,12 @@ async fn event_handler_macro_with_custom_event_type() {
 
 #[cfg(feature = "events")]
 #[tokio::test]
-async fn event_handler_macro_auto_register_generates_async_init_impl() {
-    use ironic::event_handler;
+async fn event_macro_auto_register_generates_async_init_impl() {
+    use ironic::event;
     use ironic::services::events::EventBus;
     use std::sync::Arc;
 
-    #[event_handler(auto_register, capacity = 16)]
+    #[event(auto_register, capacity = 16)]
     #[allow(clippy::unused_async)]
     async fn handle_auto_event(event: Arc<String>) {
         let _ = event;
@@ -96,10 +96,10 @@ async fn event_handler_macro_auto_register_generates_async_init_impl() {
 
     // Verify auto-register struct exists by checking it implements AsyncModuleInit
     fn check_trait_bound<T: ironic::AsyncModuleInit>() {}
-    check_trait_bound::<__EventHandlerAuto_handle_auto_event>();
+    check_trait_bound::<__EventAuto_handle_auto_event>();
 
     let bus = EventBus::default();
-    __event_handler_reg_handle_auto_event(&bus);
+    __event_reg_handle_auto_event(&bus);
     tokio::task::yield_now().await;
 
     let n = bus.publish("auto".to_owned()).await;
@@ -108,19 +108,19 @@ async fn event_handler_macro_auto_register_generates_async_init_impl() {
 
 #[cfg(feature = "events")]
 #[tokio::test]
-async fn event_handler_macro_default_capacity() {
-    use ironic::event_handler;
+async fn event_macro_default_capacity() {
+    use ironic::event;
     use ironic::services::events::EventBus;
     use std::sync::Arc;
 
-    #[event_handler]
+    #[event]
     #[allow(clippy::unused_async)]
     async fn handle_default(event: Arc<String>) {
         let _ = event;
     }
 
     let bus = EventBus::default();
-    __event_handler_reg_handle_default(&bus);
+    __event_reg_handle_default(&bus);
     tokio::task::yield_now().await;
 
     let n = bus.publish("default".to_owned()).await;
@@ -763,11 +763,11 @@ async fn transport_provider_resolves_from_container() {
 
 #[cfg(all(feature = "microservices", feature = "events"))]
 #[tokio::test]
-async fn transport_provider_event_handler_with_auto_register() {
+async fn transport_provider_event_with_auto_register() {
     use ironic::distributed::transport_provider::EventServer;
-    use ironic::event_handler;
+    use ironic::event;
 
-    #[event_handler(transport = "my.event", auto_register)]
+    #[event(transport = "my.event", auto_register)]
     #[allow(clippy::unused_async)]
     async fn handle_my_event(event: String) {
         let _ = event;
@@ -775,37 +775,37 @@ async fn transport_provider_event_handler_with_auto_register() {
 
     // Verify the auto-register struct implements AsyncModuleInit
     fn check_trait_bound<T: ironic::AsyncModuleInit>() {}
-    check_trait_bound::<__EventHandlerAuto_handle_my_event>();
+    check_trait_bound::<__EventAuto_handle_my_event>();
 
     // Verify the registration function exists and accepts EventServer
     let (_, server) = EventServer::paired(16);
-    __event_handler_reg_handle_my_event(&server);
+    __event_reg_handle_my_event(&server);
 }
 
 #[cfg(all(feature = "microservices", feature = "events"))]
 #[tokio::test]
-async fn transport_provider_event_handler_transport_only() {
+async fn transport_provider_event_transport_only() {
     use ironic::distributed::transport_provider::EventServer;
-    use ironic::event_handler;
+    use ironic::event;
 
-    #[event_handler(transport = "other.event")]
+    #[event(transport = "other.event")]
     #[allow(clippy::unused_async)]
     async fn handle_other(event: String) {
         let _ = event;
     }
 
     let (_, server) = EventServer::paired(16);
-    __event_handler_reg_handle_other(&server);
+    __event_reg_handle_other(&server);
 }
 
 #[cfg(all(feature = "microservices", feature = "events"))]
 #[tokio::test]
-async fn transport_provider_event_handler_with_event_client_injection() {
+async fn transport_provider_event_with_event_client_injection() {
     use ironic::distributed::transport_provider::{EventClient, EventServer};
-    use ironic::event_handler;
+    use ironic::event;
 
     // Handler with injected EventClient — the second param is resolved from DI
-    #[event_handler(transport = "test.injected", auto_register)]
+    #[event(transport = "test.injected", auto_register)]
     #[allow(clippy::unused_async, unused_variables)]
     async fn handle_with_client(event: String, events: ::std::sync::Arc<EventClient>) {
         let _ = event;
@@ -813,12 +813,12 @@ async fn transport_provider_event_handler_with_event_client_injection() {
 
     // Verify auto_register struct implements AsyncModuleInit
     fn check_trait_bound<T: ironic::AsyncModuleInit>() {}
-    check_trait_bound::<__EventHandlerAuto_handle_with_client>();
+    check_trait_bound::<__EventAuto_handle_with_client>();
 
     // Verify registration function accepts (EventServer, Arc<EventClient>)
     let (client, server) = EventServer::paired(16);
     let events = ::std::sync::Arc::new(client);
-    __event_handler_reg_handle_with_client(&server, events);
+    __event_reg_handle_with_client(&server, events);
 }
 
 #[cfg(feature = "outbox")]

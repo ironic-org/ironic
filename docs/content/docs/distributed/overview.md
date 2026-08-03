@@ -29,10 +29,10 @@ ironic = { features = ["distributed"] }
 
 | Topic | Page |
 |-------|------|
-| [Microservices](./microservices) | Transport-based service framework, `#[message_handler]` |
+| [Microservices](./microservices) | Transport-based service framework, `#[message]` |
 | [Message Handler](./message-handler) | Request-response handler declarations |
 | [Transport Backends](./message-transports) | Redis, RabbitMQ, Kafka, NATS, MQTT configuration |
-| [Events](./events) | In-process `EventBus` and `#[event_handler]` |
+| [Events](./events) | In-process `EventBus` and `#[event]` |
 | [Queues](./queues) | At-least-once job queues (`Queue` trait, `RedisQueue`) |
 | [Sagas](./sagas) | Multi-step transactions with automatic compensation |
 | [Hybrid Application](./hybrid-application) | Run HTTP and microservice servers in one process |

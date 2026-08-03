@@ -7,10 +7,10 @@ description: Build microservice applications with Ironic's transport framework
 
 Ironic provides a first-class microservice architecture inspired by NestJS.
 Services communicate through transport backends using either **request-response**
-(`#[message_handler]`) or **event-based** (`#[event_handler]`) patterns.
+(`#[message]`) or **event-based** (`#[event]`) patterns.
 
 > **Framework vs project structure:** This page covers the microservice
-> *framework* (transports, `#[message_handler]`, `#[event_handler]`). For how to
+> *framework* (transports, `#[message]`, `#[event]`). For how to
 > organize a monorepo with multiple services and which communication mechanism
 > to pick (gRPC, events, Redis, HTTP), see
 > [Microservice Communication](/docs/project-structure/microservices).
@@ -86,7 +86,7 @@ Application::builder()
 
 ## Pattern Reference
 
-- [`#[message_handler("pattern")]`](./message-handler) — request-response handler
-- [`#[event_handler("pattern")]`](../transport/events) — event handler (fire-and-forget)
+- [`#[message("pattern")]`](./message-handler) — request-response handler
+- [`#[event("pattern")]`](../transport/events) — event handler (fire-and-forget)
 - [Transport Configuration](./message-transports) — backend-specific settings
 - [Distributed Tracing](../observability/distributed-tracing) — W3C trace context propagation

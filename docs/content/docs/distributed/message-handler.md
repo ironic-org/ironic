@@ -3,13 +3,13 @@ title: Message Handler
 description: Declare request-response message handlers for microservice transport
 ---
 
-# `#[message_handler]`
+# `#[message]`
 
-The `#[message_handler]` attribute registers an async function as a request-response
+The `#[message]` attribute registers an async function as a request-response
 handler on a [`MicroserviceServer`].
 
 ```rust
-#[message_handler("user.get")]
+#[message("user.get")]
 async fn get_user(request: GetUserRequest) -> GetUserResponse {
     // ...
 }
@@ -26,7 +26,7 @@ The macro generates a registration function that:
 ## Usage
 
 ```rust
-use ironic::{message_handler, distributed::MicroserviceServer};
+use ironic::{message, distributed::MicroserviceServer};
 use serde::{Deserialize, Serialize};
 
 #[derive(Deserialize)]
@@ -35,7 +35,7 @@ struct GetUser { id: u64 }
 #[derive(Serialize)]
 struct User { id: u64, name: String }
 
-#[message_handler("user.get")]
+#[message("user.get")]
 async fn get_user(req: GetUser) -> User {
     User { id: req.id, name: "Alice".into() }
 }
@@ -45,7 +45,7 @@ Register the handler on a server:
 
 ```rust
 let server = RedisServer::new(config);
-__message_handler_reg_get_user(&server);
+__message_reg_get_user(&server);
 server.listen().await?;
 ```
 
@@ -70,6 +70,6 @@ Redis, RabbitMQ, Kafka, TCP, or custom backends.
 
 ## See Also
 
-- [`#[event_handler]`](../transport/events) — fire-and-forget event handlers
+- [`#[event]`](../transport/events) — fire-and-forget event handlers
 - [Microservices Overview](./microservices) — architecture and setup
 - [Transport Configuration](./message-transports) — backend settings

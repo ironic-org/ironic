@@ -27,7 +27,7 @@ pub(crate) fn expand(attribute: TokenStream, item: TokenStream) -> syn::Result<T
     let pattern = args.pattern;
     let handler_fn_name = &function.sig.ident;
     let reg_name = syn::Ident::new(
-        &format!("__message_handler_reg_{handler_fn_name}"),
+        &format!("__message_reg_{handler_fn_name}"),
         handler_fn_name.span(),
     );
 
@@ -75,7 +75,7 @@ fn extract_types(function: &ItemFn) -> syn::Result<(Type, Type)> {
         .ok_or_else(|| {
             syn::Error::new_spanned(
                 &function.sig,
-                "message_handler requires a non-self parameter for the request type",
+                "message requires a non-self parameter for the request type",
             )
         })?;
 
@@ -89,7 +89,7 @@ fn extract_types(function: &ItemFn) -> syn::Result<(Type, Type)> {
         _ => {
             return Err(syn::Error::new_spanned(
                 &function.sig,
-                "message_handler requires a return type",
+                "message requires a return type",
             ));
         }
     };

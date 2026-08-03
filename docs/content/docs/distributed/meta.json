@@ -3,7 +3,7 @@
   "pages": [
     "overview",
     "microservices",
-    "message-handler",
+    "message",
     "message-transports",
     "events",
     "queues",

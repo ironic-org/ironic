@@ -20,6 +20,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Docs: split the 2052-line quick-learn feature-reference into api-reference, architecture, features, and patterns pages
 - Docs: expand examples guide with a full blog-api walkthrough and add a numbered 12-step learning path to the getting-started landing page
 - Rename #[event_handler] attribute macro to #[event] and #[message_handler] to #[message]
+- Docs: split transport events guide into a transport reference and a 3-microservice events tutorial
+- Docs: consolidate blog-api into examples, remove duplicated project-structure page, rename message-handler page to message
 
 ### Fixed
 - Docs blog pages now render each post's real date and computed read time instead of hardcoded values

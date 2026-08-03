@@ -97,7 +97,7 @@ impl<T> ExceptionExt<T> for Result<T, HttpError> {
 
 ## Example — blog-api login
 
-From the blog-api example, the login endpoint uses `.exception()` to remap auth errors:
+From the [blog example](/docs/more/examples), the login endpoint uses `.exception()` to remap auth errors:
 
 ```rust
 #[post("/login")]

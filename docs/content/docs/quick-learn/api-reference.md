@@ -420,7 +420,7 @@ async fn list(...) -> ...;
 | `#[ironic::test]` | always | Async test with tokio runtime |
 | `#[cron("0 */5 * * * *")]` | `cron` | Scheduled task |
 | `#[interval("5s")]` | `scheduling` | Fixed-interval task |
-| `#[cache(ttl = 60)]` | `cache` | Cache response |
+| `#[cache(ttl_secs = 60)]` | `cache` | Cache response |
 | `#[cache_key]` | `cache` | Mark param as cache key |
 | `#[cache_ttl]` | `cache` | Dynamic cache TTL |
 | `#[timeout("30s")]` | always | Request timeout |

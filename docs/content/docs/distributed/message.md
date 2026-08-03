@@ -1,6 +1,6 @@
 ---
-title: Message Handler
-description: Declare request-response message handlers for microservice transport
+title: Message
+description: Declare request-response handlers with the #[message] macro for microservice transport
 ---
 
 # `#[message]`

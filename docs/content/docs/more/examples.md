@@ -279,6 +279,92 @@ cargo test
 | `GET` | `/health` | Health check | — |
 | `GET` | `/metrics` | Prometheus metrics | — |
 
+### Filtering
+
+`GET /api/blogs` accepts these query parameters (parsed into `BlogFilterDto`):
+
+```json
+{
+  "published": true,
+  "author": "Alice",
+  "tag": "rust",
+  "category_id": "uuid",
+  "search": "keyword"
+}
+```
+
+---
+
+## Project structure
+
+```
+examples/blog/
+├── Cargo.toml
+└── src/
+    ├── main.rs               # Application entry point
+    ├── app.rs                # Root module — imports all modules
+    ├── welcome.rs            # Homepage endpoint
+    ├── platform/config.rs    # Server configuration
+    └── modules/
+        ├── blogs/            # Primary module — blog posts + categories
+        │   ├── entities/     # BlogPost, Category structs
+        │   ├── dto/          # CreateBlogDto, UpdateBlogDto, BlogFilterDto
+        │   ├── repositories/ # BlogRepository, CategoryRepository (in-memory)
+        │   ├── services/     # BlogService — all business logic
+        │   ├── controller/   # BlogsController, CategoriesController
+        │   └── tests/        # 10 unit tests
+        ├── stats/            # Cross-module DI demo — consumes BlogService
+        │   ├── services/     # StatsService (injects Arc<BlogService>)
+        │   └── controller/   # StatsController
+        ├── auth/             # JWT login/refresh + JwtGuard
+        ├── tasks/            # OnApplicationBootstrap cron reporter
+        ├── decorators/       # Pagination parameter extractor
+        └── interceptors/     # TimingInterceptor
+```
+
+## Key implementation details
+
+### In-memory repository
+
+Repositories use `LazyLock<Mutex<HashMap>>` for thread-safe in-memory storage. This
+keeps the example self-contained without a database:
+
+```rust
+static BLOG_POSTS: LazyLock<Mutex<HashMap<Uuid, BlogPost>>> =
+    LazyLock::new(|| Mutex::new(HashMap::new()));
+```
+
+### Slug generation
+
+Titles are converted to URL-friendly slugs with duplicate detection:
+
+```rust
+fn slugify(text: &str) -> String {
+    text.to_lowercase()
+        .chars()
+        .map(|c| if c.is_alphanumeric() || c == '-' || c == ' ' { c } else { ' ' })
+        .collect::<String>()
+        .split_whitespace()
+        .collect::<Vec<&str>>()
+        .join("-")
+}
+```
+
+### DTO validation
+
+Create requests are validated at the boundary with `garde`:
+
+```rust
+#[derive(Validate)]
+pub struct CreateBlogDto {
+    #[garde(length(min = 1, max = 200))]
+    pub title: String,
+
+    #[garde(length(min = 1))]
+    pub content: String,
+}
+```
+
 ---
 
 ## What you learned

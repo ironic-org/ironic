@@ -161,7 +161,7 @@ pub struct ProductController;
 #[routes]
 impl ProductController {
     #[get("/:id")]
-    #[cache(ttl = 60)]  // Cache for 60 seconds
+    #[cache(ttl_secs = 60)]  // Cache for 60 seconds
     async fn get(&self, #[param] id: u64) -> Result<Json<Product>, HttpError> {
         // If cached, the response is served from cache without calling this handler
         // Cache key includes the full URL path + query parameters

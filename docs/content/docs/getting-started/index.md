@@ -107,8 +107,10 @@ you finish it.
    *Milestone: a running HTTP server you can curl.*
 
 2. **Understand the structure** — See how a generated project fits together:
-   [Project Structure](/docs/getting-started/project-structure) and the
-   [top-level overview](/docs/project-structure/overview).
+   [Project Structure](/docs/project-structure/overview), then dive into
+   [Single Service](/docs/project-structure/single-service),
+   [Monorepo Workspace](/docs/project-structure/workspace), and
+   [Modules](/docs/project-structure/modules).
    *Milestone: you can name every file the CLI generates and what it does.*
 
 3. **Learn the core concepts** — Modules, controllers, services, and dependency

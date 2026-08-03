@@ -5,12 +5,13 @@ description: Version history and release notes for the Ironic framework.
 
 # Releases
 
-## Current version: v1.2.8
+## Current version: v1.2.9
 
 All notable changes to Ironic are documented here. The project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 | Version | Date | Highlights |
 |---------|------|-----------|
+| [v1.2.9](/docs/releases/v1.2.x) | 2026-08-03 | Transactional outbox and inbox for at-least-once event delivery |
 | [v1.2.8](/docs/releases/v1.2.x) | 2026-08-01 | add fetch_latest and poll_interval_ms to KafkaClientConfig and TransportConfig (6a91e13) |
 | [v1.2.7](/docs/releases/v1.2.x) | 2026-07-28 | Auto-validation pipe ;  macro now automatically validates , ,  via |
 | [v1.2.6](/docs/releases/v1.2.x) | 2026-07-28 | #[event_handler] auto_register is now default — use manual_register to opt out |

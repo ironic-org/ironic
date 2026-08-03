@@ -9,6 +9,32 @@ All versions in the v1.2.x series. Full details in [CHANGELOG.md](https://github
 
 ---
 
+## v1.2.9 — 2026-08-03
+
+### Added
+- Transactional outbox and inbox for at-least-once event delivery
+- outbox and inbox marker attributes for handler discovery
+- Generate sitemap.xml at docs build time (robots.txt already referenced it)
+- Docs: 1200x630 OG social card, per-page og:image meta, lazy-route code splitting (14.6MB MDX chunk loaded on navigation only)
+### Changed
+- Remove version-based blog posts; release.sh now updates releases pages from CHANGELOG.md
+- Docs: merge getting-started intro pages, add blog search + related-docs links, clarify section boundaries
+- Docs: split testing section into 4 pages, expand provider-health guide, add v1.0.x/v1.2.x migration guides
+- Docs: split the 2052-line quick-learn feature-reference into api-reference, architecture, features, and patterns pages
+- Docs: expand examples guide with a full blog-api walkthrough and add a numbered 12-step learning path to the getting-started landing page
+- Rename #[event_handler] attribute macro to #[event] and #[message_handler] to #[message]
+- Docs: split transport events guide into a transport reference and a 3-microservice events tutorial
+- Docs: consolidate blog-api into examples, remove duplicated project-structure page, rename message-handler page to message
+- Docs: split the 1110-line database-integrations guide into a setup guide plus per-ORM pages (sqlx, seaorm, diesel, mongodb, redis, testing)
+- Remove the no-op #[sse] marker attribute; SSE remains programmatic via sse_endpoint and sse_route
+### Fixed
+- Docs blog pages now render each post's real date and computed read time instead of hardcoded values
+- Bump CURRENT_VERSION constant to 1.2.8 and fix release.sh to always sync it on release
+- Docs: correct examples path, replace fabricated benchmark numbers with measured cargo bench results
+- Fix unbalanced code fences in two docs pages and stale footer links (websocket-gateways, core/fundamentals)
+- Docs: remove fabricated chat and e-commerce demos from demo-apps page (only the blog API example exists)
+
+---
 ## v1.2.8 — 2026-08-01
 
 ### Added

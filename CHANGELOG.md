@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- Document monolith to event-driven microservices migration guide
+
 ## [v1.2.9] - 2026-08-03
 ### Added
 - Transactional outbox and inbox for at-least-once event delivery

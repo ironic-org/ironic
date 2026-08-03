@@ -5,6 +5,7 @@
     "single-service",
     "workspace",
     "modules",
-    "microservices"
+    "microservices",
+    "migrating-to-microservices"
   ]
 }

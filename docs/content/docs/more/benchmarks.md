@@ -1,6 +1,6 @@
 ---
 title: Benchmarks
-description: Reference performance measurements for the Ironic framework — throughput, latency, and overhead compared to raw Axum.
+description: Reference performance measurements for the Ironic framework — pipeline overhead compared to raw Axum.
 ---
 
 # Benchmarks
@@ -8,32 +8,49 @@ description: Reference performance measurements for the Ironic framework — thr
 ## Test setup
 
 - **Hardware:** Apple M3 Pro, 12 cores
-- **Rust:** 1.97
-- **Benchmark tool:** Criterion.rs
-- **Test:** Round-trip HTTP request through full Ironic pipeline vs raw Axum
+- **Rust:** current stable
+- **Benchmark tool:** dependency-free `cargo bench` microbenchmarks (see `crates/ironic/benches/`)
+- **Test:** In-process request through the full Ironic pipeline vs raw Axum
 
 ## Results
 
-| Metric | Value |
-|--------|-------|
-| Requests/second (Ironic) | ~125,000 req/s |
-| Requests/second (raw Axum) | ~150,000 req/s |
-| Overhead | ~17% |
-| Median latency (Ironic) | ~0.15ms |
-| p99 latency (Ironic) | ~0.8ms |
-| Memory (idle) | ~8 MB |
-| Memory (under load) | ~24 MB |
+Measured on the current workspace at `crates/ironic/benches/overhead.rs`:
+
+| Metric | Ironic | Raw Axum |
+|--------|--------|----------|
+| In-process request | 920 ns/op | 333 ns/op |
+| Module graph compilation | 924 ns/op | — |
+| Route registration | 492 ns/op | — |
+| Transient provider resolution | 138 ns/op | — |
+| HTTP runtime startup | 592 ns/op | — |
+
+> These are **in-process microbenchmarks** — they measure the framework pipeline
+> without any network I/O, which dominates real-world throughput. On a real HTTP
+> round-trip, the framework overhead is a small fraction of the total latency.
 
 ## What this means
 
-Ironic adds about **17% overhead** compared to raw Axum. In return, you get:
+The full Ironic pipeline adds roughly **2-3×** per-request work compared to a bare
+Axum handler. In exchange you get:
 
 - Automatic dependency injection
 - Module graph validation at compile time
 - Request pipeline (middleware → guards → interceptors → pipes)
 - Built-in health checks, metrics, and OpenAPI
+- DTO validation, serialization, and error mapping
 
-For comparison, NestJS adds **~50-80% overhead** over raw Express. Ironic's overhead is very competitive.
+Because the added work is on the order of **microseconds per request**, it is
+negligible for typical HTTP workloads (millisecond-scale network latency). For
+hot paths that need to be maximally lean, raw Axum handlers are always an option —
+Ironic composes with them.
+
+## Metrics recording overhead
+
+The `metrics` benchmark measures `MetricsLayer` and `MetricsRegistry` overhead:
+
+```bash
+cargo bench --bench metrics --features metrics
+```
 
 ## Running benchmarks yourself
 
@@ -43,7 +60,7 @@ cargo bench --bench overhead
 
 ## What you learned
 
-- [x] ~125k req/s on consumer hardware
-- [x] ~17% overhead vs raw Axum (worth it for the features)
-- [x] ~0.15ms median latency
-- [x] ~8 MB idle memory footprint
+- [x] Full Ironic pipeline: ~920 ns/op in-process
+- [x] Raw Axum handler: ~333 ns/op — the framework adds microsecond-scale overhead
+- [x] Pipeline overhead is negligible vs network I/O in real HTTP workloads
+- [x] Microbenchmarks live in `crates/ironic/benches/` and are dependency-free

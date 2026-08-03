@@ -8,9 +8,11 @@ bun run check-types
 bun run build
 ```
 
+`bun run build` compiles the site, copies `index.html` to `404.html`, and generates `dist/sitemap.xml` (via `scripts/generate-sitemap.mjs`) so `robots.txt`'s sitemap reference resolves.
+
 ## Content structure
 
-Framework documentation lives under `content/docs`. `meta.json` controls sidebar ordering within each category.
+Framework documentation lives under `content/docs`. `meta.json` controls sidebar ordering within each category. Engineering blog posts live under `content/blog` (each is a Markdown file with `title`, `description`, `date`, and `author` frontmatter).
 
 ```
 content/docs/

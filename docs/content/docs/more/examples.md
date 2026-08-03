@@ -15,13 +15,13 @@ Each example is a complete, runnable project:
 
 ```bash
 git clone https://github.com/ironic-org/ironic
-cd ironic/examples/blog-api
+cd ironic/examples/blog
 SERVER_PORT=3002 cargo run
 ```
 
 ## blog-api
 
-A complete blog platform demonstrating **cross-module dependency injection**:
+The `blog-api` crate lives in `examples/blog`. It's a complete blog platform demonstrating **cross-module dependency injection**:
 
 - `BlogsModule` exports `BlogService`, `StatsModule` imports and uses it
 - Blog post CRUD with title, content, excerpt, tags, and author

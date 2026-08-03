@@ -216,7 +216,7 @@ export function getPageImage(page: RuntimePage) {
 
   return {
     segments,
-    url: '',
+    url: 'https://ironic-org.github.io/ironic/og-card.png',
   };
 }
 

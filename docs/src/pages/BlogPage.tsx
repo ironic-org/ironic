@@ -89,8 +89,10 @@ export default function BlogPage() {
             setMeta('description', pageData.description ?? '');
             setMeta('og:title', pageData.title ?? 'Blog', 'property');
             setMeta('og:description', pageData.description ?? '', 'property');
+            setMeta('og:image', 'https://ironic-org.github.io/ironic/og-card.png', 'property');
             setMeta('twitter:title', pageData.title ?? 'Blog', 'name');
             setMeta('twitter:description', pageData.description ?? '', 'name');
+            setMeta('twitter:image', 'https://ironic-org.github.io/ironic/og-card.png', 'name');
         } else {
             document.title = 'Blog | Ironic';
         }

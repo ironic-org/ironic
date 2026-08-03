@@ -1,0 +1,46 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#1e1b4b"/>
+      <stop offset="100%" stop-color="#0f172a"/>
+    </linearGradient>
+    <linearGradient id="accent" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#a78bfa"/>
+      <stop offset="50%" stop-color="#7c3aed"/>
+      <stop offset="100%" stop-color="#f59e0b"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="0.5" cy="0.4" r="0.7">
+      <stop offset="0%" stop-color="#7c3aed" stop-opacity="0.35"/>
+      <stop offset="100%" stop-color="#7c3aed" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+
+  <rect width="1200" height="630" fill="url(#bg)"/>
+  <rect width="1200" height="630" fill="url(#glow)"/>
+
+  <rect x="72" y="72" width="1056" height="486" rx="28" fill="none" stroke="#7c3aed" stroke-opacity="0.35" stroke-width="2"/>
+  <rect x="84" y="84" width="1032" height="462" rx="20" fill="none" stroke="#a78bfa" stroke-opacity="0.15" stroke-width="1"/>
+
+  <text x="120" y="180" font-family="ui-sans-serif, system-ui, -apple-system, Segoe UI, sans-serif" font-size="46" font-weight="800" fill="#a78bfa" letter-spacing="1">Ironic</text>
+  <text x="120" y="290" font-family="ui-sans-serif, system-ui, sans-serif" font-size="64" font-weight="800" fill="#ffffff">A batteries-included, type-safe</text>
+  <text x="120" y="370" font-family="ui-sans-serif, system-ui, sans-serif" font-size="64" font-weight="800" fill="#ffffff">application framework for Rust</text>
+
+  <g font-family="ui-sans-serif, system-ui, sans-serif" font-size="24" font-weight="600">
+    <rect x="120" y="430" width="218" height="64" rx="32" fill="#7c3aed"/>
+    <text x="229" y="471" text-anchor="middle" fill="#ffffff">Dependency Injection</text>
+
+    <rect x="356" y="430" width="196" height="64" rx="32" fill="#7c3aed" fill-opacity="0.55"/>
+    <text x="454" y="471" text-anchor="middle" fill="#ffffff">OpenAPI</text>
+
+    <rect x="570" y="430" width="150" height="64" rx="32" fill="#7c3aed" fill-opacity="0.4"/>
+    <text x="645" y="471" text-anchor="middle" fill="#ffffff">Events</text>
+
+    <rect x="738" y="430" width="168" height="64" rx="32" fill="#f59e0b" fill-opacity="0.35"/>
+    <text x="822" y="471" text-anchor="middle" fill="#ffffff">Queues</text>
+  </g>
+
+  <rect x="120" y="530" width="500" height="4" fill="url(#accent)" rx="2"/>
+
+  <text x="120" y="494" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="20" fill="#94a3b8">ironic::Application</text>
+  <text x="260" y="494" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="20" fill="#64748b">· Rust 1.97+ · Axum · Serde</text>
+</svg>

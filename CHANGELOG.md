@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 - Document monolith to event-driven microservices migration guide
+- Document application performance monitoring (APM) setup guide
 
 ## [v1.2.9] - 2026-08-03
 ### Added

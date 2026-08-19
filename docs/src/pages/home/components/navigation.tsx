@@ -18,9 +18,6 @@ const Navigation = () => {
         <nav className='sticky top-0 z-50 w-full border-b border-fd-border bg-fd-background/80 backdrop-blur-md'>
             <div className='mx-auto flex h-16 max-w-7xl items-center justify-between px-6'>
                 <Link to='/' className='flex items-center gap-2'>
-                    <span className='flex items-center justify-center rounded-lg border border-brand/20 bg-brand/10 p-1.5'>
-                        <img src='/logo.svg' alt='Ironic' width='20' height='20' className='size-5' />
-                    </span>
                     <span className='text-lg font-bold tracking-tight text-fd-foreground'>
                         Ironic
                     </span>

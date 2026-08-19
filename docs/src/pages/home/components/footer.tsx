@@ -39,7 +39,7 @@ const Footer = () => {
                             </span>
                         </div>
                         <p className='text-sm text-fd-muted-foreground leading-relaxed mb-4'>
-                            A type-safe application framework for Rust.
+                            application framework for Rust.
                             Built on Axum, designed for production.
                         </p>
                         <a

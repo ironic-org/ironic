@@ -37,7 +37,9 @@ impl OnModuleInit for BlogService {
             if let (Ok(rust_cat), Ok(ironic_cat), Ok(tut_cat)) = (rust, ironic, tutorial) {
                 let _ = self.create(CreateBlogDto {
                     title: "Getting Started with Ironic".into(),
-                    content: "Ironic is a type-safe Rust framework for building APIs with compile-time guarantees.".into(),
+                    content:
+                        "Ironic is  Rust framework for building APIs with compile-time guarantees."
+                            .into(),
                     excerpt: Some("Build fast APIs with Rust".into()),
                     tags: Some(vec!["rust".into(), "framework".into()]),
                     author: Some("Ironic Team".into()),

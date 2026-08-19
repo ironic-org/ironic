@@ -5,7 +5,7 @@ description: The complete beginner's guide to building APIs with Ironic — a Ru
 
 # Welcome to Ironic
 
-Ironic is a **batteries-included, type-safe application framework for Rust**. Think of it like LEGO bricks for your backend — each piece snaps together cleanly, and the compiler tells you if something's wrong before you even run the code.
+Ironic is a **batteries-included application framework for Rust**. Think of it like LEGO bricks for your backend — each piece snaps together cleanly, and the compiler tells you if something's wrong before you even run the code.
 
 > **No prior framework experience needed.** If you know basic Rust (structs, functions, `async`), you can build a production API by the end of this guide.
 

@@ -5,7 +5,7 @@ description: The clean starting point for Ironic documentation.
 
 # Ironic 1.3.0
 
-This documentation starts with Ironic 1.3.0. It focuses on the framework's
+This documentation starts with Ironic 1.3.0 It focuses on the framework's
 small, learnable core: modules, dependency injection, HTTP routing, middleware,
 configuration, and testing.
 

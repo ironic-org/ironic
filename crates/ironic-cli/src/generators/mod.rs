@@ -1,7 +1,6 @@
 /// Microservice app and library crate generators.
 pub mod app;
 mod common;
-mod graphql;
 mod monorepo;
 /// New-project scaffolding.
 pub mod project;
@@ -25,7 +24,6 @@ pub use ready_resource::generate_ready_resource_oauth;
 
 // Re-export all public generator functions
 pub use app::{generate_app, generate_library};
-pub use graphql::generate_graphql_resolver;
 pub use resource::{
     generate_controller, generate_decorator, generate_filter, generate_gateway, generate_guard,
     generate_interceptor, generate_middleware, generate_module, generate_pipe, generate_provider,
@@ -41,10 +39,6 @@ use std::path::{Path, PathBuf};
 pub enum AppKind {
     /// Standard HTTP service with `AxumAdapter`.
     Http,
-    /// gRPC service with `tonic`.
-    Grpc,
-    /// GraphQL service with `async-graphql`.
-    Graphql,
 }
 
 /// Files changed by a generator and any required manual follow-up.

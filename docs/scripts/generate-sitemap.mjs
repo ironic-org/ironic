@@ -3,7 +3,6 @@ import { join } from 'node:path';
 
 const root = new URL('..', import.meta.url).pathname;
 const docsContent = join(root, 'content/docs');
-const blogContent = join(root, 'content/blog');
 const distDir = join(root, 'dist');
 
 const SITE_URL = (process.env.SITE_URL || 'https://ironic-org.github.io/ironic').replace(/\/$/, '');
@@ -24,17 +23,16 @@ function collectFiles(dir, base = '') {
   return out;
 }
 
-function toUrl(rel, isBlog) {
+function toUrl(rel) {
   const stripped = rel.replace(/\.(md|mdx)$/, '');
   const path = stripped === 'index' ? '' : stripped.endsWith('/index') ? stripped.slice(0, -6) : stripped;
-  return `${SITE_URL}/${isBlog ? 'blog/' : 'docs/'}${path}`;
+  return `${SITE_URL}/docs/${path}`;
 }
 
-const docsUrls = collectFiles(docsContent).map((rel) => toUrl(rel, false));
-const blogUrls = collectFiles(blogContent).map((rel) => toUrl(rel, true));
-const staticUrls = [`${SITE_URL}/`, `${SITE_URL}/blog`];
+const docsUrls = collectFiles(docsContent).map((rel) => toUrl(rel));
+const staticUrls = [`${SITE_URL}/`];
 
-const urls = [...new Set([...staticUrls, ...docsUrls, ...blogUrls])].sort();
+const urls = [...new Set([...staticUrls, ...docsUrls])].sort();
 
 const xml = `<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">

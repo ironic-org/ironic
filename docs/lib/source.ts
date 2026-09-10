@@ -57,13 +57,6 @@ const docModules = import.meta.glob('../content/docs/**/*.{md,mdx}', {
   },
 }) as Record<string, CompiledDocModule>;
 
-const blogModules = import.meta.glob('../content/blog/**/*.{md,mdx}', {
-  eager: true,
-  query: {
-    collection: 'docs',
-  },
-}) as Record<string, CompiledDocModule>;
-
 const metaModules = import.meta.glob('../content/docs/**/meta.json', {
   eager: true,
   import: 'default',
@@ -254,43 +247,5 @@ export function getSearchIndex(): SearchIndexItem[] {
       }));
 
     return [pageItem, ...sectionItems];
-  }).concat(blogSearchItems);
-}
-
-// ── Blog source ──────────────────────────────────────────
-
-const blogPages = Object.entries(blogModules)
-  .map(([filePath, module]) => {
-    const relative = filePath.replace('../content/blog/', '').replace(/\.(md|mdx)$/, '');
-    const slugs = relative === 'index' ? [] : relative.split('/');
-    return createPage(module, slugs);
   });
-
-const blogPageMap = new Map(blogPages.map((page) => [page.slugs.join('/'), page]));
-
-export const blogSource = {
-  getPage(slugs?: string[]) {
-    return blogPageMap.get((slugs ?? []).join('/'));
-  },
-  getPages() {
-    return blogPages;
-  },
-};
-
-// Blog pages are searchable via /blog/<slug>, breadcrumb "Blog".
-const blogSearchItems: SearchIndexItem[] = blogPages.flatMap((page) => {
-  const pageTitleValue = page.data.title ?? 'Untitled';
-  const pageDescriptionValue = page.data.description ?? '';
-  const pageText = page.data.searchText ?? '';
-
-  return [
-    {
-      title: pageTitleValue,
-      description: pageDescriptionValue,
-      url: `/blog/${page.slugs.join('/')}`,
-      text: `${pageTitleValue}\n${pageDescriptionValue}\n${pageText}`,
-      breadcrumbs: ['Blog'],
-      kind: 'page',
-    },
-  ];
-});
+}

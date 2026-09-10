@@ -65,7 +65,6 @@ This documentation walks you through every feature step by step:
 | [Security](/docs/http-api/security) | CORS, rate limiting, CSRF protection, and security headers |
 | [Database & Auth](/docs/data-auth/database-integrations) | Connect to PostgreSQL, MySQL, MongoDB, Redis. Add login with JWT, OAuth, or sessions |
 | [Performance](/docs/performance/cache-decorators) | Caching, background jobs, and cron scheduling |
-| [Distributed Systems](/docs/distributed/overview) | Microservices, queues, sagas, events, and the transactional outbox |
 | [Advanced](/docs/advanced/sessions) | Sessions, multipart uploads, static files, and devtools plugins |
 | [Observability](/docs/observability/overview) | Metrics, tracing, and production monitoring |
 
@@ -81,10 +80,9 @@ This documentation walks you through every feature step by step:
 | **Metrics** | ✅ Prometheus | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
 | **Config** | ✅ Typed + hot-reload | ❌ | ❌ | 🔶 Figment | 🔶 | 🔶 | ❌ | ✅ ConfigModule |
 | **WebSockets** | ✅ Gateways + Rooms | ✅ axum/ws | ✅ actix-ws | ❌ | ✅ | ✅ | ❌ | ✅ Gateways |
-| **GraphQL** | ✅ async-graphql | ❌ | 🔶 | ❌ | ❌ | ✅ | ❌ | ✅ @nestjs/graphql |
-| **Background Jobs** | ✅ Cron + Queues + Sagas | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ @nestjs/schedule |
+| **Background Jobs** | ✅ Cron scheduling + local events | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ @nestjs/schedule |
 | **Caching** | ✅ In-memory + Redis | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ CacheModule |
-| **CQRS / Event Bus** | ✅ Built-in | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ @nestjs/cqrs |
+| **Event Bus** | ✅ Local events | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ @nestjs/cqrs |
 | **Validation** | ✅ Pipes + Garde | ❌ | ❌ | ❌ | ✅ Validator | ✅ Validator | ❌ | ✅ ValidationPipe |
 | **Testing Utilities** | ✅ TestModule + in-process client | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ Test |
 | **Hot Reload** | ✅ Config + file watching | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ Webpack HMR |
@@ -145,11 +143,7 @@ you finish it.
    [Performance](/docs/performance/cache-decorators).
    *Milestone: you can see request latency, errors, and cache hits in production.*
 
-9. **Go distributed** — Microservices, queues, sagas, and events:
-   [Distributed Systems](/docs/distributed/overview).
-   *Milestone: services that communicate and survive partial failures.*
-
-10. **Test it** — Unit and integration testing with `TestApplication`:
+9. **Test it** — Unit and integration testing with `TestApplication`:
     [Testing](/docs/testing/testing).
     *Milestone: your business logic is covered by fast, reliable tests.*
 

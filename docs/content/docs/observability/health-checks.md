@@ -127,7 +127,7 @@ The `HealthIndicator` trait distinguishes between two probe types:
   Override to implement dependency-aware health logic (e.g., database reachable,
   upstream API responsive).
 
-The existing `check()` method is **deprecated** since v0.5.0. New code should
+The existing `check()` method is deprecated. New code should
 implement `check_readiness()` instead. The default implementation of
 `check_readiness()` delegates to `check()`, so existing indicators continue to
 work without changes.

@@ -40,12 +40,10 @@ const HeroSection = () => {
 
             <FadeUp delay='100ms'>
                 <h1 className='text-5xl sm:text-6xl md:text-7xl lg:text-8xl font-bold tracking-tighter text-fd-foreground leading-[1.05] mb-6 max-w-5xl'>
-                    A type-safe
-                    <br />
+
                     <span className='font-serif italic font-normal text-brand'>
                         application framework
                     </span>
-                    <br />
                     for Rust
                 </h1>
             </FadeUp>

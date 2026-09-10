@@ -12,7 +12,7 @@ bun run build
 
 ## Content structure
 
-Framework documentation lives under `content/docs`. `meta.json` controls sidebar ordering within each category. Engineering blog posts live under `content/blog` (each is a Markdown file with `title`, `description`, `date`, and `author` frontmatter).
+Framework documentation lives under `content/docs`. `meta.json` controls sidebar ordering within each category.
 
 ```
 content/docs/
@@ -25,8 +25,7 @@ content/docs/
 ├── configuration/
 ├── modules/                   # Advanced module patterns: dynamic modules, decorators
 ├── http-api/                  # Routes, middleware, guards, OpenAPI, security, etc.
-├── transport/                 # HTTP, WebSocket, GraphQL, MCP, SSE, events
-├── distributed/               # Microservices, queues, sagas, events, outbox
+├── transport/                 # HTTP, WebSocket, MCP, SSE, events
 ├── middleware/
 ├── data-auth/
 ├── performance/               # Caching, scheduling
@@ -34,8 +33,7 @@ content/docs/
 ├── testing/
 ├── advanced/
 ├── quick-learn/               # Feature reference
-├── releases/                  # Version history + per-series changelogs
-├── migrations/
+├── first-release.md           # The documentation starting point
 └── more/                      # Deployment, FAQ, examples, benchmarks
 ```
 

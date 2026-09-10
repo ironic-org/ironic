@@ -95,7 +95,7 @@ The `HealthIndicator` trait provides two probes:
 - **Liveness** (`check_liveness`) — is the process alive? Defaults to `Ok`.
 - **Readiness** (`check_readiness`) — is the app ready to serve traffic? Use this for dependency-aware checks like provider health.
 
-The old `check()` method is deprecated since v0.5.0; implement `check_readiness()` for new code.
+The old `check()` method is deprecated; implement `check_readiness()` for new code.
 
 > **See also:** the full `HealthIndicator` contract, composite aggregation, and endpoint wiring live in [Health Checks](/docs/observability/health-checks).
 

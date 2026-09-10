@@ -233,7 +233,7 @@ for event in dead {
 }
 ```
 
-**Reference:** [Events](/docs/distributed/events)
+**Reference:** [Events](/docs/transport/events)
 
 ---
 

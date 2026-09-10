@@ -171,8 +171,10 @@ ${security}"
 fi
 
 # Check for duplicate entry before inserting
-if grep -q "^## \[v$NEW\] - " "$CHANGELOG" 2>/dev/null; then
+if grep -Eq "^## \[(v)?$NEW\]" "$CHANGELOG" 2>/dev/null; then
     echo -e "  ${CYAN}!${NC} v$NEW entry already exists — skipping changelog insert"
+elif ! grep -q "^## \[Unreleased\]" "$CHANGELOG" 2>/dev/null; then
+    echo "  ! CHANGELOG.md has no [Unreleased] section; add the next release entry manually"
 else
     # Insert after the [Unreleased] section header using temp file
     if grep -q "## \[Unreleased\]" "$CHANGELOG" 2>/dev/null; then
@@ -219,159 +221,18 @@ if [[ -f "$ROOT/docs/lib/constants.ts" ]]; then
     echo -e "  ${GREEN}✓${NC} $ROOT/docs/lib/constants.ts"
 fi
 
-# ── step 5: update releases pages from CHANGELOG.md ─────────────────
+# ── step 5: sync first-release documentation ────────────────────────
 
-echo "→ Updating releases pages from CHANGELOG.md"
-
-RELEASES_INDEX="$ROOT/docs/content/docs/releases/index.md"
-CHANGELOG="$ROOT/CHANGELOG.md"
-# Derive the major.minor series directory (e.g. v0.4.x from 0.4.1)
-MAJOR_MINOR=$(echo "$NEW" | sed -E 's/^([0-9]+\.[0-9]+)\..*/\1/')
-RELEASES_SERIES_DIR="$ROOT/docs/content/docs/releases/v${MAJOR_MINOR}.x"
-RELEASES_V="$RELEASES_SERIES_DIR/index.md"
-
-# Bump the "Current version:" line
-sed -i '' "s/^## Current version: v[0-9.]*$/## Current version: v$NEW/" "$RELEASES_INDEX" 2>/dev/null || true
-
-python3 -c "
-import re, os
-
-CHANGELOG = os.path.expanduser('$CHANGELOG')
-RELEASES_INDEX = os.path.expanduser('$RELEASES_INDEX')
-RELEASES_V = os.path.expanduser('$RELEASES_V')
-MAJOR_MINOR = '$MAJOR_MINOR'
-
-def parse_changelog(path):
-    \"\"\"Parse CHANGELOG.md into (version_tuple, version, date, body) rows.\"\"\"
-    with open(path) as f:
-        text = f.read()
-    # Split into sections: '## [vX.Y.Z] - YYYY-MM-DD' ... next '## ['
-    sections = re.findall(
-        r'^## \[v(\d+)\.(\d+)\.(\d+)\] - ([\d-]+)(.*?)(?=^## \[v|\\Z)',
-        text,
-        re.MULTILINE | re.DOTALL,
-    )
-    rows = []
-    for mj, mn, pt, date, body in sections:
-        ver = f'{mj}.{mn}.{pt}'
-        body = body.strip()
-        rows.append(((int(mj), int(mn), int(pt)), ver, date, body))
-    return rows
-
-def highlights(body):
-    \"\"\"First bullet line of a changelog body.\"\"\"
-    for line in body.splitlines():
-        if line.startswith('- '):
-            return line[2:].strip()
-    return ''
-
-rows = parse_changelog(CHANGELOG)
-
-# ── Regenerate releases/index.md table ──────────────────────────────
-with open(RELEASES_INDEX) as f:
-    old = f.read()
-
-if rows:
-    rows.sort(key=lambda r: r[0], reverse=True)
-    # Only list versions whose series page exists (v0.2.x has no page — skip)
-    releases_dir = os.path.dirname(RELEASES_INDEX)
-    table_rows = [
-        f'| [v{slug}](/docs/releases/v{mj}.{mn}.x) | {date} | {highlights(body)} |'
-        for (mj, mn, pt), slug, date, body in rows
-        if os.path.isdir(os.path.join(releases_dir, f'v{mj}.{mn}.x'))
-    ]
-    marker_start = '| Version | Date | Highlights |\\n|---------|------|-----------|'
-    marker_end = 'Full changelog:'
-    idx_start = old.find(marker_start)
-    idx_end = old.find(marker_end, idx_start)
-    if idx_start >= 0 and idx_end >= 0:
-        new_content = (
-            old[:idx_start]
-            + marker_start + '\\n'
-            + '\\n'.join(table_rows) + '\\n\\n'
-            + old[idx_end:]
-        )
-        with open(RELEASES_INDEX, 'w') as f:
-            f.write(new_content)
-        print('  \u2713 releases/index.md table regenerated from CHANGELOG.md')
-    else:
-        print('  ! markers not found in releases/index.md')
-else:
-    print('  ! no versioned sections found in CHANGELOG.md')
-
-# ── Regenerate releases/vMAJOR.MINOR.x/index.md sections ──────────
-if RELEASES_V and os.path.exists(RELEASES_V) and MAJOR_MINOR:
-    with open(RELEASES_V) as f:
-        series_content = f.read()
-    series_rows = [
-        r for r in rows
-        if str(r[0][0]) + '.' + str(r[0][1]) == MAJOR_MINOR
-    ]
-    if series_rows:
-        # Keep the intro (everything before the first version heading)
-        intro_match = re.search(r'^## v', series_content, re.MULTILINE)
-        if intro_match:
-            intro = series_content[:intro_match.start()]
-        else:
-            intro_end = series_content.rfind('\\n---\\n')
-            if intro_end > 0:
-                intro = series_content[:intro_end + 5] + '\\n'
-            else:
-                intro = series_content + '\\n'
-        # Build version sections from changelog bodies
-        sections = []
-        for ver_tuple, ver, date, body in sorted(series_rows, key=lambda r: r[0], reverse=True):
-            if body:
-                sections.append(f'## v{ver} \\u2014 {date}\\n\\n{body}\\n\\n---')
-        if sections:
-            new_series = intro + '\\n'.join(sections) + '\\n'
-            with open(RELEASES_V, 'w') as f:
-                f.write(new_series)
-            print(f'  \u2713 {os.path.basename(RELEASES_V)} sections regenerated from CHANGELOG.md')
-    else:
-        print(f'  - no changelog sections for series v{MAJOR_MINOR}.x')
-elif RELEASES_V and MAJOR_MINOR:
-    print('  ! series file does not exist yet (will be created below)')
-"
-
-# Create releases series directory if it doesn't exist (e.g. v0.4.x/)
-# When a major/minor bump occurs, create the new series file from a template
-if [[ ! -f "$RELEASES_V" ]]; then
-    mkdir -p "$RELEASES_SERIES_DIR"
-    # Find the previous series directory
-    PREV_SERIES=$(find "$ROOT/docs/content/docs/releases" -maxdepth 1 -type d -name 'v*.x' \
-        | sed 's/.*\/v\([0-9.]*\).x/\1/' | sort -t. -k1,1n -k2,2n | tail -1)
-    # Mark the previous series as no longer current (e.g. "Current Stable Series" → "Stable Series")
-    if [[ -n "$PREV_SERIES" ]]; then
-        PREV_FILE="$ROOT/docs/content/docs/releases/v${PREV_SERIES}.x/index.md"
-        if [[ -f "$PREV_FILE" ]]; then
-            if [[ "$(uname)" == "Darwin" ]]; then
-                sed -i '' 's/— Current Stable Series$/— Stable Series (Legacy)/' "$PREV_FILE"
-                sed -i '' 's/stable series\.$/stable series (legacy)./' "$PREV_FILE"
-            else
-                sed -i 's/— Current Stable Series$/— Stable Series (Legacy)/' "$PREV_FILE"
-                sed -i 's/stable series\.$/stable series (legacy)./' "$PREV_FILE"
-            fi
-            echo -e "  ${GREEN}✓${NC} v${PREV_SERIES}.x marked as legacy"
-        fi
+echo "→ Syncing first-release documentation"
+FIRST_RELEASE="$ROOT/docs/content/docs/first-release.md"
+if [[ -f "$FIRST_RELEASE" ]]; then
+    if [[ "$(uname)" == "Darwin" ]]; then
+        sed -i '' -E "s/(# Ironic )[0-9.]+/\\1$NEW/; s/(starts with Ironic )[0-9.]+/\\1$NEW/" "$FIRST_RELEASE"
+    else
+        sed -i -E "s/(# Ironic )[0-9.]+/\\1$NEW/; s/(starts with Ironic )[0-9.]+/\\1$NEW/" "$FIRST_RELEASE"
     fi
-    {
-        echo "---"
-        echo "title: v${MAJOR_MINOR}.x"
-        echo "description: Complete changelog and release notes for the Ironic v${MAJOR_MINOR}.x stable series."
-        echo "---"
-        echo ""
-        echo "# v${MAJOR_MINOR}.x — Current Stable Series"
-        echo ""
-        echo "All versions in the v${MAJOR_MINOR}.x series."
-        echo ""
-        echo "---"
-        echo ""
-    } > "$RELEASES_V"
-    echo -e "  ${GREEN}✓${NC} created $RELEASES_V with new series"
+    echo -e "  ${GREEN}✓${NC} $FIRST_RELEASE"
 fi
-
-# (series version sections are regenerated from CHANGELOG.md by the Python block above)
 
 # ── step 6: pre-flight checks ───────────────────────────────────────
 
@@ -389,34 +250,10 @@ cargo test --all-features
 echo "  • bun run build (docs)"
 bun install --frozen-lockfile --cwd "$ROOT/docs" && bun run --cwd "$ROOT/docs" build
 
-# ── step 7: commit & push (no tag) ──────────────────────────────────
-# The tag is created and pushed by the CI release workflow
-# (triggered manually via workflow_dispatch) only after verification
-# and publish succeed.
+# ── step 7: hand off ────────────────────────────────────────────────
 
-echo "→ Committing and pushing v$NEW (tag will be created by CI)..."
-
-cd "$ROOT"
-
-git add -A
-
-if ! git diff --cached --quiet; then
-    git commit -m "chore: release v$NEW"
-    echo -e "  ${GREEN}✓${NC} committed"
-else
-    echo "  - nothing to commit"
-fi
-
-echo "→ Pushing to current branch..."
-if ! git push origin HEAD; then
-    echo -e "  ${RED}✗${NC} failed to push to origin — aborting"
-    exit 1
-fi
-
-echo ""
-echo -e "${GREEN}╔══════════════════════════════════════════════════════════════════╗${NC}"
+echo -e "${GREEN}╔══════════════════════════════════════════════════════╗${NC}"
 echo -e "${GREEN}║${NC}  🚀 Prepared ${CYAN}v$NEW${NC} for release"
-echo -e "${GREEN}║${NC}  Commit pushed to main."
-echo -e "${GREEN}║${NC}  CI will auto-detect the version bump and trigger the release workflow."
-echo -e "${GREEN}║${NC}  Tag and crates.io publish will happen automatically after CI passes."
-echo -e "${GREEN}╚══════════════════════════════════════════════════════════════════╝${NC}"
+echo -e "${GREEN}║${NC}  Commit, tag, and push manually when ready."
+echo -e "${GREEN}╚══════════════════════════════════════════════════════╝${NC}"
+

@@ -4,10 +4,8 @@
     "overview",
     "http",
     "websocket",
-    "graphql",
     "mcp",
     "sse",
-    "events",
-    "events-tutorial"
+    "events"
   ]
 }

@@ -74,7 +74,10 @@ pub fn create(
     ];
     for (relative, contents) in &files {
         let path = destination.join(relative);
-        if path.exists()
+        let framework_owned =
+            *relative == "Cargo.toml" || *relative == "ironic.toml" || relative.starts_with("src/");
+        if framework_owned
+            && path.exists()
             && fs::read_to_string(&path).map_err(|error| CliError::io("read", &path, error))?
                 != *contents
         {

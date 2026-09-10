@@ -76,9 +76,6 @@ pub struct NewArgs {
     /// Uses local framework crates from a workspace checkout.
     #[arg(long, hide = true)]
     pub framework_workspace: Option<PathBuf>,
-    /// Generate a GraphQL project instead of HTTP (requires `async-graphql`).
-    #[arg(long)]
-    pub graphql: bool,
 }
 
 /// Arguments passed through to Cargo after `--`.
@@ -98,12 +95,6 @@ pub struct CargoArgs {
 pub struct AppArgs {
     /// App name.
     pub name: String,
-    /// Generate a gRPC service instead of HTTP (requires `tonic` + `prost`).
-    #[arg(long)]
-    pub grpc: bool,
-    /// Generate a GraphQL service instead of HTTP (requires `async-graphql`).
-    #[arg(long)]
-    pub graphql: bool,
 }
 
 /// Arguments for the `openapi` command.
@@ -184,15 +175,12 @@ pub enum Generator {
     /// Generates a production-ready module with authentication and authorization.
     #[command(alias = "rr")]
     ReadyResource(ReadyResourceArgs),
-    /// Generates a new microservice app in the monorepo.
+    /// Generates a new HTTP app in the monorepo.
     #[command(alias = "a")]
     App(AppArgs),
     /// Generates a reusable library crate.
     #[command(alias = "lib")]
     Library(NameArgs),
-    /// Generates a GraphQL resolver scaffold.
-    #[command(alias = "gql")]
-    GraphqlResolver(NameArgs),
 }
 
 /// Ready-resource variant selection.

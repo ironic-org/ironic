@@ -1,5 +1,3 @@
-mod graphql;
-mod grpc;
 pub(crate) mod http;
 mod platform;
 pub(crate) mod production;
@@ -17,15 +15,12 @@ use super::{
     monorepo,
 };
 
-/// Generates a new microservice app inside a monorepo workspace.
-///
-/// When `grpc` is true, generates a gRPC service with `tonic` + `prost`
-/// instead of an HTTP service with `AxumAdapter`.
+/// Generates a new HTTP app inside a monorepo workspace.
 ///
 /// # Errors
 ///
 /// Returns [`CliError`] for invalid names, existing destinations, or filesystem errors.
-pub fn generate_app(root: &Path, name: &str, kind: AppKind) -> Result<GenerationReport, CliError> {
+pub fn generate_app(root: &Path, name: &str, _kind: AppKind) -> Result<GenerationReport, CliError> {
     let names = naming::Names::parse(name)?;
     let mut report = GenerationReport::default();
 
@@ -42,11 +37,7 @@ pub fn generate_app(root: &Path, name: &str, kind: AppKind) -> Result<Generation
     }
 
     let port = next_port(root);
-    let files = match kind {
-        AppKind::Grpc => generate_grpc_files(&dest, &names, port),
-        AppKind::Graphql => generate_graphql_files(&dest, &names, port),
-        AppKind::Http => generate_app_files(&dest, &names, port),
-    };
+    let files = generate_app_files(&dest, &names, port);
 
     for (path, contents) in &files {
         write_app_file(path, contents, &mut report)?;
@@ -83,98 +74,6 @@ fn generate_app_files(
         (
             dest.join("src/app_service.rs"),
             http::app_service(&names.raw, version),
-        ),
-        (
-            dest.join("src/platform/mod.rs"),
-            platform::app_platform_mod(),
-        ),
-        (
-            dest.join("src/platform/logging.rs"),
-            platform::app_platform_logging(),
-        ),
-        (
-            dest.join("src/platform/config.rs"),
-            platform::app_platform_config(),
-        ),
-        (
-            dest.join("PRODUCTION.md"),
-            production::app_production_guide(&names.raw, port),
-        ),
-    ]
-}
-
-/// Returns the list of files for a gRPC app.
-fn generate_grpc_files(
-    dest: &Path,
-    names: &naming::Names,
-    port: u16,
-) -> Vec<(std::path::PathBuf, String)> {
-    let version = env!("CARGO_PKG_VERSION");
-    vec![
-        (dest.join("Cargo.toml"), grpc::app_manifest_grpc(names)),
-        (dest.join("Dockerfile"), http::app_dockerfile(names, port)),
-        (dest.join(".env"), http::app_env(names, port)),
-        (dest.join("src/main.rs"), grpc::app_main_grpc(names, port)),
-        (dest.join("src/app.rs"), grpc::app_module_grpc()),
-        (
-            dest.join("src/app_service.rs"),
-            http::app_service(&names.raw, version),
-        ),
-        (
-            dest.join("src/platform/mod.rs"),
-            platform::app_platform_mod(),
-        ),
-        (
-            dest.join("src/platform/logging.rs"),
-            platform::app_platform_logging(),
-        ),
-        (
-            dest.join("src/platform/config.rs"),
-            platform::app_platform_config(),
-        ),
-        (dest.join("build.rs"), grpc::app_build()),
-        (dest.join("proto/hello.proto"), grpc::app_proto(names)),
-        (dest.join("src/modules/mod.rs"), grpc::app_modules_mod()),
-        (
-            dest.join("src/modules/greet/mod.rs"),
-            grpc::app_greet_mod().to_string(),
-        ),
-        (
-            dest.join("src/modules/greet/greeter_service.rs"),
-            grpc::app_greeter_service(names),
-        ),
-        (
-            dest.join("src/modules/greet/greet_repository.rs"),
-            grpc::app_greet_repository(),
-        ),
-        (
-            dest.join("PRODUCTION.md"),
-            production::app_production_guide(&names.raw, port),
-        ),
-    ]
-}
-
-/// Returns the list of files for a GraphQL app.
-fn generate_graphql_files(
-    dest: &Path,
-    names: &naming::Names,
-    port: u16,
-) -> Vec<(std::path::PathBuf, String)> {
-    vec![
-        (
-            dest.join("Cargo.toml"),
-            graphql::app_manifest_graphql(names),
-        ),
-        (dest.join("Dockerfile"), http::app_dockerfile(names, port)),
-        (dest.join(".env"), http::app_env(names, port)),
-        (
-            dest.join("src/main.rs"),
-            graphql::app_main_graphql(names, port),
-        ),
-        (dest.join("src/app.rs"), graphql::app_module_graphql()),
-        (
-            dest.join("src/app_service.rs"),
-            graphql::app_service_graphql(),
         ),
         (
             dest.join("src/platform/mod.rs"),

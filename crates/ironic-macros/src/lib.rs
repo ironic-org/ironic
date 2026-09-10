@@ -11,13 +11,11 @@ use proc_macro::TokenStream;
 mod controller;
 mod event;
 mod from_row;
-mod graphql;
 mod injectable;
 mod jwt_guard;
 mod mapped_types;
 mod mcp_tool;
 mod merge;
-mod message;
 mod module;
 mod openapi;
 mod routes;
@@ -37,41 +35,6 @@ pub fn derive_injectable(input: TokenStream) -> TokenStream {
 /// Derives a static application module definition.
 pub fn derive_module(input: TokenStream) -> TokenStream {
     module::expand(input.into())
-        .unwrap_or_else(syn::Error::into_compile_error)
-        .into()
-}
-
-#[proc_macro_attribute]
-/// Marks a struct as a GraphQL resolver with DI injection.
-///
-/// The struct is automatically registered as an `#[Injectable]` and can be
-/// used in GraphQL schema building.
-pub fn resolver(attribute: TokenStream, item: TokenStream) -> TokenStream {
-    graphql::expand_resolver(attribute.into(), item.into())
-        .unwrap_or_else(syn::Error::into_compile_error)
-        .into()
-}
-
-#[proc_macro_attribute]
-/// Marks a method as a GraphQL query field.
-pub fn gql_query(attribute: TokenStream, item: TokenStream) -> TokenStream {
-    graphql::expand_query(attribute.into(), item.into())
-        .unwrap_or_else(syn::Error::into_compile_error)
-        .into()
-}
-
-#[proc_macro_attribute]
-/// Marks a method as a GraphQL mutation field.
-pub fn mutation(attribute: TokenStream, item: TokenStream) -> TokenStream {
-    graphql::expand_mutation(attribute.into(), item.into())
-        .unwrap_or_else(syn::Error::into_compile_error)
-        .into()
-}
-
-#[proc_macro_attribute]
-/// Marks a method as a GraphQL subscription field.
-pub fn subscription(attribute: TokenStream, item: TokenStream) -> TokenStream {
-    graphql::expand_subscription(attribute.into(), item.into())
         .unwrap_or_else(syn::Error::into_compile_error)
         .into()
 }
@@ -208,30 +171,6 @@ pub fn mcp_tool(attribute: TokenStream, item: TokenStream) -> TokenStream {
 }
 
 #[proc_macro_attribute]
-/// Registers an async function as a message handler on a `MicroserviceServer`.
-///
-/// The handler receives a deserialized request and returns a response that is
-/// serialized and sent back to the caller. Use with a microservice server that
-/// implements the request-response pattern.
-///
-/// # Example
-///
-/// ```ignore
-/// use std::sync::Arc;
-/// use ironic::distributed::{MicroserviceServer, MessageContext};
-///
-/// #[message("user.get")]
-/// async fn get_user(request: GetUserRequest) -> GetUserResponse {
-///     // ...
-/// }
-/// ```
-pub fn message(attribute: TokenStream, item: TokenStream) -> TokenStream {
-    message::expand(attribute.into(), item.into())
-        .unwrap_or_else(syn::Error::into_compile_error)
-        .into()
-}
-
-#[proc_macro_attribute]
 /// Registers an async function as an event handler on the application's `EventBus`.
 ///
 /// The event type is inferred from the method's single parameter (supports `Arc<E>`).
@@ -329,8 +268,6 @@ marker_attribute!(
     forward_ref,
     raw_body,
     cookie,
-    outbox,
-    inbox,
 );
 
 /// Wraps an async test function with Ironic's Tokio runtime, removing the

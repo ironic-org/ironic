@@ -12,7 +12,6 @@
     "---",
     "http-api",
     "transport",
-    "distributed",
     "middleware",
     "---",
     "data-auth",
@@ -24,8 +23,7 @@
     "testing",
     "advanced",
     "---",
-    "releases",
-    "migrations",
+    "first-release",
     "more"
   ]
 }

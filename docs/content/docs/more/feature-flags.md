@@ -49,26 +49,9 @@ Every feature flag in `Cargo.toml` (58 total), organized by category.
 | `http-client` | Injectable HTTP client (`HttpClientService`, `RetryClient`, `CircuitBreakerClient`) |
 | `application-services` | Bundled: `cache`, `scheduling`, `events`, `realtime` |
 
-## Distributed Systems
-| Flag | Enables |
-|------|---------|
-| `queues` | Message queue abstractions — [`Queues`](../distributed/queues) |
-| `outbox` | Transactional outbox + inbox — [`Outbox`](../distributed/outbox) |
-| `microservices` | Microservice patterns |
-| `cqrs` | Command Query Responsibility Segregation |
-| `sagas` | Saga orchestration patterns — [`Sagas`](../distributed/sagas) |
-| `grpc` | gRPC server/client (via `tonic`) |
-| `graphql` | GraphQL server (via `async-graphql`) |
-| `distributed` | Bundled: `queues`, `microservices`, `cqrs`, `sagas`, `grpc`, `graphql` |
-
 ## Transport
 | Flag | Enables |
 |------|---------|
-| `transport-redis` | Redis message transport |
-| `transport-rabbitmq` | RabbitMQ message transport (via `lapin`) |
-| `transport-kafka` | Kafka message transport |
-| `transport-mqtt` | MQTT message transport (via `rumqttc`) |
-| `transport-nats` | NATS message transport (via `async-nats`) |
 | `tls` | TLS/HTTPS configuration (`TlsConfig`, cert/key paths) |
 | `serverless` | AWS Lambda deployment (`AxumApplication::run_lambda()`) |
 

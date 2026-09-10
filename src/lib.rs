@@ -31,17 +31,6 @@ mod config_impl;
 mod core;
 #[path = "../crates/ironic-di/src/lib.rs"]
 mod di;
-#[cfg(any(
-    feature = "queues",
-    feature = "microservices",
-    feature = "cqrs",
-    feature = "sagas",
-    feature = "grpc",
-    feature = "graphql",
-    feature = "outbox"
-))]
-#[path = "../crates/ironic-distributed/src/lib.rs"]
-pub mod distributed;
 #[cfg(feature = "metrics")]
 #[path = "../crates/ironic-metrics/src/lib.rs"]
 pub mod metrics;
@@ -55,9 +44,6 @@ pub mod telemetry;
 #[cfg(any(feature = "plugins", feature = "devtools"))]
 #[path = "../crates/ironic-devtools/src/lib.rs"]
 pub mod ecosystem;
-#[cfg(feature = "graphql")]
-#[path = "../crates/ironic-graphql/src/lib.rs"]
-pub mod graphql_integration;
 #[path = "../crates/ironic-http/src/lib.rs"]
 mod http_impl;
 #[path = "../crates/ironic-integrations/src/lib.rs"]
@@ -109,6 +95,7 @@ pub use ironic_macros::jwt_guard;
 
 #[cfg(feature = "events")]
 pub use ironic_macros::event;
+
 #[cfg(feature = "mcp")]
 pub use ironic_macros::mcp_tool;
 pub use ironic_macros::{
@@ -118,11 +105,6 @@ pub use ironic_macros::{
     patch, pipe, post, put, query, raw_body, resp, routes, subscribe_message, r#test, timeout,
     web_socket_gateway,
 };
-#[cfg(feature = "outbox")]
-pub use ironic_macros::{inbox, outbox};
-
-#[cfg(feature = "microservices")]
-pub use ironic_macros::message;
 #[cfg(feature = "mcp")]
 pub use mcp::*;
 #[cfg(feature = "openapi")]
@@ -156,10 +138,6 @@ pub mod time {
     pub use chrono::{DateTime, Duration, Utc};
 }
 
-/// Re-export of [`async_graphql`] when the `graphql` feature is enabled.
-#[cfg(feature = "graphql")]
-pub use async_graphql;
-
 /// Re-export of [`axum`] for use in generated code.
 pub use axum;
 
@@ -172,18 +150,6 @@ pub use dotenvy;
 /// Re-export of [`tracing_subscriber`] for logging setup.
 #[cfg(feature = "logging")]
 pub use tracing_subscriber;
-
-/// Re-export of [`tonic`] when the `grpc` feature is enabled.
-#[cfg(feature = "grpc")]
-pub use tonic;
-
-/// Re-export of [`prost`] when the `grpc` feature is enabled.
-#[cfg(feature = "grpc")]
-pub use prost;
-
-/// Re-export of [`tonic_prost`] when the `grpc` feature is enabled.
-#[cfg(feature = "grpc")]
-pub use tonic_prost;
 
 /// Implementation details used by generated code.
 #[doc(hidden)]
@@ -300,32 +266,9 @@ pub mod prelude {
         any(feature = "redis", feature = "application-services")
     ))]
     pub use crate::cache_interceptor::CacheInterceptor;
-    #[cfg(feature = "outbox")]
-    pub use crate::distributed::inbox::{
-        InMemoryProcessedStore, InboxConsumer, InboxError, ProcessedStore,
-    };
-    #[cfg(all(feature = "outbox", feature = "queues"))]
-    pub use crate::distributed::outbox::QueueSink;
-    #[cfg(feature = "outbox")]
-    pub use crate::distributed::outbox::{
-        InMemoryOutboxStore, InMemorySink, OutboxError, OutboxRecord, OutboxRelay, OutboxStatus,
-        OutboxStore, RelayConfig, RelaySink, TransactionalOutbox,
-    };
-    #[cfg(all(feature = "queues", feature = "redis"))]
-    pub use crate::distributed::queues::{QueueConfig, RedisQueue};
-    #[cfg(feature = "microservices")]
-    pub use crate::distributed::transport_provider::{
-        EventClient, EventServer, TransportConfig, TransportKind,
-    };
+
     #[cfg(feature = "events")]
     pub use crate::event;
-    #[cfg(feature = "graphql")]
-    pub use crate::graphql_integration::*;
-    #[cfg(feature = "graphql")]
-    pub use ironic_macros::{gql_query, mutation, resolver, subscription};
-    #[cfg(feature = "outbox")]
-    pub use ironic_macros::{inbox, outbox};
-
     #[cfg(feature = "logging")]
     pub use crate::logging::{
         LogEntry, LogStorage, StorageError, TimeSeriesConfig, TimeSeriesModule,

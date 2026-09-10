@@ -37,7 +37,7 @@ ironic start
 - **Testing utilities** — in-process test app, provider overrides, fluent assertions
 - **CLI** — project scaffolding, code generators, doctor command
 - **OpenAPI** — automatic schema generation, Swagger UI
-- **Integrations** — SQLx, SeaORM, Diesel, MongoDB, Redis, JWT, OAuth, gRPC, GraphQL
+- **Integrations** — SQLx, SeaORM, Diesel, MongoDB, Redis, JWT, and OAuth
 
 ## Example
 

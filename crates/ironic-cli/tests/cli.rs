@@ -66,7 +66,6 @@ fn creates_a_project_inside_an_existing_directory() {
         &destination,
         "existing_project",
         Some(std::path::Path::new(env!("CARGO_MANIFEST_DIR"))),
-        false,
     )
     .unwrap();
 
@@ -90,7 +89,6 @@ fn checks_all_generated_paths_before_writing_into_an_existing_directory() {
             &destination,
             "existing-project",
             Some(std::path::Path::new(env!("CARGO_MANIFEST_DIR"))),
-            false,
         )
         .is_err()
     );
@@ -164,7 +162,7 @@ fn generated_project_builds_and_tests_offline() {
     let temporary = tempfile::tempdir().unwrap();
     let workspace = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
     let destination = temporary.path().join("sample-api");
-    project::create(&destination, "sample-api", Some(workspace), false).unwrap();
+    project::create(&destination, "sample-api", Some(workspace)).unwrap();
 
     let first = generate_resource(&destination, "products").unwrap();
     let second = generate_resource(&destination, "products").unwrap();

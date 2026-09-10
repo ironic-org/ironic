@@ -11,6 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Document monolith to event-driven microservices migration guide
 - Document application performance monitoring (APM) setup guide
 
+### Changed
+- Simplify the framework by removing distributed systems and alternate protocol integrations
+- Reset documentation to a first-release guide and remove historical blog, release, migration, and distributed pages
+
 ## [v1.2.9] - 2026-08-03
 ### Added
 - Transactional outbox and inbox for at-least-once event delivery

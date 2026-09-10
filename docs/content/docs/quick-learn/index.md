@@ -31,12 +31,12 @@ everything the framework offers.
 
 ## Feature flags
 
-Every Cargo feature — grouped by category (Database, Authentication, Distributed
-Systems, Transport, Security, Observability, and more) — is documented in the
+Every Cargo feature — grouped by category (Database, Authentication, Transport,
+Security, Observability, and more) — is documented in the
 [Feature Flag Reference](/docs/more/feature-flags).
 
 ## Where to go next
 
 - New to Ironic? Start at [Getting Started](/docs/getting-started/getting-started)
 - Building an API? See [Validation & pipes](/docs/http-api/validation-pipes)
-- Scaling out? See [Distributed Systems](/docs/distributed/overview)
+- Need background work? See [Scheduling](/docs/performance/scheduling)

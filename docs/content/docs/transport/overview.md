@@ -13,7 +13,6 @@ Ironic provides a unified transport abstraction that lets you expose your applic
 |-----------|--------|-------------|
 | [HTTP](/docs/transport/http) | ✅ Available | RESTful HTTP APIs with Axum |
 | [WebSocket](/docs/transport/websocket) | ✅ Available | Real-time bidirectional communication |
-| [GraphQL](/docs/transport/graphql) | ✅ Available | Query language for APIs |
 | [MCP](/docs/transport/mcp) | 🚧 Coming Soon | Model Context Protocol for AI agent integration |
 
 > OpenAPI spec generation and Swagger UI are documented under [HTTP & API → OpenAPI](/docs/http-api/openapi).
@@ -44,7 +43,6 @@ Transports are enabled via Cargo features:
 ironic = { version = "1.0", features = [
     "http",          # HTTP transport (always enabled)
     "realtime",      # WebSocket support
-    "graphql",       # GraphQL support
 ] }
 ```
 

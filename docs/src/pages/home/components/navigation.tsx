@@ -6,9 +6,8 @@ import { GIT_BRANCH } from '@/lib/constants';
 
 const navLinks = [
     { label: 'Docs', href: '/docs/getting-started', router: true },
-    { label: 'Blog', href: '/blog', router: true },
     { label: 'Examples', href: '/docs/more/examples', router: true },
-    { label: 'Releases', href: '/docs/releases', router: true },
+    { label: 'First Release', href: '/docs/first-release', router: true },
 ];
 
 const Navigation = () => {
